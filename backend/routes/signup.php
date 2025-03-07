@@ -1,4 +1,9 @@
 <?php
+// Ensure session is started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 require_once '../controllers/authController.php';
 header('Content-Type: application/json');
 
@@ -23,10 +28,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Add a new record if the email does not exist
         if (!emailExists($email)) {
             global $conn;
+            
+            // Retrieve the visually impaired flag from the session (defaulting to 0 if not set)
+            $visually_impaired = (isset($_SESSION['visually_impaired']) && $_SESSION['visually_impaired']) ? 1 : 0;
             $virtual_id = generateVirtualId(); // Generate virtual ID
             $role = 'user'; // Default role
-            $stmt = $conn->prepare("INSERT INTO users (email, role, virtual_id) VALUES (?, ?, ?)");
-            $stmt->bind_param("sss", $email, $role, $virtual_id);
+
+            // Note: The INSERT query now includes the visually_impaired column.
+            $stmt = $conn->prepare("INSERT INTO users (email, role, virtual_id, visually_impaired) VALUES (?, ?, ?, ?)");
+            $stmt->bind_param("sssi", $email, $role, $virtual_id, $visually_impaired);
 
             if (!$stmt->execute()) {
                 error_log("Failed to create a temporary user record for email: $email");
@@ -106,3 +116,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Handle invalid HTTP methods
     echo json_encode(['status' => false, 'message' => 'Invalid request method.']);
 }
+?>

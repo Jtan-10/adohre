@@ -1,3 +1,22 @@
+<?php
+// Start the session and include your database connection.
+session_start();
+require_once 'backend/db/db_connect.php';
+
+// Default visually impaired flag is 0.
+$isVisuallyImpaired = 0;
+if (isset($_SESSION['user_id'])) {
+    $user_id = $_SESSION['user_id'];
+    $stmt = $conn->prepare("SELECT visually_impaired FROM users WHERE user_id = ?");
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $stmt->bind_result($visually_impaired);
+    if ($stmt->fetch()) {
+        $isVisuallyImpaired = $visually_impaired;
+    }
+    $stmt->close();
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -125,7 +144,6 @@
     /* Back to Top Button */
     #backToTopBtn {
         display: none;
-        /* Hidden by default */
         position: fixed;
         bottom: 20px;
         right: 20px;
@@ -144,7 +162,35 @@
     #backToTopBtn:hover {
         background-color: #218838;
     }
+
+    /* Read Page Button - Always visible in top right for visually impaired users */
+    #readPageBtn {
+        display: none;
+        /* Shown only if isVisuallyImpaired == 1 */
+        position: fixed;
+        top: 70px;
+        right: 20px;
+        z-index: 99;
+        border: none;
+        outline: none;
+        background-color: var(--accent-color, #28A745);
+        color: white;
+        cursor: pointer;
+        padding: 12px 20px;
+        border-radius: 30%;
+        font-size: 1.2rem;
+        transition: background-color 0.3s ease;
+    }
+
+    #readPageBtn:hover {
+        background-color: #218838;
+    }
     </style>
+
+    <!-- Pass the visually impaired flag to JavaScript -->
+    <script>
+    var isVisuallyImpaired = <?php echo json_encode($isVisuallyImpaired); ?>;
+    </script>
 </head>
 
 <body>
@@ -187,16 +233,13 @@
                         <h2>About ADOHRE</h2>
                         <p>
                             The Association of Department of Health Retired Employees, or ADOHRE, is a non-stock,
-                            non-profit
-                            organization established in 2014 through the Securities Exchange Commission.
+                            non-profit organization established in 2014 through the Securities Exchange Commission.
                         </p>
                         <p>
                             Our organization is composed of up to 100 active members—retired employees and former
-                            officials of the
-                            Department of Health—with extensive experience in public health, nutrition, hospital
-                            management,
-                            regulatory oversight, facility development, health promotion, policy development, and
-                            management support.
+                            officials of the Department of Health—with extensive experience in public health, nutrition,
+                            hospital management, regulatory oversight, facility development, health promotion, policy
+                            development, and management support.
                         </p>
                     </div>
                 </div>
@@ -209,12 +252,9 @@
                 <h2>Empower Yourself with ADOHRE</h2>
                 <p>
                     Are you ready to elevate your skills and expand your knowledge? We offer a range of engaging
-                    webinars and
-                    training sessions designed to empower you in both your personal and professional journey. Our
-                    expert-led
-                    programs cover the latest trends and best practices, providing you with valuable insights and
-                    actionable
-                    strategies.
+                    webinars and training sessions designed to empower you in both your personal and professional
+                    journey. Our expert-led programs cover the latest trends and best practices, providing you with
+                    valuable insights and actionable strategies.
                 </p>
             </div>
         </section>
@@ -242,6 +282,12 @@
     <button id="backToTopBtn" title="Go to top">
         <i class="fas fa-arrow-up"></i>
     </button>
+
+    <!-- Read Page Button (only visible for visually impaired users) -->
+    <button id="readPageBtn" title="Read Page" style="display: none;">
+        <i class="fas fa-volume-up"></i>
+    </button>
+
     <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous">
@@ -249,10 +295,10 @@
 
     <!-- JavaScript for Back to Top Button -->
     <script>
-    // Get the button
+    // Get the back-to-top button
     const backToTopBtn = document.getElementById("backToTopBtn");
 
-    // When the user scrolls down 20px from the top of the document, show the button
+    // Show the button when the user scrolls down 20px
     window.onscroll = function() {
         if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
             backToTopBtn.style.display = "block";
@@ -261,7 +307,7 @@
         }
     };
 
-    // When the user clicks on the button, scroll to the top of the document
+    // Scroll to the top when the button is clicked
     backToTopBtn.addEventListener("click", function() {
         window.scrollTo({
             top: 0,
@@ -269,6 +315,97 @@
         });
     });
     </script>
+    <!-- JavaScript for the Read Page Button -->
+    <script>
+    // Function to split text into chunks and speak them sequentially.
+    function speakTextInChunks(text, maxChunkLength = 200) {
+        // Split text into chunks
+        let chunks = [];
+        while (text.length > 0) {
+            let chunk = text.substring(0, maxChunkLength);
+            // Try to avoid cutting off in the middle of a word:
+            let lastSpace = chunk.lastIndexOf(" ");
+            if (lastSpace > 0 && text.length > maxChunkLength) {
+                chunk = text.substring(0, lastSpace);
+            }
+            chunks.push(chunk);
+            text = text.substring(chunk.length);
+        }
+
+        // Function to speak a single chunk and then call the next one.
+        function speakChunk(index) {
+            if (index >= chunks.length) return; // All chunks spoken
+            const utterance = new SpeechSynthesisUtterance(chunks[index]);
+            utterance.lang = 'en-GB';
+            // Set up the voice
+            function setVoice() {
+                let voices = window.speechSynthesis.getVoices();
+                let selectedVoice = voices.find(voice =>
+                    voice.lang === 'en-GB' && voice.name.toLowerCase().includes('female')
+                );
+                if (!selectedVoice) {
+                    selectedVoice = voices.find(voice => voice.lang === 'en-GB') || voices[0];
+                }
+                utterance.voice = selectedVoice;
+                window.speechSynthesis.speak(utterance);
+            }
+            if (window.speechSynthesis.getVoices().length === 0) {
+                window.speechSynthesis.onvoiceschanged = setVoice;
+            } else {
+                setVoice();
+            }
+            // When this chunk finishes, speak the next chunk.
+            utterance.onend = function() {
+                speakChunk(index + 1);
+            };
+        }
+        speakChunk(0);
+    }
+
+    // Updated speakMessage function for shorter text (if needed)
+    function speakMessage(message) {
+        const utterance = new SpeechSynthesisUtterance(message);
+        utterance.lang = 'en-GB';
+
+        function setVoice() {
+            let voices = window.speechSynthesis.getVoices();
+            let selectedVoice = voices.find(voice =>
+                voice.lang === 'en-GB' && voice.name.toLowerCase().includes('female')
+            );
+            if (!selectedVoice) {
+                selectedVoice = voices.find(voice => voice.lang === 'en-GB') || voices[0];
+            }
+            utterance.voice = selectedVoice;
+            window.speechSynthesis.speak(utterance);
+        }
+        if (window.speechSynthesis.getVoices().length === 0) {
+            window.speechSynthesis.onvoiceschanged = setVoice;
+        } else {
+            setVoice();
+        }
+    }
+
+    // When the window loads, check if the user is visually impaired.
+    window.onload = function() {
+        console.log("Window loaded. isVisuallyImpaired =", isVisuallyImpaired);
+        if (isVisuallyImpaired == 1) {
+            // Show the Read Page button if visually impaired.
+            document.getElementById("readPageBtn").style.display = "block";
+        }
+    };
+
+    // Add click event listener to the Read Page button.
+    document.getElementById("readPageBtn").addEventListener("click", function() {
+        console.log("Read Page button clicked.");
+        // Grab all text content from the body
+        const fullText = document.body.textContent.trim();
+        console.log("Full text length:", fullText.length);
+
+        // Use the chunking function to speak the full text
+        speakTextInChunks(fullText);
+    });
+    </script>
+
 </body>
 
 </html>
