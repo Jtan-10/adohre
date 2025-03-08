@@ -2,37 +2,48 @@
 session_start();
 header('Content-Type: application/json');
 
-// Include your database connection file.
+// Include DB connection if needed
 require_once '../db/db_connect.php';
 
-// Get the JSON input.
+// Read the JSON input
 $data = json_decode(file_get_contents('php://input'), true);
 
 if (!isset($data['visually_impaired'])) {
-    echo json_encode(['status' => false, 'message' => 'No visually_impaired value provided.']);
+    // Missing required data
+    echo json_encode([
+        'status' => false,
+        'message' => 'Missing visually_impaired field'
+    ]);
     exit;
 }
 
+// Convert to 1 or 0
 $visually_impaired = $data['visually_impaired'] ? 1 : 0;
-$_SESSION['visually_impaired'] = $visually_impaired;
 
-// Insert or update the temporary table.
-$session_id = session_id();
-$query = "INSERT INTO temp_visually_impaired (session_id, visually_impaired) VALUES (?, ?)
-          ON DUPLICATE KEY UPDATE visually_impaired = ?";
-$stmt = $conn->prepare($query);
-if (!$stmt) {
-    echo json_encode(['status' => false, 'message' => 'Database error: failed to prepare statement.']);
+// Example database logic (adjust to your schema)
+$user_id = $_SESSION['user_id'] ?? null;
+if (!$user_id) {
+    echo json_encode([
+        'status' => false,
+        'message' => 'No user session found.'
+    ]);
     exit;
 }
-$stmt->bind_param("sii", $session_id, $visually_impaired, $visually_impaired);
 
-if ($stmt->execute()) {
-    echo json_encode(['status' => true, 'message' => 'Preference updated in database.']);
+// Suppose we want to update the users table:
+$stmt = $conn->prepare("UPDATE users SET visually_impaired = ? WHERE user_id = ?");
+if ($stmt) {
+    $stmt->bind_param("ii", $visually_impaired, $user_id);
+    $stmt->execute();
+    $stmt->close();
+    echo json_encode([
+        'status' => true,
+        'message' => 'Visually impaired preference updated.'
+    ]);
 } else {
-    echo json_encode(['status' => false, 'message' => 'Failed to update preference in database.']);
+    echo json_encode([
+        'status' => false,
+        'message' => 'Database error: Could not prepare statement.'
+    ]);
 }
-
-$stmt->close();
-$conn->close();
 ?>

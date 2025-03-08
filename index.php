@@ -191,6 +191,8 @@ if (isset($_SESSION['user_id'])) {
     <script>
     var isVisuallyImpaired = <?php echo json_encode($isVisuallyImpaired); ?>;
     </script>
+    <!-- Include the global TTS module (adjust the path if necessary) -->
+    <script src="tts.js"></script>
 </head>
 
 <body>
@@ -199,7 +201,7 @@ if (isset($_SESSION['user_id'])) {
         <?php include('header.php'); ?>
     </header>
 
-    <!-- Include the Sidebar -->
+    <!-- Sidebar -->
     <?php include('sidebar.php'); ?>
 
     <!-- Main Content -->
@@ -216,9 +218,7 @@ if (isset($_SESSION['user_id'])) {
                 <p class="lead">
                     Discover ADOHRE: Your Best Chapter is Here!
                 </p>
-                <a href="membership_form.php" class="btn btn-custom btn-lg">
-                    Join Us
-                </a>
+                <a href="membership_form.php" class="btn btn-custom btn-lg">Join Us</a>
             </div>
         </section>
 
@@ -263,12 +263,8 @@ if (isset($_SESSION['user_id'])) {
         <section class="section-padding text-center bg-light">
             <div class="container">
                 <h2>Where We Are</h2>
-                <p>
-                    5th Floor, Philippine Blood Center, 6512 Quezon Avenue, Diliman, Quezon City 1101
-                </p>
-                <a href="membership_form.php" class="btn btn-custom">
-                    Join Us
-                </a>
+                <p>5th Floor, Philippine Blood Center, 6512 Quezon Avenue, Diliman, Quezon City 1101</p>
+                <a href="membership_form.php" class="btn btn-custom">Join Us</a>
             </div>
         </section>
     </main>
@@ -284,7 +280,7 @@ if (isset($_SESSION['user_id'])) {
     </button>
 
     <!-- Read Page Button (only visible for visually impaired users) -->
-    <button id="readPageBtn" title="Read Page" style="display: none;">
+    <button id="readPageBtn" title="Read Page">
         <i class="fas fa-volume-up"></i>
     </button>
 
@@ -293,12 +289,9 @@ if (isset($_SESSION['user_id'])) {
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous">
     </script>
 
-    <!-- JavaScript for Back to Top Button -->
     <script>
-    // Get the back-to-top button
+    // Back-to-top button logic
     const backToTopBtn = document.getElementById("backToTopBtn");
-
-    // Show the button when the user scrolls down 20px
     window.onscroll = function() {
         if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
             backToTopBtn.style.display = "block";
@@ -306,106 +299,36 @@ if (isset($_SESSION['user_id'])) {
             backToTopBtn.style.display = "none";
         }
     };
-
-    // Scroll to the top when the button is clicked
     backToTopBtn.addEventListener("click", function() {
         window.scrollTo({
             top: 0,
             behavior: "smooth"
         });
     });
-    </script>
-    <!-- JavaScript for the Read Page Button -->
-    <script>
-    // Function to split text into chunks and speak them sequentially.
-    function speakTextInChunks(text, maxChunkLength = 200) {
-        // Split text into chunks
-        let chunks = [];
-        while (text.length > 0) {
-            let chunk = text.substring(0, maxChunkLength);
-            // Try to avoid cutting off in the middle of a word:
-            let lastSpace = chunk.lastIndexOf(" ");
-            if (lastSpace > 0 && text.length > maxChunkLength) {
-                chunk = text.substring(0, lastSpace);
-            }
-            chunks.push(chunk);
-            text = text.substring(chunk.length);
-        }
 
-        // Function to speak a single chunk and then call the next one.
-        function speakChunk(index) {
-            if (index >= chunks.length) return; // All chunks spoken
-            const utterance = new SpeechSynthesisUtterance(chunks[index]);
-            utterance.lang = 'en-GB';
-            // Set up the voice
-            function setVoice() {
-                let voices = window.speechSynthesis.getVoices();
-                let selectedVoice = voices.find(voice =>
-                    voice.lang === 'en-GB' && voice.name.toLowerCase().includes('female')
-                );
-                if (!selectedVoice) {
-                    selectedVoice = voices.find(voice => voice.lang === 'en-GB') || voices[0];
-                }
-                utterance.voice = selectedVoice;
-                window.speechSynthesis.speak(utterance);
-            }
-            if (window.speechSynthesis.getVoices().length === 0) {
-                window.speechSynthesis.onvoiceschanged = setVoice;
-            } else {
-                setVoice();
-            }
-            // When this chunk finishes, speak the next chunk.
-            utterance.onend = function() {
-                speakChunk(index + 1);
-            };
-        }
-        speakChunk(0);
-    }
-
-    // Updated speakMessage function for shorter text (if needed)
-    function speakMessage(message) {
-        const utterance = new SpeechSynthesisUtterance(message);
-        utterance.lang = 'en-GB';
-
-        function setVoice() {
-            let voices = window.speechSynthesis.getVoices();
-            let selectedVoice = voices.find(voice =>
-                voice.lang === 'en-GB' && voice.name.toLowerCase().includes('female')
-            );
-            if (!selectedVoice) {
-                selectedVoice = voices.find(voice => voice.lang === 'en-GB') || voices[0];
-            }
-            utterance.voice = selectedVoice;
-            window.speechSynthesis.speak(utterance);
-        }
-        if (window.speechSynthesis.getVoices().length === 0) {
-            window.speechSynthesis.onvoiceschanged = setVoice;
-        } else {
-            setVoice();
-        }
-    }
-
-    // When the window loads, check if the user is visually impaired.
-    window.onload = function() {
+    // When window loads, show the Read Page button if visually impaired
+    window.addEventListener('load', function() {
         console.log("Window loaded. isVisuallyImpaired =", isVisuallyImpaired);
         if (isVisuallyImpaired == 1) {
-            // Show the Read Page button if visually impaired.
             document.getElementById("readPageBtn").style.display = "block";
         }
-    };
+    });
 
-    // Add click event listener to the Read Page button.
+    // Read Page button: Read text from the main element only using innerText
     document.getElementById("readPageBtn").addEventListener("click", function() {
         console.log("Read Page button clicked.");
-        // Grab all text content from the body
-        const fullText = document.body.textContent.trim();
-        console.log("Full text length:", fullText.length);
-
-        // Use the chunking function to speak the full text
-        speakTextInChunks(fullText);
+        const mainElement = document.querySelector('main');
+        let textToRead = "";
+        if (mainElement) {
+            textToRead = mainElement.innerText.trim();
+            console.log("Reading from main element, length:", textToRead.length);
+        } else {
+            textToRead = document.body.innerText.trim();
+            console.log("No main element found, reading entire body, length:", textToRead.length);
+        }
+        TTS.speakTextInChunks(textToRead);
     });
     </script>
-
 </body>
 
 </html>

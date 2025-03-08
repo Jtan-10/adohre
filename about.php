@@ -1,4 +1,23 @@
-<?php session_start(); ?>
+<?php
+// Start the session and include your database connection.
+session_start();
+require_once 'backend/db/db_connect.php';
+
+// Default visually impaired flag is 0.
+$isVisuallyImpaired = 0;
+if (isset($_SESSION['user_id'])) {
+    $user_id = $_SESSION['user_id'];
+    $stmt = $conn->prepare("SELECT visually_impaired FROM users WHERE user_id = ?");
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $stmt->bind_result($visually_impaired);
+    if ($stmt->fetch()) {
+        $isVisuallyImpaired = $visually_impaired;
+    }
+    $stmt->close();
+}
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -248,7 +267,35 @@
     #backToTopBtn:hover {
         background-color: #218838;
     }
+
+    /* Read Page Button - Always visible in top right for visually impaired users */
+    #readPageBtn {
+        display: none;
+        /* Shown only if isVisuallyImpaired == 1 */
+        position: fixed;
+        top: 70px;
+        right: 20px;
+        z-index: 99;
+        border: none;
+        outline: none;
+        background-color: var(--accent-color, #28A745);
+        color: white;
+        cursor: pointer;
+        padding: 12px 20px;
+        border-radius: 30%;
+        font-size: 1.2rem;
+        transition: background-color 0.3s ease;
+    }
+
+    #readPageBtn:hover {
+        background-color: #218838;
+    }
     </style>
+    <!-- Pass the visually impaired flag to JavaScript -->
+    <script>
+    var isVisuallyImpaired = <?php echo json_encode($isVisuallyImpaired); ?>;
+    </script>
+    <script src="tts.js"></script>
 </head>
 
 <body>
@@ -294,9 +341,9 @@
                                     <div class="card-body">
                                         <h3 class="card-title text-success">Purpose</h3>
                                         <p class="card-text">
-                                            Foster cooperation and unity among members. Promote and implement
-                                            actions
-                                            for member empowerment and welfare.
+                                            Foster cooperation and unity among members. Promote and implement actions
+                                            for
+                                            member empowerment and welfare.
                                             Network with organizations and government agencies. Provide technical
                                             assistance and expertise to the DOH and partners.
                                         </p>
@@ -364,8 +411,7 @@
                         <li>Develop and implement actions for member empowerment, protection, and welfare.</li>
                         <li>Foster unity and cooperation among association members.</li>
                         <li>Enhance organizational sustainability, efficiency, and effectiveness.</li>
-                        <li>Advocate for health and social issues while bridging our initiatives with DOH units.
-                        </li>
+                        <li>Advocate for health and social issues while bridging our initiatives with DOH units.</li>
                         <li>Strengthen our initiatives through strategic partnerships and collaborations.</li>
                         <li>Network with organizations and government agencies to achieve our goals.</li>
                     </ul>
@@ -492,6 +538,14 @@
     <button id="backToTopBtn" title="Go to top">
         <i class="fas fa-arrow-up"></i>
     </button>
+
+    <!-- ***** TEXT TO SPEECH FUNCTION ADDED BELOW ***** -->
+    <!-- Read Page Button (only visible if you choose to make it available; it's always visible in this example) -->
+    <button id="readPageBtn" title="Read Page">
+        <i class="fas fa-volume-up"></i>
+    </button>
+    <!-- ***** END TEXT TO SPEECH FUNCTION ***** -->
+
     <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous">
@@ -517,6 +571,15 @@
         });
     });
 
+    // On window load, show the Read Page button if visually impaired.
+    window.addEventListener('load', function() {
+        console.log("Window loaded. isVisuallyImpaired =", isVisuallyImpaired);
+        if (isVisuallyImpaired == 1) {
+            document.getElementById("readPageBtn").style.display = "block";
+        }
+    });
+
+
     // Objectives Toggle
     const objectivesHeading = document.getElementById("objectivesHeading");
     const arrow = objectivesHeading.querySelector(".arrow");
@@ -525,6 +588,21 @@
     objectivesHeading.addEventListener("click", function() {
         objectivesCollapse.classList.toggle("show");
         arrow.classList.toggle("rotate");
+    });
+
+    // Read Page button: read text from <main> only using innerText
+    document.getElementById("readPageBtn").addEventListener("click", function() {
+        console.log("Read Page button clicked in about.php");
+        const mainElement = document.querySelector('main');
+        let textToRead = "";
+        if (mainElement) {
+            textToRead = mainElement.innerText.trim();
+            console.log("Reading from main element, length:", textToRead.length);
+        } else {
+            textToRead = document.body.innerText.trim();
+            console.log("No main found, reading entire body, length:", textToRead.length);
+        }
+        TTS.speakTextInChunks(textToRead);
     });
     </script>
 </body>

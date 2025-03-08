@@ -1,5 +1,5 @@
 <div class="modal fade" id="visuallyImpairedModal" tabindex="-1" aria-labelledby="visuallyImpairedModalLabel"
-    aria-hidden="true">
+    aria-modal="true" role="dialog">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">

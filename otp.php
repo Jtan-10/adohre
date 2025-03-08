@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 
@@ -25,7 +24,7 @@
 
     .right-pane {
         flex: 1;
-        background: url('assets/green-bg.jpg') no-repeat center center/cover;
+        background: url('assets/green_bg.png') no-repeat center center/cover;
     }
 
     .form-control {

@@ -1,3 +1,22 @@
+<?php
+// Start the session and include your database connection.
+session_start();
+require_once 'backend/db/db_connect.php';
+
+// Default visually impaired flag is 0.
+$isVisuallyImpaired = 0;
+if (isset($_SESSION['user_id'])) {
+    $user_id = $_SESSION['user_id'];
+    $stmt = $conn->prepare("SELECT visually_impaired FROM users WHERE user_id = ?");
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $stmt->bind_result($visually_impaired);
+    if ($stmt->fetch()) {
+        $isVisuallyImpaired = $visually_impaired;
+    }
+    $stmt->close();
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -24,7 +43,7 @@
 
     .right-pane {
         flex: 1;
-        background: url('assets/green-bg.jpg') no-repeat center center/cover;
+        background: url('assets/green_bg.png') no-repeat center center/cover;
     }
 
     .form-control {
@@ -42,6 +61,12 @@
         display: none;
     }
     </style>
+    <!-- Include the global TTS module (create tts.js with your TTS functions) -->
+    <script src="tts.js"></script>
+    <!-- Pass the visually impaired flag to JavaScript -->
+    <script>
+    var isVisuallyImpaired = <?php echo json_encode($isVisuallyImpaired); ?>;
+    </script>
 </head>
 
 <body>
@@ -91,43 +116,12 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous">
     </script>
+
     <script>
-    /// Modified speakMessage that accepts a callback to run after the utterance finishes.
-    function speakMessage(message, callback) {
-        const utterance = new SpeechSynthesisUtterance(message);
-        utterance.lang = 'en-GB';
-
-        // When the speech ends, call the callback if provided.
-        utterance.onend = function() {
-            if (callback) {
-                callback();
-            }
-        };
-
-        // Function to select an English (GB) female voice if available.
-        function setVoice() {
-            let voices = window.speechSynthesis.getVoices();
-            let selectedVoice = voices.find(voice => voice.lang === 'en-GB' && voice.name.toLowerCase().includes(
-                'female'));
-            if (!selectedVoice) {
-                selectedVoice = voices.find(voice => voice.lang === 'en-GB') || voices[0];
-            }
-            utterance.voice = selectedVoice;
-            window.speechSynthesis.speak(utterance);
-        }
-
-        if (window.speechSynthesis.getVoices().length === 0) {
-            window.speechSynthesis.onvoiceschanged = setVoice;
-        } else {
-            setVoice();
-        }
-    }
-
     // Set up Speech Recognition.
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     let recognition;
     let validResponseReceived = false; // Flag to check if valid response received.
-
     if (SpeechRecognition) {
         recognition = new SpeechRecognition();
         recognition.lang = 'en-US';
@@ -143,34 +137,30 @@
         recognition.onresult = function(event) {
             const transcript = event.results[0][0].transcript.toLowerCase();
             console.log("Recognized speech:", transcript);
-
             if (transcript.includes("yes")) {
                 validResponseReceived = true;
-                speakMessage("You said yes.", function() {
+                TTS.speakMessage("You said yes.", function() {
                     setVisuallyImpaired(true, visuallyImpairedModal);
                 });
             } else if (transcript.includes("no")) {
                 validResponseReceived = true;
-                speakMessage("You said no.", function() {
+                TTS.speakMessage("You said no.", function() {
                     setVisuallyImpaired(false, visuallyImpairedModal);
                 });
             } else {
-                // Invalid response: speak "try again" and listen again.
-                speakMessage("Try again.", startListening);
+                TTS.speakMessage("Try again.", startListening);
             }
         };
 
         recognition.onerror = function(event) {
             console.error("Speech recognition error:", event.error);
-            speakMessage("There was an error with speech recognition. Please click a button instead.", function() {
-                // Optionally, you might decide to start listening again here.
-            });
+            TTS.speakMessage("There was an error with speech recognition. Please click a button instead.",
+                function() {});
         };
 
         recognition.onend = function() {
-            // If recognition ended without a valid response, prompt to try again.
             if (!validResponseReceived) {
-                speakMessage("Try again.", startListening);
+                TTS.speakMessage("Try again.", startListening);
             }
         };
     } else {
@@ -199,10 +189,10 @@
             });
     }
 
-    // DOMContentLoaded: Initialize modal, event listeners, and the speech sequence.
+    // Globalize the initialization using event listeners.
     document.addEventListener('DOMContentLoaded', function() {
-        // Play a welcome message.
-        speakMessage("Welcome to Member Link! Please sign up with your email to get started.");
+        // Use the global TTS function for a welcome message.
+        TTS.speakMessage("Welcome to Member Link! Please sign up with your email to get started.");
 
         // Initialize the visually impaired modal so that clicking outside or pressing Escape won't close it.
         var visuallyImpairedModalElement = document.getElementById('visuallyImpairedModal');
@@ -211,13 +201,12 @@
             keyboard: false
         });
 
-        // When the modal is shown, read its content.
+        // When the modal is shown, read its content (text only) and then prompt "or say yes or no".
         visuallyImpairedModalElement.addEventListener('shown.bs.modal', function() {
-            const modalText = document.querySelector('#visuallyImpairedModal .modal-body').textContent
+            const modalText = document.querySelector('#visuallyImpairedModal .modal-body').innerText
                 .trim();
-            speakMessage(modalText, function() {
-                // After reading the modal, finish with "or say yes or no" then start listening.
-                speakMessage("or say yes or no", startListening);
+            TTS.speakMessage(modalText, function() {
+                TTS.speakMessage("or say yes or no", startListening);
             });
         });
 
@@ -227,22 +216,21 @@
         // Manual button listeners.
         document.getElementById('btnYes').addEventListener('click', function() {
             console.log("User clicked Yes.");
-            window.speechSynthesis.cancel(); // Stop any ongoing text-to-speech
-            speakMessage("You said yes.", function() {
+            window.speechSynthesis.cancel();
+            TTS.speakMessage("You said yes.", function() {
                 setVisuallyImpaired(true, visuallyImpairedModal);
             });
         });
 
-
         document.getElementById('btnNo').addEventListener('click', function() {
             console.log("User clicked No.");
-            window.speechSynthesis.cancel(); // Stop any ongoing text-to-speech
-            speakMessage("You said no.", function() {
+            window.speechSynthesis.cancel();
+            TTS.speakMessage("You said no.", function() {
                 setVisuallyImpaired(false, visuallyImpairedModal);
             });
         });
 
-        // Example: 'Send OTP' button handler.
+        // 'Send OTP' button handler.
         document.getElementById('signupBtn').addEventListener('click', async () => {
             const email = document.getElementById('email').value;
             if (!email) {
@@ -274,7 +262,7 @@
             }
         });
 
-        // Example implementations for showLoading, hideLoading, and showModal.
+        // Show/hide loading screen functions.
         function showLoading() {
             const ls = document.getElementById('loadingScreen');
             ls.classList.remove('d-none');
@@ -287,28 +275,28 @@
             ls.style.display = 'none';
         }
 
+        // Show Bootstrap modal function.
         function showModal(title, message, redirectUrl = null) {
             document.getElementById('responseModalLabel').textContent = title;
             document.getElementById('responseModalBody').textContent = message;
             var modal = new bootstrap.Modal(document.getElementById('responseModal'));
             modal.show();
             if (redirectUrl) {
-                document.getElementById('responseModal').addEventListener('hidden.bs.modal', () => {
+                modal._element.addEventListener('hidden.bs.modal', () => {
                     window.location.href = redirectUrl;
                 });
             }
         }
     });
 
+    // Add duplicate listener for signupBtn outside DOMContentLoaded block? (Optional: Remove if already inside.)
     document.getElementById('signupBtn').addEventListener('click', async () => {
         const email = document.getElementById('email').value;
-
         if (!email) {
             showModal('Error', 'Please enter your email.');
             return;
         }
-
-        showLoading(); // Show loading screen
+        showLoading();
         try {
             const response = await fetch('backend/routes/signup.php', {
                 method: 'POST',
@@ -319,10 +307,8 @@
                     email
                 })
             });
-
             const result = await response.json();
-            hideLoading(); // Hide loading screen
-
+            hideLoading();
             if (result.status) {
                 showModal('Success', result.message, `otp.php?action=signup&email=${email}`);
             } else {
@@ -334,32 +320,6 @@
             showModal('Error', 'An error occurred. Please try again.');
         }
     });
-
-    // Show Loading Screen
-    function showLoading() {
-        document.getElementById('loadingScreen').classList.remove('d-none');
-        document.getElementById('loadingScreen').style.display = 'flex';
-    }
-
-    // Hide Loading Screen
-    function hideLoading() {
-        document.getElementById('loadingScreen').classList.add('d-none');
-        document.getElementById('loadingScreen').style.display = 'none';
-    }
-
-    // Show Bootstrap Modal
-    function showModal(title, message, redirectUrl = null) {
-        document.getElementById('responseModalLabel').textContent = title;
-        document.getElementById('responseModalBody').textContent = message;
-        const modal = new bootstrap.Modal(document.getElementById('responseModal'));
-        modal.show();
-
-        if (redirectUrl) {
-            modal._element.addEventListener('hidden.bs.modal', () => {
-                window.location.href = redirectUrl;
-            });
-        }
-    }
     </script>
 </body>
 
