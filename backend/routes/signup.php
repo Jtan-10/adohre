@@ -74,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    // Final signup step: Collecting additional details (first name and last name)
+    // Final signup step: Collecting additional details (first name, last name) and optional faceData.
     elseif (isset($data['first_name'], $data['last_name'], $data['email'])) {
         $email = trim($data['email']);
         $first_name = trim($data['first_name']);
@@ -94,9 +94,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         global $conn;
 
-        // Update user details in the database
-        $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ? WHERE email = ?");
-        $stmt->bind_param("sss", $first_name, $last_name, $email);
+        // Check if a face image (Base64) was submitted.
+        if (isset($data['faceData']) && !empty($data['faceData'])) {
+            $faceData = $data['faceData'];
+            // Remove the prefix if it exists (e.g., "data:image/png;base64,")
+            if (strpos($faceData, 'base64,') !== false) {
+                $faceData = explode('base64,', $faceData)[1];
+            }
+            $decodedFaceData = base64_decode($faceData);
+
+            // Generate a unique file name (relative to the root)
+            $relativeFileName = 'uploads/faces/' . uniqid() . '.png';
+            // Build the absolute file path (adjusting for the location of signup.php)
+            $absoluteFilePath = '../../' . $relativeFileName;
+
+            // Ensure the uploads/faces folder exists (absolute path)
+            if (!file_exists('../../uploads/faces')) {
+                mkdir('../../uploads/faces', 0755, true);
+            }
+
+            // Save the image file using the absolute file path
+            if (file_put_contents($absoluteFilePath, $decodedFaceData) === false) {
+                echo json_encode(['status' => false, 'message' => 'Failed to save face image.']);
+                exit;
+            }
+
+            // Update the user details including the face image path.
+            $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ?, face_image = ? WHERE email = ?");
+            $stmt->bind_param("ssss", $first_name, $last_name, $relativeFileName, $email);
+        } else {
+            // If no face image provided, update normally.
+            $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ? WHERE email = ?");
+            $stmt->bind_param("sss", $first_name, $last_name, $email);
+        }
 
         if ($stmt->execute()) {
             echo json_encode(['status' => true, 'message' => 'Signup successful! You can now log in.']);
@@ -104,6 +134,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             error_log("Failed to update user details for email: $email");
             echo json_encode(['status' => false, 'message' => 'Failed to update account details.']);
         }
+        $stmt->close();
+        $conn->close();
         exit;
     }
 
