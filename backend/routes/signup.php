@@ -5,6 +5,10 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 require_once '../controllers/authController.php';
+
+// Include the S3 configuration file (ensure it initializes $s3 and $bucketName)
+require_once '../s3config.php';
+
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -98,34 +102,37 @@ elseif (isset($data['first_name'], $data['last_name'], $data['email'])) {
     $visually_impaired = (isset($_SESSION['visually_impaired']) && $_SESSION['visually_impaired']) ? 1 : 0;
 
     // Check if a face image (Base64) was submitted.
-    if (isset($data['faceData']) && !empty($data['faceData'])) {
-        $faceData = $data['faceData'];
-        // Remove the prefix if it exists (e.g., "data:image/png;base64,")
-        if (strpos($faceData, 'base64,') !== false) {
-            $faceData = explode('base64,', $faceData)[1];
-        }
-        $decodedFaceData = base64_decode($faceData);
+if (isset($data['faceData']) && !empty($data['faceData'])) {
+    $faceData = $data['faceData'];
+    // Remove the prefix if it exists (e.g., "data:image/png;base64,")
+    if (strpos($faceData, 'base64,') !== false) {
+        $faceData = explode('base64,', $faceData)[1];
+    }
+    $decodedFaceData = base64_decode($faceData);
 
-        // Generate a unique file name (relative to the root)
-        $relativeFileName = 'uploads/faces/' . uniqid() . '.png';
-        // Build the absolute file path (adjusting for the location of signup.php)
-        $absoluteFilePath = '../../' . $relativeFileName;
+    // Generate a unique file name (S3 key)
+    $s3Key = 'uploads/faces/' . uniqid() . '.png';
 
-        // Ensure the uploads/faces folder exists (absolute path)
-        if (!file_exists('../../uploads/faces')) {
-            mkdir('../../uploads/faces', 0755, true);
-        }
+    try {
+        $result = $s3->putObject([
+            'Bucket'      => $bucketName,          // Your S3 bucket name
+            'Key'         => $s3Key,               // The key under which the file is stored in S3
+            'Body'        => $decodedFaceData,     // The raw image data
+            'ACL'         => 'public-read',        // Adjust ACL as needed (e.g., 'private' for restricted access)
+            'ContentType' => 'image/png'
+        ]);
+    } catch (Aws\Exception\AwsException $e) {
+        echo json_encode(['status' => false, 'message' => 'Failed to upload face image to S3: ' . $e->getMessage()]);
+        exit;
+    }
 
-        // Save the image file using the absolute file path
-        if (file_put_contents($absoluteFilePath, $decodedFaceData) === false) {
-            echo json_encode(['status' => false, 'message' => 'Failed to save face image.']);
-            exit;
-        }
+    // Set the relative file name (or you could use $result['ObjectURL'] if you prefer the full URL)
+    $relativeFileName = $s3Key;
 
-        // Update the user details including first name, last name, face image, and visually impaired flag.
-        $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ?, face_image = ?, visually_impaired = ? WHERE email = ?");
-        $stmt->bind_param("sssis", $first_name, $last_name, $relativeFileName, $visually_impaired, $email);
-    } else {
+    // Update the user details including first name, last name, face image, and visually impaired flag.
+    $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ?, face_image = ?, visually_impaired = ? WHERE email = ?");
+    $stmt->bind_param("sssis", $first_name, $last_name, $relativeFileName, $visually_impaired, $email);
+} else {
         // Update without face image, but still update visually impaired flag.
         $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ?, visually_impaired = ? WHERE email = ?");
         $stmt->bind_param("ssis", $first_name, $last_name, $visually_impaired, $email);

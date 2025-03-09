@@ -3,6 +3,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 require_once __DIR__ . '/../db/db_connect.php';
+require_once __DIR__ . '/../s3config.php'; // adjust path as needed
 header('Content-Type: application/json');
 
 $action = $_POST['action'] ?? $_GET['action'] ?? null;
@@ -72,30 +73,42 @@ try {
 
         // Image handling
         $relativeImagePath = null;
-        if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-            $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
-            if (!in_array($_FILES['image']['type'], $allowedTypes)) {
-                echo json_encode(['status' => false, 'message' => 'Invalid file type. Only JPG, PNG, and GIF allowed.']);
-                exit();
-            }
+if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+    // Allowed file types
+    $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+    if (!in_array($_FILES['image']['type'], $allowedTypes)) {
+        echo json_encode(['status' => false, 'message' => 'Invalid file type. Only JPG, PNG, and GIF allowed.']);
+        exit();
+    }
 
-            $uploadDir = '../../uploads/event_images/';
-            if (!file_exists($uploadDir)) {
-                mkdir($uploadDir, 0755, true); // Ensure directory exists
-            }
-            
-            $imageName = time() . '_' . basename($_FILES['image']['name']); // Generate image name
-            $imagePath = $uploadDir . $imageName;
+    // Generate a unique filename for S3
+    $imageName = time() . '_' . basename($_FILES['image']['name']);
+    $s3Key = 'uploads/event_images/' . $imageName; // The “folder” structure in S3
 
-            // Move uploaded file
-            if (move_uploaded_file($_FILES['image']['tmp_name'], $imagePath)) {
-                $relativeImagePath = 'uploads/event_images/' . $imageName; // Save relative path for DB
-            } else {
-                error_log("Failed to move file to: $imagePath");
-                echo json_encode(['status' => false, 'message' => 'Failed to save uploaded image.']);
-                exit();
-            }
-        }
+    try {
+        // 3. Upload to S3
+        $result = $s3->putObject([
+            'Bucket' => $bucketName,          // e.g., 'adohre-bucket'
+            'Key'    => $s3Key,               // 'uploads/event_images/<unique_filename>'
+            'Body'   => fopen($_FILES['image']['tmp_name'], 'rb'),
+            'ACL'    => 'public-read',        // or 'private', adjust as needed
+            'ContentType' => $_FILES['image']['type']
+        ]);
+
+        // Optionally, store the full URL or just the S3 key.
+        // The relative path concept doesn't apply the same way as local storage,
+        // but if you want to keep a "relative path" notion, you can do:
+        $relativeImagePath = $s3Key; 
+
+        // Or you might store the public URL in the database:
+        // $relativeImagePath = $result['ObjectURL'];
+
+    } catch (Aws\Exception\AwsException $e) {
+        error_log("S3 upload error: " . $e->getMessage());
+        echo json_encode(['status' => false, 'message' => 'Failed to upload image to S3.']);
+        exit();
+    }
+}
 
         if ($action === 'add_event') {
             // Insert new event
@@ -215,31 +228,51 @@ try {
         $modality_details = htmlspecialchars($_POST['modality_details'] ?? '', ENT_QUOTES, 'UTF-8');
         
         $relativeImagePath = null;
-    
-        // Handle Image Upload (optional)
-        if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-            $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
-            if (!in_array($_FILES['image']['type'], $allowedTypes)) {
-                echo json_encode(['status' => false, 'message' => 'Invalid file type. Only JPG, PNG, and GIF allowed.']);
-                exit();
-            }
-    
-            $uploadDir = '../../uploads/training_images/';
-            if (!file_exists($uploadDir) && !mkdir($uploadDir, 0755, true)) {
-                echo json_encode(['status' => false, 'message' => 'Failed to create upload directory.']);
-                exit();
-            }
-    
-            $imageName = time() . '_' . basename($_FILES['image']['name']);
-            $imagePath = $uploadDir . $imageName;
-    
-            if (move_uploaded_file($_FILES['image']['tmp_name'], $imagePath)) {
-                $relativeImagePath = 'uploads/training_images/' . $imageName;
-            } else {
-                echo json_encode(['status' => false, 'message' => 'Failed to save uploaded image.']);
-                exit();
-            }
-        }
+
+if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+    $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+    if (!in_array($_FILES['image']['type'], $allowedTypes)) {
+        echo json_encode(['status' => false, 'message' => 'Invalid file type. Only JPG, PNG, and GIF allowed.']);
+        exit();
+    }
+
+    // Generate a unique name for the file in S3
+    $imageName = time() . '_' . basename($_FILES['image']['name']);
+    // We'll store it under "uploads/training_images/<uniqueName>"
+    $s3Key = 'uploads/training_images/' . $imageName;
+
+    try {
+        // Upload to S3
+        $result = $s3->putObject([
+            'Bucket' => $bucketName, // e.g. "my-s3-bucket"
+            'Key'    => $s3Key,
+            'Body'   => fopen($_FILES['image']['tmp_name'], 'rb'),
+            'ACL'    => 'public-read', // or 'private', adjust as needed
+            'ContentType' => $_FILES['image']['type']
+        ]);
+
+        // If you want to store the S3 object URL in your database:
+        // $relativeImagePath = $result['ObjectURL'];
+
+        // Or just store the S3 key, so you can build the URL later:
+        $relativeImagePath = $s3Key;
+
+    } catch (Aws\Exception\AwsException $e) {
+        echo json_encode([
+            'status' => false,
+            'message' => 'Failed to upload image to S3: ' . $e->getMessage()
+        ]);
+        exit();
+    }
+}
+
+// Now you can continue with the rest of your logic, storing $relativeImagePath in the database, etc.
+
+echo json_encode([
+    'status' => true,
+    'message' => 'Image uploaded successfully!',
+    'path' => $relativeImagePath
+]);
         // For updates, if no new image is uploaded, $relativeImagePath remains null,
         // and the query uses IFNULL() to retain the existing image.
     
@@ -282,20 +315,25 @@ try {
                 echo json_encode(['status' => false, 'message' => 'Invalid file type. Only JPG, PNG, and GIF allowed.']);
                 exit();
             }
-    
-            $uploadDir = '../../uploads/training_images/';
-            if (!file_exists($uploadDir) && !mkdir($uploadDir, 0755, true)) {
-                echo json_encode(['status' => false, 'message' => 'Failed to create upload directory.']);
-                exit();
-            }
-    
+            
+            // Generate a unique file name for S3
             $imageName = time() . '_' . basename($_FILES['image']['name']);
-            $imagePath = $uploadDir . $imageName;
-    
-            if (move_uploaded_file($_FILES['image']['tmp_name'], $imagePath)) {
-                $relativeImagePath = 'uploads/training_images/' . $imageName;
-            } else {
-                echo json_encode(['status' => false, 'message' => 'Failed to save uploaded image.']);
+            $s3Key = 'uploads/training_images/' . $imageName; // This will be the object key in S3
+        
+            try {
+                $result = $s3->putObject([
+                    'Bucket'      => $bucketName,         // Bucket name defined in s3config.php
+                    'Key'         => $s3Key,              // Object key where file will be stored
+                    'Body'        => fopen($_FILES['image']['tmp_name'], 'rb'),
+                    'ACL'         => 'public-read',       // Set to public-read if you want the image accessible publicly
+                    'ContentType' => $_FILES['image']['type']
+                ]);
+        
+                // You can store the S3 key in your database,
+                // or use $result['ObjectURL'] if you prefer to store the full URL.
+                $relativeImagePath = $s3Key;
+            } catch (Aws\Exception\AwsException $e) {
+                echo json_encode(['status' => false, 'message' => 'Failed to upload image to S3: ' . $e->getMessage()]);
                 exit();
             }
         }

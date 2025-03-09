@@ -1,6 +1,10 @@
 <?php
 session_start();
 require_once '../db/db_connect.php'; // Adjust path if necessary
+
+// Include the S3 configuration file (which sets up $s3 and $bucketName)
+require_once '../s3config.php';
+
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -30,35 +34,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     global $conn;
 
     // Check if a face image (Base64) was submitted
-    if (isset($data['faceData']) && !empty($data['faceData'])) {
-        $faceData = $data['faceData'];
-        // Remove the prefix if it exists (e.g., "data:image/png;base64,")
-        if (strpos($faceData, 'base64,') !== false) {
-            $faceData = explode('base64,', $faceData)[1];
-        }
-        $decodedFaceData = base64_decode($faceData);
-        if ($decodedFaceData === false) {
-            echo json_encode(['status' => false, 'message' => 'Failed to decode face image.']);
-            exit;
-        }
-        // Generate a unique file name (relative to the root)
-        $relativeFileName = 'uploads/faces/' . uniqid() . '.png';
-        // Build the absolute file path (adjusting for the location of update_user_details.php)
-        $absoluteFilePath = '../../' . $relativeFileName;
-        // Ensure the uploads/faces folder exists
-        if (!file_exists('../../uploads/faces')) {
-            mkdir('../../uploads/faces', 0755, true);
-        }
-        // Save the image file using the absolute file path
-        if (file_put_contents($absoluteFilePath, $decodedFaceData) === false) {
-            echo json_encode(['status' => false, 'message' => 'Failed to save face image.']);
-            exit;
-        }
+if (isset($data['faceData']) && !empty($data['faceData'])) {
+    $faceData = $data['faceData'];
+    // Remove the prefix if it exists (e.g., "data:image/png;base64,")
+    if (strpos($faceData, 'base64,') !== false) {
+        $faceData = explode('base64,', $faceData)[1];
+    }
+    $decodedFaceData = base64_decode($faceData);
+    if ($decodedFaceData === false) {
+        echo json_encode(['status' => false, 'message' => 'Failed to decode face image.']);
+        exit;
+    }
 
-        // Prepare an UPDATE query that includes first_name, last_name, and face_image.
-        $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ?, face_image = ? WHERE email = ?");
-        $stmt->bind_param("ssss", $first_name, $last_name, $relativeFileName, $email);
-    } else {
+    // Generate a unique file name (used as S3 key)
+    $s3Key = 'uploads/faces/' . uniqid() . '.png';
+
+    try {
+        // Upload the image data directly to S3
+        $result = $s3->putObject([
+            'Bucket'      => $bucketName,          // Your bucket name defined in s3config.php
+            'Key'         => $s3Key,               // The key where the file will be stored
+            'Body'        => $decodedFaceData,     // Raw image data
+            'ACL'         => 'public-read',        // Change ACL as needed
+            'ContentType' => 'image/png'
+        ]);
+    } catch (Aws\Exception\AwsException $e) {
+        echo json_encode(['status' => false, 'message' => 'Failed to upload face image to S3: ' . $e->getMessage()]);
+        exit;
+    }
+
+    // Use the S3 key as the stored path (you can also use $result['ObjectURL'] for the full URL)
+    $relativeFileName = $s3Key;
+
+    // Prepare an UPDATE query that includes first_name, last_name, and face_image.
+    $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ?, face_image = ? WHERE email = ?");
+    $stmt->bind_param("ssss", $first_name, $last_name, $relativeFileName, $email);
+} else {
         // If no face image is provided, update only the names.
         $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ? WHERE email = ?");
         $stmt->bind_param("sss", $first_name, $last_name, $email);

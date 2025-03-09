@@ -1,6 +1,10 @@
 <?php
 session_start();
 require_once '../db/db_connect.php';
+
+ // Include S3 configuration file (which sets up $s3 and $bucketName)
+ require_once '../s3config.php';
+
 header('Content-Type: application/json');
 
 $method = $_SERVER['REQUEST_METHOD']; // Request method
@@ -111,34 +115,40 @@ try {
         }
     } elseif ($method === 'POST') {
         // Handle profile updates for the logged-in user
+    
+        // First, handle the profile image upload if one is provided.
         if (!empty($_FILES['profile_image']['name'])) {
             $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
-            $max_file_size = 2 * 1024 * 1024;
-
+            $max_file_size = 2 * 1024 * 1024; // 2 MB
+    
             if (!in_array($_FILES['profile_image']['type'], $allowed_types)) {
                 echo json_encode(['status' => false, 'message' => 'Invalid file type.']);
                 exit();
             }
-
+    
             if ($_FILES['profile_image']['size'] > $max_file_size) {
                 echo json_encode(['status' => false, 'message' => 'File size exceeds 2 MB limit.']);
                 exit();
             }
-
-            $target_dir = '../../uploads/profile_images/';
-            if (!is_dir($target_dir)) {
-                mkdir($target_dir, 0777, true);
-            }
-
+    
+            // Generate a unique file name for the S3 object
             $file_name = $auth_user_id . '_' . time() . '_' . basename($_FILES['profile_image']['name']);
-            $target_file = $target_dir . $file_name;
-
-            if (move_uploaded_file($_FILES['profile_image']['tmp_name'], $target_file)) {
-                $profile_image_path = 'uploads/profile_images/' . $file_name;
-
+            $s3Key = 'uploads/profile_images/' . $file_name;
+    
+            try {
+                $result = $s3->putObject([
+                    'Bucket'      => $bucketName,
+                    'Key'         => $s3Key,
+                    'Body'        => fopen($_FILES['profile_image']['tmp_name'], 'rb'),
+                    'ACL'         => 'public-read', // adjust if needed
+                    'ContentType' => $_FILES['profile_image']['type']
+                ]);
+                // You can either store the S3 key or the full URL. Here we store the key.
+                $profile_image_path = $result['ObjectURL'];
+    
+                // Update the profile image in the database immediately
                 $stmt = $conn->prepare('UPDATE users SET profile_image = ? WHERE user_id = ?');
                 $stmt->bind_param('si', $profile_image_path, $auth_user_id);
-
                 if ($stmt->execute()) {
                     $_SESSION['profile_image'] = $profile_image_path;
                 } else {
@@ -146,25 +156,26 @@ try {
                     echo json_encode(['status' => false, 'message' => 'Failed to update profile image.']);
                     exit();
                 }
-            } else {
-                echo json_encode(['status' => false, 'message' => 'Error uploading profile image.']);
+            } catch (Aws\Exception\AwsException $e) {
+                echo json_encode(['status' => false, 'message' => 'Error uploading profile image to S3: ' . $e->getMessage()]);
                 exit();
             }
         }
-
+    
+        // Now update the other profile details.
         $first_name = trim($_POST['first_name'] ?? '');
         $last_name = trim($_POST['last_name'] ?? '');
         $email = trim($_POST['email'] ?? '');
-
+    
         if (!$first_name || !$last_name || !$email) {
             http_response_code(400);
             echo json_encode(['status' => false, 'message' => 'All fields are required.']);
             exit();
         }
-
+    
         $stmt = $conn->prepare('UPDATE users SET first_name = ?, last_name = ?, email = ? WHERE user_id = ?');
         $stmt->bind_param('sssi', $first_name, $last_name, $email, $auth_user_id);
-
+    
         if ($stmt->execute()) {
             echo json_encode(['status' => true, 'message' => 'Profile updated successfully.']);
         } else {

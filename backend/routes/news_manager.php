@@ -37,6 +37,9 @@ switch ($action) {
         break;
 }
 
+// Include the S3 connection file
+require_once '../s3config.php';
+
 function handleImageUpload() {
     if (!isset($_FILES['image']) || $_FILES['image']['error'] === UPLOAD_ERR_NO_FILE) {
         return null;
@@ -56,22 +59,23 @@ function handleImageUpload() {
         exit();
     }
     
-    $target_dir = "../../uploads/news_images/";
-    if (!is_dir($target_dir)) {
-        if (!mkdir($target_dir, 0777, true)) {
-            echo json_encode(['status' => false, 'message' => 'Failed to create image directory.']);
-            exit();
-        }
-    }
-    
     // Generate a unique file name
     $file_name = uniqid() . '_' . time() . '_' . basename($_FILES['image']['name']);
-    $target_file = $target_dir . $file_name;
+    $s3_key = 'uploads/news_images/' . $file_name;
     
-    if (move_uploaded_file($_FILES["image"]["tmp_name"], $target_file)) {
-        return 'uploads/news_images/' . $file_name;
-    } else {
-        echo json_encode(['status' => false, 'message' => 'Error uploading news image.']);
+    try {
+        $result = $s3->putObject([
+            'Bucket' => $bucketName, // from s3config.php
+            'Key'    => $s3_key,
+            'Body'   => fopen($_FILES['image']['tmp_name'], 'rb'),
+            'ACL'    => 'public-read' // Adjust permissions as needed
+        ]);
+        
+        // Return the S3 key or full URL if needed:
+        // return $result['ObjectURL'];
+        return $s3_key;
+    } catch (AwsException $e) {
+        echo json_encode(['status' => false, 'message' => 'Error uploading news image: ' . $e->getMessage()]);
         exit();
     }
 }

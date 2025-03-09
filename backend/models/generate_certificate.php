@@ -13,6 +13,9 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 // Include database connection
 require_once __DIR__ . '/../db/db_connect.php';
 
+// Include the S3 configuration file.
+require_once __DIR__ . '/../s3config.php';
+
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
@@ -252,24 +255,42 @@ if ($method == 'POST') {
         // Legacy branch: saves only a background image.
         $training_id = isset($_POST['training_id']) ? intval($_POST['training_id']) : 0;
 
-        if (isset($_FILES['certificate_background']) && $_FILES['certificate_background']['error'] == 0) {
-            $uploadDir = __DIR__ . '/../../uploads/certificates/';
-            if (!is_dir($uploadDir)) {
-                mkdir($uploadDir, 0777, true);
+        if (isset($_FILES['certificate_background']) && $_FILES['certificate_background']['error'] == UPLOAD_ERR_OK) {
+            $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+            if (!in_array($_FILES['certificate_background']['type'], $allowedTypes)) {
+                echo json_encode(['status' => false, 'message' => 'Invalid file type. Only JPG, PNG, and GIF allowed.']);
+                exit();
             }
+            
+            // Generate a unique file name and set the S3 object key.
             $filename = basename($_FILES['certificate_background']['name']);
-            $targetFile = $uploadDir . time() . "_" . $filename;
-
-            if (move_uploaded_file($_FILES['certificate_background']['tmp_name'], $targetFile)) {
+            $uniqueFileName = time() . "_" . $filename;
+            $s3Key = 'uploads/certificates/' . $uniqueFileName;
+    
+            try {
+                // Upload the file to S3.
+                $result = $s3->putObject([
+                    'Bucket'      => $bucketName, // defined in s3config.php
+                    'Key'         => $s3Key,
+                    'Body'        => fopen($_FILES['certificate_background']['tmp_name'], 'rb'),
+                    'ACL'         => 'public-read', // adjust if needed
+                    'ContentType' => $_FILES['certificate_background']['type']
+                ]);
+    
+                // Here, you can store either the S3 object URL or just the key.
+                // We'll store the S3 key as the relative path.
+                $relativeImagePath = $s3Key;
+    
+                // Save the configuration in the database.
                 $stmt = $conn->prepare("REPLACE INTO certificate_configurations (training_id, background_image) VALUES (?, ?)");
-                $stmt->bind_param("is", $training_id, $targetFile);
+                $stmt->bind_param("is", $training_id, $relativeImagePath);
                 if ($stmt->execute()) {
                     echo json_encode(['status' => true, 'message' => 'Configuration saved.']);
                 } else {
                     echo json_encode(['status' => false, 'message' => 'Database error saving configuration.']);
                 }
-            } else {
-                echo json_encode(['status' => false, 'message' => 'Failed to upload background image.']);
+            } catch (Aws\Exception\AwsException $e) {
+                echo json_encode(['status' => false, 'message' => 'Failed to upload background image to S3: ' . $e->getMessage()]);
             }
         } else {
             echo json_encode(['status' => false, 'message' => 'No background image uploaded.']);
@@ -289,16 +310,22 @@ if ($method == 'POST') {
             list($type, $data) = explode(';', $dataUrl);
             list(, $data) = explode(',', $data);
             $data = base64_decode($data);
-
-            $uploadDir = __DIR__ . '/../../uploads/certificates/';
-            if (!is_dir($uploadDir)) {
-                mkdir($uploadDir, 0777, true);
-            }
-            $targetFile = $uploadDir . time() . "_final.png";
-            if (file_put_contents($targetFile, $data)) {
-                $background_image_path = $targetFile;
-            } else {
-                echo json_encode(['status' => false, 'message' => 'Failed to save final image.']);
+    
+            // Upload the final image to S3.
+            $imageName = time() . "_final.png";
+            $s3Key = 'uploads/certificates/' . $imageName;
+            try {
+                $result = $s3->putObject([
+                    'Bucket'      => $bucketName,
+                    'Key'         => $s3Key,
+                    'Body'        => $data, // raw image data
+                    'ACL'         => 'public-read',
+                    'ContentType' => 'image/png'
+                ]);
+                // Store the S3 key (or use $result['ObjectURL'] if you want the full URL)
+                $background_image_path = $s3Key;
+            } catch (Aws\Exception\AwsException $e) {
+                echo json_encode(['status' => false, 'message' => 'Failed to upload final image to S3: ' . $e->getMessage()]);
                 exit();
             }
         }
@@ -309,17 +336,26 @@ if ($method == 'POST') {
         }
         
         // Also, check if a file was uploaded via the "background_image" file input (which overrides the design).
-        if (isset($_FILES['background_image']) && $_FILES['background_image']['error'] == 0) {
-            $uploadDir = __DIR__ . '/../../uploads/certificates/';
-            if (!is_dir($uploadDir)) {
-                mkdir($uploadDir, 0777, true);
+        if (isset($_FILES['background_image']) && $_FILES['background_image']['error'] == UPLOAD_ERR_OK) {
+            $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+            if (!in_array($_FILES['background_image']['type'], $allowedTypes)) {
+                echo json_encode(['status' => false, 'message' => 'Invalid file type. Only JPG, PNG, and GIF allowed.']);
+                exit();
             }
             $filename = basename($_FILES['background_image']['name']);
-            $targetFile = $uploadDir . time() . "_" . $filename;
-            if (move_uploaded_file($_FILES['background_image']['tmp_name'], $targetFile)) {
-                $background_image_path = $targetFile;
-            } else {
-                echo json_encode(['status' => false, 'message' => 'Failed to upload background image.']);
+            $uniqueName = time() . "_" . $filename;
+            $s3Key = 'uploads/certificates/' . $uniqueName;
+            try {
+                $result = $s3->putObject([
+                    'Bucket'      => $bucketName,
+                    'Key'         => $s3Key,
+                    'Body'        => fopen($_FILES['background_image']['tmp_name'], 'rb'),
+                    'ACL'         => 'public-read',
+                    'ContentType' => $_FILES['background_image']['type']
+                ]);
+                $background_image_path = $s3Key;
+            } catch (Aws\Exception\AwsException $e) {
+                echo json_encode(['status' => false, 'message' => 'Failed to upload background image to S3: ' . $e->getMessage()]);
                 exit();
             }
         }
