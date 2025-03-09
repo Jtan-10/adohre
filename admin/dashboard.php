@@ -57,8 +57,15 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                 <h1 class="mb-3">Admin Dashboard</h1>
                 <div>
                     <span>Welcome, <?php echo $_SESSION['first_name'] . ' ' . $_SESSION['last_name']; ?></span>
-                    <img src="<?php echo isset($_SESSION['profile_image']) ? '../' . $_SESSION['profile_image'] : '../assets/default-profile.jpeg'; ?>"
-                        alt="Profile Image" class="rounded-circle" width="30">
+                    <?php
+$imageSrc = '/assets/default-profile.jpeg'; // default local image
+if (isset($_SESSION['profile_image']) && !empty($_SESSION['profile_image'])) {
+    $imageSrc = $_SESSION['profile_image'];
+}
+?>
+                    <img src="<?php echo $imageSrc; ?>" alt="Profile Image" class="rounded-circle" width="30">
+
+
                 </div>
             </div>
 

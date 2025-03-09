@@ -6,6 +6,7 @@ require_once '../db/db_connect.php';
 
 // Include the S3 configuration file (ensure it initializes $s3 and $bucketName)
 require_once '../s3config.php';
+
 use Aws\Exception\AwsException;
 
 
@@ -45,31 +46,32 @@ switch ($action) {
 // Include the S3 connection file
 require_once '../s3config.php';
 
-function handleImageUpload() {
+function handleImageUpload()
+{
     global $s3, $bucketName; // Ensure these are available from s3config.php
 
     if (!isset($_FILES['image']) || $_FILES['image']['error'] === UPLOAD_ERR_NO_FILE) {
         return null;
     }
-    
+
     // Allowed file types and max file size (2 MB)
     $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
     $max_file_size = 2 * 1024 * 1024; // 2 MB
-    
+
     if (!in_array($_FILES['image']['type'], $allowed_types)) {
         echo json_encode(['status' => false, 'message' => 'Invalid file type for news image.']);
         exit();
     }
-    
+
     if ($_FILES['image']['size'] > $max_file_size) {
         echo json_encode(['status' => false, 'message' => 'News image exceeds 2 MB limit.']);
         exit();
     }
-    
+
     // Generate a unique file name
     $file_name = uniqid() . '_' . time() . '_' . basename($_FILES['image']['name']);
     $s3_key = 'uploads/news_images/' . $file_name;
-    
+
     try {
         $result = $s3->putObject([
             'Bucket' => $bucketName, // from s3config.php
@@ -77,16 +79,20 @@ function handleImageUpload() {
             'Body'   => fopen($_FILES['image']['tmp_name'], 'rb'),
             'ACL'    => 'public-read' // Adjust permissions as needed
         ]);
-        
+
         // Return the S3 key or full URL if needed:
-        // return $result['ObjectURL'];
-        return $result['ObjectURL'];
+        return str_replace(
+            "https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/",
+            "/s3proxy/",
+            $result['ObjectURL']
+        );
     } catch (AwsException $e) {
         echo json_encode(['status' => false, 'message' => 'Error uploading news image: ' . $e->getMessage()]);
         exit();
     }
 }
-function fetchNews() {
+function fetchNews()
+{
     global $conn;
     // Join with users table to get creator's full name
     $newsQuery = "SELECT 
@@ -107,12 +113,12 @@ function fetchNews() {
   FROM news n 
   LEFT JOIN users u ON n.created_by = u.user_id";
 
-    
+
     if (isset($_GET['id'])) {
         $newsQuery .= " WHERE n.news_id = ?";
     }
     $newsQuery .= " ORDER BY n.published_date DESC";
-    
+
     $stmt = $conn->prepare($newsQuery);
     if (!$stmt) {
         http_response_code(500);
@@ -143,7 +149,8 @@ function fetchNews() {
 }
 
 
-function addNews() {
+function addNews()
+{
     global $conn;
     if ($_SESSION['role'] !== 'admin') {
         http_response_code(403);
@@ -154,7 +161,7 @@ function addNews() {
     // Get the manual author inputs separately.
     $author_first = trim($_POST['author_first']);
     $author_last = trim($_POST['author_last']);
-    
+
     $stmt = $conn->prepare("INSERT INTO news (title, excerpt, content, category, image, author_first, author_last, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
     if (!$stmt) {
         http_response_code(500);
@@ -176,7 +183,8 @@ function addNews() {
     $stmt->close();
 }
 
-function updateNews() {
+function updateNews()
+{
     global $conn;
     if ($_SESSION['role'] !== 'admin') {
         http_response_code(403);
@@ -187,7 +195,7 @@ function updateNews() {
     // Get updated author inputs.
     $author_first = trim($_POST['author_first']);
     $author_last = trim($_POST['author_last']);
-    
+
     if ($image_path !== null) {
         $sql = "UPDATE news SET title=?, excerpt=?, content=?, category=?, image=?, author_first=?, author_last=? WHERE news_id=?";
     } else {
@@ -218,7 +226,8 @@ function updateNews() {
     $stmt->close();
 }
 
-function deleteNews() {
+function deleteNews()
+{
     global $conn;
     if ($_SESSION['role'] !== 'admin') {
         http_response_code(403);
@@ -242,7 +251,8 @@ function deleteNews() {
     $stmt->close();
 }
 
-function likeNews() {
+function likeNews()
+{
     global $conn;
     $checkStmt = $conn->prepare("SELECT like_id FROM news_likes WHERE news_id=? AND user_id=?");
     if (!$checkStmt) {
@@ -282,4 +292,3 @@ function likeNews() {
     }
     $stmt->close();
 }
-?>

@@ -13,7 +13,7 @@ try {
         // ----------------------------
         // FETCH EVENTS, ANNOUNCEMENTS, TRAININGS
         // ----------------------------
-        
+
         // -- EVENTS --
         $eventsQuery = "SELECT * FROM events ORDER BY date DESC";
         $eventsResult = $conn->query($eventsQuery);
@@ -23,12 +23,12 @@ try {
             $row['image'] = $row['image'] ?: '../../assets/default-image.jpeg';
             $events[] = $row;
         }
-        
+
         // -- ANNOUNCEMENTS --
         $announcementsQuery = "SELECT * FROM announcements ORDER BY created_at DESC";
         $announcementsResult = $conn->query($announcementsQuery);
         $announcements = $announcementsResult->fetch_all(MYSQLI_ASSOC);
-        
+
         // -- TRAININGS --
         // Use the logged-in user's id to check training registrations.
         if (isset($_SESSION['user_id'])) {
@@ -37,7 +37,7 @@ try {
             // If for any reason no user_id is available, default to zero.
             $user_id = 0;
         }
-        
+
         // Prepare the trainings query with a LEFT JOIN to the training_registrations table.
         $trainingsStmt = $conn->prepare("
             SELECT t.*, 
@@ -73,42 +73,45 @@ try {
 
         // Image handling
         $relativeImagePath = null;
-if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-    // Allowed file types
-    $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
-    if (!in_array($_FILES['image']['type'], $allowedTypes)) {
-        echo json_encode(['status' => false, 'message' => 'Invalid file type. Only JPG, PNG, and GIF allowed.']);
-        exit();
-    }
+        if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+            // Allowed file types
+            $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+            if (!in_array($_FILES['image']['type'], $allowedTypes)) {
+                echo json_encode(['status' => false, 'message' => 'Invalid file type. Only JPG, PNG, and GIF allowed.']);
+                exit();
+            }
 
-    // Generate a unique filename for S3
-    $imageName = time() . '_' . basename($_FILES['image']['name']);
-    $s3Key = 'uploads/event_images/' . $imageName; // The “folder” structure in S3
+            // Generate a unique filename for S3
+            $imageName = time() . '_' . basename($_FILES['image']['name']);
+            $s3Key = 'uploads/event_images/' . $imageName; // The “folder” structure in S3
 
-    try {
-        // 3. Upload to S3
-        $result = $s3->putObject([
-            'Bucket' => $bucketName,          // e.g., 'adohre-bucket'
-            'Key'    => $s3Key,               // 'uploads/event_images/<unique_filename>'
-            'Body'   => fopen($_FILES['image']['tmp_name'], 'rb'),
-            'ACL'    => 'public-read',        // or 'private', adjust as needed
-            'ContentType' => $_FILES['image']['type']
-        ]);
+            try {
+                // 3. Upload to S3
+                $result = $s3->putObject([
+                    'Bucket' => $bucketName,          // e.g., 'adohre-bucket'
+                    'Key'    => $s3Key,               // 'uploads/event_images/<unique_filename>'
+                    'Body'   => fopen($_FILES['image']['tmp_name'], 'rb'),
+                    'ACL'    => 'public-read',        // or 'private', adjust as needed
+                    'ContentType' => $_FILES['image']['type']
+                ]);
 
-        // Optionally, store the full URL or just the S3 key.
-        // The relative path concept doesn't apply the same way as local storage,
-        // but if you want to keep a "relative path" notion, you can do:
-        $relativeImagePath = $result['ObjectURL'];
+                // Optionally, store the full URL or just the S3 key.
+                // The relative path concept doesn't apply the same way as local storage,
+                // but if you want to keep a "relative path" notion, you can do:
+                $relativeImagePath = str_replace(
+                    "https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/",
+                    "/s3proxy/",
+                    $result['ObjectURL']
+                );
 
-        // Or you might store the public URL in the database:
-        // $relativeImagePath = $result['ObjectURL'];
+                // Or you might store the public URL in the database:
 
-    } catch (Aws\Exception\AwsException $e) {
-        error_log("S3 upload error: " . $e->getMessage());
-        echo json_encode(['status' => false, 'message' => 'Failed to upload image to S3.']);
-        exit();
-    }
-}
+            } catch (Aws\Exception\AwsException $e) {
+                error_log("S3 upload error: " . $e->getMessage());
+                echo json_encode(['status' => false, 'message' => 'Failed to upload image to S3.']);
+                exit();
+            }
+        }
 
         if ($action === 'add_event') {
             // Insert new event
@@ -222,67 +225,69 @@ if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
         $schedule = $_POST['schedule'];
         $capacity = intval($_POST['capacity']);
         $training_id = $_POST['id'] ?? null;
-        
+
         // New fields for modality and modality details
         $modality = htmlspecialchars($_POST['modality'] ?? '', ENT_QUOTES, 'UTF-8');
         $modality_details = htmlspecialchars($_POST['modality_details'] ?? '', ENT_QUOTES, 'UTF-8');
-        
+
         $relativeImagePath = null;
 
-if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-    $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
-    if (!in_array($_FILES['image']['type'], $allowedTypes)) {
-        echo json_encode(['status' => false, 'message' => 'Invalid file type. Only JPG, PNG, and GIF allowed.']);
-        exit();
-    }
+        if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+            $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+            if (!in_array($_FILES['image']['type'], $allowedTypes)) {
+                echo json_encode(['status' => false, 'message' => 'Invalid file type. Only JPG, PNG, and GIF allowed.']);
+                exit();
+            }
 
-    // Generate a unique name for the file in S3
-    $imageName = time() . '_' . basename($_FILES['image']['name']);
-    // We'll store it under "uploads/training_images/<uniqueName>"
-    $s3Key = 'uploads/training_images/' . $imageName;
+            // Generate a unique name for the file in S3
+            $imageName = time() . '_' . basename($_FILES['image']['name']);
+            // We'll store it under "uploads/training_images/<uniqueName>"
+            $s3Key = 'uploads/training_images/' . $imageName;
 
-    try {
-        // Upload to S3
-        $result = $s3->putObject([
-            'Bucket' => $bucketName, // e.g. "my-s3-bucket"
-            'Key'    => $s3Key,
-            'Body'   => fopen($_FILES['image']['tmp_name'], 'rb'),
-            'ACL'    => 'public-read', // or 'private', adjust as needed
-            'ContentType' => $_FILES['image']['type']
-        ]);
+            try {
+                // Upload to S3
+                $result = $s3->putObject([
+                    'Bucket' => $bucketName, // e.g. "my-s3-bucket"
+                    'Key'    => $s3Key,
+                    'Body'   => fopen($_FILES['image']['tmp_name'], 'rb'),
+                    'ACL'    => 'public-read', // or 'private', adjust as needed
+                    'ContentType' => $_FILES['image']['type']
+                ]);
 
-        // If you want to store the S3 object URL in your database:
-        // $relativeImagePath = $result['ObjectURL'];
+                // If you want to store the S3 object URL in your database:
 
-        // Or just store the S3 key, so you can build the URL later:
-        $relativeImagePath = $result['ObjectURL'];
+                // Or just store the S3 key, so you can build the URL later:
+                $relativeImagePath = str_replace(
+                    "https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/",
+                    "/s3proxy/",
+                    $result['ObjectURL']
+                );
+            } catch (Aws\Exception\AwsException $e) {
+                echo json_encode([
+                    'status' => false,
+                    'message' => 'Failed to upload image to S3: ' . $e->getMessage()
+                ]);
+                exit();
+            }
+        }
 
-    } catch (Aws\Exception\AwsException $e) {
+        // Now you can continue with the rest of your logic, storing $relativeImagePath in the database, etc.
+
         echo json_encode([
-            'status' => false,
-            'message' => 'Failed to upload image to S3: ' . $e->getMessage()
+            'status' => true,
+            'message' => 'Image uploaded successfully!',
+            'path' => $relativeImagePath
         ]);
-        exit();
-    }
-}
-
-// Now you can continue with the rest of your logic, storing $relativeImagePath in the database, etc.
-
-echo json_encode([
-    'status' => true,
-    'message' => 'Image uploaded successfully!',
-    'path' => $relativeImagePath
-]);
         // For updates, if no new image is uploaded, $relativeImagePath remains null,
         // and the query uses IFNULL() to retain the existing image.
-    
+
         if ($action === 'add_training') {
             // Make sure the session is started to access the user's ID.
             if (session_status() === PHP_SESSION_NONE) {
                 session_start();
             }
             $trainer_id = $_SESSION['user_id'] ?? 0; // The logged-in user's ID
-    
+
             // Insert new training including modality fields and created_by.
             $stmt = $conn->prepare("INSERT INTO trainings (title, description, schedule, capacity, image, modality, modality_details, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->bind_param('sssisssi', $title, $description, $schedule, $capacity, $relativeImagePath, $modality, $modality_details, $trainer_id);
@@ -295,9 +300,8 @@ echo json_encode([
             $stmt->execute();
             echo json_encode(['status' => true, 'message' => 'Training updated successfully.']);
             exit();
-
         }
-    
+
         // ----------------------------
         // ADD OR UPDATE TRAINING
         // ----------------------------
@@ -307,7 +311,7 @@ echo json_encode([
         $capacity = intval($_POST['capacity']);
         $training_id = $_POST['id'] ?? null;
         $relativeImagePath = null;
-    
+
         // Handle Image Upload (optional)
         if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
             $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
@@ -315,11 +319,11 @@ echo json_encode([
                 echo json_encode(['status' => false, 'message' => 'Invalid file type. Only JPG, PNG, and GIF allowed.']);
                 exit();
             }
-            
+
             // Generate a unique file name for S3
             $imageName = time() . '_' . basename($_FILES['image']['name']);
             $s3Key = 'uploads/training_images/' . $imageName; // This will be the object key in S3
-        
+
             try {
                 $result = $s3->putObject([
                     'Bucket'      => $bucketName,         // Bucket name defined in s3config.php
@@ -328,10 +332,14 @@ echo json_encode([
                     'ACL'         => 'public-read',       // Set to public-read if you want the image accessible publicly
                     'ContentType' => $_FILES['image']['type']
                 ]);
-        
+
                 // You can store the S3 key in your database,
                 // or use $result['ObjectURL'] if you prefer to store the full URL.
-                $relativeImagePath = $result['ObjectURL'];
+                $relativeImagePath = str_replace(
+                    "https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/",
+                    "/s3proxy/",
+                    $result['ObjectURL']
+                );
             } catch (Aws\Exception\AwsException $e) {
                 echo json_encode(['status' => false, 'message' => 'Failed to upload image to S3: ' . $e->getMessage()]);
                 exit();
@@ -340,14 +348,14 @@ echo json_encode([
         // If no file is uploaded, $relativeImagePath remains null.
         // For an update, IFNULL($relativeImagePath, image) keeps the existing image.
         // For an add, you might choose to assign a default image here if needed.
-    
+
         if ($action === 'add_training') {
             // Make sure the session is started to access the trainer's user ID.
             if (session_status() === PHP_SESSION_NONE) {
                 session_start();
             }
             $trainer_id = $_SESSION['user_id'] ?? 0; // The logged-in trainer's ID
-    
+
             // Insert new training, including the created_by field.
             $stmt = $conn->prepare("INSERT INTO trainings (title, description, schedule, capacity, image, created_by) VALUES (?, ?, ?, ?, ?, ?)");
             $stmt->bind_param('sssisi', $title, $description, $schedule, $capacity, $relativeImagePath, $trainer_id);
@@ -358,9 +366,8 @@ echo json_encode([
             $stmt = $conn->prepare("UPDATE trainings SET title = ?, description = ?, schedule = ?, capacity = ?, image = IFNULL(?, image) WHERE training_id = ?");
             $stmt->bind_param('sssisi', $title, $description, $schedule, $capacity, $relativeImagePath, $training_id);
             $stmt->execute();
-echo json_encode(['status' => true, 'message' => 'Training updated successfully.']);
-exit();
-
+            echo json_encode(['status' => true, 'message' => 'Training updated successfully.']);
+            exit();
         }
     } elseif ($action === 'delete_training') {
         // ----------------------------
@@ -375,7 +382,7 @@ exit();
         echo json_encode(['status' => true, 'message' => 'Training deleted successfully.']);
     } elseif ($action === 'get_training') {
         $training_id = $_GET['id'];
-    
+
         $stmt = $conn->prepare("
             SELECT t.*, u.first_name, u.last_name
             FROM trainings t
@@ -385,7 +392,7 @@ exit();
         $stmt->bind_param('i', $training_id);
         $stmt->execute();
         $result = $stmt->get_result();
-    
+
         if ($result->num_rows > 0) {
             $training = $result->fetch_assoc();
             echo json_encode(['status' => true, 'training' => $training]);
@@ -403,4 +410,3 @@ exit();
         'error' => $e->getMessage()
     ]);
 }
-?>

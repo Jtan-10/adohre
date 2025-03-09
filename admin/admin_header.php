@@ -34,9 +34,11 @@ $isLoggedIn = isset($_SESSION['user_id']);
             <li class="nav-item dropdown mx-2 position-relative">
                 <a class="nav-link dropdown-toggle text-white" href="#" id="navbarDropdown" role="button"
                     data-bs-toggle="dropdown" aria-expanded="false">
-                    <img id="profileImageNav"
-                        src="<?php echo isset($_SESSION['profile_image']) ? '/capstone-php/' . $_SESSION['profile_image'] : '/capstone-php/assets/default-profile.jpeg'; ?>"
-                        alt="Profile Image" class="rounded-circle" width="30" height="30">
+                    <img id="profileImageNav" src="<?php echo isset($_SESSION['profile_image']) 
+         ? $_SESSION['profile_image'] 
+         : '/capstone-php/assets/default-profile.jpeg'; ?>" alt="Profile Image" class="rounded-circle" width="30"
+                        height="30">
+
                 </a>
                 <ul class="dropdown-menu dropdown-menu-end position-absolute" aria-labelledby="navbarDropdown">
                     <li><a class="dropdown-item" href="/capstone-php/index.php">Home</a></li>
