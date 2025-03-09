@@ -99,7 +99,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'login' && isset($_GET['email'
           <input type="text" name="otp" class="form-control" id="otp" placeholder="Enter OTP">
         </div>
         <button type="button" id="verifyBtn" class="btn btn-success">Verify OTP</button>
-      </div>
+     <!-- New Resend OTP Button -->
+     <button type="button" id="resendOtpBtn" class="btn btn-secondary mt-2">Resend OTP</button>
+    </div>
 
       <!-- SIGNUP SECTION (Only shown if action=signup AFTER OTP) -->
       <div id="signup-section">
@@ -127,14 +129,19 @@ if (isset($_GET['action']) && $_GET['action'] === 'login' && isset($_GET['email'
       </div>
 
       <!-- LOGIN FACE VALIDATION SECTION (Only shown if action=login AFTER OTP) -->
-      <div id="login-face-validation">
-        <h4>Capture Your Face</h4>
-        <video id="videoInput" width="320" height="240" autoplay muted style="border:1px solid #ccc;"></video>
-        <br>
-        <button type="button" id="captureLoginBtn" class="btn btn-custom mt-2">Validate Face</button>
-        <canvas id="loginCanvas"></canvas>
-        <p id="faceValidationResult" style="margin-top:10px; font-weight:bold;"></p>
-      </div>
+<div id="login-face-validation">
+  <h4>Stored Face Reference</h4>
+  <!-- New image element to display the stored face -->
+  <img id="storedFacePreview" src="" alt="Stored Face" style="max-width:320px; border:1px solid #ccc; margin-bottom:10px;">
+  
+  <h4>Capture Your Face</h4>
+  <video id="videoInput" width="320" height="240" autoplay muted style="border:1px solid #ccc;"></video>
+  <br>
+  <button type="button" id="captureLoginBtn" class="btn btn-custom mt-2">Validate Face</button>
+  <canvas id="loginCanvas"></canvas>
+  <p id="faceValidationResult" style="margin-top:10px; font-weight:bold;"></p>
+</div>
+
 
       <p id="error" class="text-danger mt-3"></p>
     </form>
@@ -181,7 +188,8 @@ if (isset($_GET['action']) && $_GET['action'] === 'login' && isset($_GET['email'
 
     // For login face validation
     let referenceDescriptor = null;
-    var storedFaceImageURL = "<?php echo $face_image_url; ?>";
+    var storedFaceImageURL = window.location.origin + '/capstone-php/<?php echo $face_image_url; ?>';
+    console.log("Stored face image URL:", storedFaceImageURL);
 
     if (!email || !action) {
       alert("Invalid access. Please restart the process.");
@@ -242,30 +250,82 @@ if (isset($_GET['action']) && $_GET['action'] === 'login' && isset($_GET['email'
       }
     });
 
-    // SIGNUP FLOW
-    async function startFaceVideoForSignup() {
-      const video = document.getElementById('faceVideo');
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
-        video.srcObject = stream;
-      } catch (error) {
-        console.error("Error accessing webcam for signup face capture:", error);
-      }
-    }
-
-    document.getElementById('captureFaceBtn').addEventListener('click', () => {
-      const video = document.getElementById('faceVideo');
-      const canvas = document.getElementById('faceCanvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const context = canvas.getContext('2d');
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      capturedFaceData = canvas.toDataURL('image/png');
-      console.log("Face captured for signup, length:", capturedFaceData.length);
-      const preview = document.getElementById('capturedFacePreview');
-      preview.src = capturedFaceData;
-      preview.style.display = 'block';
+   // Resend OTP Button handler
+document.getElementById('resendOtpBtn').addEventListener('click', async () => {
+  const emailField = document.getElementById('email');
+  const emailInput = emailField ? emailField.value : sessionStorage.getItem('email');
+  if (!emailInput) {
+    showModal('Error', 'Please enter your email.');
+    return;
+  }
+  showLoading();
+  try {
+    const response = await fetch('backend/routes/signup.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: emailInput })
     });
+    const result = await response.json();
+    hideLoading();
+    if (result.status) {
+      showModal('Success', result.message);
+    } else {
+      showModal('Error', result.message);
+    }
+  } catch (error) {
+    hideLoading();
+    console.error('Error:', error);
+    showModal('Error', 'An error occurred. Please try again.');
+  }
+});
+
+
+    // SIGNUP FLOW: Ensure the models are loaded before face capture detection.
+async function loadFaceApiModels() {
+  await faceValidation.loadModels('backend/models/weights');
+}
+
+async function startFaceVideoForSignup() {
+  const video = document.getElementById('faceVideo');
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
+    video.srcObject = stream;
+  } catch (error) {
+    console.error("Error accessing webcam for signup face capture:", error);
+  }
+}
+
+document.getElementById('captureFaceBtn').addEventListener('click', async () => {
+  // Ensure models are loaded before inference.
+  await loadFaceApiModels();
+
+  const video = document.getElementById('faceVideo');
+  const canvas = document.getElementById('faceCanvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  // Optional: set { willReadFrequently: true } for performance if needed.
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  // Run face detection on the captured image from the canvas.
+  const detection = await faceapi.detectSingleFace(
+    canvas,
+    new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.5 })
+  );
+
+  if (!detection) {
+    showModal('Error', 'No face detected. Please recapture your face.');
+    return;
+  }
+
+  // If a face is detected, store the captured image data.
+  capturedFaceData = canvas.toDataURL('image/png');
+  console.log("Face captured for signup, length:", capturedFaceData.length);
+  const preview = document.getElementById('capturedFacePreview');
+  preview.src = capturedFaceData;
+  preview.style.display = 'block';
+});
+
 
     document.getElementById('submitDetailsBtn').addEventListener('click', async () => {
       const first_name = document.getElementById('first_name').value;
@@ -313,25 +373,40 @@ if (isset($_GET['action']) && $_GET['action'] === 'login' && isset($_GET['email'
     }
 
     async function loadReferenceDescriptor() {
-      if (!storedFaceImageURL) {
-        console.warn("No stored face image URL for login.");
-        return;
-      }
-      try {
-        const img = await faceapi.fetchImage(storedFaceImageURL);
-        const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
-            .withFaceLandmarks()
-            .withFaceDescriptor();
-        if (detection) {
-          referenceDescriptor = detection.descriptor;
-          console.log("Reference descriptor loaded for login.");
-        } else {
-          console.warn("No face detected in the stored reference image.");
-        }
-      } catch (error) {
-        console.error("Error loading reference descriptor:", error);
-      }
+  if (!storedFaceImageURL) {
+    console.warn("No stored face image URL for login.");
+    return;
+  }
+  try {
+    // Build a full URL from the stored relative path.
+    const fullURL = storedFaceImageURL;
+    // Create an Image element and wait for it to load.
+    const img = new Image();
+    img.crossOrigin = "anonymous"; // If needed for cross-origin images.
+    img.src = fullURL;
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = () => reject(new Error("Failed to load image"));
+    });
+    // Display the stored face image in the preview element.
+    document.getElementById('storedFacePreview').src = img.src;
+
+    // Now perform face detection on the loaded image.
+    const detection = await faceapi
+      .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+    if (detection) {
+      referenceDescriptor = detection.descriptor;
+      console.log("Reference descriptor loaded for login.");
+    } else {
+      console.warn("No face detected in the stored reference image.");
     }
+  } catch (error) {
+    console.error("Error loading reference descriptor:", error);
+  }
+}
+
 
     async function startFaceVideoForLogin() {
       const video = document.getElementById('videoInput');
@@ -391,6 +466,28 @@ if (isset($_GET['action']) && $_GET['action'] === 'login' && isset($_GET['email'
           window.location.href = redirectUrl;
         });
       }
+    }
+
+    // Function to send the visually impaired response to the server and close the modal.
+    function setVisuallyImpaired(isImpaired, modalInstance) {
+        fetch('backend/routes/set_visually_impaired.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    visually_impaired: isImpaired
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log("Database updated:", data);
+                modalInstance.hide();
+            })
+            .catch(error => {
+                console.error("Error updating database:", error);
+                modalInstance.hide();
+            });
     }
   </script>
 </body>

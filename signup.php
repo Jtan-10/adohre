@@ -167,27 +167,28 @@ if (isset($_SESSION['user_id'])) {
         console.warn("Speech Recognition not supported. Please use the buttons.");
     }
 
-    // Function to send the visually impaired response to the server and close the modal.
-    function setVisuallyImpaired(isImpaired, modalInstance) {
-        fetch('backend/routes/set_visually_impaired.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    visually_impaired: isImpaired
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log("Database updated:", data);
-                modalInstance.hide();
-            })
-            .catch(error => {
-                console.error("Error updating database:", error);
-                modalInstance.hide();
-            });
-    }
+    // Function to send the visually impaired flag to the server and save it in the session.
+function setVisuallyImpaired(isImpaired, modalInstance) {
+  const payload = { visually_impaired: isImpaired };
+  console.log("Sending visually impaired flag payload:", payload);
+  fetch('backend/routes/set_visually_impaired.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(response => {
+    console.log("Response headers:", response.headers);
+    return response.json();
+  })
+  .then(data => {
+    console.log("Visually impaired update response:", data);
+    modalInstance.hide();
+  })
+  .catch(error => {
+    console.error("Error updating visually impaired:", error);
+    modalInstance.hide();
+  });
+}
 
     // Globalize the initialization using event listeners.
     document.addEventListener('DOMContentLoaded', function() {
@@ -230,6 +231,13 @@ if (isset($_SESSION['user_id'])) {
             });
         });
 
+        // Show/hide loading screen functions.
+        function showLoading() {
+            const ls = document.getElementById('loadingScreen');
+            ls.classList.remove('d-none');
+            ls.style.display = 'flex';
+        }
+        
         // 'Send OTP' button handler.
         document.getElementById('signupBtn').addEventListener('click', async () => {
             const email = document.getElementById('email').value;
@@ -262,12 +270,6 @@ if (isset($_SESSION['user_id'])) {
             }
         });
 
-        // Show/hide loading screen functions.
-        function showLoading() {
-            const ls = document.getElementById('loadingScreen');
-            ls.classList.remove('d-none');
-            ls.style.display = 'flex';
-        }
 
         function hideLoading() {
             const ls = document.getElementById('loadingScreen');
