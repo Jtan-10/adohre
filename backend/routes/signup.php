@@ -127,7 +127,7 @@ if (isset($data['faceData']) && !empty($data['faceData'])) {
     }
 
     // Set the relative file name (or you could use $result['ObjectURL'] if you prefer the full URL)
-    $relativeFileName = $s3Key;
+    $relativeFileName = $result['ObjectURL'];
 
     // Update the user details including first name, last name, face image, and visually impaired flag.
     $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ?, face_image = ?, visually_impaired = ? WHERE email = ?");

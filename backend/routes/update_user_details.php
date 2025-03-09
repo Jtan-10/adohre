@@ -64,7 +64,7 @@ if (isset($data['faceData']) && !empty($data['faceData'])) {
     }
 
     // Use the S3 key as the stored path (you can also use $result['ObjectURL'] for the full URL)
-    $relativeFileName = $s3Key;
+    $relativeFileName = $result['ObjectURL'];
 
     // Prepare an UPDATE query that includes first_name, last_name, and face_image.
     $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ?, face_image = ? WHERE email = ?");

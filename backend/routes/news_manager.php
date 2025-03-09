@@ -4,6 +4,11 @@ ini_set('display_errors', 1);
 session_start();
 require_once '../db/db_connect.php';
 
+// Include the S3 configuration file (ensure it initializes $s3 and $bucketName)
+require_once '../s3config.php';
+use Aws\Exception\AwsException;
+
+
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {
@@ -41,6 +46,8 @@ switch ($action) {
 require_once '../s3config.php';
 
 function handleImageUpload() {
+    global $s3, $bucketName; // Ensure these are available from s3config.php
+
     if (!isset($_FILES['image']) || $_FILES['image']['error'] === UPLOAD_ERR_NO_FILE) {
         return null;
     }
@@ -73,14 +80,12 @@ function handleImageUpload() {
         
         // Return the S3 key or full URL if needed:
         // return $result['ObjectURL'];
-        return $s3_key;
+        return $result['ObjectURL'];
     } catch (AwsException $e) {
         echo json_encode(['status' => false, 'message' => 'Error uploading news image: ' . $e->getMessage()]);
         exit();
     }
 }
-
-
 function fetchNews() {
     global $conn;
     // Join with users table to get creator's full name

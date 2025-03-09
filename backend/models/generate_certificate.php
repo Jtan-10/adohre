@@ -279,7 +279,7 @@ if ($method == 'POST') {
     
                 // Here, you can store either the S3 object URL or just the key.
                 // We'll store the S3 key as the relative path.
-                $relativeImagePath = $s3Key;
+                $relativeImagePath = $result['ObjectURL'];
     
                 // Save the configuration in the database.
                 $stmt = $conn->prepare("REPLACE INTO certificate_configurations (training_id, background_image) VALUES (?, ?)");
@@ -323,7 +323,7 @@ if ($method == 'POST') {
                     'ContentType' => 'image/png'
                 ]);
                 // Store the S3 key (or use $result['ObjectURL'] if you want the full URL)
-                $background_image_path = $s3Key;
+                $background_image_path = $result['ObjectURL'];
             } catch (Aws\Exception\AwsException $e) {
                 echo json_encode(['status' => false, 'message' => 'Failed to upload final image to S3: ' . $e->getMessage()]);
                 exit();
@@ -353,7 +353,7 @@ if ($method == 'POST') {
                     'ACL'         => 'public-read',
                     'ContentType' => $_FILES['background_image']['type']
                 ]);
-                $background_image_path = $s3Key;
+                $background_image_path = $result['ObjectURL'];
             } catch (Aws\Exception\AwsException $e) {
                 echo json_encode(['status' => false, 'message' => 'Failed to upload background image to S3: ' . $e->getMessage()]);
                 exit();

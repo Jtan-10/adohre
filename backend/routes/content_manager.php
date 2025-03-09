@@ -98,7 +98,7 @@ if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
         // Optionally, store the full URL or just the S3 key.
         // The relative path concept doesn't apply the same way as local storage,
         // but if you want to keep a "relative path" notion, you can do:
-        $relativeImagePath = $s3Key; 
+        $relativeImagePath = $result['ObjectURL'];
 
         // Or you might store the public URL in the database:
         // $relativeImagePath = $result['ObjectURL'];
@@ -255,7 +255,7 @@ if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
         // $relativeImagePath = $result['ObjectURL'];
 
         // Or just store the S3 key, so you can build the URL later:
-        $relativeImagePath = $s3Key;
+        $relativeImagePath = $result['ObjectURL'];
 
     } catch (Aws\Exception\AwsException $e) {
         echo json_encode([
@@ -331,7 +331,7 @@ echo json_encode([
         
                 // You can store the S3 key in your database,
                 // or use $result['ObjectURL'] if you prefer to store the full URL.
-                $relativeImagePath = $s3Key;
+                $relativeImagePath = $result['ObjectURL'];
             } catch (Aws\Exception\AwsException $e) {
                 echo json_encode(['status' => false, 'message' => 'Failed to upload image to S3: ' . $e->getMessage()]);
                 exit();
