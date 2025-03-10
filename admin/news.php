@@ -165,7 +165,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
                   <div class="content-item">
                     <div class="row">
                       <div class="col-md-3">
-                        <img src="../${article.image || 'assets/default-news.jpg'}" 
+                        <img src="${article.image || 'assets/default-news.jpg'}" 
                              alt="${article.title}" 
                              class="img-fluid news-image">
                       </div>

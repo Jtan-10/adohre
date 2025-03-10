@@ -188,7 +188,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
                                 html += `
                     <div class="content-item">
                       <div style="flex:1;">
-                        <img src="../${training.image ? training.image : 'assets/default-training.jpeg'}" alt="${training.title}" class="img-thumbnail training-image">
+                        <img src="${training.image ? training.image : 'assets/default-training.jpeg'}" alt="${training.title}" class="img-thumbnail training-image">
                         <h6>${training.title}</h6>
                         <p>${training.description}</p>
                         <p><strong>Schedule:</strong> ${new Date(training.schedule).toLocaleString()}</p>

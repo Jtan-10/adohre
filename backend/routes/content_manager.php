@@ -20,7 +20,7 @@ try {
         $events = [];
         while ($row = $eventsResult->fetch_assoc()) {
             // Set a default image if none provided
-            $row['image'] = $row['image'] ?: '../../assets/default-image.jpeg';
+            $row['image'] = $row['image'] ?: '../assets/default-image.jpg';
             $events[] = $row;
         }
 
@@ -271,16 +271,6 @@ try {
             }
         }
 
-        // Now you can continue with the rest of your logic, storing $relativeImagePath in the database, etc.
-
-        echo json_encode([
-            'status' => true,
-            'message' => 'Image uploaded successfully!',
-            'path' => $relativeImagePath
-        ]);
-        // For updates, if no new image is uploaded, $relativeImagePath remains null,
-        // and the query uses IFNULL() to retain the existing image.
-
         if ($action === 'add_training') {
             // Make sure the session is started to access the user's ID.
             if (session_status() === PHP_SESSION_NONE) {
@@ -297,74 +287,6 @@ try {
             // Update existing training including modality fields. The created_by field is not updated.
             $stmt = $conn->prepare("UPDATE trainings SET title = ?, description = ?, schedule = ?, capacity = ?, image = IFNULL(?, image), modality = ?, modality_details = ? WHERE training_id = ?");
             $stmt->bind_param('sssisssi', $title, $description, $schedule, $capacity, $relativeImagePath, $modality, $modality_details, $training_id);
-            $stmt->execute();
-            echo json_encode(['status' => true, 'message' => 'Training updated successfully.']);
-            exit();
-        }
-
-        // ----------------------------
-        // ADD OR UPDATE TRAINING
-        // ----------------------------
-        $title = htmlspecialchars($_POST['title'], ENT_QUOTES, 'UTF-8');
-        $description = htmlspecialchars($_POST['description'], ENT_QUOTES, 'UTF-8');
-        $schedule = $_POST['schedule'];
-        $capacity = intval($_POST['capacity']);
-        $training_id = $_POST['id'] ?? null;
-        $relativeImagePath = null;
-
-        // Handle Image Upload (optional)
-        if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-            $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
-            if (!in_array($_FILES['image']['type'], $allowedTypes)) {
-                echo json_encode(['status' => false, 'message' => 'Invalid file type. Only JPG, PNG, and GIF allowed.']);
-                exit();
-            }
-
-            // Generate a unique file name for S3
-            $imageName = time() . '_' . basename($_FILES['image']['name']);
-            $s3Key = 'uploads/training_images/' . $imageName; // This will be the object key in S3
-
-            try {
-                $result = $s3->putObject([
-                    'Bucket'      => $bucketName,         // Bucket name defined in s3config.php
-                    'Key'         => $s3Key,              // Object key where file will be stored
-                    'Body'        => fopen($_FILES['image']['tmp_name'], 'rb'),
-                    'ACL'         => 'public-read',       // Set to public-read if you want the image accessible publicly
-                    'ContentType' => $_FILES['image']['type']
-                ]);
-
-                // You can store the S3 key in your database,
-                // or use $result['ObjectURL'] if you prefer to store the full URL.
-                $relativeImagePath = str_replace(
-                    "https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/",
-                    "/s3proxy/",
-                    $result['ObjectURL']
-                );
-            } catch (Aws\Exception\AwsException $e) {
-                echo json_encode(['status' => false, 'message' => 'Failed to upload image to S3: ' . $e->getMessage()]);
-                exit();
-            }
-        }
-        // If no file is uploaded, $relativeImagePath remains null.
-        // For an update, IFNULL($relativeImagePath, image) keeps the existing image.
-        // For an add, you might choose to assign a default image here if needed.
-
-        if ($action === 'add_training') {
-            // Make sure the session is started to access the trainer's user ID.
-            if (session_status() === PHP_SESSION_NONE) {
-                session_start();
-            }
-            $trainer_id = $_SESSION['user_id'] ?? 0; // The logged-in trainer's ID
-
-            // Insert new training, including the created_by field.
-            $stmt = $conn->prepare("INSERT INTO trainings (title, description, schedule, capacity, image, created_by) VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param('sssisi', $title, $description, $schedule, $capacity, $relativeImagePath, $trainer_id);
-            $stmt->execute();
-            echo json_encode(['status' => true, 'message' => 'Training added successfully.']);
-        } elseif ($action === 'update_training') {
-            // Update existing training; IFNULL ensures that if $relativeImagePath is null, the existing image remains.
-            $stmt = $conn->prepare("UPDATE trainings SET title = ?, description = ?, schedule = ?, capacity = ?, image = IFNULL(?, image) WHERE training_id = ?");
-            $stmt->bind_param('sssisi', $title, $description, $schedule, $capacity, $relativeImagePath, $training_id);
             $stmt->execute();
             echo json_encode(['status' => true, 'message' => 'Training updated successfully.']);
             exit();

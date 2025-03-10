@@ -165,7 +165,6 @@ $training_id = intval($_GET['training_id']);
     /***********************************************************
      * 1. Initialize Fabric canvas with default A4 landscape dimensions.
      ***********************************************************/
-    const BASE_URL = "http://localhost/capstone-php/"; // Adjust if needed
     const TRAINING_ID = <?php echo $training_id; ?>;
     const DEFAULT_WIDTH = 1123;
     const DEFAULT_HEIGHT = 792;
@@ -528,7 +527,7 @@ $training_id = intval($_GET['training_id']);
                     canvas.loadFromJSON(data.data.layout_json, () => {
                         // If a background image is saved, load it.
                         if (data.data.background_image && data.data.background_image !== '') {
-                            const bgUrl = BASE_URL + data.data.background_image;
+                            const bgUrl = data.data.background_image;
                             fabric.Image.fromURL(bgUrl, function(img) {
                                 img.scaleX = DEFAULT_WIDTH / img.width;
                                 img.scaleY = DEFAULT_HEIGHT / img.height;

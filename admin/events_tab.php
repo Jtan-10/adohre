@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="card mb-3">
                             <div class="row g-0">
                                 <div class="col-md-4">
-                                    <img src="${event.image ? '../' + event.image : '../assets/about-image.jpg'}" class="card-img-top" alt="Event image">
+                                    <img src="${ event.image || '/capstone-php/assets/default-image.jpg' }" class="card-img-top" alt="Event image">
                                 </div>
                                 <div class="col-md-8">
                                     <div class="card-body">
