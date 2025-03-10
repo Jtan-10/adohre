@@ -1,105 +1,45 @@
-<!DOCTYPE html>
-<html lang="en">
+<h2>Health and Wellness for Seniors</h2>
+<p>Welcome to our seniors' health and wellness section. Here you'll find useful tips, advice, and resources to help you
+    live a healthy, active, and fulfilling life.</p>
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Health and Wellness - ADOHRE</title>
-    <link rel="icon" href="assets/logo.png" type="image/jpg" />
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Include Chart.js for data visualization -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-    /* Optional: Additional styling for the health dashboard */
-    body {
-        background-color: #f8f9fa;
-    }
+<h3>Healthy Aging Tips</h3>
+<ul>
+    <li>Stay physically active—try low-impact exercises like walking, swimming, or yoga.</li>
+    <li>Eat a balanced diet rich in fruits, vegetables, whole grains, and lean proteins.</li>
+    <li>Keep your mind engaged with puzzles, reading, or learning new skills.</li>
+    <li>Maintain social connections by joining community groups or staying in touch with family and friends.</li>
+    <li>Schedule regular checkups with your healthcare provider.</li>
+</ul>
 
-    .container {
-        margin-top: 30px;
-    }
-    </style>
-</head>
+<h3>Nutrition for Seniors</h3>
+<p>Proper nutrition is key for maintaining energy and overall health. Consider including nutrient-rich foods such as:
+</p>
+<ul>
+    <li>Leafy greens, berries, and citrus fruits</li>
+    <li>Whole grains and legumes</li>
+    <li>Lean proteins like fish, chicken, or plant-based options</li>
+    <li>Calcium- and vitamin D-rich foods for bone health</li>
+</ul>
+<p>Speak with a nutritionist or your doctor for personalized recommendations.</p>
 
-<body>
-    <?php include('header.php'); ?>
-    <!-- Include the Sidebar -->
-    <?php include('sidebar.php'); ?>
-    <div class="container">
-        <h1 class="mb-4">Health and Wellness</h1>
+<h3>Exercise Recommendations</h3>
+<p>Regular exercise can help maintain mobility and improve quality of life. Some suggestions include:</p>
+<ul>
+    <li>Daily walks or gentle aerobic exercises</li>
+    <li>Strength training with light weights or resistance bands</li>
+    <li>Balance exercises such as tai chi</li>
+    <li>Flexibility routines like stretching or yoga</li>
+</ul>
+<p>Always consult your healthcare provider before starting a new exercise regimen.</p>
 
-        <div class="row">
-            <!-- Health Profile Form -->
-            <div class="col-md-6">
-                <h3>Your Health Profile</h3>
-                <form method="post" action="process_health_profile.php">
-                    <div class="mb-3">
-                        <label for="age" class="form-label">Age</label>
-                        <input type="number" class="form-control" id="age" name="age" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="weight" class="form-label">Weight (kg)</label>
-                        <input type="number" class="form-control" id="weight" name="weight" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="height" class="form-label">Height (cm)</label>
-                        <input type="number" class="form-control" id="height" name="height" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Get Health Insights</button>
-                </form>
-            </div>
+<h3>Video Resources</h3>
+<p>Check out these videos for more information on senior well-being:</p>
 
-            <!-- Educational Health Content -->
-            <div class="col-md-6">
-                <h3>Health Educational Content</h3>
-                <div id="health-content">
-                    <!-- Content will be loaded dynamically (for example, via an API call or by reading a static file) -->
-                    <p>Loading content...</p>
-                </div>
-            </div>
-        </div>
+<!-- Example embedded YouTube video -->
+<div class="ratio ratio-16x9 mb-3">
+    <iframe src="https://www.youtube.com/embed/kJ2d1LxD0Zw" title="Senior Wellbeing Tips" allowfullscreen></iframe>
+</div>
 
-        <!-- Health Tracking Data Visualization -->
-        <div class="mt-5">
-            <h3>Health Tracking Data</h3>
-            <canvas id="healthChart"></canvas>
-        </div>
-    </div>
-
-    <?php include('footer.php'); ?>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-    // Simulate fetching educational content (this could be replaced with an AJAX call)
-    document.addEventListener("DOMContentLoaded", function() {
-        var healthContentDiv = document.getElementById('health-content');
-        healthContentDiv.innerHTML =
-            '<p>Here is some educational content on maintaining a healthy lifestyle, including tips on nutrition, exercise, and mental health.</p>';
-    });
-
-    // Sample data visualization using Chart.js
-    var ctx = document.getElementById('healthChart').getContext('2d');
-    var healthChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-            datasets: [{
-                label: 'Daily Steps',
-                data: [3000, 5000, 4500, 6000, 7000, 8000, 7500],
-                backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                borderColor: 'rgba(54, 162, 235, 1)',
-                borderWidth: 1,
-                tension: 0.3
-            }]
-        },
-        options: {
-            scales: {
-                y: {
-                    beginAtZero: true
-                }
-            }
-        }
-    });
-    </script>
-</body>
-
-</html>
+<div class="ratio ratio-16x9 mb-3">
+    <iframe src="https://www.youtube.com/embed/pOGQlatXS5E" title="Exercise for Seniors" allowfullscreen></iframe>
+</div>

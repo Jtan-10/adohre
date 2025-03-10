@@ -60,6 +60,10 @@ $currentPage = basename($_SERVER['PHP_SELF']);
         <a href="news.php" class="nav-link <?php echo $currentPage === 'news.php' ? 'active' : ''; ?>">
             <i class="bi bi-newspaper"></i> <span>News Management</span>
         </a>
+        <!-- Payments tab added here -->
+        <a href="payments.php" class="nav-link <?php echo $currentPage === 'payments.php' ? 'active' : ''; ?>">
+            <i class="bi bi-credit-card"></i> <span>Payments</span>
+        </a>
         <!-- Trainings tab added here -->
         <a href="trainings.php" class="nav-link <?php echo $currentPage === 'trainings.php' ? 'active' : ''; ?>">
             <i class="bi bi-mortarboard"></i> <span>Trainings</span>

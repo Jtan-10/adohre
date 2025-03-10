@@ -59,7 +59,7 @@
         </form>
     </div>
 
-
+    <!-- Events -->
     <div class="tab-pane fade" id="events" role="tabpanel" aria-labelledby="events-tab">
         <h4>Joined Events</h4>
         <div id="joinedEventsList">
@@ -74,13 +74,95 @@
         </div>
     </div>
 
-
     <!-- Payments -->
     <div class="tab-pane fade" id="payments" role="tabpanel" aria-labelledby="payments-tab">
         <h4>Payments</h4>
-        <p>Payment history and details.</p>
-        <!-- Add your payment details here -->
+        <div id="paymentInfo">
+            <!-- Dropdown for filtering payments by status -->
+            <div class="mb-3">
+                <label for="paymentStatusFilter" class="form-label">Filter by Status:</label>
+                <select id="paymentStatusFilter" class="form-select" style="width: auto; display: inline-block;">
+                    <option value="New" selected>New</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Completed">Completed</option>
+                </select>
+            </div>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Payment ID</th>
+                        <th>Type</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="pendingPaymentsTable">
+                    <!-- Payment data will be dynamically loaded here -->
+                </tbody>
+            </table>
+        </div>
     </div>
+
+
+    <!-- Payment Details Modal (for viewing details) -->
+    <div class="modal fade" id="paymentDetailsModal" tabindex="-1" aria-labelledby="paymentDetailsModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="paymentDetailsModalLabel">Payment Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="paymentDetailsBody">
+                    <!-- Detailed payment info will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Pay Fee Modal (for entering fee details) -->
+    <div class="modal fade" id="payFeeModal" tabindex="-1" aria-labelledby="payFeeModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="payFeeModalLabel">Pay Fee</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-danger">You can only enter this once. Make sure that all details are correct.</p>
+                    <form id="payFeeForm">
+                        <div class="mb-3">
+                            <label for="modeOfPayment" class="form-label">Mode of Payment</label>
+                            <input type="text" class="form-control" id="modeOfPayment" name="mode_of_payment"
+                                placeholder="Enter mode of payment" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="referenceNumber" class="form-label">Reference Number</label>
+                            <input type="text" class="form-control" id="referenceNumber" name="reference_number"
+                                placeholder="Enter reference number" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="receiptImage" class="form-label">Receipt Image</label>
+                            <input type="file" class="form-control" id="receiptImage" name="image" accept="image/*"
+                                required>
+                            <div class="form-text">Receipt is the confirmation image of a successful sending of the fee.
+                            </div>
+                        </div>
+                        <!-- Hidden input to store the payment ID -->
+                        <input type="hidden" id="paymentIdForFee" name="payment_id">
+                        <button type="submit" class="btn btn-primary">Submit</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+
+
 
     <!-- Notifications -->
     <div class="tab-pane fade" id="notifications" role="tabpanel" aria-labelledby="notifications-tab">
@@ -101,6 +183,5 @@
             <a id="viewVirtualIdLink" href="#" target="_blank" class="btn btn-primary">View Virtual ID
                 Card</a>
         </div>
-
     </div>
 </div>

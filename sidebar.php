@@ -100,7 +100,11 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
             <a href="backend/models/generate_virtual_id.php?user_id=<?php echo $_SESSION['user_id']; ?>"
                 target="_blank">Virtual ID</a>
         </li>
-        <li <?php if($current_page == 'health.php') echo 'class="active"'; ?>><a href="health.php">Health Tips</a></li>
+        <li <?php if($current_page == 'health.php') echo 'class="active"'; ?>>
+            <a data-bs-toggle="offcanvas" href="#offcanvasHealth" role="button" aria-controls="offcanvasHealth">
+                Health Tips
+            </a>
+        </li>
         <li <?php if($current_page == 'member_services.php' || $submenuActive) echo 'class="active"'; ?>>
             <!-- Toggle the submenu using javascript -->
             <a href="javascript:void(0)" id="toggleMemberServices">
@@ -122,6 +126,18 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
     </ul>
 </div>
 
+<!-- Off-Canvas Panel for Health and Wellness -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasHealth" aria-labelledby="offcanvasHealthLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="offcanvasHealthLabel">Health and Wellness</h5>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+        <?php include('health.php'); ?>
+    </div>
+</div>
+
+
 <!-- Toggle Button -->
 <button id="sidebarCollapse">&gt;</button>
 
@@ -141,20 +157,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Check local storage for sidebar state
-    const sidebarState = localStorage.getItem('sidebarState');
-    if (sidebarState === 'collapsed') {
-        sidebar.classList.add('collapsed');
-        updateTogglePosition();
-    } else {
-        updateTogglePosition();
-        // Optionally collapse automatically after 10 seconds
-        setTimeout(() => {
-            sidebar.classList.add('collapsed');
-            updateTogglePosition();
-            localStorage.setItem('sidebarState', 'collapsed');
-        }, 10000);
-    }
+    // Always open sidebar by default
+    localStorage.setItem('sidebarState', 'expanded');
+    sidebar.classList.remove('collapsed');
+    updateTogglePosition();
 
     // Toggle sidebar on button click
     toggleBtn.addEventListener('click', function() {

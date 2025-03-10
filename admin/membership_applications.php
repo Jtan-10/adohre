@@ -27,7 +27,6 @@ require_once 'admin_header.php';
                     <select id="statusFilter" name="status" class="form-select w-auto">
                         <option value="">All</option>
                         <option value="Pending">Pending</option>
-
                         <option value="Approved">Approved</option>
                         <option value="Rejected">Rejected</option>
                     </select>
@@ -61,8 +60,10 @@ require_once 'admin_header.php';
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
+                    <!-- Hidden fields to store application ID and user ID -->
                     <form id="update-form">
                         <input type="hidden" id="application-id">
+                        <input type="hidden" id="app-user_id">
                         <div id="application-details"></div>
                         <div class="mb-3">
                             <label for="status" class="form-label">Status</label>
@@ -96,120 +97,182 @@ require_once 'admin_header.php';
 
     <script>
     const apiUrl = '../backend/routes/membership_applications.php';
+    const paymentApiUrl = '../backend/routes/payment.php';
 
     // Fetch applications
     async function fetchApplications(status = '') {
-        const response = await axios.get(apiUrl, {
-            params: {
-                status
-            }
-        });
-        const applications = response.data;
-        const tableBody = document.querySelector('#applications-table tbody');
-        tableBody.innerHTML = '';
-        applications.forEach(app => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${app.name}</td>
-                <td>${app.email}</td>
-                <td>${app.created_at}</td>
-                <td>
-                    <span class="badge 
-                        ${app.status === 'Pending' ? 'bg-warning' : ''}
-                        ${app.status === 'Approved' ? 'bg-success' : ''}
-                        ${app.status === 'Rejected' ? 'bg-danger' : ''}">
-                        ${app.status}
-                    </span>
-                </td>
-                <td>
-                    <button class="btn btn-primary btn-sm" onclick="viewApplication(${app.application_id})">View</button>
-                    <button class="btn btn-secondary btn-sm" onclick="viewDetails(${app.application_id})">Details</button>
-                    <button class="btn btn-danger btn-sm" onclick="deleteApplication(${app.application_id})">Delete</button>
-                </td>
-            `;
-            tableBody.appendChild(row);
-        });
+        try {
+            const response = await axios.get(apiUrl, {
+                params: {
+                    status
+                }
+            });
+            const applications = response.data;
+            const tableBody = document.querySelector('#applications-table tbody');
+            tableBody.innerHTML = '';
+            applications.forEach(app => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+            <td>${app.name}</td>
+            <td>${app.email}</td>
+            <td>${app.created_at}</td>
+            <td>
+              <span class="badge 
+                ${app.status === 'Pending' ? 'bg-warning' : ''}
+                ${app.status === 'Approved' ? 'bg-success' : ''}
+                ${app.status === 'Rejected' ? 'bg-danger' : ''}">
+                ${app.status}
+              </span>
+            </td>
+            <td>
+              <button class="btn btn-primary btn-sm" onclick="viewApplication(${app.application_id})">View</button>
+              <button class="btn btn-secondary btn-sm" onclick="viewDetails(${app.application_id})">Details</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteApplication(${app.application_id})">Delete</button>
+            </td>
+          `;
+                tableBody.appendChild(row);
+            });
+        } catch (err) {
+            showMessage('Error fetching applications.', 'danger');
+            console.error(err);
+        }
     }
 
-    // View Application
+    // View Application (for update)
     async function viewApplication(id) {
-        const response = await axios.get(`${apiUrl}?id=${id}`);
-        const app = response.data;
-        document.querySelector('#application-id').value = app.application_id;
-        document.querySelector('#application-details').innerHTML = `
-            <p><strong>Name:</strong> ${app.name}</p>
-            <p><strong>Email:</strong> ${app.email}</p>
-            <p><strong>Submitted On:</strong> ${app.created_at}</p>
-            <p><strong>Status:</strong> ${app.status}</p>
+        try {
+            const response = await axios.get(`${apiUrl}?id=${id}`);
+            const app = response.data;
+            document.querySelector('#application-id').value = app.application_id;
+            // Store user_id in hidden field for later payment push
+            document.querySelector('#app-user_id').value = app.user_id;
+            document.querySelector('#application-details').innerHTML = `
+          <p><strong>Name:</strong> ${app.name}</p>
+          <p><strong>Email:</strong> ${app.email}</p>
+          <p><strong>Submitted On:</strong> ${app.created_at}</p>
+          <p><strong>Status:</strong> ${app.status}</p>
         `;
-        document.querySelector('#status').value = app.status;
-        const modal = new bootstrap.Modal(document.querySelector('#applicationModal'));
-        modal.show();
+            document.querySelector('#status').value = app.status;
+            const modal = new bootstrap.Modal(document.querySelector('#applicationModal'));
+            modal.show();
+        } catch (err) {
+            showMessage('Error fetching application details.', 'danger');
+            console.error(err);
+        }
     }
 
-    // Update Application
+    // Update Application and push payments if approved
     document.querySelector('#update-form').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const id = document.querySelector('#application-id').value;
-        const status = document.querySelector('#status').value;
-        await axios.post(apiUrl, {
-            id,
-            status
-        });
-        if (status === 'Approved') {
-            // Optional: Display additional message for role update
-            console.log(`User with application ID ${id} was approved and their role was updated.`);
+        try {
+            const id = document.querySelector('#application-id').value;
+            const newStatus = document.querySelector('#status').value;
+            const userId = document.querySelector('#app-user_id').value;
+
+            // Update the application via POST
+            await axios.post(apiUrl, {
+                id,
+                status: newStatus
+            });
+
+            // If the application is approved, push two payments.
+            // We send an empty due_date value as the backend will automatically generate it.
+            if (newStatus === 'Approved') {
+                // Payment 1: Membership Fee ₱300
+                await axios.post(paymentApiUrl, createPaymentFormData({
+                    user_id: userId,
+                    payment_type: 'Membership Fee',
+                    amount: 300,
+                    due_date: '', // Backend will override this
+                    reference_number: '', // Initially NULL
+                    status: 'New'
+                }));
+
+                // Payment 2: Annual Fee ₱200
+                await axios.post(paymentApiUrl, createPaymentFormData({
+                    user_id: userId,
+                    payment_type: 'Annual Fee',
+                    amount: 200,
+                    due_date: '',
+                    reference_number: '',
+                    status: 'New'
+                }));
+            }
+            showMessage('Application updated successfully!', 'success');
+            fetchApplications();
+            bootstrap.Modal.getInstance(document.querySelector('#applicationModal')).hide();
+        } catch (err) {
+            showMessage('Error updating application.', 'danger');
+            console.error(err);
         }
-        showMessage('Application updated successfully!', 'success');
-        fetchApplications();
-        bootstrap.Modal.getInstance(document.querySelector('#applicationModal')).hide();
     });
+
+    // Helper to create FormData for payment push
+    function createPaymentFormData(paymentData) {
+        const formData = new FormData();
+        formData.append('user_id', paymentData.user_id);
+        formData.append('payment_type', paymentData.payment_type);
+        formData.append('amount', paymentData.amount);
+        formData.append('due_date', paymentData.due_date);
+        formData.append('reference_number', paymentData.reference_number);
+        formData.append('status', paymentData.status);
+        return formData;
+    }
 
     // View Details
     async function viewDetails(id) {
-        const response = await axios.get(`${apiUrl}?id=${id}`);
-        const app = response.data;
-
-        const detailsBody = document.querySelector('#details-body');
-        detailsBody.innerHTML = `
-            <p><strong>Name:</strong> ${app.name}</p>
-            <p><strong>Date of Birth:</strong> ${app.dob}</p>
-            <p><strong>Sex:</strong> ${app.sex}</p>
-            <p><strong>Current Address:</strong> ${app.current_address}</p>
-            <p><strong>Permanent Address:</strong> ${app.permanent_address || 'N/A'}</p>
-            <p><strong>Email:</strong> ${app.email}</p>
-            <p><strong>Mobile:</strong> ${app.mobile}</p>
-            <p><strong>Place of Birth:</strong> ${app.place_of_birth}</p>
-            <p><strong>Marital Status:</strong> ${app.marital_status || 'N/A'}</p>
-            <p><strong>Emergency Contact:</strong> ${app.emergency_contact}</p>
-            <p><strong>DOH Agency:</strong> ${app.doh_agency}</p>
-            <p><strong>Employment Start:</strong> ${app.employment_start || 'N/A'}</p>
-            <p><strong>Employment End:</strong> ${app.employment_end || 'N/A'}</p>
-            <p><strong>School:</strong> ${app.school}</p>
-            <p><strong>Degree:</strong> ${app.degree}</p>
-            <p><strong>Year Graduated:</strong> ${app.year_graduated}</p>
-            <p><strong>Current Engagement:</strong> ${app.current_engagement}</p>
-            <p><strong>Key Expertise:</strong> ${app.key_expertise || 'N/A'}</p>
-            <p><strong>Specific Field:</strong> ${app.specific_field || 'N/A'}</p>
-            <p><strong>Special Skills:</strong> ${app.special_skills || 'N/A'}</p>
-            <p><strong>Hobbies:</strong> ${app.hobbies || 'N/A'}</p>
-            <p><strong>Committees:</strong> ${app.committees || 'N/A'}</p>
-            <p><strong>Signature:</strong> <img src="${app.signature}" alt="Signature" style="max-width: 100%; height: auto;"></p>
+        try {
+            const response = await axios.get(`${apiUrl}?id=${id}`);
+            const app = response.data;
+            const detailsBody = document.querySelector('#details-body');
+            detailsBody.innerHTML = `
+          <p><strong>Name:</strong> ${app.name}</p>
+          <p><strong>Date of Birth:</strong> ${app.dob}</p>
+          <p><strong>Sex:</strong> ${app.sex}</p>
+          <p><strong>Current Address:</strong> ${app.current_address}</p>
+          <p><strong>Permanent Address:</strong> ${app.permanent_address || 'N/A'}</p>
+          <p><strong>Email:</strong> ${app.email}</p>
+          <p><strong>Mobile:</strong> ${app.mobile}</p>
+          <p><strong>Place of Birth:</strong> ${app.place_of_birth}</p>
+          <p><strong>Marital Status:</strong> ${app.marital_status || 'N/A'}</p>
+          <p><strong>Emergency Contact:</strong> ${app.emergency_contact}</p>
+          <p><strong>DOH Agency:</strong> ${app.doh_agency}</p>
+          <p><strong>Employment Start:</strong> ${app.employment_start || 'N/A'}</p>
+          <p><strong>Employment End:</strong> ${app.employment_end || 'N/A'}</p>
+          <p><strong>School:</strong> ${app.school}</p>
+          <p><strong>Degree:</strong> ${app.degree}</p>
+          <p><strong>Year Graduated:</strong> ${app.year_graduated}</p>
+          <p><strong>Current Engagement:</strong> ${app.current_engagement}</p>
+          <p><strong>Key Expertise:</strong> ${app.key_expertise || 'N/A'}</p>
+          <p><strong>Specific Field:</strong> ${app.specific_field || 'N/A'}</p>
+          <p><strong>Special Skills:</strong> ${app.special_skills || 'N/A'}</p>
+          <p><strong>Hobbies:</strong> ${app.hobbies || 'N/A'}</p>
+          <p><strong>Committees:</strong> ${app.committees || 'N/A'}</p>
+          <p><strong>Signature:</strong> <img src="${app.signature}" alt="Signature" style="max-width: 100%; height: auto;"></p>
         `;
-        const modal = new bootstrap.Modal(document.querySelector('#detailsModal'));
-        modal.show();
+            const modal = new bootstrap.Modal(document.querySelector('#detailsModal'));
+            modal.show();
+        } catch (err) {
+            showMessage('Error fetching application details.', 'danger');
+            console.error(err);
+        }
     }
 
     // Delete Application
     async function deleteApplication(id) {
         if (confirm('Are you sure you want to delete this application?')) {
-            await axios.delete(apiUrl, {
-                data: {
-                    id
-                }
-            });
-            showMessage('Application deleted successfully!', 'success');
-            fetchApplications();
+            try {
+                await axios.delete(apiUrl, {
+                    data: {
+                        id
+                    }
+                });
+                showMessage('Application deleted successfully!', 'success');
+                fetchApplications();
+            } catch (err) {
+                showMessage('Error deleting application.', 'danger');
+                console.error(err);
+            }
         }
     }
 

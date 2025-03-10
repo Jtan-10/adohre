@@ -70,6 +70,130 @@
     <script>
     document.addEventListener("DOMContentLoaded", function() {
         const userId = "<?php echo $_SESSION['user_id']; ?>";
+        // Global function to show payment details in a modal
+        window.viewPaymentDetails = function(payment) {
+            const detailsHTML = `
+      <p><strong>Payment ID:</strong> ${payment.payment_id}</p>
+      <p><strong>Type:</strong> ${payment.payment_type}</p>
+      <p><strong>Amount:</strong> ${payment.amount}</p>
+      <p><strong>Status:</strong> ${payment.status}</p>
+      <p><strong>Due Date:</strong> ${payment.due_date}</p>
+      <p><strong>Payment Date:</strong> ${payment.payment_date ? payment.payment_date : 'N/A'}</p>
+      <p><strong>Reference Number:</strong> ${payment.reference_number ? payment.reference_number : 'N/A'}</p>
+      <p><strong>Mode of Payment:</strong> ${payment.mode_of_payment ? payment.mode_of_payment : 'N/A'}</p>
+      <p><strong>Receipt:</strong> ${payment.image ? `<img src="${payment.image}" alt="Receipt" style="max-width: 100%;">` : 'N/A'}</p>
+    `;
+            document.getElementById('paymentDetailsBody').innerHTML = detailsHTML;
+            const modal = new bootstrap.Modal(document.getElementById('paymentDetailsModal'));
+            modal.show();
+        };
+
+
+        // Function to open the Pay Fee modal
+        window.openPayFeeModal = function(paymentId) {
+            document.getElementById('paymentIdForFee').value = paymentId;
+            const modal = new bootstrap.Modal(document.getElementById('payFeeModal'));
+            modal.show();
+        };
+
+        // Function to fetch payments based on status
+        function fetchPayments() {
+            // For this example, we assume the backend uses the get_pending_payments action.
+            // If you want to filter by different statuses, adjust the URL accordingly.
+            // Here, we'll use the get_payments action and pass status (e.g., "New", "Pending", "Completed").
+            const status = document.getElementById('paymentStatusFilter').value;
+            fetch(`backend/routes/payment.php?action=get_payments&user_id=${userId}&status=${status}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status) {
+                        let paymentsHTML = '';
+                        data.payments.forEach(payment => {
+                            paymentsHTML += `
+                        <tr>
+                            <td>${payment.payment_id}</td>
+                            <td>${payment.payment_type}</td>
+                            <td>${payment.amount}</td>
+                            <td>${payment.status}</td>
+                            <td>
+                              <button class="btn btn-info btn-sm" onclick='viewPaymentDetails(${JSON.stringify(payment)})'>View Details</button>
+                              ${payment.status === "New" ? `<button class="btn btn-success btn-sm" onclick="openPayFeeModal(${payment.payment_id})">Pay Fees</button>` : ''}
+                            </td>
+                        </tr>
+                    `;
+                        });
+                        document.getElementById('pendingPaymentsTable').innerHTML = paymentsHTML ||
+                            '<tr><td colspan="5">No payments found</td></tr>';
+                    } else {
+                        document.getElementById('paymentInfo').innerHTML =
+                            `<p>${data.message || 'Failed to load payment info.'}</p>`;
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    document.getElementById('paymentInfo').innerHTML =
+                        `<p>Error loading payment information.</p>`;
+                });
+        }
+
+        // Load payments when the Payments tab is clicked
+        document.getElementById('payments-tab').addEventListener('click', function() {
+            fetchPayments();
+        });
+
+        // Listen for changes in the dropdown filter (if you include one)
+        if (document.getElementById('paymentStatusFilter')) {
+            document.getElementById('paymentStatusFilter').addEventListener('change', function() {
+                fetchPayments();
+            });
+        }
+
+        document.getElementById('payFeeForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const form = document.getElementById('payFeeForm');
+            const formData = new FormData(form);
+
+            fetch('backend/routes/payment.php?action=update_payment_fee', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status) {
+                        showToast(data.message, 'success'); // Confirmation toast
+                        fetchPayments(); // Refresh the payments list
+                        // Hide the modal after a short delay (optional)
+                        setTimeout(() => {
+                            const modalEl = document.getElementById('payFeeModal');
+                            const modal = bootstrap.Modal.getInstance(modalEl);
+                            modal.hide();
+                        }, 1000);
+                    } else {
+                        showToast(data.message, 'danger');
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    showToast('Error updating payment.', 'danger');
+                });
+        });
+
+
+        // Example toast function (if not defined elsewhere)
+        function showToast(message, type) {
+            const toastContainer = document.getElementById('toastContainer');
+            const toastHTML = `
+          <div class="toast align-items-center text-white bg-${type} border-0" role="alert">
+              <div class="d-flex">
+                  <div class="toast-body">${message}</div>
+                  <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+              </div>
+          </div>`;
+            toastContainer.innerHTML = toastHTML;
+            const toast = new bootstrap.Toast(toastContainer.firstElementChild);
+            toast.show();
+        }
+
+
 
         // Fetch the current profile data
         fetch(`backend/routes/user.php?user_id=${userId}`)
