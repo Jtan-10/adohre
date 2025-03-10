@@ -2,6 +2,9 @@
 require_once '../db/db_connect.php';
 header('Content-Type: application/json');
 
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+            
 // Ensure the user is logged in
 session_start();
 if (!isset($_SESSION['user_id'])) {
@@ -32,6 +35,57 @@ try {
             $stmt = $conn->prepare($insertQuery);
             $stmt->bind_param('ii', $userId, $eventId);
             $stmt->execute();
+
+            // Retrieve event details
+            $eventQuery = "SELECT title, date, location FROM events WHERE event_id = ?";
+            $stmtEvent = $conn->prepare($eventQuery);
+            $stmtEvent->bind_param("i", $eventId);
+            $stmtEvent->execute();
+            $resultEvent = $stmtEvent->get_result();
+            $event = $resultEvent->fetch_assoc();
+            $stmtEvent->close();
+
+            // Retrieve user details
+            $userQuery = "SELECT email, first_name FROM users WHERE user_id = ?";
+            $stmtUser = $conn->prepare($userQuery);
+            $stmtUser->bind_param("i", $userId);
+            $stmtUser->execute();
+            $resultUser = $stmtUser->get_result();
+            $user = $resultUser->fetch_assoc();
+            $stmtUser->close();
+
+            // Send email notification using PHPMailer
+
+            $mail = new PHPMailer(true);
+            try {
+                // SMTP configuration using environment variables
+                $mail->isSMTP();
+                $mail->Host       = $_ENV['SMTP_HOST']; 
+                $mail->SMTPAuth   = true;
+                $mail->Username   = $_ENV['SMTP_USER'];
+                $mail->Password   = $_ENV['SMTP_PASS'];
+                $mail->SMTPSecure = $_ENV['SMTP_SECURE'];
+                $mail->Port       = $_ENV['SMTP_PORT'];
+
+                $mail->setFrom($_ENV['SMTP_FROM'], $_ENV['SMTP_FROM_NAME']);
+                $mail->addAddress($user['email']);
+
+                $mail->isHTML(true);
+                $mail->Subject = "Event Registration Confirmation";
+                $mail->Body    = "
+                    <h1>Hello " . htmlspecialchars($user['first_name']) . ",</h1>
+                    <p>Thank you for joining our event!</p>
+                    <p>You have successfully registered for the event: <strong>" . htmlspecialchars($event['title']) . "</strong>.</p>
+                    <p><strong>Date:</strong> " . htmlspecialchars($event['date']) . "</p>
+                    <p><strong>Location:</strong> " . htmlspecialchars($event['location']) . "</p>
+                    <p>For more details, please log in to your account.</p>";
+                $mail->AltBody = strip_tags($mail->Body);
+
+                $mail->send();
+            } catch (Exception $e) {
+                error_log("Email could not be sent. Mailer Error: {$mail->ErrorInfo}");
+                // Optionally handle email failure
+            }
 
             echo json_encode(['status' => true, 'message' => 'Successfully joined the event.']);
         }

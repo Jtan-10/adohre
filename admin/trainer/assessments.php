@@ -161,7 +161,7 @@ while ($row = $result->fetch_assoc()) {
         function fetchAssessmentForm(trainingId) {
             fetch(
                     `../../backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${trainingId}`
-                )
+                    )
                 .then(response => response.json())
                 .then(data => {
                     if (data.status && data.form_link) {
@@ -211,7 +211,7 @@ while ($row = $result->fetch_assoc()) {
         function fetchParticipants(trainingId) {
             fetch(
                     `../../backend/routes/assessment_manager.php?action=fetch_participants&training_id=${trainingId}`
-                )
+                    )
                 .then(response => response.json())
                 .then(data => {
                     if (data.status) {
@@ -257,7 +257,6 @@ while ($row = $result->fetch_assoc()) {
                                                 training_id: trainingId
                                             })
                                         })
-
                                         .then(response => response.json())
                                         .then(result => {
                                             if (result.status) {
@@ -284,18 +283,17 @@ while ($row = $result->fetch_assoc()) {
                 });
         }
 
-        // Redirect to the certificate editor (new file) when "Configure Certificate" is clicked.
+        // Redirect to the certificate editor when "Configure Certificate" is clicked.
         document.getElementById('configureCertificateBtn').addEventListener('click', function() {
             const trainingId = trainingSelect.value;
             if (!trainingId) {
                 alert('Please select a training first.');
                 return;
             }
-            // Redirect to certificate_editor.php with the training id as a query parameter.
             window.location.href = `certificate_editor.php?training_id=${trainingId}`;
         });
 
-        // Handle Batch Release Certificates button click to show confirmation modal.
+        // Batch Release Certificates: Show confirmation modal.
         document.getElementById('batchReleaseBtn').addEventListener('click', function() {
             const trainingId = trainingSelect.value;
             if (!trainingId) {
@@ -306,39 +304,62 @@ while ($row = $result->fetch_assoc()) {
             batchModal.show();
         });
 
-        // When the user confirms batch release, trigger the certificate generation process.
+        // When the user confirms batch release, fetch all participants, then release certificates in batch.
         document.getElementById('confirmBatchRelease').addEventListener('click', function() {
             const trainingId = trainingSelect.value;
-            // Call the certificate generator endpoint to process batch release.
-            fetch('../../backend/models/generate_certificate.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        action: 'release_certificate',
-                        user_id: userId,
-                        training_id: trainingId
-                    })
-                })
-
+            if (!trainingId) {
+                alert('Please select a training first.');
+                return;
+            }
+            fetch(
+                    `../../backend/routes/assessment_manager.php?action=fetch_participants&training_id=${trainingId}`
+                    )
                 .then(response => response.json())
                 .then(data => {
                     if (data.status) {
-                        alert('Certificates released successfully.');
-                        bootstrap.Modal.getInstance(document.getElementById('batchReleaseModal'))
-                            .hide();
-                        fetchParticipants(trainingId);
+                        // Collect all user_ids with certificate_status "Not Released" (or empty)
+                        const userIds = data.participants.filter(p => !p.certificate_status || p
+                                .certificate_status === 'Not Released')
+                            .map(p => p.user_id);
+                        if (userIds.length === 0) {
+                            alert('No certificates to release.');
+                            return;
+                        }
+                        fetch('../../backend/models/generate_certificate.php', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    action: 'batch_release_certificates',
+                                    training_id: trainingId,
+                                    user_ids: userIds
+                                })
+                            })
+                            .then(response => response.json())
+                            .then(result => {
+                                if (result.status) {
+                                    alert('Certificates released successfully.');
+                                    bootstrap.Modal.getInstance(document.getElementById(
+                                        'batchReleaseModal')).hide();
+                                    fetchParticipants(trainingId);
+                                } else {
+                                    alert('Error: ' + result.message);
+                                }
+                            })
+                            .catch(err => {
+                                console.error(err);
+                                alert('Failed to release certificates.');
+                            });
                     } else {
-                        alert('Error: ' + data.message);
+                        alert('Error fetching participants: ' + data.message);
                     }
                 })
                 .catch(err => {
                     console.error(err);
-                    alert('Failed to release certificates.');
+                    alert('Failed to fetch participants.');
                 });
         });
-
     });
     </script>
 </body>

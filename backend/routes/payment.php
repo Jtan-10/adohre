@@ -1,12 +1,13 @@
 <?php
-// backend/routes/payment.php
-
-header('Content-Type: application/json');
-session_start();
 require_once '../db/db_connect.php';
 require_once '../s3config.php';
+header('Content-Type: application/json');
 
-// Ensure the user is logged in and is an admin.
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+session_start();
+// Ensure the user is logged in
 if (!isset($_SESSION['user_id'])) {
     header("Location: ../login.php");
     exit;
@@ -20,7 +21,7 @@ if ($method === 'GET') {
     
     if ($action === 'get_all_payments') {
         $payments = [];
-        // Retrieve all payments with corresponding user details
+        // Retrieve all payments with corresponding user details, including mode_of_payment
         $query = "SELECT p.payment_id, p.user_id, p.payment_type, p.amount, p.status, p.payment_date, p.due_date, p.reference_number, p.image, p.mode_of_payment, u.first_name, u.last_name, u.email
                   FROM payments p 
                   JOIN users u ON p.user_id = u.user_id 
@@ -59,7 +60,6 @@ if ($method === 'GET') {
         }
         $stmt->close();
         
-        // Return the pending payments as JSON
         echo json_encode([
             'status' => true,
             'pendingPayments' => $payments
@@ -108,7 +108,7 @@ if ($method === 'GET') {
             exit();
         }
         
-        // Process image upload via S3 if provided (using your provided code)
+        // Process image upload via S3 if provided
         $relativeImagePath = null;
         if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
             $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
@@ -147,10 +147,52 @@ if ($method === 'GET') {
         $stmt = $conn->prepare("UPDATE payments SET reference_number = ?, image = ?, mode_of_payment = ?, status = 'Pending', payment_date = ? WHERE payment_id = ?");
         if ($stmt === false) {
             echo json_encode(['status' => false, 'message' => 'Database error: ' . $conn->error]);
-            exit();
+            exit;
         }
         $stmt->bind_param("ssssi", $reference_number, $relativeImagePath, $mode_of_payment, $payment_date, $payment_id);
         if ($stmt->execute()) {
+            // After updating, retrieve user details for notification
+            $query = "SELECT u.email, u.first_name, p.payment_type, p.amount, p.mode_of_payment, p.payment_date
+                      FROM payments p
+                      JOIN users u ON p.user_id = u.user_id
+                      WHERE p.payment_id = ?";
+            $stmtUser = $conn->prepare($query);
+            $stmtUser->bind_param("i", $payment_id);
+            $stmtUser->execute();
+            $resultUser = $stmtUser->get_result();
+            $details = $resultUser->fetch_assoc();
+            $stmtUser->close();
+
+            $mail = new PHPMailer(true);
+            try {
+                $mail->isSMTP();
+                $mail->Host       = $_ENV['SMTP_HOST'];
+                $mail->SMTPAuth   = true;
+                $mail->Username   = $_ENV['SMTP_USER'];
+                $mail->Password   = $_ENV['SMTP_PASS'];
+                $mail->SMTPSecure = $_ENV['SMTP_SECURE'];
+                $mail->Port       = $_ENV['SMTP_PORT'];
+
+                $mail->setFrom($_ENV['SMTP_FROM'], $_ENV['SMTP_FROM_NAME']);
+                $mail->addAddress($details['email']);
+
+                $mail->isHTML(true);
+                $mail->Subject = "Payment Update Notification";
+                $mail->Body    = "
+                    <h1>Hello " . htmlspecialchars($details['first_name']) . ",</h1>
+                    <p>Your payment has been updated to <strong>Pending</strong>.</p>
+                    <p><strong>Payment Type:</strong> " . htmlspecialchars($details['payment_type']) . "</p>
+                    <p><strong>Amount:</strong> " . htmlspecialchars($details['amount']) . "</p>
+                    <p><strong>Mode of Payment:</strong> " . htmlspecialchars($details['mode_of_payment']) . "</p>
+                    <p><strong>Payment Date:</strong> " . htmlspecialchars($details['payment_date']) . "</p>
+                    <p>Please check your account for further details.</p>";
+                $mail->AltBody = strip_tags($mail->Body);
+
+                $mail->send();
+            } catch (Exception $e) {
+                error_log("Email could not be sent. Mailer Error: {$mail->ErrorInfo}");
+            }
+
             echo json_encode(['status' => true, 'message' => 'Payment updated successfully.']);
             exit();
         } else {
@@ -163,22 +205,17 @@ if ($method === 'GET') {
         $payment_type = isset($_POST['payment_type']) ? trim($_POST['payment_type']) : '';
         $amount       = isset($_POST['amount']) ? trim($_POST['amount']) : '';
 
-        // Validate required fields (due_date is not required from the client)
         if (empty($user_id) || empty($payment_type) || empty($amount)) {
             echo json_encode(['status' => false, 'message' => 'User ID, Payment Type, and Amount are required.']);
             exit;
         }
 
-        // Automatically generate due_date as one year from today (YYYY-MM-DD)
         $due_date = date('Y-m-d', strtotime('+1 year'));
-
-        // Set payment_date and reference_number to NULL
         $payment_date = null;
         $reference_number = null;
         $status = 'New';
         $image = null;
 
-        // Process image upload if an image file is provided
         if (isset($_FILES['image']) && $_FILES['image']['error'] == 0) {
             $target_dir = "../uploads/payments/";
             if (!is_dir($target_dir)) {
@@ -194,7 +231,6 @@ if ($method === 'GET') {
             }
         }
 
-        // Insert new payment record using a prepared statement
         $stmt = $conn->prepare("INSERT INTO payments (user_id, payment_type, amount, status, payment_date, due_date, reference_number, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
         if ($stmt === false) {
             echo json_encode(['status' => false, 'message' => 'Database error: ' . $conn->error]);
@@ -210,7 +246,6 @@ if ($method === 'GET') {
         }
     }
 } elseif ($method === 'PUT') {
-    // Get the raw input data and decode JSON
     $input = json_decode(file_get_contents('php://input'), true);
     if (!isset($input['payment_id']) || !isset($input['status'])) {
         echo json_encode(['status' => false, 'message' => 'Invalid input']);
@@ -219,7 +254,6 @@ if ($method === 'GET') {
     $payment_id = $input['payment_id'];
     $newStatus = $input['status'];
 
-    // Update payment status using a prepared statement
     $stmt = $conn->prepare("UPDATE payments SET status = ? WHERE payment_id = ?");
     if ($stmt === false) {
         echo json_encode(['status' => false, 'message' => 'Database error: ' . $conn->error]);
