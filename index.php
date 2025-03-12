@@ -193,17 +193,6 @@ if (isset($_SESSION['user_id'])) {
     </script>
     <!-- Include the global TTS module (adjust the path if necessary) -->
     <script src="tts.js"></script>
-    <script type="text/javascript">
-    window.$crisp = [];
-    window.CRISP_WEBSITE_ID = "8173ee10-aa3c-46cc-9f15-9458de94ba35";
-    (function() {
-        d = document;
-        s = d.createElement("script");
-        s.src = "https://client.crisp.chat/l.js";
-        s.async = 1;
-        d.getElementsByTagName("head")[0].appendChild(s);
-    })();
-    </script>
 </head>
 
 <body>

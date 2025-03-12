@@ -434,9 +434,6 @@ $training_id = intval($_GET['training_id']);
             });
     });
 
-
-
-
     /***********************************************************
      * 10. Add Line: create a horizontal line with selected color.
      ***********************************************************/

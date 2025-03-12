@@ -161,7 +161,7 @@ while ($row = $result->fetch_assoc()) {
         function fetchAssessmentForm(trainingId) {
             fetch(
                     `../../backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${trainingId}`
-                    )
+                )
                 .then(response => response.json())
                 .then(data => {
                     if (data.status && data.form_link) {
@@ -211,7 +211,7 @@ while ($row = $result->fetch_assoc()) {
         function fetchParticipants(trainingId) {
             fetch(
                     `../../backend/routes/assessment_manager.php?action=fetch_participants&training_id=${trainingId}`
-                    )
+                )
                 .then(response => response.json())
                 .then(data => {
                     if (data.status) {
@@ -246,18 +246,29 @@ while ($row = $result->fetch_assoc()) {
                                 const userId = this.getAttribute('data-userid');
                                 const trainingId = this.getAttribute('data-trainingid');
                                 if (confirm('Release certificate for this participant?')) {
-                                    fetch('../../backend/models/generate_certificate.php', {
-                                            method: 'POST',
-                                            headers: {
-                                                'Content-Type': 'application/json'
-                                            },
-                                            body: JSON.stringify({
-                                                action: 'release_certificate',
-                                                user_id: userId,
-                                                training_id: trainingId
-                                            })
+                                    fetch('../../backend/models/generate_certificate.php?action=release_certificate&user_id=' +
+                                            userId + '&training_id=' + trainingId)
+                                        .then(response => {
+                                            // Check if the response is valid JSON
+                                            if (response.ok) {
+                                                return response.text().then(text => {
+                                                    try {
+                                                        return JSON.parse(text);
+                                                    } catch (e) {
+                                                        console.error(
+                                                            'Invalid JSON response:',
+                                                            text);
+                                                        throw new Error(
+                                                            'Server returned invalid JSON response'
+                                                        );
+                                                    }
+                                                });
+                                            } else {
+                                                throw new Error('Server returned ' +
+                                                    response.status + ' ' + response
+                                                    .statusText);
+                                            }
                                         })
-                                        .then(response => response.json())
                                         .then(result => {
                                             if (result.status) {
                                                 alert('Certificate released.');
@@ -268,7 +279,8 @@ while ($row = $result->fetch_assoc()) {
                                         })
                                         .catch(err => {
                                             console.error(err);
-                                            alert('Failed to release certificate.');
+                                            alert('Failed to release certificate: ' +
+                                                err.message);
                                         });
                                 }
                             });
@@ -313,7 +325,7 @@ while ($row = $result->fetch_assoc()) {
             }
             fetch(
                     `../../backend/routes/assessment_manager.php?action=fetch_participants&training_id=${trainingId}`
-                    )
+                )
                 .then(response => response.json())
                 .then(data => {
                     if (data.status) {
