@@ -28,11 +28,13 @@ function updateLayoutPlaceholders($layoutJson, $participant)
 {
     $layout = json_decode($layoutJson, true);
     if (!$layout) {
-        return $layoutJson;
+        return $layoutJson; // If JSON is invalid, return as is.
     }
+
     if (isset($layout['objects']) && is_array($layout['objects'])) {
         foreach ($layout['objects'] as &$obj) {
             if (isset($obj['text'])) {
+                // Replace placeholders in text.
                 $obj['text'] = str_replace(
                     ['[Training Title]', '[Name]', '[Date]'],
                     [
@@ -58,61 +60,96 @@ function updateLayoutPlaceholders($layoutJson, $participant)
 function generateCertificate($participant, $config)
 {
     try {
-        // Create new TCPDF instance in landscape A4.
+        // Create new TCPDF instance in landscape A4
         $pdf = new TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
+
+        // Disable page breaks, remove margins, remove headers/footers
+        $pdf->SetAutoPageBreak(false, 0);
+        $pdf->setMargins(0, 0, 0);
         $pdf->setPrintHeader(false);
         $pdf->setPrintFooter(false);
+
+        // Add exactly one page
         $pdf->AddPage();
 
-        // Set background image if provided.
+        // If background_image is set, convert to full path
         if (!empty($config['background_image'])) {
-            if (file_exists($config['background_image'])) {
-                $pdf->Image($config['background_image'], 0, 0, 297, 210, '', '', '', false, 300, '', false, false, 0);
+            $relativePath = $config['background_image'];
+            $isLocal = ($_SERVER['SERVER_NAME'] === 'localhost');
+            if ($isLocal) {
+                $fullPath = "http://localhost" . $relativePath;
             } else {
-                $pdf->Image($config['background_image'], 0, 0, 297, 210, '', '', '', false, 300, '', false, false, 0);
+                $fullPath = "https://www.adohre.site" . $relativePath;
             }
+            // Place background on entire page (297mm x 210mm)
+            $pdf->Image($fullPath, 0, 0, 297, 210, '', '', '', false, 300, '', false, false, 0);
         }
 
-        // Render text objects using saved layout JSON.
+        // If we have a saved layout JSON, parse it and place text
         if (!empty($config['layout_json'])) {
             $updatedLayoutJson = updateLayoutPlaceholders($config['layout_json'], $participant);
             $layout = json_decode($updatedLayoutJson, true);
+
             if (isset($layout['objects']) && is_array($layout['objects'])) {
-                // Conversion factor: example 1123px => 297mm.
-                $scale = 297 / 1123;
-                foreach ($layout['objects'] as $obj) {
-                    if (isset($obj['text'])) {
-                        $left = isset($obj['left']) ? $obj['left'] * $scale : 0;
-                        $top = isset($obj['top']) ? $obj['top'] * $scale : 0;
-                        $fontSize = isset($obj['fontSize']) ? $obj['fontSize'] * $scale : 12;
-                        $fontFamily = isset($obj['fontFamily']) ? strtolower($obj['fontFamily']) : 'helvetica';
+                // 1) Separate scale factors for width and height
+$scaleX = 297.0 / 1123.0;  // Canvas width (1123px) => PDF width (297mm)
+$scaleY = 210.0 / 792.0;   // Canvas height (792px) => PDF height (210mm)
 
-                        // Map common fonts to TCPDF supported fonts.
-                        switch ($fontFamily) {
-                            case 'arial':
-                                $fontFamily = 'helvetica';
-                                break;
-                            case 'times new roman':
-                                $fontFamily = 'times';
-                                break;
-                            case 'courier new':
-                                $fontFamily = 'courier';
-                                break;
-                            default:
-                                if (!in_array($fontFamily, ['helvetica', 'times', 'courier', 'symbol', 'zapfdingbats'])) {
-                                    $fontFamily = 'helvetica';
-                                }
-                                break;
-                        }
+// 2) Use whichever is appropriate for left/top vs. font size
+//    Usually, for font size, you take the smaller scale to avoid distortion:
+$baseScale = min($scaleX, $scaleY);
 
-                        $pdf->SetFont($fontFamily, '', $fontSize);
-                        $pdf->SetXY($left, $top);
-                        $pdf->Cell(0, 0, $obj['text'], 0, 1, 'L', 0, '', 0, false, 'T', 'M');
-                    }
+foreach ($layout['objects'] as $obj) {
+    if (isset($obj['type']) && $obj['type'] === 'i-text') {
+        // Convert positions
+        $left = isset($obj['left']) ? $obj['left'] * $scaleX : 0;
+        $top  = isset($obj['top'])  ? $obj['top']  * $scaleY : 0;
+
+        // Scale the font size with $baseScale. 
+        // Optionally multiply by 1.2 or 1.3 if you want the text bigger.
+        $fontSize = $obj['fontSize'] * min($scaleX, $scaleY) * 1.2;
+
+
+        // Map font families
+        $fontFamily = isset($obj['fontFamily']) ? strtolower($obj['fontFamily']) : 'helvetica';
+        switch ($fontFamily) {
+            case 'arial':
+                $fontFamily = 'helvetica';
+                break;
+            case 'times new roman':
+                $fontFamily = 'times';
+                break;
+            case 'courier new':
+                $fontFamily = 'courier';
+                break;
+            default:
+                if (!in_array($fontFamily, ['helvetica', 'times', 'courier', 'symbol', 'zapfdingbats'])) {
+                    $fontFamily = 'helvetica';
                 }
+                break;
+        }
+
+        $pdf->SetFont($fontFamily, '', $fontSize);
+        $pdf->SetXY($left, $top);
+
+        $text = isset($obj['text']) ? $obj['text'] : '';
+        $pdf->Cell(0, 0, $text, 0, 1, 'L', 0, '', 0, false, 'T', 'M');
+    }
+    elseif (isset($obj['type']) && $obj['type'] === 'image' && !empty($obj['src'])) {
+        // Similar approach for images:
+        $left = isset($obj['left']) ? $obj['left'] * $scaleX : 0;
+        $top  = isset($obj['top']) ? $obj['top'] * $scaleY : 0;
+        $imgWidth = isset($obj['width']) ? $obj['width'] * $scaleX : 50;
+        $imgHeight = isset($obj['height']) ? $obj['height'] * $scaleY : 50;
+
+        // decode base64, etc...
+        // $pdf->Image('@'.$decodedData, $left, $top, $imgWidth, $imgHeight, ...);
+    }
+}
+
             }
         } else {
-            // Fallback: use a static template.
+            // Fallback: static text
             $pdf->SetTextColor(0, 0, 0);
             $pdf->SetFont('helvetica', 'B', 24);
             $pdf->Cell(0, 20, "Certificate of Completion", 0, 1, 'C');
@@ -120,16 +157,17 @@ function generateCertificate($participant, $config)
             $fullName = $participant['first_name'] . ' ' . $participant['last_name'];
             $pdf->Cell(0, 20, "This certifies that " . $fullName, 0, 1, 'C');
 
-            $courseTitle = isset($participant['course']) ? $participant['course'] : 'Course Title';
+            $courseTitle = $participant['course'] ?? 'Course Title';
             $pdf->Cell(0, 20, "has completed the course: " . $courseTitle, 0, 1, 'C');
 
-            $completionDate = isset($participant['date']) ? $participant['date'] : date("Y-m-d");
+            $completionDate = $participant['date'] ?? date("Y-m-d");
             $pdf->Cell(0, 20, "Date: " . $completionDate, 0, 1, 'C');
         }
 
-        // Save PDF to a temporary file.
+        // Save PDF to temp file
         $tempFile = tempnam(sys_get_temp_dir(), 'cert_') . '.pdf';
         $pdf->Output($tempFile, 'F');
+
         return $tempFile;
     } catch (Exception $e) {
         error_log("TCPDF Error: " . $e->getMessage());
@@ -148,6 +186,7 @@ function emailCertificate($participant, $certificatePath)
 {
     $mail = new PHPMailer(true);
     try {
+        // SMTP settings
         $mail->isSMTP();
         $mail->Host       = $_ENV['SMTP_HOST'];
         $mail->SMTPAuth   = true;
@@ -165,7 +204,9 @@ function emailCertificate($participant, $certificatePath)
             "Best regards,\nInnovative Senior Citizen Engagement";
         $mail->Body = $body;
 
+        // Attach the certificate
         $mail->addAttachment($certificatePath);
+
         $mail->send();
         error_log("Email sent successfully to: " . $participant['email']);
         return true;
@@ -180,15 +221,15 @@ function emailCertificate($participant, $certificatePath)
  *
  * Only processes participants whose assessments are complete and certificates not yet released.
  *
- * @param int $training_id The training id for which to process certificates.
- * @return array         Array of results per participant.
+ * @param int $training_id
+ * @return array
  */
 function processBatchCertificates($training_id)
 {
     global $conn;
     $results = [];
 
-    // Fetch certificate configuration.
+    // 1) Fetch certificate configuration
     $stmt = $conn->prepare("SELECT background_image, layout_json FROM certificate_configurations WHERE training_id = ?");
     $stmt->bind_param("i", $training_id);
     $stmt->execute();
@@ -198,7 +239,7 @@ function processBatchCertificates($training_id)
         $config = ['background_image' => '', 'layout_json' => ''];
     }
 
-    // Fetch participants eligible for certificate release.
+    // 2) Find participants who need certificates
     $stmt = $conn->prepare("
         SELECT u.user_id, u.first_name, u.last_name, u.email, 
                t.title AS course, 
@@ -220,34 +261,39 @@ function processBatchCertificates($training_id)
         $participants[] = $row;
     }
 
-    // Prepare statements for inserting certificate record and updating status.
+    // 3) Prepare DB statements for insertion and update
     $insertStmt = $conn->prepare("INSERT INTO certificates (user_id, training_id, pdf_path, date_generated) VALUES (?, ?, ?, NOW())");
     $updateStmt = $conn->prepare("UPDATE training_registrations SET certificate_issued = 1 WHERE user_id = ? AND training_id = ?");
 
+    // 4) Generate, email, and update for each participant
     foreach ($participants as $participant) {
         $pdfPath = generateCertificate($participant, $config);
         $emailSent = emailCertificate($participant, $pdfPath);
 
+        // Insert record
         $insertStmt->bind_param("iis", $participant['user_id'], $training_id, $pdfPath);
         $insertStmt->execute();
 
+        // Update if email was successful
         if ($emailSent) {
             $updateStmt->bind_param("ii", $participant['user_id'], $training_id);
             $updateStmt->execute();
         }
 
+        // Summarize result
         $results[] = [
             'user_id' => $participant['user_id'],
             'email'   => $participant['email'],
             'status'  => $emailSent ? 'sent' : 'failed'
         ];
 
+        // Remove temp file
         unlink($pdfPath);
     }
     return $results;
 }
 
-// Determine HTTP method and retrieve the action.
+// Main logic: parse $action from GET/POST/JSON
 $method = $_SERVER['REQUEST_METHOD'];
 $input  = json_decode(file_get_contents("php://input"), true);
 $action = '';
@@ -260,7 +306,7 @@ if (is_array($input) && isset($input['action'])) {
 
 switch ($action) {
     case 'save_certificate_configuration':
-        // Legacy branch: save only a background image.
+        // (Legacy) Save only background image
         $training_id = isset($_POST['training_id']) ? intval($_POST['training_id']) : 0;
         if ($training_id <= 0) {
             echo json_encode(['status' => false, 'message' => 'Invalid training id.']);
@@ -275,6 +321,7 @@ switch ($action) {
             $filename = basename($_FILES['certificate_background']['name']);
             $uniqueFileName = time() . "_" . $filename;
             $s3Key = 'uploads/certificates/' . $uniqueFileName;
+
             try {
                 $result = $s3->putObject([
                     'Bucket'      => $bucketName,
@@ -284,6 +331,7 @@ switch ($action) {
                     'ContentType' => $_FILES['certificate_background']['type']
                 ]);
                 $relativeImagePath = str_replace("https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/", "/s3proxy/", $result['ObjectURL']);
+
                 $stmt = $conn->prepare("REPLACE INTO certificate_configurations (training_id, background_image) VALUES (?, ?)");
                 $stmt->bind_param("is", $training_id, $relativeImagePath);
                 if ($stmt->execute()) {
@@ -298,9 +346,9 @@ switch ($action) {
             echo json_encode(['status' => false, 'message' => 'No background image uploaded.']);
         }
         break;
-        
+
     case 'save_certificate_layout':
-        // Save full certificate layout (JSON) with an optional background image.
+        // Save layout JSON + optional background
         $training_id = isset($_POST['training_id']) ? intval($_POST['training_id']) : 0;
         if ($training_id <= 0) {
             echo json_encode(['status' => false, 'message' => 'Invalid training id.']);
@@ -309,7 +357,7 @@ switch ($action) {
         $layout_json = isset($_POST['layout_json']) ? $_POST['layout_json'] : '';
         $background_image_path = '';
 
-        // Option 1: Use final_image data URL if provided.
+        // 1) Check final_image data URL
         if (isset($_POST['final_image']) && !empty($_POST['final_image'])) {
             $dataUrl = $_POST['final_image'];
             list($type, $data) = explode(';', $dataUrl);
@@ -317,6 +365,7 @@ switch ($action) {
             $data = base64_decode($data);
             $imageName = time() . "_final.png";
             $s3Key = 'uploads/certificates/' . $imageName;
+
             try {
                 $result = $s3->putObject([
                     'Bucket'      => $bucketName,
@@ -332,11 +381,11 @@ switch ($action) {
             }
         }
 
-        // Option 2: Check if a file was uploaded via "background_image".
+        // 2) Check if file was uploaded
         if (isset($_FILES['background_image']) && $_FILES['background_image']['error'] == UPLOAD_ERR_OK) {
             $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
             if (!in_array($_FILES['background_image']['type'], $allowedTypes)) {
-                echo json_encode(['status' => false, 'message' => 'Invalid file type. Only JPG, PNG, and GIF allowed.']);
+                echo json_encode(['status' => false, 'message' => 'Invalid file type.']);
                 exit();
             }
             $filename = basename($_FILES['background_image']['name']);
@@ -357,12 +406,12 @@ switch ($action) {
             }
         }
 
-        // Fallback: use selected_design if provided.
+        // 3) Fallback: use selected_design if provided
         if (empty($background_image_path) && isset($_POST['selected_design']) && !empty($_POST['selected_design'])) {
             $background_image_path = $_SERVER['DOCUMENT_ROOT'] . '/' . ltrim($_POST['selected_design'], '/');
         }
-        
-        // Save or update the configuration.
+
+        // 4) Save or update
         $stmt = $conn->prepare("REPLACE INTO certificate_configurations (training_id, background_image, layout_json) VALUES (?, ?, ?)");
         $stmt->bind_param("iss", $training_id, $background_image_path, $layout_json);
         if ($stmt->execute()) {
@@ -371,8 +420,9 @@ switch ($action) {
             echo json_encode(['status' => false, 'message' => 'Database error saving certificate layout.']);
         }
         break;
-        
+
     case 'batch_release_certificates':
+        // Batch release
         $input = json_decode(file_get_contents("php://input"), true);
         $training_id = isset($input['training_id']) ? intval($input['training_id']) : 0;
         if ($training_id > 0) {
@@ -382,14 +432,15 @@ switch ($action) {
             echo json_encode(['status' => false, 'message' => 'Invalid training id.']);
         }
         break;
-        
+
     case 'release_certificate':
+        // Single participant release
         session_start();
         if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'trainer') {
             echo json_encode(['status' => false, 'message' => 'Access denied.']);
             exit();
         }
-        
+
         $method = $_SERVER['REQUEST_METHOD'];
         if ($method === 'POST') {
             $input = json_decode(file_get_contents('php://input'), true);
@@ -399,12 +450,13 @@ switch ($action) {
             $participantUserId = isset($_GET['user_id']) ? intval($_GET['user_id']) : 0;
             $trainingId = isset($_GET['training_id']) ? intval($_GET['training_id']) : 0;
         }
-        
+
         if ($participantUserId <= 0 || $trainingId <= 0) {
             echo json_encode(['status' => false, 'message' => 'Invalid parameters.']);
             exit();
         }
-        
+
+        // Check participant
         $stmt = $conn->prepare("
             SELECT u.user_id, u.first_name, u.last_name, u.email, 
                    t.title AS course, tr.registered_at AS date
@@ -420,7 +472,8 @@ switch ($action) {
             echo json_encode(['status' => false, 'message' => 'Participant not found or assessment not completed.']);
             exit();
         }
-        
+
+        // Fetch config
         $configStmt = $conn->prepare("SELECT background_image, layout_json FROM certificate_configurations WHERE training_id = ?");
         $configStmt->bind_param("i", $trainingId);
         $configStmt->execute();
@@ -429,35 +482,41 @@ switch ($action) {
         if (!$config) {
             $config = ['background_image' => '', 'layout_json' => ''];
         }
-        
+
+        // Generate certificate
         try {
             $pdfPath = generateCertificate($participant, $config);
         } catch (Exception $e) {
             echo json_encode(['status' => false, 'message' => 'Error generating certificate: ' . $e->getMessage()]);
             exit();
         }
-        
+
+        // Email
         $emailSent = emailCertificate($participant, $pdfPath);
         if (!$emailSent) {
             echo json_encode(['status' => false, 'message' => 'Failed to email certificate.']);
             unlink($pdfPath);
             exit();
         }
-        
+
+        // Insert record
         $insertStmt = $conn->prepare("INSERT INTO certificates (user_id, training_id, pdf_path, date_generated) VALUES (?, ?, ?, NOW())");
         $insertStmt->bind_param("iis", $participantUserId, $trainingId, $pdfPath);
         $insertStmt->execute();
-        
+
+        // Update registration
         $updateStmt = $conn->prepare("UPDATE training_registrations SET certificate_issued = 1 WHERE user_id = ? AND training_id = ?");
         $updateStmt->bind_param("ii", $participantUserId, $trainingId);
         $updateStmt->execute();
-        
+
+        // Cleanup
         unlink($pdfPath);
-        
+
         echo json_encode(['status' => true, 'message' => 'Certificate released successfully.']);
         break;
-        
+
     case 'load_certificate_layout':
+        // Return saved layout for a training
         $training_id = isset($_GET['training_id']) ? intval($_GET['training_id']) : 0;
         if ($training_id > 0) {
             $stmt = $conn->prepare("SELECT background_image, layout_json FROM certificate_configurations WHERE training_id = ?");
@@ -465,6 +524,7 @@ switch ($action) {
             $stmt->execute();
             $result = $stmt->get_result();
             if ($row = $result->fetch_assoc()) {
+                // Convert absolute path if needed
                 $row['background_image'] = str_replace($_SERVER['DOCUMENT_ROOT'] . '/capstone-php/', '', $row['background_image']);
                 echo json_encode(['status' => true, 'data' => $row]);
             } else {
@@ -474,9 +534,8 @@ switch ($action) {
             echo json_encode(['status' => false, 'message' => 'Invalid training id.']);
         }
         break;
-        
+
     default:
         echo json_encode(['status' => false, 'message' => 'Invalid action.']);
         break;
 }
-?>

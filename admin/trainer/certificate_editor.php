@@ -392,23 +392,37 @@ $training_id = intval($_GET['training_id']);
      * 9. Save Layout: export canvas JSON and send to backend.
      ***********************************************************/
     document.getElementById('saveLayoutBtn').addEventListener('click', () => {
-        // Use toDatalessJSON to avoid embedding full data URLs (if possible)
-        const layoutJSON = JSON.stringify(canvas.toDatalessJSON());
+        // 1) Get the full layout (including text placeholders) as JSON
+        const layoutJSON = JSON.stringify(canvas.toJSON());
+
+        // 2) Prepare FormData
         const formData = new FormData(document.getElementById('certificateForm'));
-
-        // Remove the extra file input from FormData so that its data isn't sent.
-        formData.delete('add_image'); // Make sure the input has name="add_image"
-
+        formData.delete('add_image'); // remove extra file input if present
         formData.append('layout_json', layoutJSON);
         formData.append('action', 'save_certificate_layout');
 
-        // Also append the final canvas image data
+        // 3) Temporarily remove all text objects (i-text/textbox) from the canvas
+        const removedTextObjects = [];
+        canvas.getObjects().forEach(obj => {
+            if (obj.type === 'i-text' || obj.type === 'textbox') {
+                removedTextObjects.push(obj);
+            }
+        });
+        removedTextObjects.forEach(obj => canvas.remove(obj));
+
+        // 4) Generate the plain background image (no placeholders)
         const finalImageData = canvas.toDataURL({
             format: 'png',
             quality: 1.0
         });
+        // Attach the final (background-only) image
         formData.append('final_image', finalImageData);
 
+        // 5) Restore the text objects so the user still sees them in the editor
+        removedTextObjects.forEach(obj => canvas.add(obj));
+        canvas.renderAll();
+
+        // 6) Send to the backend
         fetch('../../backend/models/generate_certificate.php', {
                 method: 'POST',
                 body: formData
