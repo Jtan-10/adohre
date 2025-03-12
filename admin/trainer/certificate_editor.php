@@ -1,14 +1,13 @@
 <?php
 // certificate_editor.php
 error_reporting(E_ALL);
-ini_set('display_errors', 0);
-
 ini_set('display_errors', 1);
+
 session_start();
 require_once __DIR__ . '/../admin_header.php';
 require_once '../../backend/db/db_connect.php';
 
-// Check if user is a trainer
+// Ensure the user is a trainer
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'trainer') {
     header('Location: /capstone-php/index.php');
     exit();
@@ -29,6 +28,7 @@ $training_id = intval($_GET['training_id']);
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
     <title>Certificate Editor - ADOHRE</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
     <style>
     /* Container with a fixed aspect ratio for A4 landscape (1123x792 approx). */
     #canvas-container {
@@ -64,7 +64,34 @@ $training_id = intval($_GET['training_id']);
     #designSelector img.selected {
         border-color: #28a745;
     }
+
+    /* Preview modal container (simple example) */
+    #pdfPreviewModal {
+        display: none;
+        position: fixed;
+        top: 5%;
+        left: 5%;
+        width: 90%;
+        height: 90%;
+        background-color: #fff;
+        border: 1px solid #ccc;
+        z-index: 9999;
+        padding: 10px;
+    }
+
+    #pdfPreviewFrame {
+        width: 100%;
+        height: 100%;
+        border: none;
+    }
+
+    #closePreviewBtn {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+    }
     </style>
+
     <!-- Fabric.js -->
     <script src="https://cdn.jsdelivr.net/npm/fabric@4.6.0/dist/fabric.min.js"></script>
 </head>
@@ -157,8 +184,21 @@ $training_id = intval($_GET['training_id']);
                 </div>
             </div>
 
+            <!-- ADD A PREVIEW BUTTON -->
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <button type="button" id="previewPdfBtn" class="btn btn-info w-100">Preview PDF</button>
+                </div>
+            </div>
+
             <a href="assessments.php" class="btn btn-info">Back to Assessments</a>
         </form>
+    </div>
+
+    <!-- Hidden modal for PDF preview -->
+    <div id="pdfPreviewModal">
+        <button id="closePreviewBtn" class="btn btn-danger">Close</button>
+        <iframe id="pdfPreviewFrame"></iframe>
     </div>
 
     <script>
@@ -188,7 +228,7 @@ $training_id = intval($_GET['training_id']);
     }
 
     /***********************************************************
-     * 2. Create default placeholders
+     * 2. Create default placeholders (example)
      ***********************************************************/
     const userName = "<?php echo isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'Your Name'; ?>";
     const titleCaseUserName = toTitleCase(userName);
@@ -258,8 +298,6 @@ $training_id = intval($_GET['training_id']);
     });
     placeholders.push(datePlaceholderText);
 
-
-
     // Add placeholders to canvas
     placeholders.forEach(obj => canvas.add(obj));
 
@@ -290,8 +328,7 @@ $training_id = intval($_GET['training_id']);
                 const tolerance = 0.1;
                 if (Math.abs(ratio - targetRatio) / targetRatio > tolerance) {
                     alert(
-                        "Warning: The uploaded image is not A4 landscape. It will be stretched to fit A4."
-                    );
+                        "Warning: The uploaded image is not A4 landscape. It will be stretched to fit A4.");
                 }
                 img.scaleX = DEFAULT_WIDTH / img.width;
                 img.scaleY = DEFAULT_HEIGHT / img.height;
@@ -342,9 +379,6 @@ $training_id = intval($_GET['training_id']);
             });
         });
     });
-
-
-
 
     /***********************************************************
      * 6. Add Text: create a new text object.
@@ -528,7 +562,9 @@ $training_id = intval($_GET['training_id']);
         }
     });
 
-    // Function to load saved layout from the backend.
+    /***********************************************************
+     * 14. Load saved layout from the backend.
+     ***********************************************************/
     function loadSavedLayout() {
         fetch(`../../backend/models/generate_certificate.php?action=load_certificate_layout&training_id=${TRAINING_ID}`)
             .then(response => response.json())
@@ -558,10 +594,72 @@ $training_id = intval($_GET['training_id']);
                 console.error("Error loading saved layout:", err);
             });
     }
-
-
-    // Call the function on page load.
     window.addEventListener('load', loadSavedLayout);
+
+    /***********************************************************
+     * 15. Preview PDF logic
+     *    (Requires an endpoint: action=preview_certificate in generate_certificate.php)
+     ***********************************************************/
+    document.getElementById('previewPdfBtn').addEventListener('click', () => {
+        // 1) Gather layout JSON
+        const layoutJSON = JSON.stringify(canvas.toJSON());
+
+        // 2) Prepare form data
+        const formData = new FormData(document.getElementById('certificateForm'));
+        formData.delete('add_image');
+        formData.append('layout_json', layoutJSON);
+        formData.append('action', 'preview_certificate');
+
+        // 3) Temporarily remove text placeholders from the canvas
+        const removedTextObjects = [];
+        canvas.getObjects().forEach(obj => {
+            if (obj.type === 'i-text' || obj.type === 'textbox') {
+                removedTextObjects.push(obj);
+            }
+        });
+        removedTextObjects.forEach(obj => canvas.remove(obj));
+
+        // 4) Convert background-only canvas to dataURL
+        const finalImageData = canvas.toDataURL({
+            format: 'png',
+            quality: 1.0
+        });
+        formData.append('final_image', finalImageData);
+
+        // 5) Restore text objects
+        removedTextObjects.forEach(obj => canvas.add(obj));
+        canvas.renderAll();
+
+        // 6) Send request
+        fetch('../../backend/models/generate_certificate.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(resp => resp.json())
+            .then(data => {
+                if (data.status && data.pdf_base64) {
+                    // Show the PDF in an iframe
+                    const pdfFrame = document.getElementById('pdfPreviewFrame');
+                    pdfFrame.src = "data:application/pdf;base64," + data.pdf_base64;
+
+                    // Display the modal
+                    document.getElementById('pdfPreviewModal').style.display = 'block';
+                } else {
+                    alert('Preview error: ' + (data.message || 'Unknown error'));
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Failed to preview PDF.');
+            });
+    });
+
+    /***********************************************************
+     * 16. Close preview
+     ***********************************************************/
+    document.getElementById('closePreviewBtn').addEventListener('click', () => {
+        document.getElementById('pdfPreviewModal').style.display = 'none';
+    });
     </script>
 </body>
 

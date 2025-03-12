@@ -30,7 +30,6 @@ function updateLayoutPlaceholders($layoutJson, $participant)
     if (!$layout) {
         return $layoutJson; // If JSON is invalid, return as is.
     }
-
     if (isset($layout['objects']) && is_array($layout['objects'])) {
         foreach ($layout['objects'] as &$obj) {
             if (isset($obj['text'])) {
@@ -60,6 +59,11 @@ function updateLayoutPlaceholders($layoutJson, $participant)
 function generateCertificate($participant, $config)
 {
     try {
+        // Force date to YYYY-MM-DD (strip time)
+        if (!empty($participant['date'])) {
+            $participant['date'] = date("Y-m-d", strtotime($participant['date']));
+        }
+        
         // Create new TCPDF instance in landscape A4
         $pdf = new TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
 
@@ -75,11 +79,17 @@ function generateCertificate($participant, $config)
         // If background_image is set, convert to full path
         if (!empty($config['background_image'])) {
             $relativePath = $config['background_image'];
-            $isLocal = ($_SERVER['SERVER_NAME'] === 'localhost');
-            if ($isLocal) {
-                $fullPath = "http://localhost" . $relativePath;
+            // For preview, the background_image may already be a local temp file path.
+            // If the file exists locally, use it directly.
+            if(file_exists($relativePath)){
+                $fullPath = $relativePath;
             } else {
-                $fullPath = "https://www.adohre.site" . $relativePath;
+                $isLocal = ($_SERVER['SERVER_NAME'] === 'localhost');
+                if ($isLocal) {
+                    $fullPath = "http://localhost" . $relativePath;
+                } else {
+                    $fullPath = "https://www.adohre.site" . $relativePath;
+                }
             }
             // Place background on entire page (297mm x 210mm)
             $pdf->Image($fullPath, 0, 0, 297, 210, '', '', '', false, 300, '', false, false, 0);
@@ -91,62 +101,77 @@ function generateCertificate($participant, $config)
             $layout = json_decode($updatedLayoutJson, true);
 
             if (isset($layout['objects']) && is_array($layout['objects'])) {
-                // 1) Separate scale factors for width and height
-$scaleX = 297.0 / 1123.0;  // Canvas width (1123px) => PDF width (297mm)
-$scaleY = 210.0 / 792.0;   // Canvas height (792px) => PDF height (210mm)
+                // Separate scale factors for width and height:
+                // Canvas: 1123px x 792px (Fabric) => PDF: 297mm x 210mm
+                $scaleX = 297.0 / 1123.0;
+                $scaleY = 210.0 / 792.0;
+                // Use the smaller scale for font sizes to prevent distortion.
+                $baseScale = min($scaleX, $scaleY);
 
-// 2) Use whichever is appropriate for left/top vs. font size
-//    Usually, for font size, you take the smaller scale to avoid distortion:
-$baseScale = min($scaleX, $scaleY);
+                foreach ($layout['objects'] as $obj) {
+                    if (isset($obj['type']) && $obj['type'] === 'i-text') {
+                        // Convert positions
+                        $left = isset($obj['left']) ? $obj['left'] * $scaleX : 0;
+                        $top  = isset($obj['top'])  ? $obj['top']  * $scaleY : 0;
 
-foreach ($layout['objects'] as $obj) {
-    if (isset($obj['type']) && $obj['type'] === 'i-text') {
-        // Convert positions
-        $left = isset($obj['left']) ? $obj['left'] * $scaleX : 0;
-        $top  = isset($obj['top'])  ? $obj['top']  * $scaleY : 0;
+                        // Scale the font size with $baseScale and increase size (e.g., multiply by 1.2)
+                        $fontSize = isset($obj['fontSize']) ? $obj['fontSize'] * $baseScale * 2.1 : 16;
 
-        // Scale the font size with $baseScale. 
-        // Optionally multiply by 1.2 or 1.3 if you want the text bigger.
-        $fontSize = $obj['fontSize'] * min($scaleX, $scaleY) * 1.2;
+                        // Map font families
+                        $fontFamily = isset($obj['fontFamily']) ? strtolower($obj['fontFamily']) : 'helvetica';
+                        switch ($fontFamily) {
+                            case 'arial':
+                                $fontFamily = 'helvetica';
+                                break;
+                            case 'times new roman':
+                                $fontFamily = 'times';
+                                break;
+                            case 'courier new':
+                                $fontFamily = 'courier';
+                                break;
+                            default:
+                                if (!in_array($fontFamily, ['helvetica', 'times', 'courier', 'symbol', 'zapfdingbats'])) {
+                                    $fontFamily = 'helvetica';
+                                }
+                                break;
+                        }
 
 
-        // Map font families
-        $fontFamily = isset($obj['fontFamily']) ? strtolower($obj['fontFamily']) : 'helvetica';
-        switch ($fontFamily) {
-            case 'arial':
-                $fontFamily = 'helvetica';
-                break;
-            case 'times new roman':
-                $fontFamily = 'times';
-                break;
-            case 'courier new':
-                $fontFamily = 'courier';
-                break;
-            default:
-                if (!in_array($fontFamily, ['helvetica', 'times', 'courier', 'symbol', 'zapfdingbats'])) {
-                    $fontFamily = 'helvetica';
+                        // Figure out text alignment from Fabric
+                        $align = 'L'; // default
+                        if (isset($obj['textAlign'])) {
+                            switch ($obj['textAlign']) {
+                                case 'center':
+                                    $align = 'C';
+                                    break;
+                                case 'right':
+                                    $align = 'R';
+                                    break;
+                                // left or justify -> 'L'
+                            }
+                        }
+                        
+                        $pdf->SetFont($fontFamily, '', $fontSize);
+                        $pdf->SetXY($left, $top);
+
+                        $text = isset($obj['text']) ? $obj['text'] : '';
+                        $pdf->Cell(0, 0, $text, 0, 1, 'L', 0, '', 0, false, 'T', 'M');
+                    }
+                    elseif (isset($obj['type']) && $obj['type'] === 'image' && !empty($obj['src'])) {
+                        // Similar approach for images (if needed)
+                        $left = isset($obj['left']) ? $obj['left'] * $scaleX : 0;
+                        $top  = isset($obj['top']) ? $obj['top'] * $scaleY : 0;
+                        $imgWidth = isset($obj['width']) ? $obj['width'] * $scaleX : 50;
+                        $imgHeight = isset($obj['height']) ? $obj['height'] * $scaleY : 50;
+                        // Here you would decode the base64 image data and render it using $pdf->Image()
+                        // Example:
+                        // if (preg_match('/^data:image\/[a-zA-Z]+;base64,/', $obj['src'])) {
+                        //     $data = preg_replace('/^data:image\/[a-zA-Z]+;base64,/', '', $obj['src']);
+                        //     $decodedData = base64_decode($data);
+                        //     $pdf->Image('@' . $decodedData, $left, $top, $imgWidth, $imgHeight, '', '', '', false, 300, '', false, false, 0);
+                        // }
+                    }
                 }
-                break;
-        }
-
-        $pdf->SetFont($fontFamily, '', $fontSize);
-        $pdf->SetXY($left, $top);
-
-        $text = isset($obj['text']) ? $obj['text'] : '';
-        $pdf->Cell(0, 0, $text, 0, 1, 'L', 0, '', 0, false, 'T', 'M');
-    }
-    elseif (isset($obj['type']) && $obj['type'] === 'image' && !empty($obj['src'])) {
-        // Similar approach for images:
-        $left = isset($obj['left']) ? $obj['left'] * $scaleX : 0;
-        $top  = isset($obj['top']) ? $obj['top'] * $scaleY : 0;
-        $imgWidth = isset($obj['width']) ? $obj['width'] * $scaleX : 50;
-        $imgHeight = isset($obj['height']) ? $obj['height'] * $scaleY : 50;
-
-        // decode base64, etc...
-        // $pdf->Image('@'.$decodedData, $left, $top, $imgWidth, $imgHeight, ...);
-    }
-}
-
             }
         } else {
             // Fallback: static text
@@ -418,6 +443,50 @@ switch ($action) {
             echo json_encode(['status' => true, 'message' => 'Certificate layout saved successfully.']);
         } else {
             echo json_encode(['status' => false, 'message' => 'Database error saving certificate layout.']);
+        }
+        break;
+
+    case 'preview_certificate':
+        // New case: generate a PDF preview without altering the database.
+        // Use dummy participant data.
+        $dummyParticipant = [
+            'first_name' => 'John',
+            'last_name'  => 'Doe',
+            'email'      => 'john.doe@example.com',
+            'course'     => 'Sample Course',
+            'date'       => date("Y-m-d")
+        ];
+
+        // Get layout JSON from POST
+        $layout_json = isset($_POST['layout_json']) ? $_POST['layout_json'] : '';
+        $config = [
+            'layout_json' => $layout_json,
+            'background_image' => ''
+        ];
+
+        // Use the final_image (background) if provided.
+        if (isset($_POST['final_image']) && !empty($_POST['final_image'])) {
+            $dataUrl = $_POST['final_image'];
+            list($type, $data) = explode(';', $dataUrl);
+            list(, $data) = explode(',', $data);
+            $data = base64_decode($data);
+            $tempImagePath = tempnam(sys_get_temp_dir(), 'cert_bg_') . '.png';
+            file_put_contents($tempImagePath, $data);
+            $config['background_image'] = $tempImagePath;
+        }
+
+        try {
+            $pdfPath = generateCertificate($dummyParticipant, $config);
+            $pdfData = file_get_contents($pdfPath);
+            $pdfBase64 = base64_encode($pdfData);
+            unlink($pdfPath);
+            // Clean up temporary background image if it was created.
+            if (isset($tempImagePath) && file_exists($tempImagePath)) {
+                unlink($tempImagePath);
+            }
+            echo json_encode(['status' => true, 'pdf_base64' => $pdfBase64]);
+        } catch (Exception $e) {
+            echo json_encode(['status' => false, 'message' => 'Error generating preview certificate: ' . $e->getMessage()]);
         }
         break;
 
