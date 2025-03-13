@@ -1,16 +1,17 @@
 <?php
 // backend/models/generate_certificate.php
 
+// Start output buffering to prevent extra output (e.g. whitespace, warnings)
+ob_start();
+
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 // Set response type to JSON
 header('Content-Type: application/json');
 
-// Include Composer's autoloader
+// Include Composer's autoloader and other required files
 require_once __DIR__ . '/../../vendor/autoload.php';
-
-// Include database connection and S3 configuration
 require_once __DIR__ . '/../db/db_connect.php';
 require_once __DIR__ . '/../s3config.php';
 
@@ -18,200 +19,89 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 /**
- * Update the saved layout JSON by replacing placeholder text with actual participant data.
- *
- * @param string $layoutJson  The raw JSON layout.
- * @param array  $participant Expects keys: course, first_name, last_name, date.
- * @return string             The updated layout JSON.
+ * Create certificate_layouts table if it doesn't exist yet
+ * This ensures we have the proper structure for storing layouts
  */
-function updateLayoutPlaceholders($layoutJson, $participant)
+function ensureCertificateLayoutsTableExists()
 {
-    $layout = json_decode($layoutJson, true);
-    if (!$layout) {
-        return $layoutJson; // If JSON is invalid, return as is.
-    }
-    if (isset($layout['objects']) && is_array($layout['objects'])) {
-        foreach ($layout['objects'] as &$obj) {
-            if (isset($obj['text'])) {
-                // Replace placeholders in text.
-                $obj['text'] = str_replace(
-                    ['[Training Title]', '[Name]', '[Date]'],
-                    [
-                        isset($participant['course']) ? $participant['course'] : 'Training Title',
-                        $participant['first_name'] . ' ' . $participant['last_name'],
-                        isset($participant['date']) ? $participant['date'] : date("Y-m-d")
-                    ],
-                    $obj['text']
-                );
-            }
-        }
-    }
-    return json_encode($layout);
+    global $conn;
+
+    $query = "CREATE TABLE IF NOT EXISTS certificate_layouts (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        training_id INT NOT NULL,
+        user_id INT NOT NULL,
+        layout_image VARCHAR(255) NULL,
+        canvas_json MEDIUMTEXT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_layout (training_id, user_id)
+    )";
+
+    return $conn->query($query);
 }
+ensureCertificateLayoutsTableExists();
 
 /**
- * Render the certificate PDF.
- *
- * @param array $participant  Expects keys: first_name, last_name, email, course, date.
- * @param array $config       Expects keys: background_image, layout_json.
- * @return string             Path to the generated PDF file.
+ * Render a PDF using the final layout image from `certificate_layouts`.
  */
-function generateCertificate($participant, $config)
+function generateCertificate($participant, $training_id)
 {
-    try {
-        // Force date to YYYY-MM-DD (strip time)
-        if (!empty($participant['date'])) {
-            $participant['date'] = date("Y-m-d", strtotime($participant['date']));
-        }
-        
-        // Create new TCPDF instance in landscape A4
-        $pdf = new TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
+    global $conn;
 
-        // Disable page breaks, remove margins, remove headers/footers
-        $pdf->SetAutoPageBreak(false, 0);
-        $pdf->setMargins(0, 0, 0);
-        $pdf->setPrintHeader(false);
-        $pdf->setPrintFooter(false);
+    // Try to find the final layout image from certificate_layouts.
+    $stmt = $conn->prepare("
+        SELECT layout_image 
+        FROM certificate_layouts 
+        WHERE training_id = ? AND user_id = ? 
+        LIMIT 1
+    ");
+    $stmt->bind_param("ii", $training_id, $participant['user_id']);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
 
-        // Add exactly one page
-        $pdf->AddPage();
+    // Create new TCPDF instance in landscape A4.
+    $pdf = new TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
+    $pdf->SetAutoPageBreak(false, 0);
+    $pdf->setMargins(0, 0, 0);
+    $pdf->setPrintHeader(false);
+    $pdf->setPrintFooter(false);
+    $pdf->AddPage();
 
-        // If background_image is set, convert to full path
-        if (!empty($config['background_image'])) {
-            $relativePath = $config['background_image'];
-            // For preview, the background_image may already be a local temp file path.
-            // If the file exists locally, use it directly.
-            if(file_exists($relativePath)){
-                $fullPath = $relativePath;
-            } else {
-                $isLocal = ($_SERVER['SERVER_NAME'] === 'localhost');
-                if ($isLocal) {
-                    $fullPath = "http://localhost" . $relativePath;
-                } else {
-                    $fullPath = "https://www.adohre.site" . $relativePath;
-                }
-            }
-            // Place background on entire page (297mm x 210mm)
-            $pdf->Image($fullPath, 0, 0, 297, 210, '', '', '', false, 300, '', false, false, 0);
-        }
-
-        // If we have a saved layout JSON, parse it and place text
-        if (!empty($config['layout_json'])) {
-            $updatedLayoutJson = updateLayoutPlaceholders($config['layout_json'], $participant);
-            $layout = json_decode($updatedLayoutJson, true);
-
-            if (isset($layout['objects']) && is_array($layout['objects'])) {
-                // Separate scale factors for width and height:
-                // Canvas: 1123px x 792px (Fabric) => PDF: 297mm x 210mm
-                $scaleX = 297.0 / 1123.0;
-                $scaleY = 210.0 / 792.0;
-                // Use the smaller scale for font sizes to prevent distortion.
-                $baseScale = min($scaleX, $scaleY);
-
-                foreach ($layout['objects'] as $obj) {
-                    if (isset($obj['type']) && $obj['type'] === 'i-text') {
-                        // Convert positions
-                        $left = isset($obj['left']) ? $obj['left'] * $scaleX : 0;
-                        $top  = isset($obj['top'])  ? $obj['top']  * $scaleY : 0;
-
-                        // Scale the font size with $baseScale and increase size (e.g., multiply by 1.2)
-                        $fontSize = isset($obj['fontSize']) ? $obj['fontSize'] * $baseScale * 2.1 : 16;
-
-                        // Map font families
-                        $fontFamily = isset($obj['fontFamily']) ? strtolower($obj['fontFamily']) : 'helvetica';
-                        switch ($fontFamily) {
-                            case 'arial':
-                                $fontFamily = 'helvetica';
-                                break;
-                            case 'times new roman':
-                                $fontFamily = 'times';
-                                break;
-                            case 'courier new':
-                                $fontFamily = 'courier';
-                                break;
-                            default:
-                                if (!in_array($fontFamily, ['helvetica', 'times', 'courier', 'symbol', 'zapfdingbats'])) {
-                                    $fontFamily = 'helvetica';
-                                }
-                                break;
-                        }
-
-
-                        // Figure out text alignment from Fabric
-                        $align = 'L'; // default
-                        if (isset($obj['textAlign'])) {
-                            switch ($obj['textAlign']) {
-                                case 'center':
-                                    $align = 'C';
-                                    break;
-                                case 'right':
-                                    $align = 'R';
-                                    break;
-                                // left or justify -> 'L'
-                            }
-                        }
-                        
-                        $pdf->SetFont($fontFamily, '', $fontSize);
-                        $pdf->SetXY($left, $top);
-
-                        $text = isset($obj['text']) ? $obj['text'] : '';
-                        $pdf->Cell(0, 0, $text, 0, 1, 'L', 0, '', 0, false, 'T', 'M');
-                    }
-                    elseif (isset($obj['type']) && $obj['type'] === 'image' && !empty($obj['src'])) {
-                        // Similar approach for images (if needed)
-                        $left = isset($obj['left']) ? $obj['left'] * $scaleX : 0;
-                        $top  = isset($obj['top']) ? $obj['top'] * $scaleY : 0;
-                        $imgWidth = isset($obj['width']) ? $obj['width'] * $scaleX : 50;
-                        $imgHeight = isset($obj['height']) ? $obj['height'] * $scaleY : 50;
-                        // Here you would decode the base64 image data and render it using $pdf->Image()
-                        // Example:
-                        // if (preg_match('/^data:image\/[a-zA-Z]+;base64,/', $obj['src'])) {
-                        //     $data = preg_replace('/^data:image\/[a-zA-Z]+;base64,/', '', $obj['src']);
-                        //     $decodedData = base64_decode($data);
-                        //     $pdf->Image('@' . $decodedData, $left, $top, $imgWidth, $imgHeight, '', '', '', false, 300, '', false, false, 0);
-                        // }
-                    }
-                }
-            }
+    // If a saved layout image exists, use it as the background.
+    if ($row && !empty($row['layout_image'])) {
+        $layoutPath = $row['layout_image'];
+        if (file_exists($layoutPath)) {
+            $pdf->Image($layoutPath, 0, 0, 297, 210);
         } else {
-            // Fallback: static text
-            $pdf->SetTextColor(0, 0, 0);
-            $pdf->SetFont('helvetica', 'B', 24);
-            $pdf->Cell(0, 20, "Certificate of Completion", 0, 1, 'C');
-
-            $fullName = $participant['first_name'] . ' ' . $participant['last_name'];
-            $pdf->Cell(0, 20, "This certifies that " . $fullName, 0, 1, 'C');
-
-            $courseTitle = $participant['course'] ?? 'Course Title';
-            $pdf->Cell(0, 20, "has completed the course: " . $courseTitle, 0, 1, 'C');
-
-            $completionDate = $participant['date'] ?? date("Y-m-d");
-            $pdf->Cell(0, 20, "Date: " . $completionDate, 0, 1, 'C');
+            $isLocal = ($_SERVER['SERVER_NAME'] === 'localhost');
+            // Replace with your actual production domain.
+            $fullPath = $isLocal
+                ? "http://localhost" . $layoutPath
+                : "https://www.yourproductiondomain.com" . $layoutPath;
+            $pdf->Image($fullPath, 0, 0, 297, 210);
         }
-
-        // Save PDF to temp file
-        $tempFile = tempnam(sys_get_temp_dir(), 'cert_') . '.pdf';
-        $pdf->Output($tempFile, 'F');
-
-        return $tempFile;
-    } catch (Exception $e) {
-        error_log("TCPDF Error: " . $e->getMessage());
-        throw new Exception("Failed to generate certificate: " . $e->getMessage());
+    } else {
+        // Fallback if no layout image exists.
+        $pdf->SetFont('helvetica', 'B', 24);
+        $pdf->Cell(0, 20, "Certificate of Completion", 0, 1, 'C');
+        $pdf->Cell(0, 20, "Name: " . $participant['first_name'] . ' ' . $participant['last_name'], 0, 1, 'C');
     }
+
+    // Save PDF to a temporary file and return its path.
+    $tempFile = tempnam(sys_get_temp_dir(), 'cert_') . '.pdf';
+    $pdf->Output($tempFile, 'F');
+
+    return $tempFile;
 }
 
 /**
- * Email the generated certificate to the participant using PHPMailer.
- *
- * @param array  $participant     Expects keys: email, first_name.
- * @param string $certificatePath Path to the certificate PDF.
- * @return bool                   True on success, false on failure.
+ * Email the certificate PDF to the participant.
  */
-function emailCertificate($participant, $certificatePath)
+function emailCertificate($participant, $pdfPath)
 {
     $mail = new PHPMailer(true);
     try {
-        // SMTP settings
+        // SMTP setup
         $mail->isSMTP();
         $mail->Host       = $_ENV['SMTP_HOST'];
         $mail->SMTPAuth   = true;
@@ -224,16 +114,13 @@ function emailCertificate($participant, $certificatePath)
         $mail->addAddress($participant['email']);
         $mail->Subject = "Your Course Completion Certificate";
 
-        $body = "Dear " . $participant['first_name'] . ",\n\n" .
-            "Congratulations on completing your course. Please find attached your certificate.\n\n" .
-            "Best regards,\nInnovative Senior Citizen Engagement";
+        $body = "Dear {$participant['first_name']},\n\n" .
+            "Congratulations on completing your course.\n\n" .
+            "Best regards,\nYour Organization";
         $mail->Body = $body;
 
-        // Attach the certificate
-        $mail->addAttachment($certificatePath);
-
+        $mail->addAttachment($pdfPath);
         $mail->send();
-        error_log("Email sent successfully to: " . $participant['email']);
         return true;
     } catch (Exception $e) {
         error_log("PHPMailer Error: " . $mail->ErrorInfo);
@@ -242,369 +129,451 @@ function emailCertificate($participant, $certificatePath)
 }
 
 /**
- * Process batch certificate generation and release.
- *
- * Only processes participants whose assessments are complete and certificates not yet released.
- *
- * @param int $training_id
- * @return array
+ * Insert the generated PDF path into `certificates` and update `training_registrations`.
  */
-function processBatchCertificates($training_id)
+function finalizeCertificate($participant, $training_id, $pdfPath, $emailSent)
 {
     global $conn;
-    $results = [];
 
-    // 1) Fetch certificate configuration
-    $stmt = $conn->prepare("SELECT background_image, layout_json FROM certificate_configurations WHERE training_id = ?");
-    $stmt->bind_param("i", $training_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $config = $result->fetch_assoc();
-    if (!$config) {
-        $config = ['background_image' => '', 'layout_json' => ''];
+    // Insert certificate record.
+    $insertStmt = $conn->prepare("
+        INSERT INTO certificates (user_id, training_id, pdf_path, date_generated)
+        VALUES (?, ?, ?, NOW())
+    ");
+    $insertStmt->bind_param("iis", $participant['user_id'], $training_id, $pdfPath);
+    $insertStmt->execute();
+
+    // If email was successful, mark the registration as certificate issued.
+    if ($emailSent) {
+        $updateStmt = $conn->prepare("
+            UPDATE training_registrations
+            SET certificate_issued = 1
+            WHERE user_id = ? AND training_id = ?
+        ");
+        $updateStmt->bind_param("ii", $participant['user_id'], $training_id);
+        $updateStmt->execute();
+    }
+}
+
+/**
+ * Save final layout for a single participant into `certificate_layouts`.
+ * Saves both the final PNG image URL (for PDF generation) and the editable canvas JSON.
+ */
+function saveCertificateLayoutSingle($training_id, $user_id, $localImagePath, $canvas_json)
+{
+    global $conn, $s3, $bucketName;
+
+    // Process the canvas JSON before saving
+    $json = json_decode($canvas_json, true);
+    if ($json && isset($json['objects']) && is_array($json['objects'])) {
+        // Identify name placeholders for better handling when the layout is loaded later
+        foreach ($json['objects'] as &$obj) {
+            if (isset($obj['type']) && $obj['type'] === 'i-text') {
+                // Check for placeholder text
+                if (isset($obj['text'])) {
+                    // Look for name pattern indicators
+                    if (
+                        $obj['text'] === '[Name]' ||
+                        strpos($obj['text'], '[Name]') !== false ||
+                        (isset($obj['placeholderType']) && $obj['placeholderType'] === 'name')
+                    ) {
+
+                        // Ensure it's marked as a name placeholder
+                        $obj['placeholderType'] = 'name';
+                    }
+                }
+            }
+        }
+        // Re-encode the modified JSON
+        $canvas_json = json_encode($json);
     }
 
-    // 2) Find participants who need certificates
+    // Upload image to S3
+    $filename = time() . "_layout_single.png";
+    $s3Key = 'uploads/certificate_layouts/' . $filename;
+    try {
+        $result = $s3->putObject([
+            'Bucket'      => $bucketName,
+            'Key'         => $s3Key,
+            'Body'        => fopen($localImagePath, 'rb'),
+            'ACL'         => 'public-read',
+            'ContentType' => 'image/png'
+        ]);
+        $layoutImagePath = str_replace(
+            "https://{$bucketName}.s3.ap-southeast-1.amazonaws.com/",
+            "/s3proxy/",
+            $result['ObjectURL']
+        );
+    } catch (Aws\Exception\AwsException $e) {
+        throw new Exception("Failed to upload layout image to S3: " . $e->getMessage());
+    }
+
+    // Save to the database
     $stmt = $conn->prepare("
-        SELECT u.user_id, u.first_name, u.last_name, u.email, 
-               t.title AS course, 
-               tr.assessment_completed AS assessment_status, 
-               tr.certificate_issued AS certificate_status, 
-               tr.registered_at AS date
-        FROM users u
-        JOIN training_registrations tr ON u.user_id = tr.user_id
-        JOIN trainings t ON tr.training_id = t.training_id
-        WHERE tr.training_id = ? 
-          AND tr.assessment_completed = 1 
-          AND (tr.certificate_issued = 0 OR tr.certificate_issued IS NULL)
+        REPLACE INTO certificate_layouts (training_id, user_id, layout_image, canvas_json)
+        VALUES (?, ?, ?, ?)
+    ");
+    $stmt->bind_param("iiss", $training_id, $user_id, $layoutImagePath, $canvas_json);
+    if (!$stmt->execute()) {
+        error_log("Database error when saving layout: " . $conn->error);
+        throw new Exception("DB error saving layout for user {$user_id}.");
+    }
+
+    error_log("Successfully saved certificate layout for training $training_id, user $user_id with canvas_json length " . strlen($canvas_json));
+    return $layoutImagePath;
+}
+
+/**
+ * Save final layout for ALL participants in a training.
+ * Uses the same layout image and canvas JSON for every participant.
+ */
+function saveCertificateLayoutAll($training_id, $localImagePath, $canvas_json)
+{
+    global $conn;
+    $stmt = $conn->prepare("SELECT user_id FROM training_registrations WHERE training_id = ?");
+    $stmt->bind_param("i", $training_id);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $errors = [];
+    $uploadedPath = "";
+    try {
+        // Upload once using user_id = -1 to get a single S3 URL.
+        $uploadedPath = saveCertificateLayoutSingle($training_id, -1, $localImagePath, $canvas_json);
+    } catch (Exception $e) {
+        $errors[] = $e->getMessage();
+    }
+    if ($uploadedPath && empty($errors)) {
+        while ($row = $res->fetch_assoc()) {
+            $user_id = (int)$row['user_id'];
+            $stmt2 = $conn->prepare("
+                REPLACE INTO certificate_layouts (training_id, user_id, layout_image, canvas_json)
+                VALUES (?, ?, ?, ?)
+            ");
+            $stmt2->bind_param("iiss", $training_id, $user_id, $uploadedPath, $canvas_json);
+            if (!$stmt2->execute()) {
+                $errors[] = "Failed for user {$user_id}";
+            }
+        }
+    }
+    return empty($errors) ? true : implode("; ", $errors);
+}
+
+/**
+ * Load saved layout (editable canvas JSON) for editing.
+ * If a user_id is provided, load that user’s layout; otherwise, load a shared one for the training.
+ */
+if (isset($_GET['action']) && $_GET['action'] === 'load_certificate_layout') {
+    $training_id = (int)($_GET['training_id'] ?? 0);
+    $user_id = (int)($_GET['user_id'] ?? 0);
+
+    if ($training_id <= 0) {
+        echo json_encode(['status' => false, 'message' => 'Invalid training id.']);
+        exit;
+    }
+
+    error_log("Loading certificate layout for training_id: $training_id, user_id: $user_id");
+
+    // First try user-specific layout, then fall back to shared layout
+    if ($user_id > 0) {
+        $stmt = $conn->prepare("SELECT canvas_json FROM certificate_layouts WHERE training_id = ? AND user_id = ? LIMIT 1");
+        $stmt->bind_param("ii", $training_id, $user_id);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+
+        if ($row && !empty($row['canvas_json'])) {
+            error_log("Found specific canvas JSON for user $user_id");
+
+            // Process the JSON to ensure name placeholders are marked correctly
+            $json = json_decode($row['canvas_json'], true);
+            if ($json && isset($json['objects']) && is_array($json['objects'])) {
+                foreach ($json['objects'] as &$obj) {
+                    if (isset($obj['type']) && $obj['type'] === 'i-text') {
+                        // Check for actual names and mark them as placeholders
+                        if (isset($obj['placeholderType']) && $obj['placeholderType'] === 'name') {
+                            // Make sure we preserve this flag
+                            continue;
+                        }
+
+                        // Look for name text patterns
+                        if (isset($obj['text']) && (
+                            $obj['text'] === '[Name]' ||
+                            strpos($obj['text'], '[Name]') !== false ||
+                            // Check if it looks like a real name (e.g. "John Smith")
+                            preg_match('/^[A-Z][a-z]+ [A-Z][a-z]+(\s+[A-Z][a-z]+)?$/', $obj['text'])
+                        )) {
+                            // Mark as a name placeholder
+                            $obj['placeholderType'] = 'name';
+                        }
+                    }
+                }
+                $row['canvas_json'] = json_encode($json);
+            }
+
+            echo json_encode(['status' => true, 'data' => $row]);
+            exit;
+        }
+    }
+
+    // Try to find any layout for this training (regular user_id or shared -1)
+    $stmt = $conn->prepare("
+        SELECT canvas_json FROM certificate_layouts 
+        WHERE training_id = ? 
+        ORDER BY CASE WHEN user_id = -1 THEN 0 ELSE 1 END
+        LIMIT 1
     ");
     $stmt->bind_param("i", $training_id);
     $stmt->execute();
-    $result = $stmt->get_result();
-    $participants = [];
-    while ($row = $result->fetch_assoc()) {
-        $participants[] = $row;
-    }
+    $row = $stmt->get_result()->fetch_assoc();
 
-    // 3) Prepare DB statements for insertion and update
-    $insertStmt = $conn->prepare("INSERT INTO certificates (user_id, training_id, pdf_path, date_generated) VALUES (?, ?, ?, NOW())");
-    $updateStmt = $conn->prepare("UPDATE training_registrations SET certificate_issued = 1 WHERE user_id = ? AND training_id = ?");
+    if ($row && !empty($row['canvas_json'])) {
+        error_log("Found generic canvas JSON for training $training_id");
 
-    // 4) Generate, email, and update for each participant
-    foreach ($participants as $participant) {
-        $pdfPath = generateCertificate($participant, $config);
-        $emailSent = emailCertificate($participant, $pdfPath);
+        // Same processing as above
+        $json = json_decode($row['canvas_json'], true);
+        if ($json && isset($json['objects']) && is_array($json['objects'])) {
+            foreach ($json['objects'] as &$obj) {
+                if (isset($obj['type']) && $obj['type'] === 'i-text') {
+                    // Mark name placeholders
+                    if (isset($obj['placeholderType']) && $obj['placeholderType'] === 'name') {
+                        continue;
+                    }
 
-        // Insert record
-        $insertStmt->bind_param("iis", $participant['user_id'], $training_id, $pdfPath);
-        $insertStmt->execute();
-
-        // Update if email was successful
-        if ($emailSent) {
-            $updateStmt->bind_param("ii", $participant['user_id'], $training_id);
-            $updateStmt->execute();
+                    if (isset($obj['text']) && (
+                        $obj['text'] === '[Name]' ||
+                        strpos($obj['text'], '[Name]') !== false ||
+                        preg_match('/^[A-Z][a-z]+ [A-Z][a-z]+(\s+[A-Z][a-z]+)?$/', $obj['text'])
+                    )) {
+                        $obj['placeholderType'] = 'name';
+                    }
+                }
+            }
+            $row['canvas_json'] = json_encode($json);
         }
 
-        // Summarize result
-        $results[] = [
-            'user_id' => $participant['user_id'],
-            'email'   => $participant['email'],
-            'status'  => $emailSent ? 'sent' : 'failed'
-        ];
-
-        // Remove temp file
-        unlink($pdfPath);
+        echo json_encode(['status' => true, 'data' => $row]);
+    } else {
+        error_log("No canvas JSON found for training $training_id");
+        echo json_encode(['status' => false, 'message' => 'No saved layout found.']);
     }
-    return $results;
+    exit;
 }
 
-// Main logic: parse $action from GET/POST/JSON
-$method = $_SERVER['REQUEST_METHOD'];
-$input  = json_decode(file_get_contents("php://input"), true);
-$action = '';
-
-if (is_array($input) && isset($input['action'])) {
-    $action = $input['action'];
-} else {
-    $action = isset($_REQUEST['action']) ? $_REQUEST['action'] : '';
-}
+// -------------- MAIN SWITCH --------------
+$action = $_REQUEST['action'] ?? '';
 
 switch ($action) {
-    case 'save_certificate_configuration':
-        // (Legacy) Save only background image
-        $training_id = isset($_POST['training_id']) ? intval($_POST['training_id']) : 0;
-        if ($training_id <= 0) {
-            echo json_encode(['status' => false, 'message' => 'Invalid training id.']);
-            exit();
+
+    case 'save_certificate_layout_single':
+        $training_id = (int)($_POST['training_id'] ?? 0);
+        $user_id = (int)($_POST['preview_user_id'] ?? 0);
+        $final_image = $_POST['final_image'] ?? '';
+        $canvas_json = $_POST['canvas_json'] ?? ''; // Editable canvas JSON
+
+        if ($training_id <= 0 || $user_id <= 0 || !$final_image) {
+            ob_end_clean();
+            echo json_encode(['status' => false, 'message' => 'Missing training_id, user_id, or final_image.']);
+            exit;
         }
-        if (isset($_FILES['certificate_background']) && $_FILES['certificate_background']['error'] == UPLOAD_ERR_OK) {
-            $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
-            if (!in_array($_FILES['certificate_background']['type'], $allowedTypes)) {
-                echo json_encode(['status' => false, 'message' => 'Invalid file type. Only JPG, PNG, and GIF allowed.']);
-                exit();
-            }
-            $filename = basename($_FILES['certificate_background']['name']);
-            $uniqueFileName = time() . "_" . $filename;
-            $s3Key = 'uploads/certificates/' . $uniqueFileName;
 
-            try {
-                $result = $s3->putObject([
-                    'Bucket'      => $bucketName,
-                    'Key'         => $s3Key,
-                    'Body'        => fopen($_FILES['certificate_background']['tmp_name'], 'rb'),
-                    'ACL'         => 'public-read',
-                    'ContentType' => $_FILES['certificate_background']['type']
-                ]);
-                $relativeImagePath = str_replace("https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/", "/s3proxy/", $result['ObjectURL']);
+        error_log("Saving certificate layout for training_id: $training_id, user_id: $user_id");
 
-                $stmt = $conn->prepare("REPLACE INTO certificate_configurations (training_id, background_image) VALUES (?, ?)");
-                $stmt->bind_param("is", $training_id, $relativeImagePath);
-                if ($stmt->execute()) {
-                    echo json_encode(['status' => true, 'message' => 'Configuration saved.']);
-                } else {
-                    echo json_encode(['status' => false, 'message' => 'Database error saving configuration.']);
-                }
-            } catch (Aws\Exception\AwsException $e) {
-                echo json_encode(['status' => false, 'message' => 'Failed to upload background image to S3: ' . $e->getMessage()]);
-            }
-        } else {
-            echo json_encode(['status' => false, 'message' => 'No background image uploaded.']);
+        list(, $encoded) = explode(',', $final_image);
+        $decoded = base64_decode($encoded);
+        $temp = tempnam(sys_get_temp_dir(), 'cert_layout_') . '.png';
+        file_put_contents($temp, $decoded);
+
+        try {
+            $path = saveCertificateLayoutSingle($training_id, $user_id, $temp, $canvas_json);
+            @unlink($temp);
+            ob_end_clean();
+            echo json_encode(['status' => true, 'layout_path' => $path]);
+        } catch (Exception $e) {
+            error_log("Error saving certificate layout: " . $e->getMessage());
+            ob_end_clean();
+            echo json_encode(['status' => false, 'message' => $e->getMessage()]);
         }
         break;
 
-    case 'save_certificate_layout':
-        // Save layout JSON + optional background
-        $training_id = isset($_POST['training_id']) ? intval($_POST['training_id']) : 0;
-        if ($training_id <= 0) {
-            echo json_encode(['status' => false, 'message' => 'Invalid training id.']);
-            exit();
+    case 'save_certificate_layout_all':
+        $training_id = (int)($_POST['training_id'] ?? 0);
+        $final_image = $_POST['final_image'] ?? '';
+        $canvas_json = $_POST['canvas_json'] ?? '';
+        if ($training_id <= 0 || !$final_image) {
+            ob_end_clean();
+            echo json_encode(['status' => false, 'message' => 'Missing training_id or final_image.']);
+            exit;
         }
-        $layout_json = isset($_POST['layout_json']) ? $_POST['layout_json'] : '';
-        $background_image_path = '';
+        list(, $encoded) = explode(',', $final_image);
+        $decoded = base64_decode($encoded);
+        $temp = tempnam(sys_get_temp_dir(), 'cert_layout_all_') . '.png';
+        file_put_contents($temp, $decoded);
 
-        // 1) Check final_image data URL
-        if (isset($_POST['final_image']) && !empty($_POST['final_image'])) {
-            $dataUrl = $_POST['final_image'];
-            list($type, $data) = explode(';', $dataUrl);
-            list(, $data) = explode(',', $data);
-            $data = base64_decode($data);
-            $imageName = time() . "_final.png";
-            $s3Key = 'uploads/certificates/' . $imageName;
-
-            try {
-                $result = $s3->putObject([
-                    'Bucket'      => $bucketName,
-                    'Key'         => $s3Key,
-                    'Body'        => $data,
-                    'ACL'         => 'public-read',
-                    'ContentType' => 'image/png'
-                ]);
-                $background_image_path = str_replace("https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/", "/s3proxy/", $result['ObjectURL']);
-            } catch (Aws\Exception\AwsException $e) {
-                echo json_encode(['status' => false, 'message' => 'Failed to upload final image to S3: ' . $e->getMessage()]);
-                exit();
+        try {
+            $res = saveCertificateLayoutAll($training_id, $temp, $canvas_json);
+            @unlink($temp);
+            ob_end_clean();
+            if ($res === true) {
+                echo json_encode(['status' => true, 'message' => 'Layout saved for all participants.']);
+            } else {
+                echo json_encode(['status' => false, 'message' => $res]);
             }
-        }
-
-        // 2) Check if file was uploaded
-        if (isset($_FILES['background_image']) && $_FILES['background_image']['error'] == UPLOAD_ERR_OK) {
-            $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
-            if (!in_array($_FILES['background_image']['type'], $allowedTypes)) {
-                echo json_encode(['status' => false, 'message' => 'Invalid file type.']);
-                exit();
-            }
-            $filename = basename($_FILES['background_image']['name']);
-            $uniqueName = time() . "_" . $filename;
-            $s3Key = 'uploads/certificates/' . $uniqueName;
-            try {
-                $result = $s3->putObject([
-                    'Bucket'      => $bucketName,
-                    'Key'         => $s3Key,
-                    'Body'        => fopen($_FILES['background_image']['tmp_name'], 'rb'),
-                    'ACL'         => 'public-read',
-                    'ContentType' => $_FILES['background_image']['type']
-                ]);
-                $background_image_path = str_replace("https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/", "/s3proxy/", $result['ObjectURL']);
-            } catch (Aws\Exception\AwsException $e) {
-                echo json_encode(['status' => false, 'message' => 'Failed to upload background image to S3: ' . $e->getMessage()]);
-                exit();
-            }
-        }
-
-        // 3) Fallback: use selected_design if provided
-        if (empty($background_image_path) && isset($_POST['selected_design']) && !empty($_POST['selected_design'])) {
-            $background_image_path = $_SERVER['DOCUMENT_ROOT'] . '/' . ltrim($_POST['selected_design'], '/');
-        }
-
-        // 4) Save or update
-        $stmt = $conn->prepare("REPLACE INTO certificate_configurations (training_id, background_image, layout_json) VALUES (?, ?, ?)");
-        $stmt->bind_param("iss", $training_id, $background_image_path, $layout_json);
-        if ($stmt->execute()) {
-            echo json_encode(['status' => true, 'message' => 'Certificate layout saved successfully.']);
-        } else {
-            echo json_encode(['status' => false, 'message' => 'Database error saving certificate layout.']);
+        } catch (Exception $e) {
+            ob_end_clean();
+            echo json_encode(['status' => false, 'message' => $e->getMessage()]);
         }
         break;
 
     case 'preview_certificate':
-        // New case: generate a PDF preview without altering the database.
-        // Use dummy participant data.
-        $dummyParticipant = [
-            'first_name' => 'John',
-            'last_name'  => 'Doe',
-            'email'      => 'john.doe@example.com',
-            'course'     => 'Sample Course',
-            'date'       => date("Y-m-d")
-        ];
+        $final_image = $_POST['final_image'] ?? '';
+        $preview_user_id = (int)($_POST['preview_user_id'] ?? 0);
+        $layout_json = $_POST['layout_json'] ?? '';
 
-        // Get layout JSON from POST
-        $layout_json = isset($_POST['layout_json']) ? $_POST['layout_json'] : '';
-        $config = [
-            'layout_json' => $layout_json,
-            'background_image' => ''
-        ];
-
-        // Use the final_image (background) if provided.
-        if (isset($_POST['final_image']) && !empty($_POST['final_image'])) {
-            $dataUrl = $_POST['final_image'];
-            list($type, $data) = explode(';', $dataUrl);
-            list(, $data) = explode(',', $data);
-            $data = base64_decode($data);
-            $tempImagePath = tempnam(sys_get_temp_dir(), 'cert_bg_') . '.png';
-            file_put_contents($tempImagePath, $data);
-            $config['background_image'] = $tempImagePath;
+        // Verify the participant exists
+        $stmt = $conn->prepare("
+            SELECT u.user_id, u.first_name, u.last_name, u.email, t.title AS course, tr.registered_at AS date
+            FROM users u
+            JOIN training_registrations tr ON u.user_id = tr.user_id
+            JOIN trainings t ON tr.training_id = t.training_id
+            WHERE u.user_id = ?
+            LIMIT 1
+        ");
+        $stmt->bind_param("i", $preview_user_id);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        if (!$row) {
+            ob_end_clean();
+            echo json_encode(['status' => false, 'message' => 'Participant not found.']);
+            exit;
         }
 
-        try {
-            $pdfPath = generateCertificate($dummyParticipant, $config);
-            $pdfData = file_get_contents($pdfPath);
-            $pdfBase64 = base64_encode($pdfData);
-            unlink($pdfPath);
-            // Clean up temporary background image if it was created.
-            if (isset($tempImagePath) && file_exists($tempImagePath)) {
-                unlink($tempImagePath);
-            }
-            echo json_encode(['status' => true, 'pdf_base64' => $pdfBase64]);
-        } catch (Exception $e) {
-            echo json_encode(['status' => false, 'message' => 'Error generating preview certificate: ' . $e->getMessage()]);
+        $participant = [
+            'user_id'    => $row['user_id'],
+            'first_name' => $row['first_name'],
+            'last_name'  => $row['last_name'],
+            'email'      => $row['email'],
+            'course'     => $row['course'] ?? 'Sample Course',
+            'date'       => date('Y-m-d', strtotime($row['date'])),
+        ];
+
+        // Generate PDF from the final image
+        if (!$final_image) {
+            ob_end_clean();
+            echo json_encode(['status' => false, 'message' => 'No final_image provided.']);
+            exit;
         }
+
+        list(, $encoded) = explode(',', $final_image);
+        $decoded = base64_decode($encoded);
+        $tempLayout = tempnam(sys_get_temp_dir(), 'cert_preview_') . '.png';
+        file_put_contents($tempLayout, $decoded);
+
+        $pdf = new TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
+        $pdf->SetAutoPageBreak(false, 0);
+        $pdf->setMargins(0, 0, 0);
+        $pdf->setPrintHeader(false);
+        $pdf->setPrintFooter(false);
+        $pdf->AddPage();
+
+        // Insert the background image
+        $pdf->Image($tempLayout, 0, 0, 297, 210);
+
+        $tempPdf = tempnam(sys_get_temp_dir(), 'cert_pdf_') . '.pdf';
+        $pdf->Output($tempPdf, 'F');
+        $pdfData = file_get_contents($tempPdf);
+        $pdfBase64 = base64_encode($pdfData);
+        @unlink($tempLayout);
+        @unlink($tempPdf);
+
+        ob_end_clean();
+        echo json_encode(['status' => true, 'pdf_base64' => $pdfBase64]);
         break;
 
     case 'batch_release_certificates':
-        // Batch release
-        $input = json_decode(file_get_contents("php://input"), true);
-        $training_id = isset($input['training_id']) ? intval($input['training_id']) : 0;
-        if ($training_id > 0) {
-            $results = processBatchCertificates($training_id);
-            echo json_encode(['status' => true, 'results' => $results]);
-        } else {
+        $training_id = (int)($_POST['training_id'] ?? 0);
+        if ($training_id <= 0) {
+            ob_end_clean();
             echo json_encode(['status' => false, 'message' => 'Invalid training id.']);
+            exit;
         }
+        $stmt = $conn->prepare("
+            SELECT u.user_id, u.first_name, u.last_name, u.email,
+                   tr.assessment_completed,
+                   t.title AS course,
+                   tr.registered_at AS date
+            FROM training_registrations tr
+            JOIN users u ON tr.user_id = u.user_id
+            JOIN trainings t ON tr.training_id = t.training_id
+            WHERE tr.training_id = ?
+              AND tr.assessment_completed = 1
+              AND (tr.certificate_issued = 0 OR tr.certificate_issued IS NULL)
+        ");
+        $stmt->bind_param("i", $training_id);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $results = [];
+        while ($p = $res->fetch_assoc()) {
+            $pdfPath = generateCertificate($p, $training_id);
+            $sent = emailCertificate($p, $pdfPath);
+            finalizeCertificate($p, $training_id, $pdfPath, $sent);
+            @unlink($pdfPath);
+            $results[] = [
+                'user_id' => $p['user_id'],
+                'email'   => $p['email'],
+                'status'  => $sent ? 'sent' : 'failed'
+            ];
+        }
+        ob_end_clean();
+        echo json_encode(['status' => true, 'results' => $results]);
         break;
 
     case 'release_certificate':
-        // Single participant release
         session_start();
         if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'trainer') {
+            ob_end_clean();
             echo json_encode(['status' => false, 'message' => 'Access denied.']);
-            exit();
+            exit;
         }
-
-        $method = $_SERVER['REQUEST_METHOD'];
-        if ($method === 'POST') {
-            $input = json_decode(file_get_contents('php://input'), true);
-            $participantUserId = isset($input['user_id']) ? intval($input['user_id']) : 0;
-            $trainingId = isset($input['training_id']) ? intval($input['training_id']) : 0;
-        } else {
-            $participantUserId = isset($_GET['user_id']) ? intval($_GET['user_id']) : 0;
-            $trainingId = isset($_GET['training_id']) ? intval($_GET['training_id']) : 0;
+        $user_id = (int)($_REQUEST['user_id'] ?? 0);
+        $training_id = (int)($_REQUEST['training_id'] ?? 0);
+        if ($user_id <= 0 || $training_id <= 0) {
+            ob_end_clean();
+            echo json_encode(['status' => false, 'message' => 'Invalid user/training id.']);
+            exit;
         }
-
-        if ($participantUserId <= 0 || $trainingId <= 0) {
-            echo json_encode(['status' => false, 'message' => 'Invalid parameters.']);
-            exit();
-        }
-
-        // Check participant
         $stmt = $conn->prepare("
-            SELECT u.user_id, u.first_name, u.last_name, u.email, 
+            SELECT u.user_id, u.first_name, u.last_name, u.email,
                    t.title AS course, tr.registered_at AS date
             FROM users u
             JOIN training_registrations tr ON u.user_id = tr.user_id
             JOIN trainings t ON tr.training_id = t.training_id
-            WHERE u.user_id = ? AND tr.training_id = ? AND tr.assessment_completed = 1
+            WHERE u.user_id = ? AND tr.training_id = ?
+              AND tr.assessment_completed = 1
+            LIMIT 1
         ");
-        $stmt->bind_param("ii", $participantUserId, $trainingId);
+        $stmt->bind_param("ii", $user_id, $training_id);
         $stmt->execute();
-        $result = $stmt->get_result();
-        if (!$participant = $result->fetch_assoc()) {
-            echo json_encode(['status' => false, 'message' => 'Participant not found or assessment not completed.']);
-            exit();
+        $row = $stmt->get_result()->fetch_assoc();
+        if (!$row) {
+            ob_end_clean();
+            echo json_encode(['status' => false, 'message' => 'Participant not found or incomplete assessment.']);
+            exit;
         }
-
-        // Fetch config
-        $configStmt = $conn->prepare("SELECT background_image, layout_json FROM certificate_configurations WHERE training_id = ?");
-        $configStmt->bind_param("i", $trainingId);
-        $configStmt->execute();
-        $configResult = $configStmt->get_result();
-        $config = $configResult->fetch_assoc();
-        if (!$config) {
-            $config = ['background_image' => '', 'layout_json' => ''];
-        }
-
-        // Generate certificate
-        try {
-            $pdfPath = generateCertificate($participant, $config);
-        } catch (Exception $e) {
-            echo json_encode(['status' => false, 'message' => 'Error generating certificate: ' . $e->getMessage()]);
-            exit();
-        }
-
-        // Email
-        $emailSent = emailCertificate($participant, $pdfPath);
-        if (!$emailSent) {
+        $pdfPath = generateCertificate($row, $training_id);
+        $sent = emailCertificate($row, $pdfPath);
+        if (!$sent) {
+            @unlink($pdfPath);
+            ob_end_clean();
             echo json_encode(['status' => false, 'message' => 'Failed to email certificate.']);
-            unlink($pdfPath);
-            exit();
+            exit;
         }
-
-        // Insert record
-        $insertStmt = $conn->prepare("INSERT INTO certificates (user_id, training_id, pdf_path, date_generated) VALUES (?, ?, ?, NOW())");
-        $insertStmt->bind_param("iis", $participantUserId, $trainingId, $pdfPath);
-        $insertStmt->execute();
-
-        // Update registration
-        $updateStmt = $conn->prepare("UPDATE training_registrations SET certificate_issued = 1 WHERE user_id = ? AND training_id = ?");
-        $updateStmt->bind_param("ii", $participantUserId, $trainingId);
-        $updateStmt->execute();
-
-        // Cleanup
-        unlink($pdfPath);
-
+        finalizeCertificate($row, $training_id, $pdfPath, true);
+        @unlink($pdfPath);
+        ob_end_clean();
         echo json_encode(['status' => true, 'message' => 'Certificate released successfully.']);
         break;
 
-    case 'load_certificate_layout':
-        // Return saved layout for a training
-        $training_id = isset($_GET['training_id']) ? intval($_GET['training_id']) : 0;
-        if ($training_id > 0) {
-            $stmt = $conn->prepare("SELECT background_image, layout_json FROM certificate_configurations WHERE training_id = ?");
-            $stmt->bind_param("i", $training_id);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            if ($row = $result->fetch_assoc()) {
-                // Convert absolute path if needed
-                $row['background_image'] = str_replace($_SERVER['DOCUMENT_ROOT'] . '/capstone-php/', '', $row['background_image']);
-                echo json_encode(['status' => true, 'data' => $row]);
-            } else {
-                echo json_encode(['status' => false, 'message' => 'No saved layout found.']);
-            }
-        } else {
-            echo json_encode(['status' => false, 'message' => 'Invalid training id.']);
-        }
-        break;
-
     default:
+        ob_end_clean();
         echo json_encode(['status' => false, 'message' => 'Invalid action.']);
         break;
 }
