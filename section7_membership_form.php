@@ -1,6 +1,9 @@
 <div class="form-section">
     <div class="form-title">7. Committees</div>
 
+    <!-- CSRF token (ensure session and token generation elsewhere) -->
+    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
+
     <!-- Committees Radio Buttons -->
     <div class="form-check">
         <input type="radio" id="membership_committee" name="committees" value="Membership & Training Committee"

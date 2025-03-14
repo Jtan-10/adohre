@@ -1,48 +1,58 @@
+<?php
+// Start session and generate CSRF token if not exists
+session_start();
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+// Create a unique nonce for this page
+$scriptNonce = bin2hex(random_bytes(16));
+?>
 <!DOCTYPE html>
 <html lang="en">
-
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'nonce-<?php echo $scriptNonce; ?>'; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; img-src 'self' data:;">
     <title>Login - Member Link</title>
     <link rel="icon" href="assets/logo.png" type="image/jpg" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-    body {
-        display: flex;
-        min-height: 100vh;
-        margin: 0;
-    }
+        body {
+            display: flex;
+            min-height: 100vh;
+            margin: 0;
+        }
 
-    .left-pane {
-        flex: 1;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        flex-direction: column;
-        background: #ffffff;
-    }
+        .left-pane {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            background: #ffffff;
+        }
 
-    .right-pane {
-        flex: 1;
-        background: url('assets/green_bg.png') no-repeat center center/cover;
-    }
+        .right-pane {
+            flex: 1;
+            background: url('assets/green_bg.png') no-repeat center center/cover;
+        }
 
-    .form-control {
-        border-radius: 0.5rem;
-    }
+        .form-control {
+            border-radius: 0.5rem;
+        }
 
-    .btn-success {
-        width: 100%;
-        border-radius: 0.5rem;
-    }
+        .btn-success {
+            width: 100%;
+            border-radius: 0.5rem;
+        }
 
-    #loadingScreen {
-        z-index: 1055;
-        /* Ensure it appears above everything else */
-        display: none;
-    }
+        #loadingScreen {
+            z-index: 1055;
+            /* Ensure it appears above everything else */
+            display: none;
+        }
     </style>
 </head>
 
@@ -52,6 +62,7 @@
         <h1 class="mt-3">Login</h1>
         <p>Enter your email or login via Virtual ID.</p>
         <form id="loginForm" class="w-75">
+            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
             <div class="mb-3">
                 <label for="email" class="form-label">Email</label>
                 <input type="email" name="email" class="form-control" id="email" placeholder="Enter your email">
@@ -81,7 +92,8 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="virtualIdForm">
+                    <form id="virtualIdForm" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                         <label for="virtualIdImage" class="form-label">Upload Virtual ID Image</label>
                         <input type="file" name="virtualIdImage" id="virtualIdImage" class="form-control"
                             accept="image/*">
@@ -115,96 +127,96 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous">
     </script>
-    <script>
-    document.getElementById('loginBtn').addEventListener('click', async () => {
-        const email = document.getElementById('email').value;
+    <script nonce="<?php echo $scriptNonce; ?>">
+        document.getElementById('loginBtn').addEventListener('click', async () => {
+            const email = document.getElementById('email').value;
 
-        if (!email) {
-            showModal('Error', 'Please enter your email.');
-            return;
-        }
-
-        showLoading(); // Show loading screen
-        try {
-            const response = await fetch('backend/routes/login.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    email
-                })
-            });
-
-            const result = await response.json();
-            hideLoading(); // Hide loading screen
-
-            if (result.status) {
-                showModal('Success', result.message, `otp.php?action=login&email=${email}`);
-            } else {
-                showModal('Error', result.message);
+            if (!email) {
+                showModal('Error', 'Please enter your email.');
+                return;
             }
-        } catch (error) {
-            hideLoading();
-            console.error('Error:', error);
-            showModal('Error', 'An error occurred. Please try again.');
-        }
-    });
 
-    document.getElementById('uploadBtn').addEventListener('click', async () => {
-        const formData = new FormData(document.getElementById('virtualIdForm'));
-        const fileInput = document.getElementById('virtualIdImage');
+            showLoading(); // Show loading screen
+            try {
+                const response = await fetch('backend/routes/login.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email,
+                        csrf_token: '<?php echo $_SESSION["csrf_token"]; ?>'
+                    })
+                });
 
-        if (!fileInput.files.length) {
-            alert('Please upload an image.');
-            return;
-        }
+                const result = await response.json();
+                hideLoading(); // Hide loading screen
 
-        try {
-            const response = await fetch('backend/routes/login.php', {
-                method: 'POST',
-                body: formData
-            });
-
-            const result = await response.json();
-
-            if (result.status) {
-                alert('Login successful.');
-                window.location.href = 'index.php';
-            } else {
-                alert(result.message);
+                if (result.status) {
+                    showModal('Success', result.message, `otp.php?action=login&email=${email}`);
+                } else {
+                    showModal('Error', result.message);
+                }
+            } catch (error) {
+                hideLoading();
+                console.error('Error:', error);
+                showModal('Error', 'An error occurred. Please try again.');
             }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('An error occurred. Please try again.');
+        });
+
+        document.getElementById('uploadBtn').addEventListener('click', async () => {
+            const formData = new FormData(document.getElementById('virtualIdForm'));
+            const fileInput = document.getElementById('virtualIdImage');
+
+            if (!fileInput.files.length) {
+                showModal('Error', 'Please upload an image.');
+                return;
+            }
+
+            try {
+                const response = await fetch('backend/routes/login.php', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.status) {
+                    showModal('Success', 'Login successful.', 'index.php');
+                } else {
+                    showModal('Error', result.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showModal('Error', 'An error occurred. Please try again.');
+            }
+        });
+
+        // Show Loading Screen
+        function showLoading() {
+            document.getElementById('loadingScreen').classList.remove('d-none');
+            document.getElementById('loadingScreen').style.display = 'flex';
         }
-    });
 
-    // Show Loading Screen
-    function showLoading() {
-        document.getElementById('loadingScreen').classList.remove('d-none');
-        document.getElementById('loadingScreen').style.display = 'flex';
-    }
-
-    // Hide Loading Screen
-    function hideLoading() {
-        document.getElementById('loadingScreen').classList.add('d-none');
-        document.getElementById('loadingScreen').style.display = 'none';
-    }
-
-    // Show Bootstrap Modal
-    function showModal(title, message, redirectUrl = null) {
-        document.getElementById('responseModalLabel').textContent = title;
-        document.getElementById('responseModalBody').textContent = message;
-        const modal = new bootstrap.Modal(document.getElementById('responseModal'));
-        modal.show();
-
-        if (redirectUrl) {
-            modal._element.addEventListener('hidden.bs.modal', () => {
-                window.location.href = redirectUrl;
-            });
+        // Hide Loading Screen
+        function hideLoading() {
+            document.getElementById('loadingScreen').classList.add('d-none');
+            document.getElementById('loadingScreen').style.display = 'none';
         }
-    }
+
+        // Show Bootstrap Modal
+        function showModal(title, message, redirectUrl = null) {
+            document.getElementById('responseModalLabel').textContent = title;
+            document.getElementById('responseModalBody').textContent = message;
+            const modal = new bootstrap.Modal(document.getElementById('responseModal'));
+            modal.show();
+
+            if (redirectUrl) {
+                modal._element.addEventListener('hidden.bs.modal', () => {
+                    window.location.href = redirectUrl;
+                });
+            }
+        }
     </script>
 </body>
 

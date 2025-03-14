@@ -31,12 +31,16 @@
     <!-- Account Settings -->
     <div class="tab-pane fade show active" id="account" role="tabpanel" aria-labelledby="account-tab">
         <form id="profileForm" enctype="multipart/form-data">
+            <?php // Adding CSRF token for security 
+            ?>
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
             <div class="text-center mb-3">
                 <img id="profileImage" src="assets/default-profile.jpeg" alt="Profile Image"
                     class="profile-image rounded-circle" width="150" height="150">
                 <div class="mt-2">
                     <label for="profile_image" class="form-label">Change Profile Image</label>
-                    <input type="file" name="profile_image" id="profile_image" class="form-control">
+                    <!-- Added accept attribute to allow only image files -->
+                    <input type="file" name="profile_image" id="profile_image" class="form-control" accept="image/*">
                 </div>
             </div>
             <div class="mb-3">
@@ -133,6 +137,10 @@
                 <div class="modal-body">
                     <p class="text-danger">You can only enter this once. Make sure that all details are correct.</p>
                     <form id="payFeeForm">
+                        <?php // Adding CSRF token for security 
+                        ?>
+                        <input type="hidden" name="csrf_token"
+                            value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
                         <div class="mb-3">
                             <label for="modeOfPayment" class="form-label">Mode of Payment</label>
                             <input type="text" class="form-control" id="modeOfPayment" name="mode_of_payment"

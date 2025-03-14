@@ -1,4 +1,13 @@
+<?php
+session_start();
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+?>
 <div class="form-section">
+    <?php // CSRF token for form security 
+    ?>
+    <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
     <div class="form-title">2. Employment Record with DOH</div>
     <div class="row mb-3">
         <div class="col-md-6">

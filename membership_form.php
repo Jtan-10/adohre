@@ -1,3 +1,11 @@
+<?php
+session_start();
+header("X-Frame-Options: DENY"); // Send header instead of using <meta> tag.
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+$csp_nonce = base64_encode(random_bytes(16));
+?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -5,7 +13,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Membership Application Form</title>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; 
+               script-src 'self' 'nonce-<?php echo $csp_nonce; ?>' https://cdn.jsdelivr.net; 
+               style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; 
+               img-src 'self' data:; 
+               connect-src 'self' https://api.ocr.space;">
+
+    <script nonce="<?php echo $csp_nonce; ?>"
+        src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <style>
     body {
@@ -33,6 +48,7 @@
         <h1 class="text-center text-success mb-4">Membership Application Form</h1>
 
         <form id="membership-form" action="backend/routes/membership_handler.php" method="POST">
+            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
             <!-- OCR Upload Section -->
             <div class="form-section">
                 <div class="form-title">OCR Upload</div>
@@ -96,7 +112,7 @@
             </div>
         </form>
         <!-- Modal Structure -->
-        <div class="modal fade" id="inputModal" tabindex="-1" aria-labelledby="inputModalLabel" aria-hidden="true">
+        <div class="modal fade" id="inputModal" tabindex="-1" aria-labelledby="inputModalLabel">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
@@ -118,10 +134,11 @@
     </div>
 
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
-    <!-- OCR Script -->
-    <?php include('OCR_membership_form.php'); ?>
-    <script>
+    <script nonce="<?php echo $csp_nonce; ?>"
+        src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+    <!-- Load OCR Script externally -->
+    <script nonce="<?php echo $csp_nonce; ?>" src="OCR_membership_form.php"></script>
+    <script nonce="<?php echo $csp_nonce; ?>">
     const canvas = document.getElementById("signature-canvas");
     const signaturePad = new SignaturePad(canvas);
 
@@ -150,7 +167,7 @@
         }
     });
     </script>
-    <script>
+    <script nonce="<?php echo $csp_nonce; ?>">
     // Enable/Disable "Others (Specify)" Textboxes Based on Selection
     document.addEventListener("DOMContentLoaded", function() {
         /**

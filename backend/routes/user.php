@@ -164,6 +164,12 @@ try {
                 echo json_encode(['status' => false, 'message' => 'Error uploading profile image to S3: ' . $e->getMessage()]);
                 exit();
             }
+
+            // If this request is only for updating the profile image, exit here.
+            if (isset($_POST['update_profile_image']) && $_POST['update_profile_image'] === 'true') {
+                echo json_encode(['status' => true, 'message' => 'Profile image updated successfully.', 'profile_image' => $profile_image_path]);
+                exit();
+            }
         }
 
         // Now update the other profile details.

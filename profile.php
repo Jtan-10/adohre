@@ -1,3 +1,20 @@
+<?php
+// Set secure session cookie parameters (ensure your site uses HTTPS in production)
+ini_set('session.cookie_secure', 1);
+ini_set('session.cookie_httponly', 1);
+ini_set('session.cookie_samesite', 'Strict');
+
+session_start();
+if (!isset($_SESSION['initiated'])) {
+    session_regenerate_id(true);
+    $_SESSION['initiated'] = true;
+}
+
+// Add security headers
+header("X-Frame-Options: SAMEORIGIN");
+header("X-Content-Type-Options: nosniff");
+header("Content-Security-Policy: default-src 'self' https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: https://cdn.jsdelivr.net");
+?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -69,7 +86,7 @@
     </script>
     <script>
     document.addEventListener("DOMContentLoaded", function() {
-        const userId = "<?php echo $_SESSION['user_id']; ?>";
+        const userId = <?php echo json_encode($_SESSION['user_id']); ?>;
         // Global function to show payment details in a modal
         window.viewPaymentDetails = function(payment) {
             const detailsHTML = `
@@ -222,10 +239,19 @@
             })
             .catch(() => showToast('Error fetching profile data.', 'danger'));
 
-        // Update profile
+        // Update profile - allow updating only the profile image
         document.getElementById('updateProfileBtn').addEventListener('click', function() {
-            const formData = new FormData(document.getElementById('profileForm'));
-
+            // Only read the profile image file from the form.
+            const fileInput = document.querySelector(
+                '#profileForm input[type="file"][name="profile_image"]');
+            const formData = new FormData();
+            if (fileInput && fileInput.files[0]) {
+                formData.append('profile_image', fileInput.files[0]);
+                formData.append('update_profile_image', 'true'); // Extra flag for backend processing
+            } else {
+                showToast('Please select an image to update.', 'danger');
+                return;
+            }
             fetch('backend/routes/user.php', {
                     method: 'POST',
                     body: formData,
@@ -235,11 +261,9 @@
                     if (data.status) {
                         // Show success message
                         showToast(data.message, 'success');
-
                         // Update the profile image on the page
                         if (data.profile_image) {
                             document.getElementById('profileImage').src = data.profile_image;
-
                             // Also update the profile image in the header
                             const profileImageNav = document.getElementById('profileImageNav');
                             if (profileImageNav) {
@@ -253,8 +277,6 @@
                 })
                 .catch(() => showToast('Error updating profile.', 'danger'));
         });
-
-
 
         // Regenerate Virtual ID
         document.getElementById('regenerateIdBtn').addEventListener('click', function() {
@@ -282,20 +304,6 @@
                 })
                 .catch(() => showToast('Error regenerating Virtual ID.', 'danger'));
         });
-
-        function showToast(message, type) {
-            const toastContainer = document.getElementById('toastContainer');
-            const toastHTML = `
-                    <div class="toast align-items-center text-white bg-${type} border-0" role="alert">
-                        <div class="d-flex">
-                            <div class="toast-body">${message}</div>
-                            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-                        </div>
-                    </div>`;
-            toastContainer.innerHTML = toastHTML;
-            const toast = new bootstrap.Toast(toastContainer.firstElementChild);
-            toast.show();
-        }
 
         // Fetch the joined events when the "Events" tab is clicked
         document.getElementById('events-tab').addEventListener('click', function() {

@@ -1,7 +1,42 @@
 <?php
-// Start the session and include your database connection.
+// Enforce HTTPS for production, skip enforcement if HTTP_HOST contains "localhost"
+if (stripos($_SERVER['HTTP_HOST'], 'localhost') === false && (empty($_SERVER['HTTPS']) || $_SERVER['HTTPS'] === 'off')) {
+    $redirect = 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+    header("Location: $redirect");
+    exit();
+}
+
+// Generate a nonce for inline scripts and styles.
+$csp_nonce = base64_encode(random_bytes(16));
+
+// Disable error display to users.
+ini_set('display_errors', '0');
+error_reporting(E_ALL);
+
+// Send secure HTTP headers with CSP nonce.
+header("X-Content-Type-Options: nosniff");
+header("X-Frame-Options: DENY");
+header("X-XSS-Protection: 1; mode=block");
+header("Strict-Transport-Security: max-age=31536000; includeSubDomains");
+header("Referrer-Policy: no-referrer");
+header("Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'nonce-$csp_nonce'; style-src 'self' https://cdn.jsdelivr.net 'nonce-$csp_nonce'; img-src 'self' data:; font-src 'self'");
+
+// Add secure session cookie settings.
+session_set_cookie_params([
+    'lifetime' => 0,
+    'path' => '/',
+    'domain' => '',  // adjust if needed
+    'secure' => true,
+    'httponly' => true,
+    'samesite' => 'Strict'
+]);
 session_start();
 require_once 'backend/db/db_connect.php';
+
+// Generate CSRF token if not exists.
+if (!isset($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
 
 // Default visually impaired flag is 0.
 $isVisuallyImpaired = 0;
@@ -25,7 +60,7 @@ if (isset($_SESSION['user_id'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign Up - Member Link</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
+    <style nonce="<?php echo $csp_nonce; ?>">
     body {
         display: flex;
         min-height: 100vh;
@@ -63,8 +98,9 @@ if (isset($_SESSION['user_id'])) {
     </style>
     <!-- Include the global TTS module (create tts.js with your TTS functions) -->
     <script src="tts.js"></script>
-    <!-- Pass the visually impaired flag to JavaScript -->
-    <script>
+    <!-- Pass the CSRF token and visually impaired flag to JavaScript -->
+    <script nonce="<?php echo $csp_nonce; ?>">
+    var csrfToken = <?php echo json_encode($_SESSION['csrf_token']); ?>;
     var isVisuallyImpaired = <?php echo json_encode($isVisuallyImpaired); ?>;
     </script>
 </head>
@@ -77,8 +113,11 @@ if (isset($_SESSION['user_id'])) {
         <form id="signupForm" class="w-75">
             <div class="mb-3">
                 <label for="email" class="form-label">Email</label>
-                <input type="email" name="email" class="form-control" id="email" placeholder="Enter your email">
+                <input type="email" name="email" class="form-control" id="email" placeholder="Enter your email"
+                    required>
             </div>
+            <!-- Include hidden CSRF token. -->
+            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
             <button type="button" id="signupBtn" class="btn btn-success">Send OTP</button>
             <p id="error" class="text-danger mt-3"></p>
         </form>
@@ -111,13 +150,16 @@ if (isset($_SESSION['user_id'])) {
     </div>
 
     <!-- Include Visually Impaired Modal -->
-    <?php include 'visually_impaired_modal.php'; ?>
+    <?php 
+    define('IN_CAPSTONE', true);
+    include 'visually_impaired_modal.php'; 
+    ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous">
     </script>
 
-    <script>
+    <script nonce="<?php echo $csp_nonce; ?>">
     // Set up Speech Recognition.
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     let recognition;
@@ -257,7 +299,8 @@ if (isset($_SESSION['user_id'])) {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        email: email
+                        email: email,
+                        csrf_token: csrfToken
                     })
                 });
                 const result = await response.json();
@@ -292,38 +335,6 @@ if (isset($_SESSION['user_id'])) {
                     window.location.href = redirectUrl;
                 });
             }
-        }
-    });
-
-    // Add duplicate listener for signupBtn outside DOMContentLoaded block? (Optional: Remove if already inside.)
-    document.getElementById('signupBtn').addEventListener('click', async () => {
-        const email = document.getElementById('email').value;
-        if (!email) {
-            showModal('Error', 'Please enter your email.');
-            return;
-        }
-        showLoading();
-        try {
-            const response = await fetch('backend/routes/signup.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    email
-                })
-            });
-            const result = await response.json();
-            hideLoading();
-            if (result.status) {
-                showModal('Success', result.message, `otp.php?action=signup&email=${email}`);
-            } else {
-                showModal('Error', result.message);
-            }
-        } catch (error) {
-            hideLoading();
-            console.error('Error:', error);
-            showModal('Error', 'An error occurred. Please try again.');
         }
     });
     </script>

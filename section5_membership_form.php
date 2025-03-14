@@ -1,5 +1,13 @@
+<?php
+session_start();
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+?>
 <div class="form-section">
     <div class="form-title">5. Key Expertise</div>
+    <!-- CSRF Token -->
+    <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
 
     <!-- Expertise Radio Buttons -->
     <div class="form-check">

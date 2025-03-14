@@ -1,3 +1,9 @@
+<?php
+session_start();
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+?>
 <div class="form-section">
     <div class="form-title">4. Current Engagement</div>
     <div class="form-check">
@@ -23,5 +29,7 @@
         <input type="text" id="others_engagement_specify" name="others_engagement_specify" class="form-control mt-2"
             placeholder="Specify here..." disabled>
     </div>
-
+    <!-- CSRF token hidden field -->
+    <input type="hidden" name="csrf_token"
+        value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>">
 </div>

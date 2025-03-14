@@ -1,9 +1,17 @@
+<?php
+session_start();
+if (!isset($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+?>
 <div class="form-section">
+    <!-- Hidden CSRF token field -->
+    <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
     <div class="form-title">1. Personal Information</div>
     <div class="row mb-3">
         <div class="col-md-6">
             <label for="name" class="form-label">Name (Family Name, Given Name, Middle Name)</label>
-            <input type="text" id="name" name="name" class="form-control" required>
+            <input type="text" id="name" name="name" class="form-control" required maxlength="255">
         </div>
         <div class="col-md-3">
             <label for="dob" class="form-label">Date of Birth</label>

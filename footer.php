@@ -16,11 +16,10 @@
             <div class="col-md-3">
                 <h5>Company</h5>
                 <ul class="list-unstyled">
-                    <li><a href="#" class="text-white">About Us</a></li>
-                    <li><a href="#" class="text-white">Services</a></li>
-                    <li><a href="#" class="text-white">Trainings</a></li>
-                    <li><a href="#" class="text-white">Events</a></li>
-                    <li><a href="#" class="text-white">Announcements</a></li>
+                    <li><a href="about.php" class="text-white">About Us</a></li>
+                    <li><a href="trainings.php" class="text-white">Trainings</a></li>
+                    <li><a href="events.php" class="text-white">Events</a></li>
+                    <li><a href="events.php" class="text-white">Announcements</a></li>
                 </ul>
             </div>
 

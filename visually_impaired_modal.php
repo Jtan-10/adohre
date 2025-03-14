@@ -1,3 +1,10 @@
+<?php
+// Security: Prevent direct access.
+if (!defined('IN_CAPSTONE')) {
+    header('HTTP/1.0 403 Forbidden');
+    exit('Direct access not permitted.');
+}
+?>
 <div class="modal fade" id="visuallyImpairedModal" tabindex="-1" aria-labelledby="visuallyImpairedModalLabel"
     aria-modal="true" role="dialog">
     <div class="modal-dialog modal-dialog-centered">

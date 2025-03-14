@@ -3,20 +3,24 @@
 // It loads models, detects a face in an image (or canvas), and compares face descriptors.
 
 (function(global) {
+    "use strict";
     /**
      * Loads the face-api.js models from the specified URL.
      * @param {string} modelUrl - The URL or path to the models folder.
      * @returns {Promise} Resolves when all models are loaded.
      */
     async function loadModels(modelUrl = 'backend/models/weights') {
+      if (typeof modelUrl !== 'string') {
+        throw new Error("Invalid modelUrl");
+      }
       try {
-        // Load required models. Ensure these files are in your model folder.
+        // Load required models.
         await faceapi.nets.tinyFaceDetector.loadFromUri(modelUrl);
         await faceapi.nets.faceLandmark68Net.loadFromUri(modelUrl);
         await faceapi.nets.faceRecognitionNet.loadFromUri(modelUrl);
-        console.log("FaceValidation: Models loaded from", modelUrl);
+        // In production, limit success logging.
       } catch (error) {
-        console.error("FaceValidation: Error loading models", error);
+        console.error("FaceValidation: Model load failed");
       }
     }
   
@@ -28,19 +32,18 @@
      * @returns {Promise<object|null>} Returns detection result with landmarks and descriptor or null if no face is found.
      */
     async function detectFaceFromCanvas(canvas, options = new faceapi.TinyFaceDetectorOptions()) {
+      if (!(canvas instanceof HTMLCanvasElement)) {
+        throw new Error("Invalid canvas element");
+      }
       try {
         const detection = await faceapi
           .detectSingleFace(canvas, options)
           .withFaceLandmarks()
           .withFaceDescriptor();
-        if (detection) {
-          console.log("FaceValidation: Face detected", detection);
-        } else {
-          console.warn("FaceValidation: No face detected");
-        }
+        // Avoid verbose logging in production.
         return detection;
       } catch (error) {
-        console.error("FaceValidation: Error detecting face", error);
+        console.error("FaceValidation: Face detection failed");
         return null;
       }
     }
@@ -53,16 +56,19 @@
      * @returns {number} The Euclidean distance between the descriptors.
      */
     function compareFaces(descriptor1, descriptor2) {
+      if (!(descriptor1 instanceof Float32Array) || !(descriptor2 instanceof Float32Array)) {
+        throw new Error("Invalid descriptor(s)");
+      }
       const distance = faceapi.euclideanDistance(descriptor1, descriptor2);
-      console.log("FaceValidation: Distance between faces:", distance);
+      // Limit logging in production.
       return distance;
     }
   
-    // Expose the functions as a global object 'faceValidation'
-    global.faceValidation = {
+    // Freeze the API object to prevent external modifications.
+    const api = Object.freeze({
       loadModels: loadModels,
       detectFace: detectFaceFromCanvas,
       compareFaces: compareFaces
-    };
-  })(window);
-  
+    });
+    global.faceValidation = api;
+})(window);

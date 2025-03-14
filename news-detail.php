@@ -1,19 +1,31 @@
 <?php
 // news-detail.php
+// Set secure session cookie parameters (adjust domain/path as needed)
+session_set_cookie_params([
+    'lifetime' => 0,
+    'secure' => true,
+    'httponly' => true,
+    'samesite' => 'Lax'
+]);
 session_start();
+
+// Generate a nonce for inline styles.
+$style_nonce = base64_encode(random_bytes(16));
+
+// Validate session
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit;
 }
 
-// Ensure a valid news ID is provided.
-if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
+// Use filter_input to validate news id.
+$news_id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+if (!$news_id) {
     header("Location: news.php");
     exit;
 }
 
-$news_id = intval($_GET['id']);
-
+$news_id = intval($news_id);
 // Build the URL for the backend route.
 $base_url = "http://localhost/capstone-php/backend/routes/news_manager.php";
 $url = $base_url . "?action=fetch&id=" . $news_id;
@@ -26,10 +38,17 @@ $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $url);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_COOKIE, session_name() . '=' . session_id());
+// Add connection timeout for production
+curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+curl_setopt($ch, CURLOPT_TIMEOUT, 10);
 $response = curl_exec($ch);
+// Check for cURL errors.
+if (curl_errno($ch)) {
+    error_log("cURL error in news-detail.php: " . curl_error($ch));
+    curl_close($ch);
+    die("<p class='text-center mt-5'>Unable to retrieve news article at this time.</p>");
+}
 curl_close($ch);
-
-
 
 $newsData = json_decode($response, true);
 if (!$newsData || !$newsData['status'] || count($newsData['news']) < 1) {
@@ -44,6 +63,11 @@ $news = $newsData['news'][0];
 
 <head>
     <meta charset="UTF-8">
+    <!-- Updated CSP including nonce for inline style, a hash for known inline styles from external libraries, and font-src directive -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; 
+                 style-src 'self' 'nonce-<?php echo $style_nonce; ?>' 'sha256-p6mA130cDc4HStcM59w4BqV/qpvgY7ZMDK0IMyF0VKk=' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; 
+                 script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; 
+                 font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($news['title']); ?> - ADOHRE News</title>
     <link rel="icon" href="assets/logo.png" type="image/jpg" />
@@ -51,31 +75,31 @@ $news = $newsData['news'][0];
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-    .news-detail-container {
-        max-width: 800px;
-        margin: 2rem auto;
-        padding: 1rem;
-    }
+    <style nonce="<?php echo $style_nonce; ?>">
+        .news-detail-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 1rem;
+        }
 
-    .news-detail-img {
-        width: 100%;
-        height: auto;
-        object-fit: cover;
-        border-radius: 12px;
-        margin-bottom: 1.5rem;
-    }
+        .news-detail-img {
+            width: 100%;
+            height: auto;
+            object-fit: cover;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+        }
 
-    .news-meta {
-        color: #28a745;
-        font-size: 0.9rem;
-        margin-bottom: 1rem;
-    }
+        .news-meta {
+            color: #28a745;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
 
-    .news-content {
-        font-size: 1.1rem;
-        line-height: 1.6;
-    }
+        .news-content {
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
     </style>
 </head>
 
@@ -90,8 +114,8 @@ $news = $newsData['news'][0];
             <span class="ms-3"><i class="fas fa-eye"></i> <?php echo intval($news['views']); ?> views</span>
         </div>
         <?php if (!empty($news['image'])): ?>
-        <img src="<?php echo htmlspecialchars($news['image']); ?>" alt="<?php echo htmlspecialchars($news['title']); ?>"
-            class="news-detail-img">
+            <img src="<?php echo htmlspecialchars($news['image']); ?>" alt="<?php echo htmlspecialchars($news['title']); ?>"
+                class="news-detail-img">
         <?php endif; ?>
         <div class="news-content">
             <?php echo nl2br(htmlspecialchars($news['content'])); ?>

@@ -1,9 +1,9 @@
 <?php
 session_start();
 
-// Enable error reporting for debugging
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+// Production: disable error display.
+error_reporting(0);
+ini_set('display_errors', 0);
 
 // Ensure the user is logged in
 if (!isset($_SESSION['user_id'])) {
@@ -13,19 +13,19 @@ if (!isset($_SESSION['user_id'])) {
 
 require_once 'backend/db/db_connect.php';
 
-// Validate room_id
-if (!isset($_GET['room_id']) || empty($_GET['room_id'])) {
-    die("Invalid or missing chat room ID.");
+// Validate room_id using filter_input
+$roomId = filter_input(INPUT_GET, 'room_id', FILTER_VALIDATE_INT);
+if ($roomId === false) {
+    die("Invalid chat room ID.");
 }
-
-$roomId = intval($_GET['room_id']);
 $userId = $_SESSION['user_id'];
 
 // Check if the chat room exists
 $query = "SELECT id FROM chat_rooms WHERE id = ?";
 $stmt = $conn->prepare($query);
 if (!$stmt) {
-    die("Database error: " . $conn->error);
+    error_log("Database error: " . $conn->error);
+    die("An error occurred.");
 }
 $stmt->bind_param("i", $roomId);
 $stmt->execute();
@@ -40,7 +40,8 @@ $stmt->close();
 $query = "SELECT 1 FROM chat_participants WHERE room_id = ? AND user_id = ?";
 $stmt = $conn->prepare($query);
 if (!$stmt) {
-    die("Database error: " . $conn->error);
+    error_log("Database error: " . $conn->error);
+    die("An error occurred.");
 }
 $stmt->bind_param("ii", $roomId, $userId);
 $stmt->execute();
@@ -61,4 +62,3 @@ if (isset($_GET['share']) && $_GET['share'] === 'admin') {
 // Otherwise, redirect to the regular (frontend) chatroom.
 header("Location: chatroom.php?room_id=" . $roomId);
 exit;
-?>
