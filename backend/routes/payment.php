@@ -6,6 +6,15 @@ header('Content-Type: application/json');
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
+// Add secure session cookie settings for production
+session_set_cookie_params([
+	'lifetime' => 0,
+	'path' => '/',
+	'domain' => '', // set your domain if needed
+	'secure' => true,
+	'httponly' => true,
+	'samesite' => 'Strict'
+]);
 session_start();
 // Ensure the user is logged in
 if (!isset($_SESSION['user_id'])) {
@@ -34,7 +43,8 @@ if ($method === 'GET') {
             echo json_encode(['status' => true, 'payments' => $payments]);
             exit;
         } else {
-            echo json_encode(['status' => false, 'message' => 'Database error: ' . $conn->error]);
+            error_log("Database error in get_all_payments: " . $conn->error);
+            echo json_encode(['status' => false, 'message' => 'Internal server error']);
             exit;
         }
     } elseif ($action === 'get_pending_payments') {
@@ -49,7 +59,8 @@ if ($method === 'GET') {
         $query = "SELECT * FROM payments WHERE user_id = ? AND status = 'Pending' ORDER BY due_date ASC";
         $stmt = $conn->prepare($query);
         if ($stmt === false) {
-            echo json_encode(['status' => false, 'message' => 'Database error: ' . $conn->error]);
+            error_log("Database error in get_pending_payments: " . $conn->error);
+            echo json_encode(['status' => false, 'message' => 'Internal server error']);
             exit;
         }
         $stmt->bind_param("i", $user_id);
@@ -78,7 +89,8 @@ if ($method === 'GET') {
         $query = "SELECT * FROM payments WHERE user_id = ? AND status = ? ORDER BY due_date ASC";
         $stmt = $conn->prepare($query);
         if ($stmt === false) {
-            echo json_encode(['status' => false, 'message' => 'Database error: ' . $conn->error]);
+            error_log("Database error in get_payments: " . $conn->error);
+            echo json_encode(['status' => false, 'message' => 'Internal server error']);
             exit;
         }
         $stmt->bind_param("is", $user_id, $status);
@@ -132,9 +144,10 @@ if ($method === 'GET') {
                     $result['ObjectURL']
                 );
             } catch (Aws\Exception\AwsException $e) {
+                error_log('Failed to upload image to S3: ' . $e->getMessage());
                 echo json_encode([
                     'status' => false,
-                    'message' => 'Failed to upload image to S3: ' . $e->getMessage()
+                    'message' => 'Internal server error'
                 ]);
                 exit();
             }
@@ -146,7 +159,8 @@ if ($method === 'GET') {
         // Update the payment record: set reference_number, image, mode_of_payment, payment_date and change status to 'Pending'
         $stmt = $conn->prepare("UPDATE payments SET reference_number = ?, image = ?, mode_of_payment = ?, status = 'Pending', payment_date = ? WHERE payment_id = ?");
         if ($stmt === false) {
-            echo json_encode(['status' => false, 'message' => 'Database error: ' . $conn->error]);
+            error_log("Database error in update_payment_fee: " . $conn->error);
+            echo json_encode(['status' => false, 'message' => 'Internal server error']);
             exit;
         }
         $stmt->bind_param("ssssi", $reference_number, $relativeImagePath, $mode_of_payment, $payment_date, $payment_id);
@@ -162,41 +176,86 @@ if ($method === 'GET') {
             $resultUser = $stmtUser->get_result();
             $details = $resultUser->fetch_assoc();
             $stmtUser->close();
-
-            $mail = new PHPMailer(true);
-            try {
-                $mail->isSMTP();
-                $mail->Host       = $_ENV['SMTP_HOST'];
-                $mail->SMTPAuth   = true;
-                $mail->Username   = $_ENV['SMTP_USER'];
-                $mail->Password   = $_ENV['SMTP_PASS'];
-                $mail->SMTPSecure = $_ENV['SMTP_SECURE'];
-                $mail->Port       = $_ENV['SMTP_PORT'];
-
-                $mail->setFrom($_ENV['SMTP_FROM'], $_ENV['SMTP_FROM_NAME']);
-                $mail->addAddress($details['email']);
-
-                $mail->isHTML(true);
-                $mail->Subject = "Payment Update Notification";
-                $mail->Body    = "
-                    <h1>Hello " . htmlspecialchars($details['first_name']) . ",</h1>
-                    <p>Your payment has been updated to <strong>Pending</strong>.</p>
-                    <p><strong>Payment Type:</strong> " . htmlspecialchars($details['payment_type']) . "</p>
-                    <p><strong>Amount:</strong> " . htmlspecialchars($details['amount']) . "</p>
-                    <p><strong>Mode of Payment:</strong> " . htmlspecialchars($details['mode_of_payment']) . "</p>
-                    <p><strong>Payment Date:</strong> " . htmlspecialchars($details['payment_date']) . "</p>
-                    <p>Please check your account for further details.</p>";
-                $mail->AltBody = strip_tags($mail->Body);
-
-                $mail->send();
-            } catch (Exception $e) {
-                error_log("Email could not be sent. Mailer Error: {$mail->ErrorInfo}");
+        
+            // Log the email sending attempt
+            error_log("Sending payment update email to: " . $details['email'] . " at " . date('Y-m-d H:i:s'));
+        
+            // Rate limiting for email sending: allow maximum 5 emails per recipient within a 1-hour window.
+            if (session_status() === PHP_SESSION_NONE) {
+                session_start();
             }
-
+            $window = 3600; // 1 hour in seconds
+            $maxEmails = 10;
+            $now = time();
+            $recipient = $details['email'];
+        
+            if (!isset($_SESSION['email_send_requests'])) {
+                $_SESSION['email_send_requests'] = [];
+            }
+            if (!isset($_SESSION['email_send_requests'][$recipient])) {
+                $_SESSION['email_send_requests'][$recipient] = [
+                    'count' => 0,
+                    'first_request_time' => $now
+                ];
+            }
+            // Reset counter if the time window has expired
+            if ($now - $_SESSION['email_send_requests'][$recipient]['first_request_time'] > $window) {
+                $_SESSION['email_send_requests'][$recipient]['count'] = 0;
+                $_SESSION['email_send_requests'][$recipient]['first_request_time'] = $now;
+            }
+            // Check if rate limit is reached
+            if ($_SESSION['email_send_requests'][$recipient]['count'] >= $maxEmails) {
+                error_log("Rate limit exceeded for sending payment update emails to: " . $recipient);
+                // Optionally, you can decide to skip sending the email or notify the user.
+            } else {
+                // Increment count and proceed to send the email.
+                $_SESSION['email_send_requests'][$recipient]['count']++;
+        
+                $mail = new PHPMailer(true);
+                try {
+                    // SMTP configuration using environment variables.
+                    $mail->isSMTP();
+                    $mail->Host       = $_ENV['SMTP_HOST'];
+                    $mail->SMTPAuth   = true;
+                    $mail->Username   = $_ENV['SMTP_USER'];
+                    $mail->Password   = $_ENV['SMTP_PASS'];
+                    $mail->SMTPSecure = $_ENV['SMTP_SECURE'];
+                    $mail->Port       = $_ENV['SMTP_PORT'];
+        
+                    // Enforce secure SMTP options.
+                    $mail->SMTPOptions = [
+                        'ssl' => [
+                            'verify_peer'      => true,
+                            'verify_peer_name' => true,
+                            'allow_self_signed'=> false,
+                        ],
+                    ];
+        
+                    $mail->setFrom($_ENV['SMTP_FROM'], $_ENV['SMTP_FROM_NAME']);
+                    $mail->addAddress($details['email']);
+        
+                    $mail->isHTML(true);
+                    $mail->Subject = "Payment Update Notification";
+                    $mail->Body    = "
+                        <h1>Hello " . htmlspecialchars($details['first_name'], ENT_QUOTES, 'UTF-8') . ",</h1>
+                        <p>Your payment has been updated to <strong>Pending</strong>.</p>
+                        <p><strong>Payment Type:</strong> " . htmlspecialchars($details['payment_type'], ENT_QUOTES, 'UTF-8') . "</p>
+                        <p><strong>Amount:</strong> " . htmlspecialchars($details['amount'], ENT_QUOTES, 'UTF-8') . "</p>
+                        <p><strong>Mode of Payment:</strong> " . htmlspecialchars($details['mode_of_payment'], ENT_QUOTES, 'UTF-8') . "</p>
+                        <p><strong>Payment Date:</strong> " . htmlspecialchars($details['payment_date'], ENT_QUOTES, 'UTF-8') . "</p>
+                        <p>Please check your account for further details.</p>";
+                    $mail->AltBody = strip_tags($mail->Body);
+        
+                    $mail->send();
+                } catch (Exception $e) {
+                    error_log("Email could not be sent. Mailer Error: " . $mail->ErrorInfo);
+                }
+            }
             echo json_encode(['status' => true, 'message' => 'Payment updated successfully.']);
             exit();
         } else {
-            echo json_encode(['status' => false, 'message' => 'Failed to update payment: ' . $stmt->error]);
+            error_log("Failed to update payment: " . $stmt->error);
+            echo json_encode(['status' => false, 'message' => 'Internal server error']);
             exit();
         }
     } else { 
@@ -233,7 +292,8 @@ if ($method === 'GET') {
 
         $stmt = $conn->prepare("INSERT INTO payments (user_id, payment_type, amount, status, payment_date, due_date, reference_number, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
         if ($stmt === false) {
-            echo json_encode(['status' => false, 'message' => 'Database error: ' . $conn->error]);
+            error_log("Database error in payment push: " . $conn->error);
+            echo json_encode(['status' => false, 'message' => 'Internal server error']);
             exit;
         }
         $stmt->bind_param("isdsssss", $user_id, $payment_type, $amount, $status, $payment_date, $due_date, $reference_number, $image);
@@ -241,7 +301,8 @@ if ($method === 'GET') {
             echo json_encode(['status' => true, 'message' => 'Payment pushed successfully.']);
             exit;
         } else {
-            echo json_encode(['status' => false, 'message' => 'Failed to push payment: ' . $stmt->error]);
+            error_log("Failed to push payment: " . $stmt->error);
+            echo json_encode(['status' => false, 'message' => 'Internal server error']);
             exit;
         }
     }
@@ -256,7 +317,8 @@ if ($method === 'GET') {
 
     $stmt = $conn->prepare("UPDATE payments SET status = ? WHERE payment_id = ?");
     if ($stmt === false) {
-        echo json_encode(['status' => false, 'message' => 'Database error: ' . $conn->error]);
+        error_log("Database error in PUT request: " . $conn->error);
+        echo json_encode(['status' => false, 'message' => 'Internal server error']);
         exit;
     }
     $stmt->bind_param("si", $newStatus, $payment_id);
@@ -264,7 +326,8 @@ if ($method === 'GET') {
         echo json_encode(['status' => true, 'message' => 'Payment status updated successfully.']);
         exit;
     } else {
-        echo json_encode(['status' => false, 'message' => 'Failed to update payment status: ' . $stmt->error]);
+        error_log("Failed to update payment status: " . $stmt->error);
+        echo json_encode(['status' => false, 'message' => 'Internal server error']);
         exit;
     }
 } else {

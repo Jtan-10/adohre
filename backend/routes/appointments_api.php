@@ -1,9 +1,11 @@
 <?php
 header("Content-Type: application/json");
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
+// Turn off error display for production and log errors instead
+ini_set('display_errors', 0);
+ini_set('display_startup_errors', 0);
 error_reporting(E_ALL);
 
+// Start a secure session (ensure session cookie settings are configured in php.ini or here if needed)
 session_start();
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
@@ -31,8 +33,9 @@ if ($method === 'POST') {
             
             $stmt = $conn->prepare("INSERT INTO appointments (user_id, appointment_date, description) VALUES (?, ?, ?)");
             if (!$stmt) {
+                // Log error details and respond with a generic error message
                 http_response_code(500);
-                echo json_encode(["error" => $conn->error]);
+                echo json_encode(["error" => "Internal Server Error"]);
                 exit;
             }
             $stmt->bind_param("iss", $userId, $appointment_date, $description);
@@ -40,7 +43,7 @@ if ($method === 'POST') {
                 echo json_encode(["status" => "success", "message" => "Appointment scheduled successfully."]);
             } else {
                 http_response_code(500);
-                echo json_encode(["error" => $stmt->error]);
+                echo json_encode(["error" => "Internal Server Error"]);
             }
             $stmt->close();
             exit;
@@ -54,7 +57,7 @@ if ($method === 'POST') {
             $stmt = $conn->prepare("UPDATE appointments SET accepted = 1 WHERE appointment_id = ? AND user_id = ?");
             if (!$stmt) {
                 http_response_code(500);
-                echo json_encode(["error" => $conn->error]);
+                echo json_encode(["error" => "Internal Server Error"]);
                 exit;
             }
             $stmt->bind_param("ii", $appointment_id, $userId);
@@ -62,7 +65,7 @@ if ($method === 'POST') {
                 echo json_encode(["status" => "success", "message" => "Appointment accepted successfully."]);
             } else {
                 http_response_code(500);
-                echo json_encode(["error" => $stmt->error]);
+                echo json_encode(["error" => "Internal Server Error"]);
             }
             $stmt->close();
             exit;
@@ -77,19 +80,26 @@ if ($method === 'POST') {
         exit;
     }
 } elseif ($method === 'GET') {
-    // Return all appointments for the user (both upcoming and past), including the accepted flag.
-    $appointments = [];
-    $query = "SELECT * FROM appointments WHERE user_id = $userId ORDER BY appointment_date ASC";
-    $result = $conn->query($query);
-    if ($result) {
-        while ($row = $result->fetch_assoc()) {
-            $appointments[] = $row;
-        }
-        echo json_encode(["status" => "success", "appointments" => $appointments]);
-    } else {
+    // Secure the GET request using a prepared statement to avoid potential SQL injection
+    $stmt = $conn->prepare("SELECT * FROM appointments WHERE user_id = ? ORDER BY appointment_date ASC");
+    if (!$stmt) {
         http_response_code(500);
-        echo json_encode(["error" => $conn->error]);
+        echo json_encode(["error" => "Internal Server Error"]);
+        exit;
     }
+    $stmt->bind_param("i", $userId);
+    if (!$stmt->execute()) {
+        http_response_code(500);
+        echo json_encode(["error" => "Internal Server Error"]);
+        exit;
+    }
+    $result = $stmt->get_result();
+    $appointments = [];
+    while ($row = $result->fetch_assoc()) {
+        $appointments[] = $row;
+    }
+    echo json_encode(["status" => "success", "appointments" => $appointments]);
+    $stmt->close();
     exit;
 } else {
     http_response_code(405);

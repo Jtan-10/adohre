@@ -1,6 +1,14 @@
 <?php
 // Ensure session is started
 if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path'     => '/',
+        'domain'   => '',
+        'secure'   => true,
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ]);
     session_start();
 }
 
@@ -10,9 +18,20 @@ require_once '../controllers/authController.php';
 require_once '../s3config.php';
 
 header('Content-Type: application/json');
+// Added security headers
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: SAMEORIGIN');
+header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = json_decode(file_get_contents("php://input"), true);
+
+    // Validate JSON decoding
+    if (is_null($data)) {
+        error_log("Invalid JSON input received.");
+        echo json_encode(['status' => false, 'message' => 'Invalid input.']);
+        exit;
+    }
 
     if (empty($data)) {
         echo json_encode(['status' => false, 'message' => 'No data received.']);
@@ -122,7 +141,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'ContentType' => 'image/png'
                 ]);
             } catch (Aws\Exception\AwsException $e) {
-                echo json_encode(['status' => false, 'message' => 'Failed to upload face image to S3: ' . $e->getMessage()]);
+                error_log("S3 upload error: " . $e->getMessage());
+                echo json_encode(['status' => false, 'message' => 'Internal server error.']);
                 exit;
             }
 

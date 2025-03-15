@@ -13,6 +13,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // Check the request method
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
     // **Virtual ID Login via Uploaded QR Code**
     if (isset($_FILES['virtualIdImage'])) {
         // Ensure file is uploaded
@@ -22,12 +23,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit();
         }
 
+        // Validate that the uploaded file is an image
+        if (!getimagesize($fileTmpPath)) {
+            echo json_encode(['status' => false, 'message' => 'Uploaded file is not a valid image.']);
+            exit();
+        }
+
         // Read QR code from the uploaded image
         try {
             $qrReader = new QrReader($fileTmpPath);
             $virtualId = $qrReader->text();
         } catch (Exception $e) {
-            echo json_encode(['status' => false, 'message' => 'Error reading QR code: ' . $e->getMessage()]);
+            // Log the detailed error internally if needed
+            error_log('QR code read error: ' . $e->getMessage());
+            echo json_encode(['status' => false, 'message' => 'Error reading QR code.']);
             exit();
         }
 
@@ -45,6 +54,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($result->num_rows > 0) {
             $user = $result->fetch_assoc();
 
+            // Prevent session fixation
+            session_regenerate_id(true);
             // Set user session data
             $_SESSION['user_id'] = $user['user_id'];
             $_SESSION['first_name'] = $user['first_name'];
@@ -61,8 +72,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
 
-    // **Virtual ID Login via Direct Parameter**
+    // Get JSON data for other login methods
     $data = json_decode(file_get_contents("php://input"), true);
+    if (!$data) {
+        http_response_code(400);
+        echo json_encode(['status' => false, 'message' => 'Invalid JSON input.']);
+        exit();
+    }
+
+    // **Virtual ID Login via Direct Parameter**
     if (isset($data['virtual_id'])) {
         $virtualId = $data['virtual_id'];
 
@@ -75,6 +93,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($result->num_rows > 0) {
             $user = $result->fetch_assoc();
 
+            // Prevent session fixation
+            session_regenerate_id(true);
             // Set user session data
             $_SESSION['user_id'] = $user['user_id'];
             $_SESSION['first_name'] = $user['first_name'];

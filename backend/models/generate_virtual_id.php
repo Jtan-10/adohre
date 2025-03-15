@@ -1,4 +1,8 @@
 <?php
+// Production settings: disable error display
+ini_set('display_errors', 0);
+error_reporting(0);
+
 require_once '../db/db_connect.php';
 require '../../vendor/autoload.php'; // Include the QR Code library
 
@@ -10,10 +14,12 @@ use Endroid\QrCode\Writer\PngWriter;
 // ----------------------------------------------------------------
 // 1) Fetch user details from DB
 // ----------------------------------------------------------------
-$user_id = $_GET['user_id'] ?? null;
+// Fetch user details using validated input
+$user_id = filter_input(INPUT_GET, 'user_id', FILTER_VALIDATE_INT);
 if (!$user_id) {
     http_response_code(400);
-    die("User ID is required");
+    // Log error here (invalid user_id)
+    die("Bad Request");
 }
 
 $query = "SELECT first_name, last_name, email, role, profile_image, virtual_id
@@ -45,7 +51,8 @@ try {
     $qrCodeData = $qrResult->getString();
 } catch (Exception $e) {
     http_response_code(500);
-    die("Error generating QR code: " . $e->getMessage());
+    // Log error: $e->getMessage()
+    die("Internal Server Error");
 }
 
 // ----------------------------------------------------------------
@@ -54,12 +61,16 @@ try {
 // ----------------------------------------------------------------
 $templatePath = __DIR__ . '/../../assets/id_template.png';
 if (!file_exists($templatePath)) {
-    die("Template file not found at: $templatePath");
+    http_response_code(500);
+    // Log error: missing template file
+    die("Internal Server Error");
 }
 
 $idCard = imagecreatefrompng($templatePath);
 if (!$idCard) {
-    die("Failed to load ID card template image.");
+    http_response_code(500);
+    // Log error: failed to load template image
+    die("Internal Server Error");
 }
 $cardWidth  = imagesx($idCard);  // Expected: 1495
 $cardHeight = imagesy($idCard);  // Expected: 841
@@ -172,7 +183,9 @@ if ($qrImage) {
 // Ensure you have this file in your /fonts/ folder
 $fontPath = __DIR__ . '/fonts/arialbd.ttf';
 if (!file_exists($fontPath)) {
-    die("Bold font file not found at: $fontPath");
+    http_response_code(500);
+    // Log error: missing font file
+    die("Internal Server Error");
 }
 
 $textColor = imagecolorallocate($idCard, 0, 0, 0);

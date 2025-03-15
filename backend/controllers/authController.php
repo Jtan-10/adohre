@@ -8,6 +8,9 @@ require_once __DIR__ . '/../db/db_connect.php';
 function login($email, $password) {
     global $conn;
 
+    // Sanitize input
+    $email = filter_var($email, FILTER_SANITIZE_EMAIL);
+
     $stmt = $conn->prepare('SELECT user_id, first_name, profile_image, role, password FROM users WHERE email = ?');
     $stmt->bind_param('s', $email);
     $stmt->execute();
@@ -34,6 +37,11 @@ function login($email, $password) {
 
 function register($first_name, $last_name, $email, $password, $confirm_password) {
     global $conn;
+
+    // Sanitize input
+    $first_name = htmlspecialchars($first_name);
+    $last_name = htmlspecialchars($last_name);
+    $email = filter_var($email, FILTER_SANITIZE_EMAIL);
 
     // Input validation
     if (empty($first_name) || empty($last_name) || empty($email) || empty($password) || empty($confirm_password)) {
@@ -69,6 +77,9 @@ function register($first_name, $last_name, $email, $password, $confirm_password)
 function generateOTP($email) {
     global $conn;
 
+    // Sanitize input
+    $email = filter_var($email, FILTER_SANITIZE_EMAIL);
+
     $stmt = $conn->prepare("SELECT user_id FROM users WHERE email = ?");
     $stmt->bind_param("s", $email);
     $stmt->execute();
@@ -79,8 +90,8 @@ function generateOTP($email) {
         return false; // Email not found
     }
 
-    
-    $otp = rand(100000, 999999);
+    // Use cryptographically secure random_int instead of rand
+    $otp = random_int(100000, 999999);
     $expiry = date('Y-m-d H:i:s', strtotime('+10 minutes'));
 
     $stmt = $conn->prepare("UPDATE users SET otp_code = ?, otp_expiry = ? WHERE email = ?");
@@ -95,10 +106,11 @@ function generateOTP($email) {
     return false;
 }
 
-
-
 function verifyOTP($email, $enteredOtp) {
     global $conn;
+
+    // Sanitize input
+    $email = filter_var($email, FILTER_SANITIZE_EMAIL);
 
     // Check OTP and expiry in the database
     $stmt = $conn->prepare("SELECT otp_code, otp_expiry FROM users WHERE email = ?");
@@ -108,7 +120,8 @@ function verifyOTP($email, $enteredOtp) {
     $row = $result->fetch_assoc();
 
     if ($row) {
-        if ($row['otp_code'] === $enteredOtp && strtotime($row['otp_expiry']) > time()) {
+        // Use hash_equals for secure comparison of OTP codes
+        if (hash_equals((string)$row['otp_code'], (string)$enteredOtp) && strtotime($row['otp_expiry']) > time()) {
             // Clear OTP after successful verification
             $stmt = $conn->prepare("UPDATE users SET otp_code = NULL, otp_expiry = NULL WHERE email = ?");
             $stmt->bind_param("s", $email);
@@ -121,6 +134,10 @@ function verifyOTP($email, $enteredOtp) {
 
 function emailExists($email) {
     global $conn;
+
+    // Sanitize input
+    $email = filter_var($email, FILTER_SANITIZE_EMAIL);
+
     $stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
     $stmt->bind_param("s", $email);
     $stmt->execute();
@@ -129,12 +146,46 @@ function emailExists($email) {
     return $result->fetch_assoc();
 }
 
-
 function sendEmailOTP($email, $otp) {
+    // Ensure session is started.
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    
+    // Log the OTP request (do not log the OTP itself).
+    error_log("sendEmailOTP request for email: " . $email . " at " . date('Y-m-d H:i:s'));
+    
+    // Rate limiting: allow a maximum of 5 OTP requests per email within 10 minutes.
+    $window = 600;           // 10 minutes in seconds
+    $maxRequests = 5;        // Maximum allowed requests per window
+    $now = time();
+    
+    if (!isset($_SESSION['otp_requests'])) {
+        $_SESSION['otp_requests'] = [];
+    }
+    
+    if (!isset($_SESSION['otp_requests'][$email])) {
+        $_SESSION['otp_requests'][$email] = ['count' => 0, 'first_request_time' => $now];
+    }
+    
+    // Reset count if the window has expired.
+    if ($now - $_SESSION['otp_requests'][$email]['first_request_time'] > $window) {
+        $_SESSION['otp_requests'][$email]['count'] = 0;
+        $_SESSION['otp_requests'][$email]['first_request_time'] = $now;
+    }
+    
+    // Check if the rate limit has been reached.
+    if ($_SESSION['otp_requests'][$email]['count'] >= $maxRequests) {
+        error_log("Rate limit exceeded for email: " . $email);
+        return false;
+    }
+    
+    // Increment the OTP request count.
+    $_SESSION['otp_requests'][$email]['count']++;
+    
     $mail = new PHPMailer(true);
-
     try {
-        // Load SMTP settings from .env
+        // SMTP setup.
         $mail->isSMTP();
         $mail->Host       = $_ENV['SMTP_HOST'];
         $mail->SMTPAuth   = true;
@@ -143,12 +194,13 @@ function sendEmailOTP($email, $otp) {
         $mail->SMTPSecure = $_ENV['SMTP_SECURE'];
         $mail->Port       = $_ENV['SMTP_PORT'];
 
-        // Email settings
+        // Set sender and recipient.
         $mail->setFrom($_ENV['SMTP_FROM'], $_ENV['SMTP_FROM_NAME']);
         $mail->addAddress($email);
         $mail->Subject = 'Your OTP Code';
         $mail->Body = "Your OTP for login/signup is: $otp. This code will expire in 10 minutes.";
 
+        // Attempt to send the email.
         $mail->send();
         return true;
     } catch (Exception $e) {

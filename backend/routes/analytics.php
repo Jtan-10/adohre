@@ -1,6 +1,7 @@
 <?php
 require_once '../db/db_connect.php';
 header('Content-Type: application/json');
+header('X-Content-Type-Options: nosniff');
 
 try {
     // Total Users
@@ -113,9 +114,11 @@ try {
     ]);
     
 } catch (Exception $e) {
+    // Log the error details internally without exposing them publicly
+    error_log($e->getMessage());
+    http_response_code(500);
     echo json_encode([
         'status' => false,
-        'message' => 'Failed to fetch analytics data.',
-        'error' => $e->getMessage(),
+        'message' => 'Failed to fetch analytics data.'
     ]);
 }

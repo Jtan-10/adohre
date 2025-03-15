@@ -5,14 +5,11 @@ header("Content-Type: application/json");
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     // Get chat messages for a specific room
     if (isset($_GET['room_id'])) {
-        $roomId = $conn->real_escape_string($_GET['room_id']);
-        $query = "SELECT cm.message, cm.sent_at, cm.is_admin, u.first_name, u.last_name, cm.user_id
-                  FROM chat_messages cm
-                  JOIN users u ON cm.user_id = u.user_id
-                  WHERE cm.room_id = $roomId
-                  ORDER BY cm.sent_at ASC";
-        $result = $conn->query($query);
-
+        $roomId = (int)$_GET['room_id'];
+        $stmt = $conn->prepare("SELECT cm.message, cm.sent_at, cm.is_admin, u.first_name, u.last_name, cm.user_id FROM chat_messages cm JOIN users u ON cm.user_id = u.user_id WHERE cm.room_id = ? ORDER BY cm.sent_at ASC");
+        $stmt->bind_param("i", $roomId);
+        $stmt->execute();
+        $result = $stmt->get_result();
         $messages = [];
         while ($row = $result->fetch_assoc()) {
             $messages[] = $row;
@@ -49,21 +46,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Create a new support ticket (consultation and chat room)
     if ($input['action'] === 'create_ticket') {
-        $userId = $conn->real_escape_string($input['user_id']);
-        // Use a default description; you can later update this if needed.
-        $description = $conn->real_escape_string("User requested support.");
+        $userId = (int)$input['user_id'];
+        $description = "User requested support.";
         
-        // Insert a new consultation record with status 'open'
-        $query = "INSERT INTO consultations (user_id, description, status, created_at) 
-                  VALUES ($userId, '$description', 'open', NOW())";
-        if ($conn->query($query)) {
+        // Insert into consultations using prepared statement
+        $stmt = $conn->prepare("INSERT INTO consultations (user_id, description, status, created_at) VALUES (?, ?, 'open', NOW())");
+        $stmt->bind_param("is", $userId, $description);
+        if ($stmt->execute()) {
             $consultationId = $conn->insert_id;
-            
-            // Create a chat room for the consultation.
-            // Assume owner_id is the user who requested support.
-            $query = "INSERT INTO chat_rooms (consultation_id, owner_id, created_at) 
-                      VALUES ($consultationId, $userId, NOW())";
-            if ($conn->query($query)) {
+            // Create chat room
+            $stmt = $conn->prepare("INSERT INTO chat_rooms (consultation_id, owner_id, created_at) VALUES (?, ?, NOW())");
+            $stmt->bind_param("ii", $consultationId, $userId);
+            if ($stmt->execute()) {
                 $roomId = $conn->insert_id;
                 echo json_encode(['room_id' => $roomId]);
             } else {
@@ -77,15 +71,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Save a new message in a chat room.
     if ($input['action'] === 'send_message') {
-        $roomId  = $conn->real_escape_string($input['room_id']);
-        $userId  = $conn->real_escape_string($input['user_id']);
-        $message = $conn->real_escape_string($input['message']);
-        // Set the is_admin flag if provided (default is 0)
+        $roomId  = (int)$input['room_id'];
+        $userId  = (int)$input['user_id'];
+        $message = $input['message'];
         $is_admin = (isset($input['is_admin']) && $input['is_admin'] === true) ? 1 : 0;
-
-        $query = "INSERT INTO chat_messages (room_id, user_id, message, is_admin) 
-                  VALUES ($roomId, $userId, '$message', $is_admin)";
-        if ($conn->query($query)) {
+        
+        $stmt = $conn->prepare("INSERT INTO chat_messages (room_id, user_id, message, is_admin) VALUES (?, ?, ?, ?)");
+        $stmt->bind_param("iisi", $roomId, $userId, $message, $is_admin);
+        if ($stmt->execute()) {
             echo json_encode(['status' => 'success']);
         } else {
             echo json_encode(['error' => 'Failed to send message.']);
@@ -95,11 +88,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // Update consultation status
     if ($input['action'] === 'update_status') {
-        $consultationId = $conn->real_escape_string($input['consultation_id']);
-        $status         = $conn->real_escape_string($input['status']);
-
-        $query = "UPDATE consultations SET status = '$status' WHERE id = $consultationId";
-        if ($conn->query($query)) {
+        $consultationId = (int)$input['consultation_id'];
+        $status         = $input['status'];
+        $stmt = $conn->prepare("UPDATE consultations SET status = ? WHERE id = ?");
+        $stmt->bind_param("si", $status, $consultationId);
+        if ($stmt->execute()) {
             echo json_encode(['message' => 'Consultation status updated successfully.']);
         } else {
             echo json_encode(['error' => 'Failed to update consultation status.']);
@@ -109,15 +102,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Close ticket action
     if ($input['action'] === 'close_ticket') {
-        $roomId = $conn->real_escape_string($input['room_id']);
-        $userId = $conn->real_escape_string($input['user_id']);
-
-        // Update the consultation status to 'closed' and set closed_at to the current timestamp.
-        $query = "UPDATE consultations c 
-                  JOIN chat_rooms cr ON c.id = cr.consultation_id
-                  SET c.status = 'closed', c.closed_at = NOW()
-                  WHERE cr.id = $roomId AND c.user_id = $userId";
-        if ($conn->query($query)) {
+        $roomId = (int)$input['room_id'];
+        $userId = (int)$input['user_id'];
+        $stmt = $conn->prepare("UPDATE consultations c JOIN chat_rooms cr ON c.id = cr.consultation_id SET c.status = 'closed', c.closed_at = NOW() WHERE cr.id = ? AND c.user_id = ?");
+        $stmt->bind_param("ii", $roomId, $userId);
+        if ($stmt->execute()) {
             echo json_encode(['status' => 'success']);
         } else {
             echo json_encode(['error' => 'Failed to close ticket.']);
@@ -127,29 +116,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // Add participant action
     if ($input['action'] === 'add_participant') {
-        $roomId = $conn->real_escape_string($input['room_id']);
-        $participantUserId = $conn->real_escape_string($input['participant_user_id']);
-        $addedBy = $conn->real_escape_string($input['added_by']);
+        $roomId = (int)$input['room_id'];
+        $participantUserId = (int)$input['participant_user_id'];
+        $addedBy = (int)$input['added_by'];
 
-        // Check if the participant already exists in the chat room
-        $checkQuery = "SELECT 1 FROM chat_participants WHERE room_id = $roomId AND user_id = $participantUserId";
-        $checkResult = $conn->query($checkQuery);
-        if ($checkResult && $checkResult->num_rows > 0) {
+        // Check if the participant already exists
+        $stmt = $conn->prepare("SELECT 1 FROM chat_participants WHERE room_id = ? AND user_id = ?");
+        $stmt->bind_param("ii", $roomId, $participantUserId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($result && $result->num_rows > 0) {
             echo json_encode(['error' => 'User is already a participant.']);
             exit;
         }
         
         // Insert the new participant
-        $query = "INSERT INTO chat_participants (room_id, user_id, added_by) VALUES ($roomId, $participantUserId, $addedBy)";
-        if ($conn->query($query)) {
+        $stmt = $conn->prepare("INSERT INTO chat_participants (room_id, user_id, added_by) VALUES (?, ?, ?)");
+        $stmt->bind_param("iii", $roomId, $participantUserId, $addedBy);
+        if ($stmt->execute()) {
             echo json_encode(['status' => 'success']);
         } else {
-            echo json_encode(['error' => 'Failed to add participant: ' . $conn->error]);
+            echo json_encode(['error' => 'Failed to add participant.']);
         }
         exit;
     }
-
-
+    
 }
 
 // Return a 405 Method Not Allowed for unsupported methods.

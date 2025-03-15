@@ -3,6 +3,19 @@ require_once '../db/db_connect.php';
 header('Content-Type: application/json');
 session_start();
 
+// Generate CSRF token if not present.
+if (!isset($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+// Helper to verify CSRF token for POST requests.
+function verifyCsrfToken($data) {
+    if (!isset($data['csrf_token']) || $data['csrf_token'] !== $_SESSION['csrf_token']) {
+        echo json_encode(['status' => false, 'message' => 'Invalid CSRF token.']);
+        exit;
+    }
+}
+
 // Ensure the user is logged in
 if (!isset($_SESSION['user_id'])) {
     echo json_encode(['status' => false, 'message' => 'You must be logged in to access this feature.']);
@@ -20,6 +33,10 @@ $action = isset($_REQUEST['action']) ? $_REQUEST['action'] : (isset($input['acti
 try {
 
     if ($action === 'get_assessment_form') {
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+            echo json_encode(['status' => false, 'message' => 'Invalid request method.']);
+            exit;
+        }
         $trainingId = isset($_GET['training_id']) ? intval($_GET['training_id']) : null;
         if (!$trainingId) {
             echo json_encode(['status' => false, 'message' => 'Missing training_id.']);
@@ -48,6 +65,11 @@ try {
         }
         exit;
     } elseif ($action === 'save_assessment_form') {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['status' => false, 'message' => 'Invalid request method.']);
+            exit;
+        }
+        verifyCsrfToken($_POST);
         // Save the assessment form link provided by the trainer.
         if ($role !== 'trainer') {
             echo json_encode(['status' => false, 'message' => 'Access denied.']);
@@ -69,6 +91,10 @@ try {
         }
         exit;
     } elseif ($action === 'fetch_participants') {
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+            echo json_encode(['status' => false, 'message' => 'Invalid request method.']);
+            exit;
+        }
         // Fetch participants for trainings.
         // For trainers, restrict to trainings created by them.
         // For admins, fetch for all trainings.
@@ -130,8 +156,12 @@ try {
         echo json_encode(['status' => true, 'participants' => $participants]);
         exit;
     } elseif ($action === 'mark_assessment_done') {
-        // Allow the user to mark their own assessment as done.
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['status' => false, 'message' => 'Invalid request method.']);
+            exit;
+        }
         $input = json_decode(file_get_contents('php://input'), true);
+        verifyCsrfToken($input);
         // Ensure the user_id in the input matches the logged-in user
         if ($userId !== intval($input['user_id'])) {
             echo json_encode(['status' => false, 'message' => 'Access denied.']);
@@ -163,12 +193,12 @@ try {
         $stmt->bind_param('ii', $participantUserId, $trainingId);
         $stmt->execute();
     
-        // Because of potential CLIENT_FOUND_ROWS behavior, recheck the value.
+        // Recheck the value.
         $stmt = $conn->prepare($checkQuery);
         $stmt->bind_param('ii', $participantUserId, $trainingId);
         $stmt->execute();
         $result = $stmt->get_result();
-        if ($row = $result->fetch_assoc() && (int)$row['assessment_completed'] === 1) {
+        if (($row = $result->fetch_assoc()) && (int)$row['assessment_completed'] === 1) {
             echo json_encode(['status' => true, 'message' => 'Assessment marked as completed.']);
         } else {
             echo json_encode(['status' => false, 'message' => 'Failed to mark assessment as completed.']);
@@ -179,6 +209,8 @@ try {
         exit;
     }
 } catch (Exception $e) {
-    echo json_encode(['status' => false, 'message' => 'An error occurred: ' . $e->getMessage()]);
+    error_log($e->getMessage());
+    echo json_encode(['status' => false, 'message' => 'An internal error occurred.']);
+    exit;
 }
 ?>

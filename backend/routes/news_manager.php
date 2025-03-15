@@ -1,14 +1,25 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+// Add secure session cookie settings and production-level error reporting
+session_set_cookie_params([
+    'secure' => true,
+    'httponly' => true,
+    'samesite' => 'Strict'
+]);
+if (getenv('ENVIRONMENT') !== 'development') {
+    error_reporting(0);
+    ini_set('display_errors', 0);
+} else {
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+}
 session_start();
+
 require_once '../db/db_connect.php';
 
 // Include the S3 configuration file (ensure it initializes $s3 and $bucketName)
 require_once '../s3config.php';
 
 use Aws\Exception\AwsException;
-
 
 header('Content-Type: application/json');
 
@@ -18,8 +29,9 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-// Get action from either POST or GET
-$action = isset($_POST['action']) ? $_POST['action'] : (isset($_GET['action']) ? $_GET['action'] : '');
+// Replace action assignment with sanitized input
+$action = filter_input(INPUT_POST, 'action', FILTER_SANITIZE_STRING)
+    ?: filter_input(INPUT_GET, 'action', FILTER_SANITIZE_STRING);
 
 switch ($action) {
     case 'fetch':
@@ -42,9 +54,6 @@ switch ($action) {
         echo json_encode(['status' => false, 'message' => 'Invalid action: ' . $action]);
         break;
 }
-
-// Include the S3 connection file
-require_once '../s3config.php';
 
 function handleImageUpload()
 {

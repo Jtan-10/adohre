@@ -2,9 +2,24 @@
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+
+// Add secure HTTP headers
+header('Content-Type: application/json');
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: SAMEORIGIN');
+header('X-XSS-Protection: 1; mode=block');
+
 require_once __DIR__ . '/../db/db_connect.php';
 require_once __DIR__ . '/../s3config.php'; // adjust path as needed
-header('Content-Type: application/json');
+
+// Authentication helper for modifying actions
+function ensureAuthenticated() {
+    if (!isset($_SESSION['user_id'])) {
+        http_response_code(401);
+        echo json_encode(['status' => false, 'message' => 'Unauthorized']);
+        exit();
+    }
+}
 
 $action = $_POST['action'] ?? $_GET['action'] ?? null;
 
@@ -62,6 +77,7 @@ try {
             'trainings' => $trainings
         ]);
     } elseif ($action === 'add_event' || $action === 'update_event') {
+        ensureAuthenticated();
         // ----------------------------
         // ADD OR UPDATE EVENT
         // ----------------------------
@@ -74,6 +90,11 @@ try {
         // Image handling
         $relativeImagePath = null;
         if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+            // Check file size (max 5MB)
+            if ($_FILES['image']['size'] > 5242880) {
+                echo json_encode(['status' => false, 'message' => 'File too large. Maximum size is 5MB.']);
+                exit();
+            }
             // Allowed file types
             $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
             if (!in_array($_FILES['image']['type'], $allowedTypes)) {
@@ -129,6 +150,7 @@ try {
             echo json_encode(['status' => true, 'message' => 'Event updated successfully.']);
         }
     } elseif ($action === 'delete_event') {
+        ensureAuthenticated();
         // ----------------------------
         // DELETE EVENT
         // ----------------------------
@@ -169,6 +191,7 @@ try {
             echo json_encode(['status' => false, 'message' => 'Event not found.']);
         }
     } elseif ($action === 'add_announcement' || $action === 'update_announcement') {
+        ensureAuthenticated();
         // ----------------------------
         // ADD OR UPDATE ANNOUNCEMENT
         // ----------------------------
@@ -189,6 +212,7 @@ try {
             echo json_encode(['status' => true, 'message' => 'Announcement updated successfully.']);
         }
     } elseif ($action === 'delete_announcement') {
+        ensureAuthenticated();
         // ----------------------------
         // DELETE ANNOUNCEMENT
         // ----------------------------
@@ -217,6 +241,7 @@ try {
             echo json_encode(['status' => false, 'message' => 'Announcement not found.']);
         }
     } elseif ($action === 'add_training' || $action === 'update_training') {
+        ensureAuthenticated();
         // ----------------------------
         // ADD OR UPDATE TRAINING
         // ----------------------------
@@ -233,6 +258,11 @@ try {
         $relativeImagePath = null;
 
         if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+            // Check file size (max 5MB)
+            if ($_FILES['image']['size'] > 5242880) {
+                echo json_encode(['status' => false, 'message' => 'File too large. Maximum size is 5MB.']);
+                exit();
+            }
             $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
             if (!in_array($_FILES['image']['type'], $allowedTypes)) {
                 echo json_encode(['status' => false, 'message' => 'Invalid file type. Only JPG, PNG, and GIF allowed.']);
@@ -265,8 +295,7 @@ try {
             } catch (Aws\Exception\AwsException $e) {
                 echo json_encode([
                     'status' => false,
-                    'message' => 'Failed to upload image to S3: ' . $e->getMessage()
-                ]);
+                    'message' => 'Failed to upload image to S3.']);
                 exit();
             }
         }
@@ -292,6 +321,7 @@ try {
             exit();
         }
     } elseif ($action === 'delete_training') {
+        ensureAuthenticated();
         // ----------------------------
         // DELETE TRAINING
         // ----------------------------
@@ -326,9 +356,9 @@ try {
         echo json_encode(['status' => false, 'message' => 'Invalid action.']);
     }
 } catch (Exception $e) {
+    error_log("Internal error: " . $e->getMessage());
     echo json_encode([
         'status' => false,
-        'message' => 'Internal Server Error.',
-        'error' => $e->getMessage()
+        'message' => 'Internal Server Error.'
     ]);
 }

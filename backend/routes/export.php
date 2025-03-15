@@ -6,6 +6,12 @@ header('Content-Type: application/json');
 
 // Determine export format
 $format = $_GET['format'] ?? 'csv';
+// Validate export format
+$allowedFormats = ['csv', 'pdf', 'excel'];
+if (!in_array(strtolower($format), $allowedFormats)) {
+    // Default to CSV if an invalid format is provided
+    $format = 'csv';
+}
 
 try {
     // Ensure user is logged in
@@ -228,6 +234,8 @@ try {
         throw new Exception('Invalid format requested.');
     }
 } catch (Exception $e) {
-    echo json_encode(['status' => false, 'message' => $e->getMessage()]);
+    // Log the actual error message internally if needed
+    // error_log($e->getMessage());
+    echo json_encode(['status' => false, 'message' => 'An error occurred. Please try again later.']);
     exit;
 }

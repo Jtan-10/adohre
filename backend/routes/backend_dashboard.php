@@ -1,9 +1,18 @@
 <?php
+// Disable error display for production
+ini_set('display_errors', 0);
+error_reporting(0);
+
 require_once '../controllers/authController.php';
 require_once '../db/db_connect.php';
 header('Content-Type: application/json');
 
-// Start the session
+// Add secure headers
+header("X-Content-Type-Options: nosniff");
+header("X-Frame-Options: DENY");
+header("Content-Security-Policy: default-src 'self';");
+
+// Start the session securely
 session_start();
 
 // Ensure the user is an admin
@@ -14,7 +23,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 
 // Handle requests
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    $action = $_GET['action'] ?? null;
+    // Use sanitized input
+    $action = filter_input(INPUT_GET, 'action', FILTER_SANITIZE_SPECIAL_CHARS) ?? null;
 
     if ($action === 'stats') {
         // Fetch dashboard stats
@@ -47,9 +57,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = json_decode(file_get_contents('php://input'), true);
+    // Validate JSON input
+    if (!is_array($data) || !isset($data['action'])) {
+        http_response_code(400);
+        echo json_encode(['status' => false, 'message' => 'Invalid request data.']);
+        exit;
+    }
 
     if ($data['action'] === 'delete_user') {
-        $user_id = $data['user_id'];
+        // Validate and cast user_id
+        $user_id = isset($data['user_id']) ? (int)$data['user_id'] : 0;
+        if ($user_id <= 0) {
+            http_response_code(400);
+            echo json_encode(['status' => false, 'message' => 'Invalid user ID.']);
+            exit;
+        }
         $stmt = $conn->prepare("DELETE FROM users WHERE user_id = ?");
         $stmt->bind_param("i", $user_id);
         if ($stmt->execute()) {
@@ -58,7 +80,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             echo json_encode(['status' => false, 'message' => 'Failed to delete user.']);
         }
     } elseif ($data['action'] === 'reset_otp') {
-        $email = $data['email'];
+        // Validate email
+        $email = filter_var($data['email'] ?? '', FILTER_VALIDATE_EMAIL);
+        if (!$email) {
+            http_response_code(400);
+            echo json_encode(['status' => false, 'message' => 'Invalid email.']);
+            exit;
+        }
         $stmt = $conn->prepare("UPDATE users SET otp_code = NULL, otp_expiry = NULL WHERE email = ?");
         $stmt->bind_param("s", $email);
         if ($stmt->execute()) {

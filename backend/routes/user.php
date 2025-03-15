@@ -1,15 +1,18 @@
 <?php
 session_start();
 require_once '../db/db_connect.php';
-
-// Include S3 configuration file (which sets up $s3 and $bucketName)
 require_once '../s3config.php';
 
 header('Content-Type: application/json');
+header("X-Content-Type-Options: nosniff");
+header("X-Frame-Options: SAMEORIGIN");
 
-$method = $_SERVER['REQUEST_METHOD']; // Request method
-$auth_user_id = $_SESSION['user_id'] ?? null; // Logged-in user ID
-$auth_user_role = $_SESSION['role'] ?? null; // Logged-in user role
+// Get the HTTP request method.
+$method = $_SERVER['REQUEST_METHOD'];
+
+// Retrieve authenticated user details.
+$auth_user_id   = $_SESSION['user_id'] ?? null;
+$auth_user_role = $_SESSION['role'] ?? null;
 
 if (!$auth_user_id) {
     http_response_code(401);
@@ -17,54 +20,74 @@ if (!$auth_user_id) {
     exit();
 }
 
+// For state-changing actions, enforce CSRF token validation.
+if (in_array($method, ['POST', 'PUT', 'DELETE'])) {
+    if (!isset($_SERVER['HTTP_X_CSRF_TOKEN']) || $_SERVER['HTTP_X_CSRF_TOKEN'] !== ($_SESSION['csrf_token'] ?? '')) {
+        http_response_code(403);
+        echo json_encode(['status' => false, 'message' => 'Invalid CSRF token.']);
+        exit();
+    }
+}
+
 try {
     if ($method === 'GET') {
-        // Check if it's an admin DataTables request
+        // --- ADMIN DataTables request ---
         if ($auth_user_role === 'admin' && isset($_GET['draw'])) {
-            $draw = isset($_GET['draw']) ? intval($_GET['draw']) : 0;
-            $start = isset($_GET['start']) ? intval($_GET['start']) : 0;
+            $draw   = isset($_GET['draw']) ? intval($_GET['draw']) : 0;
+            $start  = isset($_GET['start']) ? intval($_GET['start']) : 0;
             $length = isset($_GET['length']) ? intval($_GET['length']) : 10;
-            $searchValue = $_GET['search']['value'] ?? '';
+            $searchValue = trim($_GET['search']['value'] ?? '');
 
-            // Total records count
+            // Get total records count.
             $totalRecordsQuery = "SELECT COUNT(*) as total FROM users";
             $totalRecordsResult = $conn->query($totalRecordsQuery);
-            $totalRecords = $totalRecordsResult->fetch_assoc()['total'];
+            $totalRecordsRow = $totalRecordsResult->fetch_assoc();
+            $totalRecords = $totalRecordsRow ? $totalRecordsRow['total'] : 0;
 
-            // Filtered records count
+            // Count filtered records.
             $filteredRecordsQuery = "SELECT COUNT(*) as total FROM users WHERE first_name LIKE ? OR last_name LIKE ? OR email LIKE ?";
-            $searchTerm = "%$searchValue%";
+            $searchTerm = "%".$conn->real_escape_string($searchValue)."%";
             $stmt = $conn->prepare($filteredRecordsQuery);
             $stmt->bind_param('sss', $searchTerm, $searchTerm, $searchTerm);
             $stmt->execute();
             $filteredRecordsResult = $stmt->get_result();
-            $filteredRecords = $filteredRecordsResult->fetch_assoc()['total'];
+            $filteredRow = $filteredRecordsResult->fetch_assoc();
+            $filteredRecords = $filteredRow ? $filteredRow['total'] : 0;
+            $stmt->close();
 
-            // Fetch filtered records
+            // Fetch paginated records.
             $query = "SELECT user_id, first_name, last_name, email, role FROM users WHERE first_name LIKE ? OR last_name LIKE ? OR email LIKE ? LIMIT ? OFFSET ?";
             $stmt = $conn->prepare($query);
             $stmt->bind_param('sssii', $searchTerm, $searchTerm, $searchTerm, $length, $start);
             $stmt->execute();
             $result = $stmt->get_result();
-
             $users = [];
             while ($row = $result->fetch_assoc()) {
                 $users[] = $row;
             }
+            $stmt->close();
 
             echo json_encode([
-                "draw" => $draw,
-                "recordsTotal" => $totalRecords,
-                "recordsFiltered" => $filteredRecords,
-                "data" => $users
+                "draw"            => $draw,
+                "recordsTotal"    => intval($totalRecords),
+                "recordsFiltered" => intval($filteredRecords),
+                "data"            => $users
             ]);
             exit();
-        } elseif (isset($_GET['action'])) {
+        }
+        // --- Fetch user events or trainings ---
+        elseif (isset($_GET['action'])) {
             $action = $_GET['action'];
             $user_id = intval($_GET['user_id'] ?? 0);
 
+            // Allow non-admin users to access only their own data.
+            if ($auth_user_role !== 'admin' && $user_id !== $auth_user_id) {
+                http_response_code(403);
+                echo json_encode(['status' => false, 'message' => 'Forbidden']);
+                exit();
+            }
+
             if ($action === 'get_user_events') {
-                // Fetch joined events
                 $stmt = $conn->prepare("SELECT e.title, e.description, e.date, e.location 
                                          FROM event_registrations er
                                          JOIN events e ON er.event_id = e.event_id
@@ -72,16 +95,14 @@ try {
                 $stmt->bind_param('i', $user_id);
                 $stmt->execute();
                 $result = $stmt->get_result();
-
                 $events = [];
                 while ($row = $result->fetch_assoc()) {
                     $events[] = $row;
                 }
-
+                $stmt->close();
                 echo json_encode(['data' => $events]);
                 exit();
             } elseif ($action === 'get_user_trainings') {
-                // Fetch joined trainings
                 $stmt = $conn->prepare("SELECT t.title, t.description, t.schedule 
                                          FROM training_registrations tr
                                          JOIN trainings t ON tr.training_id = t.training_id
@@ -89,50 +110,71 @@ try {
                 $stmt->bind_param('i', $user_id);
                 $stmt->execute();
                 $result = $stmt->get_result();
-
                 $trainings = [];
                 while ($row = $result->fetch_assoc()) {
                     $trainings[] = $row;
                 }
-
+                $stmt->close();
                 echo json_encode(['data' => $trainings]);
                 exit();
             }
-        } elseif (isset($_GET['user_id'])) {
-            // Fetch a single user's details
+        }
+        // --- Fetch single user details ---
+        elseif (isset($_GET['user_id'])) {
             $user_id = intval($_GET['user_id']);
+            // Non-admin users can only view their own details.
+            if ($auth_user_role !== 'admin' && $user_id !== $auth_user_id) {
+                http_response_code(403);
+                echo json_encode(['status' => false, 'message' => 'Forbidden']);
+                exit();
+            }
             $stmt = $conn->prepare('SELECT user_id, first_name, last_name, email, role, profile_image, virtual_id FROM users WHERE user_id = ?');
             $stmt->bind_param('i', $user_id);
             $stmt->execute();
             $result = $stmt->get_result();
-
             if ($result->num_rows === 1) {
-                echo json_encode(['status' => true, 'data' => $result->fetch_assoc()]);
+                $userData = $result->fetch_assoc();
+                $stmt->close();
+                echo json_encode(['status' => true, 'data' => $userData]);
             } else {
+                $stmt->close();
                 http_response_code(404);
                 echo json_encode(['status' => false, 'message' => 'User not found.']);
             }
+            exit();
         }
-    } elseif ($method === 'POST') {
-        // Handle profile updates for the logged-in user
-
-        // First, handle the profile image upload if one is provided.
+    } 
+    elseif ($method === 'POST') {
+        // --- Profile update for logged-in user ---
+        // If a file upload is included, process the profile image.
         if (!empty($_FILES['profile_image']['name'])) {
+            if ($_FILES['profile_image']['error'] !== UPLOAD_ERR_OK) {
+                http_response_code(400);
+                echo json_encode(['status' => false, 'message' => 'File upload error.']);
+                exit();
+            }
+
             $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
             $max_file_size = 2 * 1024 * 1024; // 2 MB
 
-            if (!in_array($_FILES['profile_image']['type'], $allowed_types)) {
+            // Verify MIME type using finfo.
+            $finfo = new finfo(FILEINFO_MIME_TYPE);
+            $mimeType = $finfo->file($_FILES['profile_image']['tmp_name']);
+            if (!in_array($mimeType, $allowed_types)) {
+                http_response_code(400);
                 echo json_encode(['status' => false, 'message' => 'Invalid file type.']);
                 exit();
             }
 
             if ($_FILES['profile_image']['size'] > $max_file_size) {
+                http_response_code(400);
                 echo json_encode(['status' => false, 'message' => 'File size exceeds 2 MB limit.']);
                 exit();
             }
 
-            // Generate a unique file name for the S3 object
-            $file_name = $auth_user_id . '_' . time() . '_' . basename($_FILES['profile_image']['name']);
+            // Generate a secure unique file name.
+            $ext = pathinfo($_FILES['profile_image']['name'], PATHINFO_EXTENSION);
+            $file_name = $auth_user_id . '_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
             $s3Key = 'uploads/profile_images/' . $file_name;
 
             try {
@@ -140,42 +182,43 @@ try {
                     'Bucket'      => $bucketName,
                     'Key'         => $s3Key,
                     'Body'        => fopen($_FILES['profile_image']['tmp_name'], 'rb'),
-                    'ACL'         => 'public-read', // adjust if needed
-                    'ContentType' => $_FILES['profile_image']['type']
+                    'ACL'         => 'public-read',
+                    'ContentType' => $mimeType
                 ]);
-                // You can either store the S3 key or the full URL. Here we store the key.
                 $profile_image_path = str_replace(
                     "https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/",
                     "/s3proxy/",
                     $result['ObjectURL']
                 );
-
-                // Update the profile image in the database immediately
+                // Update the profile image in the database.
                 $stmt = $conn->prepare('UPDATE users SET profile_image = ? WHERE user_id = ?');
                 $stmt->bind_param('si', $profile_image_path, $auth_user_id);
-                if ($stmt->execute()) {
-                    $_SESSION['profile_image'] = $profile_image_path;
-                } else {
+                if (!$stmt->execute()) {
+                    error_log('DB update error: ' . $stmt->error);
                     http_response_code(500);
                     echo json_encode(['status' => false, 'message' => 'Failed to update profile image.']);
                     exit();
                 }
+                $_SESSION['profile_image'] = $profile_image_path;
+                $stmt->close();
             } catch (Aws\Exception\AwsException $e) {
-                echo json_encode(['status' => false, 'message' => 'Error uploading profile image to S3: ' . $e->getMessage()]);
+                error_log('S3 upload error: ' . $e->getMessage());
+                http_response_code(500);
+                echo json_encode(['status' => false, 'message' => 'Error uploading profile image.']);
                 exit();
             }
 
-            // If this request is only for updating the profile image, exit here.
+            // If only updating the profile image, exit now.
             if (isset($_POST['update_profile_image']) && $_POST['update_profile_image'] === 'true') {
                 echo json_encode(['status' => true, 'message' => 'Profile image updated successfully.', 'profile_image' => $profile_image_path]);
                 exit();
             }
         }
 
-        // Now update the other profile details.
+        // Update other profile details.
         $first_name = trim($_POST['first_name'] ?? '');
-        $last_name = trim($_POST['last_name'] ?? '');
-        $email = trim($_POST['email'] ?? '');
+        $last_name  = trim($_POST['last_name'] ?? '');
+        $email      = trim($_POST['email'] ?? '');
 
         if (!$first_name || !$last_name || !$email) {
             http_response_code(400);
@@ -183,75 +226,119 @@ try {
             exit();
         }
 
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            http_response_code(400);
+            echo json_encode(['status' => false, 'message' => 'Invalid email format.']);
+            exit();
+        }
+
+        // Sanitize text inputs.
+        $first_name = htmlspecialchars($first_name, ENT_QUOTES, 'UTF-8');
+        $last_name  = htmlspecialchars($last_name, ENT_QUOTES, 'UTF-8');
+
         $stmt = $conn->prepare('UPDATE users SET first_name = ?, last_name = ?, email = ? WHERE user_id = ?');
         $stmt->bind_param('sssi', $first_name, $last_name, $email, $auth_user_id);
-
         if ($stmt->execute()) {
+            $stmt->close();
             echo json_encode(['status' => true, 'message' => 'Profile updated successfully.']);
         } else {
+            error_log('DB update error: ' . $stmt->error);
             http_response_code(500);
             echo json_encode(['status' => false, 'message' => 'Error updating profile.']);
         }
-    } elseif ($method === 'PUT') {
-        // Admin updating other users
-        if ($auth_user_role === 'admin') {
-            $data = json_decode(file_get_contents("php://input"), true);
-
-            $user_id = intval($data['user_id'] ?? 0);
-            $first_name = trim($data['first_name'] ?? '');
-            $last_name = trim($data['last_name'] ?? '');
-            $email = trim($data['email'] ?? '');
-            $role = trim($data['role'] ?? '');
-
-            if (!$user_id || !$first_name || !$last_name || !$email || !$role) {
-                http_response_code(400);
-                echo json_encode(['status' => false, 'message' => 'All fields are required.']);
-                exit();
-            }
-
-            $stmt = $conn->prepare('UPDATE users SET first_name = ?, last_name = ?, email = ?, role = ? WHERE user_id = ?');
-            $stmt->bind_param('ssssi', $first_name, $last_name, $email, $role, $user_id);
-
-            if ($stmt->execute()) {
-                echo json_encode(['status' => true, 'message' => 'User updated successfully.']);
-            } else {
-                http_response_code(500);
-                echo json_encode(['status' => false, 'message' => 'Error updating user.']);
-            }
-        } else {
+    } 
+    elseif ($method === 'PUT') {
+        // --- Admin updating other users ---
+        if ($auth_user_role !== 'admin') {
             http_response_code(403);
             echo json_encode(['status' => false, 'message' => 'Forbidden']);
+            exit();
         }
-    } elseif ($method === 'DELETE') {
-        // Admin deleting a user
-        if ($auth_user_role === 'admin') {
-            $data = json_decode(file_get_contents("php://input"), true);
-            $user_id = intval($data['user_id'] ?? 0);
 
-            if (!$user_id) {
-                http_response_code(400);
-                echo json_encode(['status' => false, 'message' => 'User ID is required.']);
-                exit();
-            }
+        $data = json_decode(file_get_contents("php://input"), true);
+        if (!$data) {
+            http_response_code(400);
+            echo json_encode(['status' => false, 'message' => 'Invalid input.']);
+            exit();
+        }
 
-            $stmt = $conn->prepare('DELETE FROM users WHERE user_id = ?');
-            $stmt->bind_param('i', $user_id);
+        $user_id    = intval($data['user_id'] ?? 0);
+        $first_name = trim($data['first_name'] ?? '');
+        $last_name  = trim($data['last_name'] ?? '');
+        $email      = trim($data['email'] ?? '');
+        $role       = trim($data['role'] ?? '');
 
-            if ($stmt->execute()) {
-                echo json_encode(['status' => true, 'message' => 'User deleted successfully.']);
-            } else {
-                http_response_code(500);
-                echo json_encode(['status' => false, 'message' => 'Error deleting user.']);
-            }
+        if (!$user_id || !$first_name || !$last_name || !$email || !$role) {
+            http_response_code(400);
+            echo json_encode(['status' => false, 'message' => 'All fields are required.']);
+            exit();
+        }
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            http_response_code(400);
+            echo json_encode(['status' => false, 'message' => 'Invalid email format.']);
+            exit();
+        }
+
+        // Sanitize inputs.
+        $first_name = htmlspecialchars($first_name, ENT_QUOTES, 'UTF-8');
+        $last_name  = htmlspecialchars($last_name, ENT_QUOTES, 'UTF-8');
+        $role       = htmlspecialchars($role, ENT_QUOTES, 'UTF-8');
+
+        $stmt = $conn->prepare('UPDATE users SET first_name = ?, last_name = ?, email = ?, role = ? WHERE user_id = ?');
+        $stmt->bind_param('ssssi', $first_name, $last_name, $email, $role, $user_id);
+        if ($stmt->execute()) {
+            $stmt->close();
+            echo json_encode(['status' => true, 'message' => 'User updated successfully.']);
         } else {
+            error_log('DB update error: ' . $stmt->error);
+            http_response_code(500);
+            echo json_encode(['status' => false, 'message' => 'Error updating user.']);
+        }
+    } 
+    elseif ($method === 'DELETE') {
+        // --- Admin deleting a user ---
+        if ($auth_user_role !== 'admin') {
             http_response_code(403);
             echo json_encode(['status' => false, 'message' => 'Forbidden']);
+            exit();
         }
-    } else {
+
+        $data = json_decode(file_get_contents("php://input"), true);
+        if (!$data) {
+            http_response_code(400);
+            echo json_encode(['status' => false, 'message' => 'Invalid input.']);
+            exit();
+        }
+
+        $user_id = intval($data['user_id'] ?? 0);
+        if (!$user_id) {
+            http_response_code(400);
+            echo json_encode(['status' => false, 'message' => 'User ID is required.']);
+            exit();
+        }
+
+        $stmt = $conn->prepare('DELETE FROM users WHERE user_id = ?');
+        $stmt->bind_param('i', $user_id);
+        if ($stmt->execute()) {
+            $stmt->close();
+            echo json_encode(['status' => true, 'message' => 'User deleted successfully.']);
+        } else {
+            error_log('DB delete error: ' . $stmt->error);
+            http_response_code(500);
+            echo json_encode(['status' => false, 'message' => 'Error deleting user.']);
+        }
+    } 
+    else {
         http_response_code(405);
         echo json_encode(['status' => false, 'message' => 'Method not allowed.']);
     }
 } catch (Exception $e) {
+    error_log('Unhandled exception: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['status' => false, 'message' => 'Internal server error.', 'details' => $e->getMessage()]);
+    echo json_encode(['status' => false, 'message' => 'Internal server error.']);
 }
+
+$conn->close();
+exit();
+?>

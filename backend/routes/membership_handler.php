@@ -1,10 +1,17 @@
 <?php
+// Production security settings
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+error_reporting(E_ALL);
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 require_once '../db/db_connect.php';
 header('Content-Type: application/json');
 
 $method = $_SERVER['REQUEST_METHOD'];
-
-
 
 if ($method === 'POST') {
     $stmt = null;
@@ -12,14 +19,12 @@ if ($method === 'POST') {
     try {
         $data = $_POST;
 
-
-        // Ensure user_id is captured from session or request
-        session_start(); // Assuming you're using PHP sessions for user authentication
+        // Ensure user_id is captured from session
         if (!isset($_SESSION['user_id'])) {
             echo json_encode(['status' => false, 'message' => 'User not authenticated.']);
             exit;
         }
-        $user_id = $_SESSION['user_id']; // Capture the current user's ID
+        $user_id = $_SESSION['user_id'];
 
         $permanent_address = !empty($data['permanent_address']) ? $data['permanent_address'] : null;
         $landline = !empty($data['landline']) ? $data['landline'] : null;
@@ -54,8 +59,6 @@ if ($method === 'POST') {
         $status = 'Pending';
         $signature = isset($data['signature']) ? $data['signature'] : null;
 
-      
-
         // Prepare SQL query
         $stmt = $conn->prepare("
         INSERT INTO membership_applications (
@@ -67,7 +70,8 @@ if ($method === 'POST') {
         ");
 
         if (!$stmt) {
-            echo json_encode(['status' => false, 'message' => 'Prepare failed: ' . $conn->error]);
+            error_log("Prepare failed: " . $conn->error);
+            echo json_encode(['status' => false, 'message' => 'An error occurred.']);
             exit;
         }
 
@@ -79,15 +83,16 @@ if ($method === 'POST') {
             $employment_start, $employment_end, $school, $degree, $year_graduated, $current_engagement,
             $key_expertise, $specific_field, $special_skills, $hobbies, $committees, $signature, $status
         );
-        
 
         if ($stmt->execute()) {
             echo json_encode(['status' => true, 'message' => 'Application submitted successfully!']);
         } else {
-            echo json_encode(['status' => false, 'message' => 'Failed to submit application: ' . $stmt->error]);
+            error_log("Execution failed: " . $stmt->error);
+            echo json_encode(['status' => false, 'message' => 'An error occurred.']);
         }
     } catch (Exception $e) {
-        echo json_encode(['status' => false, 'message' => 'Error: ' . $e->getMessage()]);
+        error_log("Exception: " . $e->getMessage());
+        echo json_encode(['status' => false, 'message' => 'An error occurred.']);
     } finally {
         if ($stmt) {
             $stmt->close();

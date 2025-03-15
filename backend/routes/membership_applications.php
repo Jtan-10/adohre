@@ -119,8 +119,9 @@ try {
             break;
     }
 } catch (Exception $e) {
+    error_log($e->getMessage()); // Log detailed error on the server for debugging
     http_response_code(500);
-    echo json_encode(['error' => $e->getMessage()]);
+    echo json_encode(['status' => false, 'message' => 'Internal Server Error']);
 } finally {
     $conn->close();
 }
