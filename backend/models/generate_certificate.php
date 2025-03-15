@@ -43,65 +43,65 @@ try {
      * Render a PDF using the final layout image from `certificate_layouts`.
      */
     /**
- * Render a PDF using the final layout image from `certificate_layouts`.
- */
-function generateCertificate($participant, $training_id)
-{
-    global $conn;
+     * Render a PDF using the final layout image from `certificate_layouts`.
+     */
+    function generateCertificate($participant, $training_id)
+    {
+        global $conn;
 
-    // Try to find the final layout image from certificate_layouts.
-    $stmt = $conn->prepare("
+        // Try to find the final layout image from certificate_layouts.
+        $stmt = $conn->prepare("
         SELECT layout_image 
         FROM certificate_layouts 
         WHERE training_id = ? AND user_id = ? 
         LIMIT 1
     ");
-    $stmt->bind_param("ii", $training_id, $participant['user_id']);
-    $stmt->execute();
-    $row = $stmt->get_result()->fetch_assoc();
+        $stmt->bind_param("ii", $training_id, $participant['user_id']);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
 
-    // Create new TCPDF instance in landscape A4.
-    $pdf = new TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
+        // Create new TCPDF instance in landscape A4.
+        $pdf = new TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
 
-    // 1) Disable auto page break and remove margins
-    $pdf->SetAutoPageBreak(false, 0);
-    $pdf->setMargins(0, 0, 0);
+        // 1) Disable auto page break and remove margins
+        $pdf->SetAutoPageBreak(false, 0);
+        $pdf->setMargins(0, 0, 0);
 
-    // 2) Remove any headers/footers
-    $pdf->setPrintHeader(false);
-    $pdf->setPrintFooter(false);
+        // 2) Remove any headers/footers
+        $pdf->setPrintHeader(false);
+        $pdf->setPrintFooter(false);
 
-    // 3) Add a page
-    $pdf->AddPage();
+        // 3) Add a page
+        $pdf->AddPage();
 
-    // 4) If a saved layout image exists, fill the entire A4 area (297 x 210 mm).
-    if ($row && !empty($row['layout_image'])) {
-        $layoutPath = $row['layout_image'];
-        if (file_exists($layoutPath)) {
-            // If local file
-            $pdf->Image($layoutPath, 0, 0, 297, 210, '', '', '', false, 300, '', false, false, 0);
+        // 4) If a saved layout image exists, fill the entire A4 area (297 x 210 mm).
+        if ($row && !empty($row['layout_image'])) {
+            $layoutPath = $row['layout_image'];
+            if (file_exists($layoutPath)) {
+                // If local file
+                $pdf->Image($layoutPath, 0, 0, 297, 210, '', '', '', false, 300, '', false, false, 0);
+            } else {
+                // Possibly an S3-based or absolute URL
+                $isLocal = ($_SERVER['SERVER_NAME'] === 'localhost');
+                $fullPath = $isLocal
+                    ? "http://localhost{$layoutPath}"
+                    : "https://www.adohre.site{$layoutPath}";
+
+                $pdf->Image($fullPath, 0, 0, 297, 210, '', '', '', false, 300, '', false, false, 0);
+            }
         } else {
-            // Possibly an S3-based or absolute URL
-            $isLocal = ($_SERVER['SERVER_NAME'] === 'localhost');
-            $fullPath = $isLocal
-                ? "http://localhost{$layoutPath}"
-                : "https://www.adohre.site{$layoutPath}";
-
-            $pdf->Image($fullPath, 0, 0, 297, 210, '', '', '', false, 300, '', false, false, 0);
+            // Fallback if no layout image is found
+            $pdf->SetFont('helvetica', 'B', 24);
+            $pdf->Cell(0, 20, "Certificate of Completion", 0, 1, 'C');
+            $pdf->Cell(0, 20, "Name: " . $participant['first_name'] . ' ' . $participant['last_name'], 0, 1, 'C');
         }
-    } else {
-        // Fallback if no layout image is found
-        $pdf->SetFont('helvetica', 'B', 24);
-        $pdf->Cell(0, 20, "Certificate of Completion", 0, 1, 'C');
-        $pdf->Cell(0, 20, "Name: " . $participant['first_name'] . ' ' . $participant['last_name'], 0, 1, 'C');
+
+        // Save PDF to a temporary file and return its path.
+        $tempFile = tempnam(sys_get_temp_dir(), 'cert_') . '.pdf';
+        $pdf->Output($tempFile, 'F');
+
+        return $tempFile;
     }
-
-    // Save PDF to a temporary file and return its path.
-    $tempFile = tempnam(sys_get_temp_dir(), 'cert_') . '.pdf';
-    $pdf->Output($tempFile, 'F');
-
-    return $tempFile;
-}
 
 
     /**
@@ -399,73 +399,7 @@ function generateCertificate($participant, $training_id)
             }
             break;
 
-            case 'preview_certificate':
-                $final_image = $_POST['final_image'] ?? '';
-                $preview_user_id = (int)($_POST['preview_user_id'] ?? 0);
-                $canvas_json = $_POST['canvas_json'] ?? '';
-            
-                // Get participant data from the database.
-                $stmt = $conn->prepare("
-                    SELECT u.user_id, u.first_name, u.last_name, u.email, t.title AS course, tr.registered_at AS date
-                    FROM users u
-                    JOIN training_registrations tr ON u.user_id = tr.user_id
-                    JOIN trainings t ON tr.training_id = t.training_id
-                    WHERE u.user_id = ?
-                    LIMIT 1
-                ");
-                $stmt->bind_param("i", $preview_user_id);
-                $stmt->execute();
-                $row = $stmt->get_result()->fetch_assoc();
-                if (!$row) {
-                    ob_end_clean();
-                    echo json_encode(['status' => false, 'message' => 'Participant not found.']);
-                    exit;
-                }
-            
-                $participant = [
-                    'user_id'    => $row['user_id'],
-                    'first_name' => $row['first_name'],
-                    'last_name'  => $row['last_name'],
-                    'email'      => $row['email'],
-                    'course'     => $row['course'] ?? 'Sample Course',
-                    'date'       => date('Y-m-d', strtotime($row['date'])),
-                ];
-            
-                if (!$final_image) {
-                    ob_end_clean();
-                    echo json_encode(['status' => false, 'message' => 'No final_image provided.']);
-                    exit;
-                }
-            
-                list(, $encoded) = explode(',', $final_image);
-                $decoded = base64_decode($encoded);
-                $tempLayout = tempnam(sys_get_temp_dir(), 'cert_preview_') . '.png';
-                file_put_contents($tempLayout, $decoded);
-            
-                // Create TCPDF for an A4 landscape PDF
-                $pdf = new TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
-                $pdf->SetAutoPageBreak(false, 0);
-                $pdf->setMargins(0, 0, 0);
-                $pdf->setPrintHeader(false);
-                $pdf->setPrintFooter(false);
-                $pdf->AddPage();
-            
-                // Fill the entire 297 x 210 mm page with the background image
-                $pdf->Image($tempLayout, 0, 0, 297, 210, '', '', '', false, 300, '', false, false, 0);
-            
-                $tempPdf = tempnam(sys_get_temp_dir(), 'cert_pdf_') . '.pdf';
-                $pdf->Output($tempPdf, 'F');
-            
-                $pdfData = file_get_contents($tempPdf);
-                $pdfBase64 = base64_encode($pdfData);
-            
-                @unlink($tempLayout);
-                @unlink($tempPdf);
-            
-                ob_end_clean();
-                echo json_encode(['status' => true, 'pdf_base64' => $pdfBase64]);
-                break;
-            case 'batch_release_certificates':
+        case 'batch_release_certificates':
             $training_id = (int)($_POST['training_id'] ?? 0);
             if ($training_id <= 0) {
                 ob_end_clean();
@@ -554,7 +488,6 @@ function generateCertificate($participant, $training_id)
             echo json_encode(['status' => false, 'message' => 'Invalid action.']);
             break;
     }
-
 } catch (Exception $e) {
     error_log("Fatal error in certificate generator: " . $e->getMessage());
     ob_end_clean();
@@ -563,4 +496,3 @@ function generateCertificate($participant, $training_id)
         'message' => 'A server error occurred: ' . $e->getMessage()
     ]);
 }
-?>

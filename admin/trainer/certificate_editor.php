@@ -1,9 +1,13 @@
 <?php
-// certificate_editor.php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+// certificate_editor.php (Production-Ready)
+
+// Disable debug output in production
+error_reporting(0);
+ini_set('display_errors', 0);
 
 session_start();
+
+// Include admin header (which sets security headers including CSP and generates $cspNonce)
 require_once __DIR__ . '/../admin_header.php';
 require_once '../../backend/db/db_connect.php';
 
@@ -13,15 +17,18 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'trainer') {
     exit();
 }
 
+// Validate the training_id
 if (!isset($_GET['training_id'])) {
     echo "Training ID not provided.";
     exit();
 }
-
 $training_id = intval($_GET['training_id']);
+if ($training_id < 1) {
+    echo "Invalid Training ID.";
+    exit();
+}
 
-// (Optional) fetch the training title from the DB.
-// For simplicity we use a placeholder. You may query the `trainings` table.
+// Optional: fetch the training title from DB. For demo, use placeholder:
 $training_title = "Training Title";
 
 // Fetch participants for this training
@@ -39,6 +46,7 @@ $res = $stmt->get_result();
 while ($row = $res->fetch_assoc()) {
     $participants[] = $row;
 }
+$stmt->close();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -47,8 +55,9 @@ while ($row = $res->fetch_assoc()) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Certificate Editor - ADOHRE</title>
+    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
+    <style nonce="<?= $cspNonce ?>">
         /* Container for the Fabric canvas (A4 landscape: 1123px x 792px) */
         #canvas-container {
             width: 100%;
@@ -82,44 +91,19 @@ while ($row = $res->fetch_assoc()) {
         #designSelector img.selected {
             border-color: #28a745;
         }
-
-        /* Preview Modal */
-        #pdfPreviewModal {
-            display: none;
-            position: fixed;
-            top: 5%;
-            left: 5%;
-            width: 90%;
-            height: 90%;
-            background-color: #fff;
-            border: 1px solid #ccc;
-            z-index: 9999;
-            padding: 10px;
-        }
-
-        #pdfPreviewFrame {
-            width: 100%;
-            height: 100%;
-            border: none;
-        }
-
-        #closePreviewBtn {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-        }
     </style>
     <!-- Fabric.js -->
-    <script src="https://cdn.jsdelivr.net/npm/fabric@4.6.0/dist/fabric.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fabric@4.6.0/dist/fabric.min.js" nonce="<?= $cspNonce ?>"></script>
 </head>
 
 <body>
     <div class="container mt-4">
         <h1>Certificate Editor</h1>
         <p>
-            Designing certificate for Training ID: <strong><?php echo htmlspecialchars($training_id); ?></strong>
-            (<strong><?php echo htmlspecialchars($training_title); ?></strong>)<br>
-            Date: <strong><?php echo date("Y-m-d"); ?></strong>
+            Designing certificate for Training ID:
+            <strong><?= htmlspecialchars($training_id); ?></strong>
+            ( <strong><?= htmlspecialchars($training_title); ?></strong> )<br>
+            Date: <strong><?= date("Y-m-d"); ?></strong>
         </p>
         <!-- Design Selector (pre-made backgrounds) -->
         <div id="designSelector">
@@ -129,7 +113,7 @@ while ($row = $res->fetch_assoc()) {
         </div>
         <form id="certificateForm">
             <input type="hidden" id="selectedDesign" name="selected_design" value="">
-            <input type="hidden" name="training_id" value="<?php echo htmlspecialchars($training_id); ?>">
+            <input type="hidden" name="training_id" value="<?= htmlspecialchars($training_id); ?>">
             <!-- Background image upload -->
             <div class="mb-3">
                 <label for="bgImage" class="form-label">Upload Certificate Template (A4 Landscape recommended)</label>
@@ -157,14 +141,12 @@ while ($row = $res->fetch_assoc()) {
                         <option value="Verdana">Verdana</option>
                     </select>
                 </div>
-                <!-- Navigation buttons -->
                 <div class="col-md-2 mb-3">
                     <button type="button" id="prevCertBtn" class="btn btn-info w-100">Previous</button>
                 </div>
                 <div class="col-md-2 mb-3">
                     <button type="button" id="nextCertBtn" class="btn btn-info w-100">Next</button>
                 </div>
-                <!-- Save Layout for current participant -->
                 <div class="col-md-2 mb-3">
                     <button type="button" id="saveThisLayoutBtn" class="btn btn-success w-100">Save This Layout</button>
                 </div>
@@ -176,14 +158,14 @@ while ($row = $res->fetch_assoc()) {
                     <input type="color" id="lineColor" class="form-control" value="#000000">
                 </div>
                 <div class="col-md-3 mb-3">
-                    <button type="button" id="addLineBtn" class="btn btn-primary w-100">Add Line</button>
+                    <button type="button" id="addLineBtn" class="btn btn-primary w-100 mt-4">Add Line</button>
                 </div>
                 <div class="col-md-3 mb-3">
                     <label for="textColorPicker" class="form-label">Text Color</label>
                     <input type="color" id="textColorPicker" class="form-control" value="#000000">
                 </div>
                 <div class="col-md-3 mb-3">
-                    <button type="button" id="changeTextColorBtn" class="btn btn-secondary w-100">Change Text
+                    <button type="button" id="changeTextColorBtn" class="btn btn-secondary w-100 mt-4">Change Text
                         Color</button>
                 </div>
             </div>
@@ -193,11 +175,11 @@ while ($row = $res->fetch_assoc()) {
                     <input type="number" id="lineThickness" class="form-control" value="2" min="1" max="20">
                 </div>
                 <div class="col-md-3 mb-3">
-                    <button type="button" id="changeLineThicknessBtn" class="btn btn-primary w-100">Set Line
+                    <button type="button" id="changeLineThicknessBtn" class="btn btn-primary w-100 mt-4">Set Line
                         Thickness</button>
                 </div>
                 <div class="col-md-3 mb-3">
-                    <button type="button" id="deleteObjectBtn" class="btn btn-danger w-100">Delete Object</button>
+                    <button type="button" id="deleteObjectBtn" class="btn btn-danger w-100 mt-4">Delete Object</button>
                 </div>
                 <div class="col-md-3 mb-3">
                     <label for="addImageInput" class="form-label">Add Another Image</label>
@@ -206,18 +188,15 @@ while ($row = $res->fetch_assoc()) {
             </div>
             <!-- Preview Section -->
             <div class="row mt-3">
-                <div class="col-md-6">
+                <div class="col-md-9">
                     <label for="previewUserId" class="form-label">Preview As (Participant)</label>
                     <select id="previewUserId" name="preview_user_id" class="form-select">
                         <?php foreach ($participants as $p): ?>
-                            <option value="<?php echo $p['user_id']; ?>">
-                                <?php echo htmlspecialchars($p['first_name'] . ' ' . $p['last_name']); ?>
+                            <option value="<?= $p['user_id']; ?>">
+                                <?= htmlspecialchars($p['first_name'] . ' ' . $p['last_name']); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
-                </div>
-                <div class="col-md-3">
-                    <button type="button" id="previewPdfBtn" class="btn btn-info w-100 mt-4">Preview PDF</button>
                 </div>
                 <div class="col-md-3">
                     <button type="button" id="saveAllLayoutsBtn" class="btn btn-success w-100 mt-4">Save All
@@ -228,17 +207,11 @@ while ($row = $res->fetch_assoc()) {
         </form>
     </div>
 
-    <!-- Hidden PDF Preview Modal -->
-    <div id="pdfPreviewModal">
-        <button id="closePreviewBtn" class="btn btn-danger">Close</button>
-        <iframe id="pdfPreviewFrame"></iframe>
-    </div>
+    <!-- Main Editor Script (inline, with nonce) -->
+    <script nonce="<?= $cspNonce ?>">
+        // Production-ready inline script
 
-    <script>
-        /***********************************************************
-         * 1. Initialize Fabric canvas
-         ***********************************************************/
-        const TRAINING_ID = <?php echo $training_id; ?>;
+        const TRAINING_ID = <?= json_encode($training_id, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
         const DEFAULT_WIDTH = 1123;
         const DEFAULT_HEIGHT = 792;
         const canvas = new fabric.Canvas('certificateCanvas', {
@@ -249,9 +222,7 @@ while ($row = $res->fetch_assoc()) {
         container.style.width = DEFAULT_WIDTH + 'px';
         container.style.height = DEFAULT_HEIGHT + 'px';
 
-        /***********************************************************
-         * 2. Set up default placeholders
-         ***********************************************************/
+        // Basic placeholders
         const trainingTitlePlaceholder = new fabric.IText('[Training Title]', {
             left: canvas.width / 2,
             top: 50,
@@ -271,7 +242,6 @@ while ($row = $res->fetch_assoc()) {
             fontSize: 24,
             selectable: true
         });
-        // Auto-populate with current date
         datePlaceholder.text = new Date().toISOString().split('T')[0];
         canvas.add(datePlaceholder);
 
@@ -284,7 +254,7 @@ while ($row = $res->fetch_assoc()) {
             originX: 'center',
             textAlign: 'center',
             selectable: true,
-            placeholderType: 'name' // Custom property added
+            placeholderType: 'name'
         });
         canvas.add(namePlaceholder);
 
@@ -300,43 +270,32 @@ while ($row = $res->fetch_assoc()) {
         });
         canvas.add(bodyPlaceholder);
 
-        /***********************************************************
-         * 3. Update Name Placeholder based on Participant selection - FIXED VERSION
-         ***********************************************************/
         function updateNamePlaceholder() {
             const select = document.getElementById('previewUserId');
             if (!select || select.selectedIndex < 0) {
-                console.error("No participant selected in dropdown");
+                // In production, avoid logging detailed errors.
+                // console.error("No participant selected in dropdown");
                 return;
             }
 
+            // Get the selected participant's name.
             const selectedText = select.options[select.selectedIndex].text;
-            console.log("🔍 Attempting to update name placeholder to:", selectedText);
+            // Optionally sanitize selectedText here if needed.
 
-            // DEBUG: List all text objects on the canvas
-            console.log("All text objects in canvas:", canvas.getObjects('i-text').map(obj => ({
-                text: obj.text,
-                type: obj.type,
-                placeholderType: obj.placeholderType,
-                fontSize: obj.fontSize,
-                position: {
-                    top: obj.top,
-                    left: obj.left
-                }
-            })));
+            // Uncomment the following line if you need minimal debug output in development:
+            // console.log("Updating name placeholder to:", selectedText);
 
-            // Find name placeholders in the canvas
             let namePlaceholders = [];
 
-            // Method 1: Find by placeholderType property
+            // Method 1: Find by placeholderType property.
             canvas.getObjects('i-text').forEach(function(obj) {
                 if (obj.placeholderType === 'name') {
-                    console.log("✓ Found placeholder by placeholderType:", obj);
+                    // console.log("Found placeholder by placeholderType:", obj);
                     namePlaceholders.push(obj);
                 }
             });
 
-            // Method 2: Find by text content
+            // Method 2: Find by text content.
             if (namePlaceholders.length === 0) {
                 canvas.getObjects('i-text').forEach(function(obj) {
                     if (obj.text && (
@@ -344,8 +303,7 @@ while ($row = $res->fetch_assoc()) {
                             obj.text.includes('[Name]') ||
                             (obj.originalText && obj.originalText.includes('[Name]'))
                         )) {
-                        console.log("✓ Found placeholder by text content:", obj);
-                        // Mark it so we find it next time
+                        // console.log("Found placeholder by text content:", obj);
                         obj.placeholderType = 'name';
                         obj.originalText = obj.originalText || obj.text;
                         namePlaceholders.push(obj);
@@ -353,12 +311,11 @@ while ($row = $res->fetch_assoc()) {
                 });
             }
 
-            // Method 3: Find by name-like content (if object contains a real name)
+            // Method 3: Find by a name-like regex pattern.
             if (namePlaceholders.length === 0) {
                 canvas.getObjects('i-text').forEach(function(obj) {
-                    // Check if text looks like a name (two capitalized words)
                     if (obj.text && /^[A-Z][a-z]+ [A-Z][a-z]+/.test(obj.text)) {
-                        console.log("✓ Found placeholder by name pattern:", obj);
+                        // console.log("Found placeholder by name pattern:", obj);
                         obj.placeholderType = 'name';
                         obj.originalText = obj.originalText || obj.text;
                         namePlaceholders.push(obj);
@@ -366,94 +323,69 @@ while ($row = $res->fetch_assoc()) {
                 });
             }
 
-            // Method 4: Find by prominent text position and size
+            // Method 4: Use prominence (position and font size).
             if (namePlaceholders.length === 0) {
                 let prominentObjects = [];
                 canvas.getObjects('i-text').forEach(function(obj) {
-                    // Score each text by how likely it is to be a name
                     let score = 0;
-
-                    // Centered text is more likely to be a name
                     if (obj.originX === 'center') score += 5;
-
-                    // Text in the middle third of the certificate is likely a name
                     if (obj.top > canvas.height * 0.2 && obj.top < canvas.height * 0.7) score += 3;
-
-                    // Larger text is more likely to be a name
                     score += Math.min(10, obj.fontSize / 5);
-
                     prominentObjects.push({
                         obj,
                         score
                     });
                 });
-
-                // Sort by score (descending)
                 prominentObjects.sort((a, b) => b.score - a.score);
-
                 if (prominentObjects.length > 0) {
                     const topObj = prominentObjects[0].obj;
-                    console.log("✓ Found placeholder by prominence (score=" + prominentObjects[0].score + "):", topObj);
+                    // console.log("Found placeholder by prominence (score=" + prominentObjects[0].score + "):", topObj);
                     topObj.placeholderType = 'name';
                     topObj.originalText = topObj.originalText || topObj.text;
                     namePlaceholders.push(topObj);
                 }
             }
 
-            // Update all found placeholders
+            // Update all found placeholders with the selected participant's name.
             if (namePlaceholders.length > 0) {
                 namePlaceholders.forEach(function(obj) {
-                    // Save original text if this is a first-time update
-                    if (!obj.originalText) obj.originalText = obj.text;
-
-                    console.log("✓ Setting placeholder text from:", obj.text, "to:", selectedText);
+                    if (!obj.originalText) {
+                        obj.originalText = obj.text;
+                    }
+                    // console.log("Setting placeholder text from:", obj.text, "to:", selectedText);
                     obj.set('text', selectedText);
                 });
                 canvas.renderAll();
-                console.log("✅ Updated", namePlaceholders.length, "name placeholder(s)");
+                // console.log("Updated", namePlaceholders.length, "name placeholder(s)");
             } else {
-                console.warn("❌ No name placeholder found in the canvas!");
+                // Optionally, handle the case when no placeholder is found.
+                // console.warn("No name placeholder found in the canvas!");
             }
         }
 
-        /***********************************************************
-         * 4. Navigation: Cycle through participants using Prev/Next buttons
-         ***********************************************************/
-        function getCurrentParticipantIndex() {
-            const select = document.getElementById('previewUserId');
-            return select.selectedIndex;
-        }
 
-        function setParticipantByIndex(index) {
-            const select = document.getElementById('previewUserId');
-            if (index >= 0 && index < select.options.length) {
-                select.selectedIndex = index;
-                updateNamePlaceholder();
-            }
-        }
+        // Participant navigation event listeners
+        document.getElementById('previewUserId').addEventListener('change', updateNamePlaceholder);
         document.getElementById('prevCertBtn').addEventListener('click', () => {
-            let idx = getCurrentParticipantIndex();
-            setParticipantByIndex(idx - 1);
+            const select = document.getElementById('previewUserId');
+            const idx = select.selectedIndex;
+            select.selectedIndex = idx > 0 ? idx - 1 : select.options.length - 1;
+            updateNamePlaceholder();
         });
         document.getElementById('nextCertBtn').addEventListener('click', () => {
-            let idx = getCurrentParticipantIndex();
-            setParticipantByIndex(idx + 1);
+            const select = document.getElementById('previewUserId');
+            const idx = select.selectedIndex;
+            select.selectedIndex = idx < select.options.length - 1 ? idx + 1 : 0;
+            updateNamePlaceholder();
         });
 
-        /***********************************************************
-         * 5. Background Upload & Design Selector
-         ***********************************************************/
+        // Background upload
         document.getElementById('bgImage').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
             reader.onload = function(evt) {
                 fabric.Image.fromURL(evt.target.result, function(img) {
-                    const ratio = img.width / img.height;
-                    const targetRatio = DEFAULT_WIDTH / DEFAULT_HEIGHT;
-                    if (Math.abs(ratio - targetRatio) / targetRatio > 0.1) {
-                        alert("Warning: The uploaded image is not A4 landscape. It will be stretched.");
-                    }
                     img.scaleX = DEFAULT_WIDTH / img.width;
                     img.scaleY = DEFAULT_HEIGHT / img.height;
                     canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
@@ -464,6 +396,8 @@ while ($row = $res->fetch_assoc()) {
             };
             reader.readAsDataURL(file);
         });
+
+        // Design thumbnails
         document.querySelectorAll('#designSelector img').forEach(thumb => {
             thumb.addEventListener('click', function() {
                 document.querySelectorAll('#designSelector img').forEach(img => img.classList.remove(
@@ -482,9 +416,7 @@ while ($row = $res->fetch_assoc()) {
             });
         });
 
-        /***********************************************************
-         * 6. Additional Controls
-         ***********************************************************/
+        // Add Text
         document.getElementById('addTextBtn').addEventListener('click', () => {
             const textObj = new fabric.IText('Your Text Here', {
                 left: 100,
@@ -496,16 +428,19 @@ while ($row = $res->fetch_assoc()) {
             });
             canvas.add(textObj);
         });
+
+        // Clear Canvas
         document.getElementById('clearCanvasBtn').addEventListener('click', () => {
             const bg = canvas.backgroundImage;
             canvas.clear();
             if (bg) {
                 canvas.setBackgroundImage(bg, canvas.renderAll.bind(canvas));
             }
-            // Re-add default placeholders
             canvas.add(trainingTitlePlaceholder, datePlaceholder, namePlaceholder, bodyPlaceholder);
             canvas.renderAll();
         });
+
+        // Change Font Family
         document.getElementById('fontFamilySelect').addEventListener('change', function() {
             const newFont = this.value;
             const activeObj = canvas.getActiveObject();
@@ -516,6 +451,8 @@ while ($row = $res->fetch_assoc()) {
                 canvas.renderAll();
             }
         });
+
+        // Add Line
         document.getElementById('addLineBtn').addEventListener('click', () => {
             const lineColor = document.getElementById('lineColor').value;
             const line = new fabric.Line([50, 50, 300, 50], {
@@ -525,6 +462,8 @@ while ($row = $res->fetch_assoc()) {
             });
             canvas.add(line);
         });
+
+        // Change Text Color
         document.getElementById('changeTextColorBtn').addEventListener('click', () => {
             const activeObj = canvas.getActiveObject();
             if (activeObj && (activeObj.type === 'i-text' || activeObj.type === 'textbox')) {
@@ -536,6 +475,8 @@ while ($row = $res->fetch_assoc()) {
                 alert("Please select a text object first.");
             }
         });
+
+        // Change Line Thickness
         document.getElementById('changeLineThicknessBtn').addEventListener('click', () => {
             const thickness = parseFloat(document.getElementById('lineThickness').value);
             const activeObj = canvas.getActiveObject();
@@ -548,6 +489,8 @@ while ($row = $res->fetch_assoc()) {
                 alert("Please select a line object first.");
             }
         });
+
+        // Delete Object
         document.getElementById('deleteObjectBtn').addEventListener('click', () => {
             const activeObj = canvas.getActiveObject();
             if (activeObj) {
@@ -557,6 +500,8 @@ while ($row = $res->fetch_assoc()) {
                 alert("Please select an object to delete.");
             }
         });
+
+        // Add Another Image
         document.getElementById('addImageInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -574,21 +519,16 @@ while ($row = $res->fetch_assoc()) {
             reader.readAsDataURL(file);
         });
 
-        /***********************************************************
-         * 7. Save This Layout (for current participant)
-         *    Save both the final PNG image and the canvas JSON
-         ***********************************************************/
+        // Save This Layout (for current participant)
         document.getElementById('saveThisLayoutBtn').addEventListener('click', () => {
             const previewUserId = document.getElementById('previewUserId').value;
             if (!previewUserId) {
                 alert("No participant selected.");
                 return;
             }
-            const layoutImage = canvas.toDataURL({
-                format: 'png',
-                quality: 1.0
-            });
+            const layoutImage = canvas.toDataURL('image/png', 1.0);
             const canvasJSON = JSON.stringify(canvas.toJSON());
+
             const formData = new FormData(document.getElementById('certificateForm'));
             formData.delete('add_image');
             formData.append('final_image', layoutImage);
@@ -600,40 +540,25 @@ while ($row = $res->fetch_assoc()) {
                     method: 'POST',
                     body: formData
                 })
-                .then(resp => resp.text())
-                .then(text => {
-                    try {
-                        const data = JSON.parse(text);
-                        if (data.status) {
-                            alert('Layout saved for the selected participant.');
-                        } else {
-                            alert('Error: ' + data.message);
-                        }
-                    } catch (err) {
-                        console.error("JSON parse error:", err);
-                        alert("Error parsing server response.");
+                .then(resp => resp.json())
+                .then(data => {
+                    if (data.status) {
+                        alert('Layout saved for the selected participant.');
+                    } else {
+                        alert('Error: ' + (data.message || 'Unknown'));
                     }
                 })
-                .catch(err => {
-                    console.error(err);
-                    alert('Failed to save layout.');
-                });
+                .catch(() => alert('Failed to save layout.'));
         });
 
-        /***********************************************************
-         * 8. Save All Layouts (for every participant)
-         ***********************************************************/
+        // Save All Layouts (for every participant)
         document.getElementById('saveAllLayoutsBtn').addEventListener('click', () => {
-            // Show loading indicator
             const btn = document.getElementById('saveAllLayoutsBtn');
             const originalText = btn.innerHTML;
             btn.innerHTML = 'Saving...';
             btn.disabled = true;
 
-            const layoutImage = canvas.toDataURL({
-                format: 'png',
-                quality: 1.0
-            });
+            const layoutImage = canvas.toDataURL('image/png', 1.0);
             const canvasJSON = JSON.stringify(canvas.toJSON());
             const formData = new FormData(document.getElementById('certificateForm'));
             formData.delete('add_image');
@@ -645,315 +570,49 @@ while ($row = $res->fetch_assoc()) {
                     method: 'POST',
                     body: formData
                 })
-                .then(resp => {
-                    if (!resp.ok) {
-                        throw new Error(`Server error: ${resp.status}`);
-                    }
-                    return resp.text();
-                })
-                .then(text => {
-                    try {
-                        // Check if response is HTML instead of JSON (common PHP error output)
-                        if (text.trim().startsWith('<')) {
-                            console.error("Server returned HTML instead of JSON:", text);
-                            throw new Error("Server returned an error page instead of JSON");
-                        }
-
-                        const data = JSON.parse(text);
-                        if (data.status) {
-                            alert('Layouts saved for all participants.');
-                        } else {
-                            alert('Error: ' + data.message);
-                        }
-                    } catch (err) {
-                        console.error("JSON parse error:", err);
-                        console.error("Raw server response:", text);
-                        alert("Error processing server response. Check console for details.");
+                .then(resp => resp.json())
+                .then(data => {
+                    if (data.status) {
+                        alert('Layouts saved for all participants.');
+                    } else {
+                        alert('Error: ' + (data.message || 'Unknown'));
                     }
                 })
-                .catch(err => {
-                    console.error('Error saving layouts:', err);
-                    alert('Failed to save layouts: ' + err.message);
-                })
+                .catch(() => alert('Failed to save layouts.'))
                 .finally(() => {
-                    // Reset button state
                     btn.innerHTML = originalText;
                     btn.disabled = false;
                 });
         });
 
-        /***********************************************************
-         * 9. Preview PDF
-         ***********************************************************/
-        document.getElementById('previewPdfBtn').addEventListener('click', () => {
-            // Store the original texts of placeholders before rendering
-            const originalTexts = {};
-            canvas.getObjects('i-text').forEach(function(obj) {
-                if (obj.placeholderType === 'name') {
-                    originalTexts[obj.id] = obj.text;
-                }
-            });
-
-            // Make sure name is updated before generating preview
-            updateNamePlaceholder();
-
-            const layoutImage = canvas.toDataURL({
-                format: 'png',
-                quality: 1.0
-            });
-            const canvasJSON = JSON.stringify(canvas.toJSON());
-            const formData = new FormData(document.getElementById('certificateForm'));
-            formData.delete('add_image');
-            formData.append('final_image', layoutImage);
-            formData.append('layout_json', canvasJSON);
-            formData.append('preview_user_id', document.getElementById('previewUserId').value);
-            formData.append('action', 'preview_certificate');
-
-            fetch('../../backend/models/generate_certificate.php', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(resp => resp.json())
-                .then(data => {
-                    if (data.status && data.pdf_base64) {
-                        document.getElementById('pdfPreviewFrame').src = "data:application/pdf;base64," + data
-                            .pdf_base64;
-                        document.getElementById('pdfPreviewModal').style.display = 'block';
-                    } else {
-                        alert('Preview error: ' + (data.message || 'Unknown error'));
-                    }
-                })
-                .catch(err => {
-                    console.error(err);
-                    alert('Failed to preview PDF.');
-                });
-        });
-
-        /***********************************************************
-         * 10. Close PDF Preview
-         ***********************************************************/
-        document.getElementById('closePreviewBtn').addEventListener('click', () => {
-            document.getElementById('pdfPreviewModal').style.display = 'none';
-        });
-
-        /***********************************************************
-         * 11. Load saved canvas JSON for editing (if available) - FIXED VERSION
-         ***********************************************************/
+        // Load saved layout JSON if available
         window.addEventListener('load', () => {
-            console.log("Loading saved canvas JSON for training_id:", TRAINING_ID);
-
-            // First load participant dropdown
-            initParticipantDropdown();
-
-            // Debug check of default canvas state
-            console.log("Default canvas objects:", canvas.getObjects().map(obj => ({
-                type: obj.type,
-                text: obj.type === 'i-text' ? obj.text : null,
-                placeholderType: obj.placeholderType
-            })));
-
-            // Then load the saved layout
             fetch(
                     `../../backend/models/generate_certificate.php?action=load_certificate_layout&training_id=${TRAINING_ID}`
                 )
                 .then(response => response.text())
                 .then(text => {
-                    console.log("Response from load_certificate_layout:", text);
                     try {
                         const data = JSON.parse(text);
                         if (data.status && data.data && data.data.canvas_json) {
-                            console.log("Found canvas_json, loading into editor");
-                            try {
-                                const jsonObj = JSON.parse(data.data.canvas_json);
-
-                                // Pre-process the JSON to identify name placeholders
-                                if (jsonObj.objects && Array.isArray(jsonObj.objects)) {
-                                    let foundNamePlaceholder = false;
-
-                                    console.log("Objects in loaded JSON:", jsonObj.objects.length);
-
-                                    jsonObj.objects.forEach(obj => {
-                                        if (obj.type === 'i-text' || obj.type === 'textbox') {
-                                            // Check for explicit name placeholders
-                                            if (obj.placeholderType === 'name') {
-                                                console.log("Found pre-marked name placeholder:", obj
-                                                    .text);
-                                                foundNamePlaceholder = true;
-                                                // Keep the placeholderType but store the original text
-                                                obj.originalText = obj.text;
-                                            }
-                                            // Check for text with [Name] or similar patterns
-                                            else if (obj.text && (
-                                                    obj.text === '[Name]' ||
-                                                    obj.text.includes('[Name]')
-                                                )) {
-                                                console.log("Found name placeholder by text:", obj
-                                                    .text);
-                                                obj.placeholderType = 'name';
-                                                obj.originalText = obj.text;
-                                                foundNamePlaceholder = true;
-                                            }
-                                            // Check if text appears to be a name (two capitalized words)
-                                            else if (obj.text && /^[A-Z][a-z]+ [A-Z][a-z]+/.test(obj
-                                                    .text)) {
-                                                console.log("Found name pattern:", obj.text);
-                                                obj.placeholderType = 'name';
-                                                obj.originalText = obj.text;
-                                                foundNamePlaceholder = true;
-                                            }
-                                        }
-                                    });
-
-                                    // If no name placeholder was found but there are text objects, 
-                                    // we should use a heuristic to identify the most likely one
-                                    if (!foundNamePlaceholder) {
-                                        let prominentTexts = [];
-
-                                        jsonObj.objects.forEach(obj => {
-                                            if (obj.type === 'i-text' || obj.type === 'textbox') {
-                                                let score = 0;
-
-                                                // Centered text is more likely to be a name
-                                                if (obj.originX === 'center') score += 5;
-
-                                                // Text in the middle third of certificate
-                                                if (obj.top > canvas.height * 0.25 && obj.top < canvas
-                                                    .height * 0.6) score += 3;
-
-                                                // Larger text is more likely to be a name
-                                                score += Math.min(10, obj.fontSize / 5);
-
-                                                prominentTexts.push({
-                                                    obj,
-                                                    score
-                                                });
-                                            }
-                                        });
-
-                                        // Sort by score
-                                        prominentTexts.sort((a, b) => b.score - a.score);
-
-                                        if (prominentTexts.length > 0) {
-                                            const topObj = prominentTexts[0].obj;
-                                            console.log("Found likely name placeholder by prominence:", topObj);
-                                            topObj.placeholderType = 'name';
-                                            topObj.originalText = topObj.text;
-                                        }
-                                    }
-                                }
-
-                                // Load the enhanced JSON
-                                canvas.loadFromJSON(JSON.stringify(jsonObj), () => {
-                                    console.log("Canvas JSON loaded successfully");
-
-                                    // Verify which objects are on the canvas
-                                    console.log("Loaded text objects:", canvas.getObjects('i-text').map(
-                                        obj => ({
-                                            text: obj.text,
-                                            placeholderType: obj.placeholderType,
-                                            originalText: obj.originalText
-                                        })));
-
-                                    // Now update with the selected participant's name
-                                    updateNamePlaceholder();
-                                    canvas.renderAll();
-                                });
-                            } catch (e) {
-                                console.error("Error loading canvas JSON:", e);
-                                // Fall back to the default canvas
-                                console.log("Falling back to default canvas");
-                            }
+                            const jsonObj = JSON.parse(data.data.canvas_json);
+                            canvas.loadFromJSON(jsonObj, () => {
+                                updateNamePlaceholder();
+                                canvas.renderAll();
+                            });
                         } else {
-                            console.log("No saved canvas_json found, using default");
-                            // Still update name placeholder on the default canvas
                             updateNamePlaceholder();
                         }
                     } catch (e) {
-                        console.error("Error parsing JSON response:", e);
-                        // Still update name placeholder on the default canvas
                         updateNamePlaceholder();
                     }
                 })
-                .catch(error => {
-                    console.error("Error loading saved layout:", error);
-                    // Still update name placeholder on the default canvas
-                    updateNamePlaceholder();
-                });
+                .catch(() => updateNamePlaceholder());
         });
+    </script>
 
-        // Initialize the dropdown and name placeholder once
-        function initParticipantDropdown() {
-            console.log("Initializing participant dropdown");
-            const dropdown = document.getElementById('previewUserId');
-            if (dropdown && dropdown.options.length > 0) {
-                // Select first option if none selected
-                if (dropdown.selectedIndex < 0) {
-                    dropdown.selectedIndex = 0;
-                }
-                console.log("Selected participant:", dropdown.options[dropdown.selectedIndex].text);
-            }
-        }
-
-        // REMOVE DUPLICATE EVENT LISTENERS AND FUNCTIONS
-
-        // Clean up event listeners to prevent duplicates
-        document.getElementById('previewUserId').outerHTML = document.getElementById('previewUserId').outerHTML;
-        document.getElementById('prevCertBtn').outerHTML = document.getElementById('prevCertBtn').outerHTML;
-        document.getElementById('nextCertBtn').outerHTML = document.getElementById('nextCertBtn').outerHTML;
-
-        // Re-add event listeners after cleanup
-        document.getElementById('previewUserId').addEventListener('change', function() {
-            console.log("Dropdown changed to:", this.options[this.selectedIndex].text);
-            updateNamePlaceholder();
-        });
-
-        // Modify the previous button to loop through participants
-        document.getElementById('prevCertBtn').addEventListener('click', function() {
-            const select = document.getElementById('previewUserId');
-            const currentIndex = select.selectedIndex;
-            const totalOptions = select.options.length;
-
-            if (currentIndex > 0) {
-                // Not at the beginning, just go to previous
-                select.selectedIndex = currentIndex - 1;
-            } else {
-                // At the beginning (index 0), loop to the end
-                select.selectedIndex = totalOptions - 1;
-            }
-
-            console.log("Selected previous participant:", select.options[select.selectedIndex].text);
-            updateNamePlaceholder();
-        });
-
-        // Modify the next button to loop through participants
-        document.getElementById('nextCertBtn').addEventListener('click', function() {
-            const select = document.getElementById('previewUserId');
-            const currentIndex = select.selectedIndex;
-            const totalOptions = select.options.length;
-
-            if (currentIndex < totalOptions - 1) {
-                // Not at the end, just go to next
-                select.selectedIndex = currentIndex + 1;
-            } else {
-                // At the end, loop back to beginning
-                select.selectedIndex = 0;
-            }
-
-            console.log("Selected next participant:", select.options[select.selectedIndex].text);
-            updateNamePlaceholder();
-        });
-
-        // Make sure we initialize only once on DOMContentLoaded
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log("DOMContentLoaded - running one-time initialization");
-            initParticipantDropdown();
-            updateNamePlaceholder();
-        }, {
-            once: true
-        });
-
-        // Delete duplicate functions to avoid confusion
-        // Only the top-level updateNamePlaceholder function remains
+    <!-- Minimal Bootstrap JS again if needed -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" nonce="<?= $cspNonce ?>">
     </script>
 </body>
 
