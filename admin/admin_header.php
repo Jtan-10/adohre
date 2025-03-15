@@ -1,16 +1,40 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) {
+    // Configure secure session parameters for production
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => '/',
+        'domain' => '', // Set appropriate domain
+        'secure' => true,
+        'httponly' => true,
+        'samesite' => 'Strict'
+    ]);
     session_start();
 }
+// Add secure HTTP headers for production
+header('Strict-Transport-Security: max-age=31536000; includeSubDomains; preload');
+header('X-Frame-Options: SAMEORIGIN');
+header('X-Content-Type-Options: nosniff');
+header('Referrer-Policy: no-referrer');
+header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
+
+$cspNonce = base64_encode(random_bytes(16)); // Generate the nonce
 require_once __DIR__ . '/../backend/db/db_connect.php';
 
 // Check if the user is logged in
 $isLoggedIn = isset($_SESSION['user_id']);
 ?>
+<!-- Content Security Policy Meta Tag -->
+<meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    frame-src 'self' https://docs.google.com;
+    script-src 'self' https://cdn.jsdelivr.net https://code.jquery.com https://cdn.datatables.net 'nonce-<?= $cspNonce ?>';
+    style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.datatables.net;
+    img-src 'self' data: https://cdn.jsdelivr.net;
+    font-src 'self' https://cdn.jsdelivr.net;">
+
 <nav class="navbar navbar-expand-lg bg-success text-white">
     <div class="container-fluid d-flex align-items-center">
-        <!-- Hamburger icon to toggle the sidebar -->
-        <!-- In your header/navbar -->
         <?php if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'trainer'): ?>
         <button class="toggle-btn btn btn-success" id="toggleSidebar">
             <i class="bi bi-list"></i>
@@ -18,27 +42,20 @@ $isLoggedIn = isset($_SESSION['user_id']);
         <?php else: ?>
         <div class="hamburger-placeholder"></div>
         <?php endif; ?>
-
-
-
-        <!-- Logo -->
         <a class="navbar-brand d-flex align-items-center text-white" href="/capstone-php/admin/dashboard.php">
             <img src="/capstone-php/assets/logo.png" alt="ADOHRE Logo" width="30" height="28"
                 class="d-inline-block align-text-top">
             <span class="ms-2">ADOHRE</span>
         </a>
-
-        <!-- Adjust the nav to use flex utilities -->
         <ul class="navbar-nav ms-auto d-flex flex-row align-items-center">
             <?php if ($isLoggedIn): ?>
             <li class="nav-item dropdown mx-2 position-relative">
                 <a class="nav-link dropdown-toggle text-white" href="#" id="navbarDropdown" role="button"
                     data-bs-toggle="dropdown" aria-expanded="false">
-                    <img id="profileImageNav" src="<?php echo isset($_SESSION['profile_image']) 
-         ? $_SESSION['profile_image'] 
-         : '/capstone-php/assets/default-profile.jpeg'; ?>" alt="Profile Image" class="rounded-circle" width="30"
-                        height="30">
-
+                    <img id="profileImageNav" src="<?php echo isset($_SESSION['profile_image'])
+                                                            ? htmlspecialchars($_SESSION['profile_image'], ENT_QUOTES, 'UTF-8')
+                                                            : '/capstone-php/assets/default-profile.jpeg'; ?>"
+                        alt="Profile Image" class="rounded-circle" width="30" height="30">
                 </a>
                 <ul class="dropdown-menu dropdown-menu-end position-absolute" aria-labelledby="navbarDropdown">
                     <li><a class="dropdown-item" href="/capstone-php/index.php">Home</a></li>
@@ -60,3 +77,6 @@ $isLoggedIn = isset($_SESSION['user_id']);
         </ul>
     </div>
 </nav>
+
+<!-- Include external sidebar script with nonce -->
+<script src="/capstone-php/js/sidebar.js" nonce="<?= $cspNonce ?>"></script>

@@ -1,9 +1,26 @@
 <?php
+// Prevent direct access: ensure the app is properly initialized.
+if (!defined('APP_INIT')) {
+    header('HTTP/1.1 403 Forbidden');
+    exit('No direct script access allowed');
+}
+
+// Start a session if not already started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Optional: Enforce admin authentication (adjust this logic as needed)
+// if (!isset($_SESSION['admin_logged_in']) || !$_SESSION['admin_logged_in']) {
+//     header('Location: /capstone-php/admin/login.php');
+//     exit;
+// }
+
 // Get the current page name
 $currentPage = basename($_SERVER['PHP_SELF']);
 ?>
 
-<style>
+<style nonce="<?= $cspNonce ?>">
 .sidebar {
     background-color: #198754;
     min-height: 100vh;
@@ -92,7 +109,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
     </nav>
 </div>
 
-<script>
+<script nonce="<?= $cspNonce ?>">
 // Toggle Sidebar
 const sidebar = document.getElementById('sidebar');
 const toggleSidebar = document.getElementById('toggleSidebar');
@@ -100,7 +117,9 @@ const toggleSidebar = document.getElementById('toggleSidebar');
 // Initialize the sidebar in collapsed state
 sidebar.classList.add('sidebar-collapsed');
 
-toggleSidebar.addEventListener('click', () => {
-    sidebar.classList.toggle('sidebar-collapsed');
-});
+if (toggleSidebar) { // defensive check
+    toggleSidebar.addEventListener('click', () => {
+        sidebar.classList.toggle('sidebar-collapsed');
+    });
+}
 </script>

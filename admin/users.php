@@ -1,4 +1,5 @@
 <?php
+define('APP_INIT', true); // Added to enable proper access.
 require_once 'admin_header.php';
 
 // Check if the user is logged in and is an admin
@@ -6,8 +7,11 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     header("Location: ../login.php");
     exit;
 }
-?>
 
+if (!isset($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -17,19 +21,23 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     <title>Users - Admin Dashboard</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"
+    <!-- External scripts with the same nonce -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" nonce="<?= $cspNonce ?>">
+    </script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" nonce="<?= $cspNonce ?>"
         integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
     <link rel="stylesheet" href="https://cdn.datatables.net/2.1.8/css/dataTables.dataTables.css" />
-    <script src="https://cdn.datatables.net/2.1.8/js/dataTables.js"></script>
-
+    <script src="https://cdn.datatables.net/2.1.8/js/dataTables.js" nonce="<?= $cspNonce ?>"></script>
+    <!-- Inline script with nonce to set CSRF token -->
+    <script nonce="<?= $cspNonce ?>">
+    const CSRF_TOKEN = '<?= $_SESSION['csrf_token'] ?>';
+    </script>
 </head>
 
 <body>
     <div class="d-flex">
         <!-- Sidebar -->
         <?php require_once 'admin_sidebar.php'; ?>
-
         <!-- Main Content -->
         <div id="content" class="content p-4" style="width: 100%;">
             <div class="d-flex justify-content-between align-items-center mb-4">
@@ -38,7 +46,6 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                     <i class="bi bi-plus"></i> Create New
                 </button>
             </div>
-
             <div class="card">
                 <div class="card-body">
                     <table id="usersTable" class="table table-striped table-bordered w-100">
@@ -80,7 +87,6 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                         </thead>
                         <tbody></tbody>
                     </table>
-
                     <h6 class="mt-4">Joined Trainings</h6>
                     <table id="userTrainingsTable" class="table table-striped table-bordered w-100">
                         <thead>
@@ -111,6 +117,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
+                        <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
                         <div class="mb-3">
                             <label for="firstName" class="form-label">First Name</label>
                             <input type="text" class="form-control" id="firstName" name="first_name" required>
@@ -152,6 +159,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                     </div>
                     <div class="modal-body">
                         <input type="hidden" id="editUserId" name="user_id">
+                        <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
                         <div class="mb-3">
                             <label for="editFirstName" class="form-label">First Name</label>
                             <input type="text" class="form-control" id="editFirstName" name="first_name" required>
@@ -182,7 +190,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
         </div>
     </div>
 
-    <script>
+    <!-- Inline Scripts with nonce -->
+    <script nonce="<?= $cspNonce ?>">
     $(document).ready(function() {
         $('#usersTable').DataTable({
             processing: true,
@@ -213,28 +222,26 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                     data: null,
                     render: function(data, type, row) {
                         return `
-        <div class="dropdown">
-            <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                Action
-            </button>
-                <ul class="dropdown-menu">
-                    <li><a class="dropdown-item" href="view_user.php?user_id=${row.user_id}">View</a></li>
-                    <li><a class="dropdown-item" href="#" onclick="editUser(${row.user_id})">Edit</a></li>
-                    <li><a class="dropdown-item text-danger" href="#" onclick="deleteUser(${row.user_id})">Delete</a></li>
-                </ul>
-        </div>`;
+                                <div class="dropdown">
+                                    <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                        Action
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" href="view_user.php?user_id=${row.user_id}">View</a></li>
+                                        <li><a class="dropdown-item edit-user" href="#" data-user-id="${row.user_id}">Edit</a></li>
+                                        <li><a class="dropdown-item text-danger delete-user" href="#" data-user-id="${row.user_id}">Delete</a></li>
+                                    </ul>
+                                </div>`;
                     },
                 },
             ],
         });
-
 
         window.editUser = function(userId) {
             fetch(`../backend/routes/user.php?user_id=${userId}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.status) {
-                        // Populate the form fields with the fetched user data
                         $('#editUserId').val(data.data.user_id);
                         $('#editFirstName').val(data.data.first_name);
                         $('#editLastName').val(data.data.last_name);
@@ -251,7 +258,6 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                 });
         };
 
-
         $('#editUserForm').on('submit', function(e) {
             e.preventDefault();
             const userId = $('#editUserId').val();
@@ -260,7 +266,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                 first_name: $('#editFirstName').val(),
                 last_name: $('#editLastName').val(),
                 email: $('#editEmail').val(),
-                role: $('#editRole').val()
+                role: $('#editRole').val(),
+                csrf_token: CSRF_TOKEN
             };
             fetch(`../backend/routes/user.php`, {
                     method: 'PUT',
@@ -273,31 +280,30 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                 .then(data => {
                     alert(data.message);
                     $('#editUserModal').modal('hide');
-                    ajax.reload();
+                    $('#usersTable').DataTable().ajax.reload();
                 });
         });
 
         window.deleteUser = function(userId) {
-            // Show a confirmation dialog
             if (confirm("Are you sure you want to delete this user? This action cannot be undone.")) {
-                // Proceed with the delete request if confirmed
                 fetch(`../backend/routes/user.php`, {
                         method: 'DELETE',
                         headers: {
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
-                            user_id: userId
+                            user_id: userId,
+                            csrf_token: CSRF_TOKEN
                         })
                     })
                     .then(response => response.json())
                     .then(data => {
                         if (data.message) {
-                            alert(data.message); // Success message
+                            alert(data.message);
                         } else if (data.error) {
-                            alert(data.error); // Error message
+                            alert(data.error);
                         }
-                        $('#usersTable').DataTable().ajax.reload(); // Reload the DataTable
+                        $('#usersTable').DataTable().ajax.reload();
                     })
                     .catch(error => {
                         console.error("Error deleting user:", error);
@@ -306,6 +312,18 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
             }
         };
 
+        // Delegated event listeners to replace inline event handlers
+        $(document).on('click', '.edit-user', function(e) {
+            e.preventDefault();
+            var userId = $(this).data('user-id');
+            editUser(userId);
+        });
+
+        $(document).on('click', '.delete-user', function(e) {
+            e.preventDefault();
+            var userId = $(this).data('user-id');
+            deleteUser(userId);
+        });
     });
     </script>
 </body>

@@ -16,35 +16,37 @@
     <h4>Existing Announcements</h4>
     <div id="announcementsList"></div>
 </div>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Fetch and display existing announcements
-    fetchContent();
 
-    // Handle form submission (Add/Update Announcement)
-    document.getElementById('announcementForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const formData = new FormData(this);
-        const id = document.getElementById('announcementId').value;
+<!-- Updated inline script with matching nonce -->
+<script nonce="<?= $cspNonce ?>">
+    document.addEventListener('DOMContentLoaded', function() {
+        // Fetch and display existing announcements
+        fetchContent();
 
-        // Determine if it's Add or Update
-        const action = id ? 'update_announcement' : 'add_announcement';
-        formData.append('action', action);
+        // Handle form submission (Add/Update Announcement)
+        document.getElementById('announcementForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const id = document.getElementById('announcementId').value;
 
-        manageContent(formData, id ? 'Announcement updated successfully.' :
-            'Announcement added successfully.');
-    });
+            // Determine if it's Add or Update
+            const action = id ? 'update_announcement' : 'add_announcement';
+            formData.append('action', action);
 
-    // Fetch and display announcements
-    function fetchContent() {
-        fetch('../backend/routes/content_manager.php?action=fetch')
-            .then((response) => response.json())
-            .then((data) => {
-                if (data.status) {
-                    // Populate Announcements List
-                    const announcementsList = data.announcements
-                        .map(
-                            (announcement) => `
+            manageContent(formData, id ? 'Announcement updated successfully.' :
+                'Announcement added successfully.');
+        });
+
+        // Fetch and display announcements
+        function fetchContent() {
+            fetch('../backend/routes/content_manager.php?action=fetch')
+                .then((response) => response.json())
+                .then((data) => {
+                    if (data.status) {
+                        // Populate Announcements List
+                        const announcementsList = data.announcements
+                            .map(
+                                (announcement) => `
                         <div class="card mb-3">
                             <div class="card-body">
                                 <p class="card-text">${announcement.text}</p>
@@ -56,69 +58,69 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                         </div>
                     `
-                        )
-                        .join('');
-                    document.getElementById('announcementsList').innerHTML = announcementsList;
+                            )
+                            .join('');
+                        document.getElementById('announcementsList').innerHTML = announcementsList;
 
-                    // Attach Edit and Delete Handlers for Announcements
-                    document.querySelectorAll('.edit-announcement').forEach((button) =>
-                        button.addEventListener('click', function() {
-                            editAnnouncement(this.getAttribute('data-id'));
-                        })
-                    );
-                    document.querySelectorAll('.delete-announcement').forEach((button) =>
-                        button.addEventListener('click', function() {
-                            deleteAnnouncement(this.getAttribute('data-id'));
-                        })
-                    );
-                }
-            })
-            .catch((err) => console.error(err));
-    }
-
-    // Edit Announcement
-    function editAnnouncement(id) {
-        fetch(`../backend/routes/content_manager.php?action=get_announcement&id=${id}`)
-            .then((response) => response.json())
-            .then((data) => {
-                if (data.status) {
-                    const announcement = data.announcement;
-                    document.getElementById('announcementId').value = announcement.announcement_id;
-                    document.getElementById('announcementText').value = announcement.text;
-                }
-            })
-            .catch((err) => console.error(err));
-    }
-
-    // Delete Announcement
-    function deleteAnnouncement(id) {
-        if (confirm('Are you sure you want to delete this announcement?')) {
-            const formData = new FormData();
-            formData.append('action', 'delete_announcement');
-            formData.append('id', id);
-
-            manageContent(formData, 'Announcement deleted successfully.');
+                        // Attach Edit and Delete Handlers for Announcements
+                        document.querySelectorAll('.edit-announcement').forEach((button) =>
+                            button.addEventListener('click', function() {
+                                editAnnouncement(this.getAttribute('data-id'));
+                            })
+                        );
+                        document.querySelectorAll('.delete-announcement').forEach((button) =>
+                            button.addEventListener('click', function() {
+                                deleteAnnouncement(this.getAttribute('data-id'));
+                            })
+                        );
+                    }
+                })
+                .catch((err) => console.error(err));
         }
-    }
 
-    // Manage Content (Add/Update/Delete)
-    function manageContent(formData, successMessage) {
-        fetch('../backend/routes/content_manager.php', {
-                method: 'POST',
-                body: formData,
-            })
-            .then((response) => response.json())
-            .then((data) => {
-                if (data.status) {
-                    alert(successMessage);
-                    fetchContent();
-                    document.getElementById('announcementForm').reset();
-                    document.getElementById('announcementId').value = '';
-                } else {
-                    alert(`Error: ${data.message}`);
-                }
-            })
-            .catch((err) => alert('Failed to connect to the server. Please try again.'));
-    }
-});
+        // Edit Announcement
+        function editAnnouncement(id) {
+            fetch(`../backend/routes/content_manager.php?action=get_announcement&id=${id}`)
+                .then((response) => response.json())
+                .then((data) => {
+                    if (data.status) {
+                        const announcement = data.announcement;
+                        document.getElementById('announcementId').value = announcement.announcement_id;
+                        document.getElementById('announcementText').value = announcement.text;
+                    }
+                })
+                .catch((err) => console.error(err));
+        }
+
+        // Delete Announcement
+        function deleteAnnouncement(id) {
+            if (confirm('Are you sure you want to delete this announcement?')) {
+                const formData = new FormData();
+                formData.append('action', 'delete_announcement');
+                formData.append('id', id);
+
+                manageContent(formData, 'Announcement deleted successfully.');
+            }
+        }
+
+        // Manage Content (Add/Update/Delete)
+        function manageContent(formData, successMessage) {
+            fetch('../backend/routes/content_manager.php', {
+                    method: 'POST',
+                    body: formData,
+                })
+                .then((response) => response.json())
+                .then((data) => {
+                    if (data.status) {
+                        alert(successMessage);
+                        fetchContent();
+                        document.getElementById('announcementForm').reset();
+                        document.getElementById('announcementId').value = '';
+                    } else {
+                        alert(`Error: ${data.message}`);
+                    }
+                })
+                .catch((err) => alert('Failed to connect to the server. Please try again.'));
+        }
+    });
 </script>

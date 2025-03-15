@@ -1,4 +1,6 @@
 <?php
+// Remove separate nonce generation and use the $cspNonce from admin_header.php
+define('APP_INIT', true);
 require_once 'admin_header.php';
 
 // Check if the user is logged in and is an admin
@@ -6,6 +8,14 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     header("Location: ../login.php");
     exit;
 }
+
+// Production security headers with nonce for scripts using $cspNonce
+header("X-Frame-Options: SAMEORIGIN");
+header("X-Content-Type-Options: nosniff");
+header("X-XSS-Protection: 1; mode=block");
+header("Referrer-Policy: no-referrer-when-downgrade");
+header("Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'nonce-$cspNonce'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net;");
+
 ?>
 
 <!DOCTYPE html>
@@ -56,13 +66,14 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
             <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
                 <h1 class="mb-3">Admin Dashboard</h1>
                 <div>
-                    <span>Welcome, <?php echo $_SESSION['first_name'] . ' ' . $_SESSION['last_name']; ?></span>
+                    <span>Welcome,
+                        <?php echo htmlspecialchars($_SESSION['first_name']) . ' ' . htmlspecialchars($_SESSION['last_name']); ?></span>
                     <?php
-$imageSrc = '/assets/default-profile.jpeg'; // default local image
-if (isset($_SESSION['profile_image']) && !empty($_SESSION['profile_image'])) {
-    $imageSrc = $_SESSION['profile_image'];
-}
-?>
+                    $imageSrc = '/assets/default-profile.jpeg'; // default local image
+                    if (isset($_SESSION['profile_image']) && !empty($_SESSION['profile_image'])) {
+                        $imageSrc = $_SESSION['profile_image'];
+                    }
+                    ?>
                     <img src="<?php echo $imageSrc; ?>" alt="Profile Image" class="rounded-circle" width="30">
 
 
@@ -105,7 +116,7 @@ if (isset($_SESSION['profile_image']) && !empty($_SESSION['profile_image'])) {
         </div>
     </div>
 
-    <script>
+    <script nonce="<?= $cspNonce ?>">
     document.addEventListener('DOMContentLoaded', function() {
         fetch('../backend/routes/analytics.php')
             .then(response => response.json())

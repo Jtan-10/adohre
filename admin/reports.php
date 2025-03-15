@@ -1,4 +1,9 @@
 <?php
+define('APP_INIT', true); // Added to enable proper access.
+// Send the CSP header before any output.
+header("Content-Security-Policy: default-src 'self' https://cdn.jsdelivr.net; script-src 'self' https://cdn.jsdelivr.net 'nonce-<?= \$cspNonce ?>';
+style-src 'self' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net;");
+
 require_once 'admin_header.php';
 
 // Check if the user is logged in and is an admin
@@ -19,24 +24,24 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-    body {
-        background-color: #f5f6fa;
-    }
+    <style nonce="<?= $cspNonce ?>">
+        body {
+            background-color: #f5f6fa;
+        }
 
-    .content {
-        padding: 20px;
-    }
+        .content {
+            padding: 20px;
+        }
 
-    .chart-container canvas {
-        max-width: 100%;
-        height: 300px;
-    }
+        .chart-container canvas {
+            max-width: 100%;
+            height: 300px;
+        }
 
-    .card {
-        border-radius: 10px;
-        margin-bottom: 20px;
-    }
+        .card {
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 
@@ -167,148 +172,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
         </div>
     </div>
 
-    <!-- Chart.js Script -->
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Fetch analytics data
-        fetch('../backend/routes/analytics.php')
-            .then(response => response.json())
-            .then(data => {
-                if (data.status) {
-                    populateTable('usersTable', data.data.users);
-                    populateTable('eventsTable', data.data.events);
-                    populateTable('trainingsTable', data.data.trainings);
-                    populateTable('announcementsTable', data.data.announcements);
-                } else {
-                    alert('Failed to fetch analytics data.');
-                }
-            })
-            .catch(err => console.error('Error fetching analytics data:', err));
-
-        function populateTable(tableId, data) {
-            const tableBody = document.getElementById(tableId);
-            tableBody.innerHTML = data
-                .map((row, index) => `
-                <tr>
-                    <td>${index + 1}</td>
-                    ${Object.values(row)
-                        .map(value => `<td>${value}</td>`)
-                        .join('')}
-                </tr>
-            `)
-                .join('');
-        }
-    });
-
-    document.addEventListener('DOMContentLoaded', function() {
-        fetch('../backend/routes/analytics.php')
-            .then(response => response.json())
-            .then(data => {
-                if (data.status) {
-                    // User Chart
-                    const userCtx = document.getElementById('userChart').getContext('2d');
-                    new Chart(userCtx, {
-                        type: 'doughnut',
-                        data: {
-                            labels: ['Total Users', 'Active Members', 'Admins', 'Members'],
-                            datasets: [{
-                                data: [
-                                    data.data.total_users,
-                                    data.data.active_members,
-                                    data.data.admin_count,
-                                    data.data.member_count
-                                ],
-                                backgroundColor: ['#36a2eb', '#4bc0c0', '#ff6384',
-                                    '#9966ff'
-                                ],
-                            }],
-                        },
-                    });
-
-                    // Event Chart
-                    const eventCtx = document.getElementById('eventChart').getContext('2d');
-                    new Chart(eventCtx, {
-                        type: 'bar',
-                        data: {
-                            labels: ['Upcoming Events', 'Finished Events', 'Total Events'],
-                            datasets: [{
-                                label: 'Events',
-                                data: [
-                                    data.data.upcoming_events,
-                                    data.data.finished_events,
-                                    data.data.total_events
-                                ],
-                                backgroundColor: ['#ff9f40', '#ff6384', '#36a2eb'],
-                            }],
-                        },
-                        options: {
-                            scales: {
-                                y: {
-                                    beginAtZero: true
-                                }
-                            }
-                        }
-                    });
-
-                    // Training Chart
-                    const trainingCtx = document.getElementById('trainingChart').getContext('2d');
-                    new Chart(trainingCtx, {
-                        type: 'bar',
-                        data: {
-                            labels: ['Upcoming Trainings', 'Finished Trainings', 'Total Trainings'],
-                            datasets: [{
-                                label: 'Trainings',
-                                data: [
-                                    data.data.upcoming_trainings,
-                                    data.data.finished_trainings,
-                                    data.data.total_trainings
-                                ],
-                                backgroundColor: ['#4bc0c0', '#9966ff', '#ffcd56'],
-                            }],
-                        },
-                        options: {
-                            scales: {
-                                y: {
-                                    beginAtZero: true
-                                }
-                            }
-                        }
-                    });
-
-                    // Revenue Chart
-                    const revenueCtx = document.getElementById('revenueChart').getContext('2d');
-                    new Chart(revenueCtx, {
-                        type: 'pie',
-                        data: {
-                            labels: ['Total Revenue'],
-                            datasets: [{
-                                data: [data.data.total_revenue],
-                                backgroundColor: ['#ffcd56'],
-                            }],
-                        },
-                    });
-                } else {
-                    alert('Failed to fetch analytics data.');
-                }
-            })
-            .catch(err => console.error('Error fetching analytics data:', err));
-
-        // Export PDF
-        document.getElementById('exportPDF').addEventListener('click', () => {
-            window.open('../backend/routes/export.php?format=pdf', '_blank');
-        });
-
-        // Export CSV
-        document.getElementById('exportCSV').addEventListener('click', () => {
-            window.open('../backend/routes/export.php?format=csv', '_blank');
-        });
-
-        // Export Excel
-        document.getElementById('exportExcel').addEventListener('click', () => {
-            window.open('../backend/routes/export.php?format=excel', '_blank');
-        });
-    });
-    </script>
+    <!-- Include external script instead of inline script -->
+    <script src="reports.js" nonce="<?= $cspNonce ?>"></script>
 </body>
 
 </html>

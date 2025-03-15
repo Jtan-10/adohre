@@ -1,7 +1,21 @@
 <?php
+define('APP_INIT', true); // Added to enable proper access.
 // admin/assessments.php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+
+// Disable error reporting for production
+//error_reporting(E_ALL);
+//ini_set('display_errors', 1');
+error_reporting(0);
+ini_set('display_errors', 0);
+
+// Ensure session is started and generate CSRF token if not already set
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    session_start();
+}
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 require_once 'admin_header.php';
 require_once '../backend/db/db_connect.php'; // ensure DB connection is available
 
@@ -56,17 +70,19 @@ while ($row = $result->fetch_assoc()) {
             <div class="form-section">
                 <h3>Release Assessment Form</h3>
                 <form id="assessmentForm">
+                    <!-- CSRF Token Field -->
+                    <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                     <div class="mb-3">
                         <label for="assessmentTraining" class="form-label">Select Training</label>
                         <select id="assessmentTraining" name="training_id" class="form-control" required>
                             <option value="">-- Select Training --</option>
                             <?php
-              if (!empty($trainings)) {
-                  foreach ($trainings as $t) {
-                      echo '<option value="' . htmlspecialchars($t['training_id']) . '">' . htmlspecialchars($t['title']) . '</option>';
-                  }
-              }
-            ?>
+                            if (!empty($trainings)) {
+                                foreach ($trainings as $t) {
+                                    echo '<option value="' . htmlspecialchars($t['training_id']) . '">' . htmlspecialchars($t['title']) . '</option>';
+                                }
+                            }
+                            ?>
                         </select>
                     </div>
                     <div class="mb-3">
@@ -93,7 +109,7 @@ while ($row = $result->fetch_assoc()) {
         </main>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
+    <script nonce="<?= $cspNonce ?>">
     document.addEventListener('DOMContentLoaded', function() {
         const linkInput = document.getElementById('assessmentFormLink');
         const previewContainer = document.getElementById('formPreviewContainer');

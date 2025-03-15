@@ -1,4 +1,11 @@
 <?php
+define('APP_INIT', true); // Added to enable proper access.
+// Added security headers for production
+header("X-Frame-Options: SAMEORIGIN");
+header("X-Content-Type-Options: nosniff");
+header("Referrer-Policy: no-referrer-when-downgrade");
+header("Content-Security-Policy: default-src 'self' https://cdn.jsdelivr.net; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline' 'unsafe-eval'; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline';");
+
 require_once 'admin_header.php';
 
 // Check if the user is an admin

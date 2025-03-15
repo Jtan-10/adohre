@@ -1,4 +1,10 @@
 <?php
+define('APP_INIT', true); // Added to enable proper access.
+if (session_status() === PHP_SESSION_NONE) session_start();
+// Generate CSRF token for production use.
+if (!isset($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
 include('admin_header.php');
 
 // Ensure the user is logged in and is an admin.
@@ -34,12 +40,16 @@ if ($result) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
     <style>
-    /* Strikethrough style for accepted appointments */
-    .strikethrough {
-        text-decoration: line-through !important;
-        color: gray !important;
-    }
+        /* Strikethrough style for accepted appointments */
+        .strikethrough {
+            text-decoration: line-through !important;
+            color: gray !important;
+        }
     </style>
+    <script nonce="<?= $cspNonce ?>">
+        // Expose CSRF token to JavaScript.
+        const csrfToken = "<?= htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8') ?>";
+    </script>
 </head>
 
 <body>
@@ -60,24 +70,24 @@ if ($result) {
                 </thead>
                 <tbody id="appointments-table">
                     <?php foreach ($appointments as $appt): ?>
-                    <tr id="appt-<?= htmlspecialchars($appt['appointment_id']) ?>"
-                        class="<?= $appt['accepted'] ? 'strikethrough' : '' ?>">
-                        <td><?= htmlspecialchars($appt['appointment_id']) ?></td>
-                        <td><?= htmlspecialchars($appt['first_name'] . ' ' . $appt['last_name'] . ' (' . $appt['email'] . ')') ?>
-                        </td>
-                        <td><?= htmlspecialchars($appt['appointment_date']) ?></td>
-                        <td><?= htmlspecialchars($appt['description']) ?></td>
-                        <td><?= $appt['accepted'] ? 'Yes' : 'No' ?></td>
-                        <td>
-                            <?php if (!$appt['accepted']): ?>
-                            <button class="btn btn-success btn-sm"
-                                onclick="acceptAppointmentAdmin(<?= $appt['appointment_id'] ?>)">Mark as
-                                Accepted</button>
-                            <?php else: ?>
-                            <em>Accepted</em>
-                            <?php endif; ?>
-                        </td>
-                    </tr>
+                        <tr id="appt-<?= htmlspecialchars($appt['appointment_id']) ?>"
+                            class="<?= $appt['accepted'] ? 'strikethrough' : '' ?>">
+                            <td><?= htmlspecialchars($appt['appointment_id']) ?></td>
+                            <td><?= htmlspecialchars($appt['first_name'] . ' ' . $appt['last_name'] . ' (' . $appt['email'] . ')') ?>
+                            </td>
+                            <td><?= htmlspecialchars($appt['appointment_date']) ?></td>
+                            <td><?= htmlspecialchars($appt['description']) ?></td>
+                            <td><?= $appt['accepted'] ? 'Yes' : 'No' ?></td>
+                            <td>
+                                <?php if (!$appt['accepted']): ?>
+                                    <button class="btn btn-success btn-sm"
+                                        onclick="acceptAppointmentAdmin(<?= $appt['appointment_id'] ?>)">Mark as
+                                        Accepted</button>
+                                <?php else: ?>
+                                    <em>Accepted</em>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
                     <?php endforeach; ?>
                 </tbody>
             </table>
@@ -86,44 +96,45 @@ if ($result) {
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-    // Function to mark an appointment as accepted via AJAX.
-    function acceptAppointmentAdmin(appointmentId) {
-        if (!confirm("Mark this appointment as accepted?")) return;
+    <script nonce="<?= $cspNonce ?>">
+        // Function to mark an appointment as accepted via AJAX.
+        function acceptAppointmentAdmin(appointmentId) {
+            if (!confirm("Mark this appointment as accepted?")) return;
 
-        // Send a POST request to your admin API endpoint.
-        fetch('../backend/routes/admin_appointments_api.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    action: 'accept_appointment',
-                    appointment_id: appointmentId
+            // Send a POST request to your admin API endpoint.
+            fetch('../backend/routes/admin_appointments_api.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'accept_appointment',
+                        appointment_id: appointmentId,
+                        csrf_token: csrfToken
+                    })
                 })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    // Update the row visually.
-                    const row = document.getElementById('appt-' + appointmentId);
-                    if (row) {
-                        row.classList.add('strikethrough');
-                        // Update the Accepted column (5th cell, index 4)
-                        row.cells[4].innerText = "Yes";
-                        // Replace the action cell with a text indicator.
-                        row.cells[5].innerHTML = "<em>Accepted</em>";
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Update the row visually.
+                        const row = document.getElementById('appt-' + appointmentId);
+                        if (row) {
+                            row.classList.add('strikethrough');
+                            // Update the Accepted column (5th cell, index 4)
+                            row.cells[4].innerText = "Yes";
+                            // Replace the action cell with a text indicator.
+                            row.cells[5].innerHTML = "<em>Accepted</em>";
+                        }
+                        alert("Appointment marked as accepted.");
+                    } else {
+                        alert(data.error || "Failed to mark appointment as accepted.");
                     }
-                    alert("Appointment marked as accepted.");
-                } else {
-                    alert(data.error || "Failed to mark appointment as accepted.");
-                }
-            })
-            .catch(err => {
-                console.error("Error:", err);
-                alert("Error marking appointment as accepted.");
-            });
-    }
+                })
+                .catch(err => {
+                    console.error("Error:", err);
+                    alert("Error marking appointment as accepted.");
+                });
+        }
     </script>
 </body>
 
