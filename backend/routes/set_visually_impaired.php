@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// Include DB connection if needed
+// Include DB connection if needed (and to get the audit logging helper function)
 require_once '../db/db_connect.php';
 
 // Read the JSON input
@@ -65,6 +65,12 @@ if ($visuallyImpaired === null) {
 // Convert to 1 or 0 for session storage
 $_SESSION['visually_impaired'] = $visuallyImpaired ? 1 : 0;
 error_log("Visually impaired flag in session: " . $_SESSION['visually_impaired']);
+
+// If the user is logged in, record this action in the audit log
+if (isset($_SESSION['user_id'])) {
+    // recordAuditLog() is defined in db_connect.php
+    recordAuditLog($_SESSION['user_id'], 'Set Visually Impaired', 'Flag set to ' . ($_SESSION['visually_impaired'] ? '1' : '0'));
+}
 
 echo json_encode(['status' => true, 'message' => 'Visually impaired flag saved in session.']);
 exit;

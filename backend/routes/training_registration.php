@@ -49,6 +49,9 @@ try {
             $stmt->bind_param('ii', $userId, $trainingId);
             $stmt->execute();
 
+            // Audit log: record the training registration action.
+            recordAuditLog($userId, "Joined Training", "User joined training ID: " . $trainingId);
+
             // Retrieve training details
             $trainingQuery = "SELECT title, schedule, image, description FROM trainings WHERE training_id = ?";
             $stmtTraining = $conn->prepare($trainingQuery);
@@ -70,10 +73,7 @@ try {
             // Log the email request with recipient and timestamp
             error_log("Sending training registration email to: " . $user['email'] . " at " . date('Y-m-d H:i:s'));
 
-            // Rate limiting for email sending: allow a maximum of 5 emails per recipient within a 1-hour window.
-            if (session_status() === PHP_SESSION_NONE) {
-                session_start();
-            }
+            // Rate limiting for email sending: allow a maximum of 10 emails per recipient within a 1-hour window.
             $window = 3600; // 1 hour in seconds
             $maxEmails = 10;
             $now = time();

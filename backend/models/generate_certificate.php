@@ -42,20 +42,17 @@ try {
     /**
      * Render a PDF using the final layout image from `certificate_layouts`.
      */
-    /**
-     * Render a PDF using the final layout image from `certificate_layouts`.
-     */
     function generateCertificate($participant, $training_id)
     {
         global $conn;
 
         // Try to find the final layout image from certificate_layouts.
         $stmt = $conn->prepare("
-        SELECT layout_image 
-        FROM certificate_layouts 
-        WHERE training_id = ? AND user_id = ? 
-        LIMIT 1
-    ");
+            SELECT layout_image 
+            FROM certificate_layouts 
+            WHERE training_id = ? AND user_id = ? 
+            LIMIT 1
+        ");
         $stmt->bind_param("ii", $training_id, $participant['user_id']);
         $stmt->execute();
         $row = $stmt->get_result()->fetch_assoc();
@@ -100,9 +97,11 @@ try {
         $tempFile = tempnam(sys_get_temp_dir(), 'cert_') . '.pdf';
         $pdf->Output($tempFile, 'F');
 
+        // Audit log the certificate generation event.
+        recordAuditLog($participant['user_id'], "Certificate Generated", "Certificate generated for training ID {$training_id}");
+
         return $tempFile;
     }
-
 
     /**
      * Email the certificate PDF to the participant.
@@ -114,7 +113,7 @@ try {
             session_start();
         }
 
-        // Log the certificate email request (logging only the email and timestamp).
+        // Log the certificate email request.
         error_log("emailCertificate request for participant: " . $participant['email'] . " at " . date('Y-m-d H:i:s'));
 
         // Rate limiting: Allow a maximum of 3 certificate emails per email within a 1-hour window.
@@ -212,7 +211,7 @@ try {
             $mail->send();
 
             global $conn;
-            // Log the sent certificate email into the database
+            // Log the sent certificate email into the database.
             $stmtLog = $conn->prepare("INSERT INTO email_notifications (user_id, subject, body) VALUES (?, ?, ?)");
             $subjectLog = $mail->Subject;
             $bodyLog = $mail->Body;
@@ -220,13 +219,15 @@ try {
             $stmtLog->execute();
             $stmtLog->close();
 
+            // Audit log the certificate email event.
+            recordAuditLog($participant['user_id'], "Certificate Email Sent", "Certificate email sent to " . $participant['email']);
+
             return true;
         } catch (Exception $e) {
             error_log("PHPMailer Error: " . $mail->ErrorInfo);
             return false;
         }
     }
-
 
     /**
      * Insert the generated PDF path into `certificates` and update `training_registrations`.
@@ -252,6 +253,10 @@ try {
             ");
             $updateStmt->bind_param("ii", $participant['user_id'], $training_id);
             $updateStmt->execute();
+            $updateStmt->close();
+
+            // Audit log certificate issuance.
+            recordAuditLog($participant['user_id'], "Certificate Issued", "Certificate issued for training ID {$training_id}");
         }
     }
 
@@ -450,6 +455,8 @@ try {
                 @unlink($temp);
                 ob_end_clean();
                 echo json_encode(['status' => true, 'layout_path' => $path]);
+                // Audit log for saving single layout.
+                recordAuditLog($user_id, "Certificate Layout Saved", "Certificate layout saved for training ID {$training_id} (single).");
             } catch (Exception $e) {
                 error_log("Error saving certificate layout: " . $e->getMessage());
                 ob_end_clean();
@@ -478,6 +485,7 @@ try {
                 ob_end_clean();
                 if ($res === true) {
                     echo json_encode(['status' => true, 'message' => 'Layout saved for all participants.']);
+                    recordAuditLog($_SESSION['user_id'], "Certificate Layout Saved", "Certificate layout saved for training ID {$training_id} (all participants).");
                 } else {
                     echo json_encode(['status' => false, 'message' => 'An error occurred while saving layout for all participants.']);
                 }
@@ -522,6 +530,8 @@ try {
                     'email'   => $p['email'],
                     'status'  => $sent ? 'sent' : 'failed'
                 ];
+                // Audit log certificate release for each participant.
+                recordAuditLog($p['user_id'], "Certificate Released", "Certificate for training ID {$training_id} released. Email sent: " . ($sent ? "Yes" : "No"));
             }
             ob_end_clean();
             echo json_encode(['status' => true, 'results' => $results]);
@@ -571,6 +581,8 @@ try {
             @unlink($pdfPath);
             ob_end_clean();
             echo json_encode(['status' => true, 'message' => 'Certificate released successfully.']);
+            // Audit log for releasing individual certificate.
+            recordAuditLog($row['user_id'], "Certificate Released", "Individual certificate released for training ID {$training_id}");
             break;
 
         default:
@@ -586,3 +598,6 @@ try {
         'message' => 'A server error occurred. Please contact support.'
     ]);
 }
+
+$conn->close();
+?>

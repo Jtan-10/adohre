@@ -201,6 +201,10 @@ try {
                 }
                 $_SESSION['profile_image'] = $profile_image_path;
                 $stmt->close();
+
+                // Audit log for profile image update.
+                recordAuditLog($auth_user_id, 'Profile Image Update', 'User updated profile image.');
+
             } catch (Aws\Exception\AwsException $e) {
                 error_log('S3 upload error: ' . $e->getMessage());
                 http_response_code(500);
@@ -240,6 +244,8 @@ try {
         $stmt->bind_param('sssi', $first_name, $last_name, $email, $auth_user_id);
         if ($stmt->execute()) {
             $stmt->close();
+            // Audit log for profile update.
+            recordAuditLog($auth_user_id, 'Profile Update', 'User updated profile details.');
             echo json_encode(['status' => true, 'message' => 'Profile updated successfully.']);
         } else {
             error_log('DB update error: ' . $stmt->error);
@@ -289,6 +295,8 @@ try {
         $stmt->bind_param('ssssi', $first_name, $last_name, $email, $role, $user_id);
         if ($stmt->execute()) {
             $stmt->close();
+            // Audit log for admin user update.
+            recordAuditLog($auth_user_id, 'Admin User Update', "Admin updated user {$user_id}: {$first_name} {$last_name}, email: {$email}, role: {$role}.");
             echo json_encode(['status' => true, 'message' => 'User updated successfully.']);
         } else {
             error_log('DB update error: ' . $stmt->error);
@@ -322,6 +330,8 @@ try {
         $stmt->bind_param('i', $user_id);
         if ($stmt->execute()) {
             $stmt->close();
+            // Audit log for admin deletion.
+            recordAuditLog($auth_user_id, 'Admin User Deletion', "Admin deleted user with ID {$user_id}.");
             echo json_encode(['status' => true, 'message' => 'User deleted successfully.']);
         } else {
             error_log('DB delete error: ' . $stmt->error);

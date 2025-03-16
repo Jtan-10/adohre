@@ -43,6 +43,9 @@ try {
             $stmt->bind_param('ii', $userId, $eventId);
             $stmt->execute();
 
+            // Record audit log for joining the event
+            recordAuditLog($userId, "Join Event", "User joined event ID: $eventId");
+
             // Retrieve event details
             $eventQuery = "SELECT title, date, location FROM events WHERE event_id = ?";
             $stmtEvent = $conn->prepare($eventQuery);

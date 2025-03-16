@@ -53,6 +53,9 @@ if ($stmt->num_rows == 0) {
 }
 $stmt->close();
 
+// Instead of: recordAuditLog($conn, $userId, 'Chat Room Access', "User $userId accessed chat room $roomId.");
+recordAuditLog($userId, 'Chat Room Access', "User $userId accessed chat room $roomId.");
+
 // Check for the "share" parameter: if set to 'admin', redirect to the admin chatroom.
 if (isset($_GET['share']) && $_GET['share'] === 'admin') {
     header("Location: admin/chatroom.php?room_id=" . $roomId);

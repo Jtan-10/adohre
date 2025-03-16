@@ -59,6 +59,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->bind_param("ii", $consultationId, $userId);
             if ($stmt->execute()) {
                 $roomId = $conn->insert_id;
+                // Audit log: record ticket creation
+                recordAuditLog($userId, "Create Ticket", "Consultation ID $consultationId and Chat Room ID $roomId created for user ID $userId.");
                 echo json_encode(['room_id' => $roomId]);
             } else {
                 echo json_encode(['error' => 'Failed to create chat room.']);
@@ -79,6 +81,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $conn->prepare("INSERT INTO chat_messages (room_id, user_id, message, is_admin) VALUES (?, ?, ?, ?)");
         $stmt->bind_param("iisi", $roomId, $userId, $message, $is_admin);
         if ($stmt->execute()) {
+            // Audit log: record message sent
+            recordAuditLog($userId, "Send Message", "User sent a message in room ID $roomId.");
             echo json_encode(['status' => 'success']);
         } else {
             echo json_encode(['error' => 'Failed to send message.']);
@@ -93,6 +97,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $conn->prepare("UPDATE consultations SET status = ? WHERE id = ?");
         $stmt->bind_param("si", $status, $consultationId);
         if ($stmt->execute()) {
+            // Audit log: record status update
+            recordAuditLog($input['user_id'] ?? 0, "Update Consultation Status", "Consultation ID $consultationId updated to status '$status'.");
             echo json_encode(['message' => 'Consultation status updated successfully.']);
         } else {
             echo json_encode(['error' => 'Failed to update consultation status.']);
@@ -107,6 +113,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $conn->prepare("UPDATE consultations c JOIN chat_rooms cr ON c.id = cr.consultation_id SET c.status = 'closed', c.closed_at = NOW() WHERE cr.id = ? AND c.user_id = ?");
         $stmt->bind_param("ii", $roomId, $userId);
         if ($stmt->execute()) {
+            // Audit log: record ticket closure
+            recordAuditLog($userId, "Close Ticket", "Ticket (Room ID $roomId) closed by user ID $userId.");
             echo json_encode(['status' => 'success']);
         } else {
             echo json_encode(['error' => 'Failed to close ticket.']);
@@ -134,13 +142,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $conn->prepare("INSERT INTO chat_participants (room_id, user_id, added_by) VALUES (?, ?, ?)");
         $stmt->bind_param("iii", $roomId, $participantUserId, $addedBy);
         if ($stmt->execute()) {
+            // Audit log: record participant addition
+            recordAuditLog($addedBy, "Add Participant", "User ID $participantUserId added as participant in room ID $roomId.");
             echo json_encode(['status' => 'success']);
         } else {
             echo json_encode(['error' => 'Failed to add participant.']);
         }
         exit;
     }
-    
 }
 
 // Return a 405 Method Not Allowed for unsupported methods.

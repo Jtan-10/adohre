@@ -28,12 +28,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['schedule_medical_assi
     $assistance_date = date('Y-m-d H:i:s', strtotime($assistance_date_input));
     $description = trim($_POST['description'] ?? '');
 
-    // Assume table "medical_assistance" exists.
     $stmt = $conn->prepare("INSERT INTO medical_assistance (user_id, assistance_date, description) VALUES (?, ?, ?)");
     if ($stmt) {
         $stmt->bind_param("iss", $userId, $assistance_date, $description);
         if ($stmt->execute()) {
             $message = "Medical assistance request scheduled successfully.";
+            // Replace manual audit logging with a call to recordAuditLog
+            $auditDetails = "Scheduled medical assistance on {$assistance_date} with description: " . $description;
+            recordAuditLog($userId, 'Medical Assistance Request Scheduled', $auditDetails);
         } else {
             $message = "Error scheduling request: " . $stmt->error;
         }
@@ -42,6 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['schedule_medical_assi
         $message = "Database error: " . $conn->error;
     }
 }
+
 
 // Fetch all medical assistance requests for this user.
 $allAssistance = [];
@@ -69,14 +72,14 @@ if ($stmt) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
     <style>
-    .strikethrough {
-        text-decoration: line-through !important;
-        color: gray !important;
-    }
+        .strikethrough {
+            text-decoration: line-through !important;
+            color: gray !important;
+        }
 
-    .page-bottom-padding {
-        padding-bottom: 50px;
-    }
+        .page-bottom-padding {
+            padding-bottom: 50px;
+        }
     </style>
 </head>
 
@@ -89,7 +92,7 @@ if ($stmt) {
     <div class="container mt-5 page-bottom-padding">
         <h1 class="mb-4">Medical Assistance Requests</h1>
         <?php if ($message): ?>
-        <div class="alert alert-info"><?= htmlspecialchars($message) ?></div>
+            <div class="alert alert-info"><?= htmlspecialchars($message) ?></div>
         <?php endif; ?>
         <!-- Added API message container -->
         <div id="api-message"></div>
@@ -169,41 +172,41 @@ if ($stmt) {
     <!-- FullCalendar JS -->
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
     <script>
-    const apiUrl = 'backend/routes/medical_assistance_api.php'; // update endpoint if needed
-    const currentUser = {
-        id: <?= json_encode($userId) ?>,
-        role: <?= json_encode($_SESSION['role'] ?? 'user') ?>,
-        csrf_token: <?= json_encode($_SESSION['csrf_token']) ?>
-    };
+        const apiUrl = 'backend/routes/medical_assistance_api.php'; // update endpoint if needed
+        const currentUser = {
+            id: <?= json_encode($userId) ?>,
+            role: <?= json_encode($_SESSION['role'] ?? 'user') ?>,
+            csrf_token: <?= json_encode($_SESSION['csrf_token']) ?>
+        };
 
-    function showMessage(message, type = 'info') {
-        const msgDiv = document.getElementById('api-message');
-        msgDiv.innerHTML = `<div class="alert alert-${type}" role="alert">${message}</div>`;
-        setTimeout(() => {
-            msgDiv.innerHTML = '';
-        }, 5000);
-    }
+        function showMessage(message, type = 'info') {
+            const msgDiv = document.getElementById('api-message');
+            msgDiv.innerHTML = `<div class="alert alert-${type}" role="alert">${message}</div>`;
+            setTimeout(() => {
+                msgDiv.innerHTML = '';
+            }, 5000);
+        }
 
-    function loadAssistance() {
-        fetch(apiUrl)
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    const assistance = data.assistance;
-                    const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
-                    // Filter requests:
-                    const past = assistance.filter(req => ((req.assistance_date < now || req.accepted == 1) && req
-                        .done != 1));
-                    const upcoming = assistance.filter(req => (req.assistance_date >= now && req.accepted == 0 &&
-                        req.done != 1));
-                    const completed = assistance.filter(req => req.done == 1);
+        function loadAssistance() {
+            fetch(apiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const assistance = data.assistance;
+                        const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+                        // Filter requests:
+                        const past = assistance.filter(req => ((req.assistance_date < now || req.accepted == 1) && req
+                            .done != 1));
+                        const upcoming = assistance.filter(req => (req.assistance_date >= now && req.accepted == 0 &&
+                            req.done != 1));
+                        const completed = assistance.filter(req => req.done == 1);
 
-                    // Current/Past Requests (with Done button)
-                    let pastHtml = "";
-                    if (past.length === 0) {
-                        pastHtml = "<p>No current (past) assistance requests.</p>";
-                    } else {
-                        pastHtml = `<table class="table table-striped">
+                        // Current/Past Requests (with Done button)
+                        let pastHtml = "";
+                        if (past.length === 0) {
+                            pastHtml = "<p>No current (past) assistance requests.</p>";
+                        } else {
+                            pastHtml = `<table class="table table-striped">
                                 <thead>
                                     <tr>
                                         <th>Request ID</th>
@@ -213,8 +216,8 @@ if ($stmt) {
                                     </tr>
                                 </thead>
                                 <tbody>`;
-                        past.forEach(req => {
-                            pastHtml += `<tr id="req-row-${req.assistance_id}">
+                            past.forEach(req => {
+                                pastHtml += `<tr id="req-row-${req.assistance_id}">
                                     <td>${req.assistance_id}</td>
                                     <td>${req.assistance_date}</td>
                                     <td>
@@ -224,17 +227,17 @@ if ($stmt) {
                                     </td>
                                     <td><button class="btn btn-sm btn-success" onclick="markDone(${req.assistance_id})">Done</button></td>
                                 </tr>`;
-                        });
-                        pastHtml += `</tbody></table>`;
-                    }
-                    document.getElementById('past-assistance-container').innerHTML = pastHtml;
+                            });
+                            pastHtml += `</tbody></table>`;
+                        }
+                        document.getElementById('past-assistance-container').innerHTML = pastHtml;
 
-                    // Upcoming Requests
-                    let upcomingHtml = "";
-                    if (upcoming.length === 0) {
-                        upcomingHtml = "<p>No upcoming assistance requests.</p>";
-                    } else {
-                        upcomingHtml = `<table class="table table-striped">
+                        // Upcoming Requests
+                        let upcomingHtml = "";
+                        if (upcoming.length === 0) {
+                            upcomingHtml = "<p>No upcoming assistance requests.</p>";
+                        } else {
+                            upcomingHtml = `<table class="table table-striped">
                                 <thead>
                                     <tr>
                                         <th>Request ID</th>
@@ -243,23 +246,23 @@ if ($stmt) {
                                     </tr>
                                 </thead>
                                 <tbody>`;
-                        upcoming.forEach(req => {
-                            upcomingHtml += `<tr>
+                            upcoming.forEach(req => {
+                                upcomingHtml += `<tr>
                                     <td>${req.assistance_id}</td>
                                     <td>${req.assistance_date}</td>
                                     <td>${req.description || ""}</td>
                                 </tr>`;
-                        });
-                        upcomingHtml += `</tbody></table>`;
-                    }
-                    document.getElementById('upcoming-assistance-container').innerHTML = upcomingHtml;
+                            });
+                            upcomingHtml += `</tbody></table>`;
+                        }
+                        document.getElementById('upcoming-assistance-container').innerHTML = upcomingHtml;
 
-                    // Completed Requests
-                    let completedHtml = "";
-                    if (completed.length === 0) {
-                        completedHtml = "<p>No completed assistance requests.</p>";
-                    } else {
-                        completedHtml = `<table class="table table-striped">
+                        // Completed Requests
+                        let completedHtml = "";
+                        if (completed.length === 0) {
+                            completedHtml = "<p>No completed assistance requests.</p>";
+                        } else {
+                            completedHtml = `<table class="table table-striped">
                                 <thead>
                                     <tr>
                                         <th>Request ID</th>
@@ -268,8 +271,8 @@ if ($stmt) {
                                     </tr>
                                 </thead>
                                 <tbody>`;
-                        completed.forEach(req => {
-                            completedHtml += `<tr>
+                            completed.forEach(req => {
+                                completedHtml += `<tr>
                                     <td>${req.assistance_id}</td>
                                     <td>${req.assistance_date}</td>
                                     <td>
@@ -278,126 +281,126 @@ if ($stmt) {
                                         ${req.accept_details ? '<br><small>' + req.accept_details + '</small>' : ""}
                                     </td>
                                 </tr>`;
-                        });
-                        completedHtml += `</tbody></table>`;
+                            });
+                            completedHtml += `</tbody></table>`;
+                        }
+                        document.getElementById('completed-assistance-container').innerHTML = completedHtml;
+
+                        loadCalendarEvents(assistance);
+                    } else {
+                        showMessage(data.error || "Failed to load assistance requests", "danger");
                     }
-                    document.getElementById('completed-assistance-container').innerHTML = completedHtml;
-
-                    loadCalendarEvents(assistance);
-                } else {
-                    showMessage(data.error || "Failed to load assistance requests", "danger");
-                }
-            })
-            .catch(err => {
-                console.error("Error loading medical assistance:", err);
-                showMessage("Error loading assistance requests", "danger");
-            });
-    }
-
-    function loadCalendarEvents(assistance) {
-        const events = [];
-        assistance.forEach(req => {
-            let eventTitle = (req.accepted == 1 ? "Accepted: " : "") + (req.description || "No description");
-            events.push({
-                id: req.assistance_id,
-                title: eventTitle,
-                start: req.assistance_date,
-                // Only strike-through if the request is marked done.
-                className: (req.done == 1) ? 'strikethrough' : '',
-                description: req.description || "No description",
-                accept_details: req.accept_details || ""
-            });
-        });
-        if (calendar) {
-            calendar.removeAllEventSources();
-            calendar.addEventSource(events);
-        }
-    }
-
-    function markDone(requestId) {
-        fetch(apiUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    action: 'mark_done',
-                    assistance_id: requestId,
-                    csrf_token: currentUser.csrf_token,
                 })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    showMessage(data.message, 'success');
-                    loadAssistance();
-                } else {
-                    showMessage(data.error || "Failed to mark as done", "danger");
-                }
-            })
-            .catch(err => {
-                console.error("Error marking request as done:", err);
-                showMessage("Error marking as done", "danger");
+                .catch(err => {
+                    console.error("Error loading medical assistance:", err);
+                    showMessage("Error loading assistance requests", "danger");
+                });
+        }
+
+        function loadCalendarEvents(assistance) {
+            const events = [];
+            assistance.forEach(req => {
+                let eventTitle = (req.accepted == 1 ? "Accepted: " : "") + (req.description || "No description");
+                events.push({
+                    id: req.assistance_id,
+                    title: eventTitle,
+                    start: req.assistance_date,
+                    // Only strike-through if the request is marked done.
+                    className: (req.done == 1) ? 'strikethrough' : '',
+                    description: req.description || "No description",
+                    accept_details: req.accept_details || ""
+                });
             });
-    }
-
-    let calendar;
-    document.addEventListener('DOMContentLoaded', function() {
-        let calendarEl = document.getElementById('calendar-view');
-        calendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'dayGridMonth',
-            headerToolbar: {
-                left: 'prev,next today',
-                center: 'title',
-                right: 'dayGridMonth,timeGridWeek,timeGridDay'
-            },
-            events: [],
-            eventDidMount: function(info) {
-                let tooltipText = info.event.extendedProps.description || info.event.title ||
-                    "No description";
-                if (info.event.extendedProps.accept_details) {
-                    tooltipText += "\nDetails: " + info.event.extendedProps.accept_details;
-                }
-                let start = info.event.start ? info.event.start.toLocaleString() : "";
-                info.el.setAttribute('title', tooltipText + " (" + start + ")");
+            if (calendar) {
+                calendar.removeAllEventSources();
+                calendar.addEventSource(events);
             }
-        });
-        calendar.render();
-        loadAssistance();
+        }
 
-        document.getElementById('medical-assistance-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const assistance_date = document.getElementById('assistance_date').value;
-            const description = document.getElementById('description').value;
-            const csrf_token = document.querySelector('input[name="csrf_token"]').value;
+        function markDone(requestId) {
             fetch(apiUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        action: 'schedule_medical_assistance',
-                        assistance_date: assistance_date,
-                        description: description,
-                        csrf_token: csrf_token
+                        action: 'mark_done',
+                        assistance_id: requestId,
+                        csrf_token: currentUser.csrf_token,
                     })
                 })
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success') {
-                        showMessage(data.message, "success");
-                        document.getElementById('medical-assistance-form').reset();
+                        showMessage(data.message, 'success');
                         loadAssistance();
                     } else {
-                        showMessage(data.error || "Failed to schedule request", "danger");
+                        showMessage(data.error || "Failed to mark as done", "danger");
                     }
                 })
                 .catch(err => {
-                    console.error("Error scheduling request:", err);
-                    showMessage("Error scheduling request", "danger");
+                    console.error("Error marking request as done:", err);
+                    showMessage("Error marking as done", "danger");
                 });
+        }
+
+        let calendar;
+        document.addEventListener('DOMContentLoaded', function() {
+            let calendarEl = document.getElementById('calendar-view');
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                },
+                events: [],
+                eventDidMount: function(info) {
+                    let tooltipText = info.event.extendedProps.description || info.event.title ||
+                        "No description";
+                    if (info.event.extendedProps.accept_details) {
+                        tooltipText += "\nDetails: " + info.event.extendedProps.accept_details;
+                    }
+                    let start = info.event.start ? info.event.start.toLocaleString() : "";
+                    info.el.setAttribute('title', tooltipText + " (" + start + ")");
+                }
+            });
+            calendar.render();
+            loadAssistance();
+
+            document.getElementById('medical-assistance-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const assistance_date = document.getElementById('assistance_date').value;
+                const description = document.getElementById('description').value;
+                const csrf_token = document.querySelector('input[name="csrf_token"]').value;
+                fetch(apiUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            action: 'schedule_medical_assistance',
+                            assistance_date: assistance_date,
+                            description: description,
+                            csrf_token: csrf_token
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            showMessage(data.message, "success");
+                            document.getElementById('medical-assistance-form').reset();
+                            loadAssistance();
+                        } else {
+                            showMessage(data.error || "Failed to schedule request", "danger");
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Error scheduling request:", err);
+                        showMessage("Error scheduling request", "danger");
+                    });
+            });
         });
-    });
     </script>
     <?php include('footer.php'); ?>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

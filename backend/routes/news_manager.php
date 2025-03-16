@@ -15,8 +15,6 @@ if (getenv('ENVIRONMENT') !== 'development') {
 session_start();
 
 require_once '../db/db_connect.php';
-
-// Include the S3 configuration file (ensure it initializes $s3 and $bucketName)
 require_once '../s3config.php';
 
 use Aws\Exception\AwsException;
@@ -100,6 +98,7 @@ function handleImageUpload()
         exit();
     }
 }
+
 function fetchNews()
 {
     global $conn;
@@ -121,7 +120,6 @@ function fetchNews()
     (SELECT COUNT(*) FROM news_likes WHERE news_id = n.news_id) AS likes_count
   FROM news n 
   LEFT JOIN users u ON n.created_by = u.user_id";
-
 
     if (isset($_GET['id'])) {
         $newsQuery .= " WHERE n.news_id = ?";
@@ -146,8 +144,6 @@ function fetchNews()
     $result = $stmt->get_result();
     $news = array();
     while ($row = $result->fetch_assoc()) {
-        // You can optionally combine author_first and author_last if needed:
-        // $row['author'] = trim($row['author_first'] . ' ' . $row['author_last']);
         $news[] = $row;
     }
     $stmt->close();
@@ -156,7 +152,6 @@ function fetchNews()
         'news' => $news
     ]);
 }
-
 
 function addNews()
 {
@@ -184,6 +179,8 @@ function addNews()
     $created_by = $_SESSION['user_id'];
     $stmt->bind_param("sssssssi", $title, $excerpt, $content, $category, $image_path, $author_first, $author_last, $created_by);
     if ($stmt->execute()) {
+        // Audit log: record news addition.
+        recordAuditLog($created_by, 'Add News', "News titled '$title' added.");
         echo json_encode(['status' => true, 'message' => 'News article added successfully']);
     } else {
         http_response_code(500);
@@ -227,6 +224,7 @@ function updateNews()
         $stmt->bind_param("ssssssi", $title, $excerpt, $content, $category, $author_first, $author_last, $news_id);
     }
     if ($stmt->execute()) {
+        recordAuditLog($_SESSION['user_id'], 'Update News', "News ID $news_id updated.");
         echo json_encode(['status' => true, 'message' => 'News article updated successfully']);
     } else {
         http_response_code(500);
@@ -252,6 +250,7 @@ function deleteNews()
     $news_id = $_POST['id'];
     $stmt->bind_param("i", $news_id);
     if ($stmt->execute()) {
+        recordAuditLog($_SESSION['user_id'], 'Delete News', "News ID $news_id deleted.");
         echo json_encode(['status' => true, 'message' => 'News article deleted successfully']);
     } else {
         http_response_code(500);
@@ -282,10 +281,10 @@ function likeNews()
     $checkStmt->close();
     if ($exists) {
         $stmt = $conn->prepare("DELETE FROM news_likes WHERE news_id=? AND user_id=?");
-        $message = 'Article unliked successfully';
+        $actionMsg = 'Article unliked successfully';
     } else {
         $stmt = $conn->prepare("INSERT INTO news_likes (news_id, user_id) VALUES (?, ?)");
-        $message = 'Article liked successfully';
+        $actionMsg = 'Article liked successfully';
     }
     if (!$stmt) {
         http_response_code(500);
@@ -294,10 +293,12 @@ function likeNews()
     }
     $stmt->bind_param("ii", $news_id, $user_id);
     if ($stmt->execute()) {
-        echo json_encode(['status' => true, 'message' => $message]);
+        recordAuditLog($user_id, 'Like News', "News ID $news_id " . ($exists ? "unliked" : "liked") . ".");
+        echo json_encode(['status' => true, 'message' => $actionMsg]);
     } else {
         http_response_code(500);
         echo json_encode(['status' => false, 'message' => 'Database error: ' . $stmt->error]);
     }
     $stmt->close();
 }
+?>

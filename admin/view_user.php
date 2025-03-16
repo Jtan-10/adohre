@@ -13,6 +13,8 @@ if (!$userId) {
     echo "Invalid user ID.";
     exit;
 }
+
+recordAuditLog($_SESSION['user_id'], "View User Details", "Viewed details for user ID: " . htmlspecialchars($userId));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -97,7 +99,7 @@ if (!$userId) {
         $('#userEventsTable').DataTable({
             processing: true,
             serverSide: false,
-            pagingType: 'full_numbers', // or 'simple_numbers', 'simple', etc.
+            pagingType: 'full_numbers',
             ajax: {
                 url: `../backend/routes/user.php?action=get_user_events&user_id=<?= $userId; ?>`,
                 type: "GET",

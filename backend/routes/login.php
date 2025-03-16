@@ -63,6 +63,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['role'] = $user['role'];
             $_SESSION['profile_image'] = !empty($user['profile_image']) ? $user['profile_image'] : './assets/default-profile.jpeg';
 
+            // Record audit log for successful Virtual ID login
+            recordAuditLog($user['user_id'], 'Login via Virtual ID', 'User logged in using Virtual ID (via QR code upload)');
+
             echo json_encode(['status' => true, 'message' => 'Login successful.', 'user' => $user]);
         } else {
             http_response_code(404);
@@ -102,6 +105,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['role'] = $user['role'];
             $_SESSION['profile_image'] = !empty($user['profile_image']) ? $user['profile_image'] : './assets/default-profile.jpeg';
 
+            // Record audit log for successful Virtual ID login
+            recordAuditLog($user['user_id'], 'Login via Virtual ID', 'User logged in using Virtual ID (via direct parameter)');
+
             echo json_encode(['status' => true, 'message' => 'Login successful.', 'user' => $user]);
         } else {
             http_response_code(404);
@@ -135,3 +141,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     http_response_code(405);
     echo json_encode(['status' => false, 'message' => 'Method Not Allowed.']);
 }
+?>

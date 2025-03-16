@@ -85,7 +85,7 @@ switch ($action) {
                         'ContentType' => $fileType
                     ]);
 
-                    // Optionally, convert the S3 URL to a local proxy URL.
+                    // Convert the full S3 URL to a local proxy URL if desired.
                     $headerLogoUrl = str_replace(
                         "https://{$bucketName}.s3." . $_ENV['AWS_REGION'] . ".amazonaws.com/",
                         "/s3proxy/",
@@ -118,19 +118,8 @@ switch ($action) {
             }
         }
 
-        // 3) Log the action in audit_logs.
-        $auditStmt = $conn->prepare("
-            INSERT INTO audit_logs (user_id, action, details) 
-            VALUES (?, 'Update Header Settings', ?)
-        ");
-        if ($auditStmt) {
-            $userId = $_SESSION['user_id'];
-            $auditStmt->bind_param("is", $userId, $message);
-            $auditStmt->execute();
-            $auditStmt->close();
-        } else {
-            error_log("Prepare failed for audit log: " . $conn->error);
-        }
+        // 3) Record the action using the audit log helper function.
+        recordAuditLog($_SESSION['user_id'], 'Update Header Settings', $message);
 
         echo json_encode([
             'status'      => true,
@@ -192,19 +181,8 @@ switch ($action) {
                 $backupMessage = "Backup created on S3.";
                 error_log("Database backup successful. S3 URL: " . $s3BackupUrl);
 
-                // Log the backup action.
-                $auditStmt = $conn->prepare("
-                    INSERT INTO audit_logs (user_id, action, details) 
-                    VALUES (?, 'Database Backup', ?)
-                ");
-                if ($auditStmt) {
-                    $userId = $_SESSION['user_id'];
-                    $auditStmt->bind_param("is", $userId, $backupMessage);
-                    $auditStmt->execute();
-                    $auditStmt->close();
-                } else {
-                    error_log("Prepare failed for backup audit log: " . $conn->error);
-                }
+                // Record the backup action using the audit log helper.
+                recordAuditLog($_SESSION['user_id'], 'Database Backup', $backupMessage);
 
                 echo json_encode(['status' => true, 'message' => $backupMessage]);
             } catch (Exception $e) {
@@ -261,19 +239,8 @@ switch ($action) {
 
             if ($returnVar === 0) {
                 error_log("Database restore successful.");
-
-                $auditStmt = $conn->prepare("
-                    INSERT INTO audit_logs (user_id, action, details) 
-                    VALUES (?, 'Database Restore', 'Database restored from uploaded file')
-                ");
-                if ($auditStmt) {
-                    $userId = $_SESSION['user_id'];
-                    $auditStmt->bind_param("i", $userId);
-                    $auditStmt->execute();
-                    $auditStmt->close();
-                } else {
-                    error_log("Prepare failed for restore audit log: " . $conn->error);
-                }
+                // Record the restore action using the audit log helper.
+                recordAuditLog($_SESSION['user_id'], 'Database Restore', 'Database restored from uploaded file');
 
                 echo json_encode([
                     'status'  => true,
@@ -330,3 +297,4 @@ switch ($action) {
 
 // Close the database connection.
 $conn->close();
+?>

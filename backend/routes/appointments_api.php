@@ -56,6 +56,8 @@ if ($method === 'POST') {
         }
         $stmt->bind_param("iss", $userId, $appointment_date, $description);
         if ($stmt->execute()) {
+            // Audit log the scheduling of an appointment.
+            recordAuditLog($userId, "Schedule Appointment", "Appointment scheduled for $appointment_date. Description: $description");
             echo json_encode(["status" => "success", "message" => "Appointment scheduled successfully."]);
         } else {
             http_response_code(500);
@@ -104,8 +106,9 @@ if ($method === 'POST') {
             }
             $subject = "Your Appointment Has Been Accepted";
             $message = "Hello,\n\nYour appointment has been accepted. Details: " . $accept_details;
-            // Use PHPMailer to send the email.
             if (sendAppointmentEmail($userEmail, $subject, $message)) {
+                // Audit log the acceptance action.
+                recordAuditLog($userId, "Accept Appointment", "Appointment ID $appointment_id accepted with details: $accept_details");
                 echo json_encode(["status" => "success", "message" => "Appointment accepted and details sent by email."]);
             } else {
                 http_response_code(500);
@@ -129,7 +132,6 @@ if ($method === 'POST') {
         }
         $appointment_id = $data['appointment_id'];
         if ($role === 'admin') {
-            // Admin version: update without checking user_id.
             $stmt = $conn->prepare("UPDATE appointments SET accepted = 1 WHERE appointment_id = ?");
             if (!$stmt) {
                 http_response_code(500);
@@ -138,7 +140,6 @@ if ($method === 'POST') {
             }
             $stmt->bind_param("i", $appointment_id);
         } else {
-            // User version: ensure the appointment belongs to the user.
             $stmt = $conn->prepare("UPDATE appointments SET accepted = 1 WHERE appointment_id = ? AND user_id = ?");
             if (!$stmt) {
                 http_response_code(500);
@@ -148,6 +149,8 @@ if ($method === 'POST') {
             $stmt->bind_param("ii", $appointment_id, $userId);
         }
         if ($stmt->execute()) {
+            // Audit log the acceptance (without additional details)
+            recordAuditLog($userId, "Accept Appointment", "Appointment ID $appointment_id accepted.");
             echo json_encode(["status" => "success", "message" => "Appointment accepted successfully."]);
         } else {
             http_response_code(500);
@@ -175,6 +178,8 @@ if ($method === 'POST') {
         }
         $stmt->bind_param("i", $appointment_id);
         if ($stmt->execute()) {
+            // Audit log the "mark done" action.
+            recordAuditLog($userId, "Mark Appointment Done", "Appointment ID $appointment_id marked as done.");
             echo json_encode(["status" => "success", "message" => "Appointment marked as done."]);
         } else {
             http_response_code(500);
@@ -256,3 +261,4 @@ function sendAppointmentEmail($email, $subject, $body)
         return false;
     }
 }
+?>

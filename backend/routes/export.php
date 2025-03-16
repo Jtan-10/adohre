@@ -73,6 +73,9 @@ try {
         'announcements' => $announcements,
     ];
 
+    // Record an audit log for the export event.
+    recordAuditLog($userId, "Export Report", "User exported report in " . strtoupper($format) . " format.");
+
     if ($format === 'csv') {
         // CSV Export
         header('Content-Type: text/csv');

@@ -48,10 +48,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
+        global $conn;
         // Add a new record if the email does not exist
         if (!emailExists($email)) {
-            global $conn;
-
             // Retrieve the visually impaired flag from the session (defaulting to 0 if not set)
             $visually_impaired = (isset($_SESSION['visually_impaired']) && $_SESSION['visually_impaired']) ? 1 : 0;
             $virtual_id = generateVirtualId(); // Generate virtual ID
@@ -66,10 +65,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 echo json_encode(['status' => false, 'message' => 'Error creating user record.']);
                 exit;
             }
+            // Get the newly created user ID and record audit log.
+            $newUserId = $conn->insert_id;
+            recordAuditLog($newUserId, "Signup Initiated", "Temporary user record created for email: $email");
+            $stmt->close();
+        } else {
+            // If the email already exists, retrieve its user_id
+            $stmt = $conn->prepare("SELECT user_id FROM users WHERE email = ?");
+            $stmt->bind_param("s", $email);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            if ($row = $result->fetch_assoc()) {
+                recordAuditLog($row['user_id'], "Signup Initiated", "Existing user attempted signup with email: $email");
+            }
+            $stmt->close();
         }
 
         // Generate OTP and send email
         if (generateOTP($email)) {
+            // Retrieve user ID for audit logging
+            $stmt = $conn->prepare("SELECT user_id FROM users WHERE email = ?");
+            $stmt->bind_param("s", $email);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            if ($row = $result->fetch_assoc()) {
+                recordAuditLog($row['user_id'], "OTP Sent", "OTP generated and sent to email: $email");
+            }
+            $stmt->close();
             echo json_encode(['status' => true, 'message' => 'OTP sent to your email.']);
         } else {
             echo json_encode(['status' => false, 'message' => 'Failed to send OTP.']);
@@ -90,6 +112,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Verify OTP
         if (verifyOTP($email, $otp)) {
+            // Retrieve user ID for audit logging
+            $stmt = $conn->prepare("SELECT user_id FROM users WHERE email = ?");
+            $stmt->bind_param("s", $email);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            if ($row = $result->fetch_assoc()) {
+                recordAuditLog($row['user_id'], "OTP Verified", "OTP verified for email: $email");
+            }
+            $stmt->close();
             echo json_encode(['status' => true, 'message' => 'OTP verified. Proceed to enter details.']);
         } else {
             echo json_encode(['status' => false, 'message' => 'Invalid or expired OTP.']);
@@ -163,6 +194,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if ($stmt->execute()) {
+            // Retrieve the user ID based on email for audit logging.
+            $stmt2 = $conn->prepare("SELECT user_id FROM users WHERE email = ?");
+            $stmt2->bind_param("s", $email);
+            $stmt2->execute();
+            $result2 = $stmt2->get_result();
+            if ($row = $result2->fetch_assoc()) {
+                recordAuditLog($row['user_id'], "Signup Completed", "User details updated for email: $email");
+            }
+            $stmt2->close();
+
             unset($_SESSION['user_id']);
             echo json_encode(['status' => true, 'message' => 'Signup successful! You can now log in.']);
         } else {
@@ -174,7 +215,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-
     // If request doesn't match any of the above
     else {
         echo json_encode(['status' => false, 'message' => 'Invalid request.']);
@@ -184,3 +224,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Handle invalid HTTP methods
     echo json_encode(['status' => false, 'message' => 'Invalid request method.']);
 }
+?>

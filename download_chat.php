@@ -52,7 +52,14 @@ while ($row = $result->fetch_assoc()) {
 }
 $stmt->close();
 
-// Set the filename based on mode.
+// ======= Audit Logging =======
+// Log the download action.
+if (isset($_SESSION['user_id'])) {
+    // Previously: recordAuditLog($conn, $_SESSION['user_id'], 'Download Chat Transcript', "Downloaded transcript for room ID: $roomId" . ($mode === 'admin' ? " (admin mode)" : ""));
+    recordAuditLog($_SESSION['user_id'], 'Download Chat Transcript', "Downloaded transcript for room ID: $roomId" . ($mode === 'admin' ? " (admin mode)" : ""));
+}
+// =============================
+
 $filename = "chat_room_{$roomId}.txt";
 if ($mode === 'admin') {
     $filename = "chat_room_{$roomId}_admin.txt";

@@ -64,6 +64,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         exit;
     }
 
+    $adminId = $_SESSION['user_id'];
+
     if ($data['action'] === 'delete_user') {
         // Validate and cast user_id
         $user_id = isset($data['user_id']) ? (int)$data['user_id'] : 0;
@@ -75,6 +77,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $stmt = $conn->prepare("DELETE FROM users WHERE user_id = ?");
         $stmt->bind_param("i", $user_id);
         if ($stmt->execute()) {
+            // Audit log: record user deletion
+            recordAuditLog($adminId, "Delete User", "Deleted user with ID $user_id.");
             echo json_encode(['status' => true, 'message' => 'User deleted successfully.']);
         } else {
             echo json_encode(['status' => false, 'message' => 'Failed to delete user.']);
@@ -90,9 +94,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $stmt = $conn->prepare("UPDATE users SET otp_code = NULL, otp_expiry = NULL WHERE email = ?");
         $stmt->bind_param("s", $email);
         if ($stmt->execute()) {
+            // Audit log: record OTP reset
+            recordAuditLog($adminId, "Reset OTP", "Reset OTP for email $email.");
             echo json_encode(['status' => true, 'message' => 'OTP reset successfully.']);
         } else {
             echo json_encode(['status' => false, 'message' => 'Failed to reset OTP.']);
         }
     }
 }
+?>

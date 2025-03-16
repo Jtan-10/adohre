@@ -75,9 +75,9 @@ if ($method === 'POST') {
             exit;
         }
 
-        // Bind the variables
+        // Bind the variables (27 parameters: 1 integer, 26 strings)
         $stmt->bind_param(
-            'issssssssssssssssssssssssss', // 27 characters (1 integer, 26 strings)
+            'issssssssssssssssssssssssss', 
             $user_id, $name, $dob, $sex, $current_address, $permanent_address, $email, $landline, $mobile,
             $place_of_birth, $marital_status, $emergency_contact, $doh_agency, $doh_address,
             $employment_start, $employment_end, $school, $degree, $year_graduated, $current_engagement,
@@ -85,6 +85,9 @@ if ($method === 'POST') {
         );
 
         if ($stmt->execute()) {
+            // Audit log: record membership application submission.
+            // recordAuditLog() is defined in db_connect.php.
+            recordAuditLog($user_id, 'Submit Membership Application', "Application submitted for $name ($email).");
             echo json_encode(['status' => true, 'message' => 'Application submitted successfully!']);
         } else {
             error_log("Execution failed: " . $stmt->error);

@@ -145,6 +145,10 @@ if (!empty($relativeFileName)) {
 }
 
 if ($stmt->execute()) {
+    // Audit log: record that the user updated their profile details.
+    // We use the user_id from the session.
+    recordAuditLog($_SESSION['user_id'], 'Profile Update', 'User updated profile details' . (!empty($relativeFileName) ? ' (face image updated)' : ''));
+
     http_response_code(200);
     echo json_encode(['status' => true, 'message' => 'Profile updated successfully!']);
 } else {

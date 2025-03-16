@@ -33,6 +33,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['schedule_appointment'
         $stmt->bind_param("iss", $userId, $appointment_date, $description);
         if ($stmt->execute()) {
             $message = "Appointment scheduled successfully.";
+            // Log the appointment scheduling.
+            recordAuditLog($userId, "Schedule Appointment", "Scheduled for $appointment_date. Description: " . substr($description, 0, 100));
         } else {
             $message = "Error scheduling appointment: " . $stmt->error;
         }

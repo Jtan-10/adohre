@@ -50,6 +50,8 @@ try {
             $data = json_decode(file_get_contents('php://input'), true);
 
             if (isset($data['id']) && isset($data['status'])) {
+                $adminId = $_SESSION['user_id']; // admin performing the action
+
                 $conn->begin_transaction(); // Start transaction
 
                 // Update the application's status
@@ -75,6 +77,8 @@ try {
 
                         if ($userSuccess) {
                             $conn->commit(); // Commit transaction
+                            // Record audit log for approval and role update.
+                            recordAuditLog($adminId, 'Approve Membership Application', "Application ID {$data['id']} approved; user role updated to member.");
                             echo json_encode(['status' => true, 'message' => 'Application approved, user role updated.']);
                         } else {
                             $conn->rollback(); // Rollback transaction
@@ -87,6 +91,8 @@ try {
                 } else {
                     if ($success) {
                         $conn->commit(); // Commit transaction
+                        // Record audit log for status update (non-approval).
+                        recordAuditLog($adminId, 'Update Membership Application', "Application ID {$data['id']} updated to status {$data['status']}.");
                     } else {
                         $conn->rollback(); // Rollback transaction
                     }
@@ -106,7 +112,14 @@ try {
                 $stmt = $conn->prepare("DELETE FROM membership_applications WHERE application_id = ?");
                 $stmt->bind_param("i", $data['id']);
                 $success = $stmt->execute();
-                echo json_encode(['status' => $success, 'message' => $success ? 'Application deleted.' : 'Failed to delete application.']);
+                if ($success) {
+                    // Record audit log for deletion.
+                    $adminId = $_SESSION['user_id'];
+                    recordAuditLog($adminId, 'Delete Membership Application', "Application ID {$data['id']} deleted.");
+                    echo json_encode(['status' => true, 'message' => 'Application deleted.']);
+                } else {
+                    echo json_encode(['status' => false, 'message' => 'Failed to delete application.']);
+                }
             } else {
                 http_response_code(400);
                 echo json_encode(['status' => false, 'message' => 'Invalid request.']);

@@ -85,6 +85,8 @@ try {
         $stmt->bind_param("is", $trainingId, $formLink);
         $stmt->execute();
         if ($stmt->affected_rows > 0) {
+            // Audit log: record the release of an assessment form
+            recordAuditLog($userId, "Save Assessment Form", "Released assessment form for training ID $trainingId with link: $formLink");
             echo json_encode(['status' => true, 'message' => 'Assessment form released successfully.']);
         } else {
             echo json_encode(['status' => false, 'message' => 'Failed to release assessment form.']);
@@ -177,7 +179,6 @@ try {
         $stmt->execute();
         $result = $stmt->get_result();
         if ($row = $result->fetch_assoc()) {
-            // Cast to integer in case it's stored as a string
             if ((int)$row['assessment_completed'] === 1) {
                 echo json_encode(['status' => true, 'message' => 'Assessment already marked as completed.']);
                 exit;
@@ -199,6 +200,8 @@ try {
         $stmt->execute();
         $result = $stmt->get_result();
         if (($row = $result->fetch_assoc()) && (int)$row['assessment_completed'] === 1) {
+            // Audit log: record that the user has marked the assessment as done.
+            recordAuditLog($userId, "Mark Assessment Done", "User ID $userId marked assessment as completed for training ID $trainingId.");
             echo json_encode(['status' => true, 'message' => 'Assessment marked as completed.']);
         } else {
             echo json_encode(['status' => false, 'message' => 'Failed to mark assessment as completed.']);

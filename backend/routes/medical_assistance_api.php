@@ -27,6 +27,7 @@ if ($method === 'POST') {
         exit;
     }
     $action = $data['action'];
+    
     if ($action === 'schedule_medical_assistance') {
         if (empty($data['assistance_date'])) {
             http_response_code(400);
@@ -48,6 +49,8 @@ if ($method === 'POST') {
         }
         $stmt->bind_param("iss", $userId, $assistance_date, $description);
         if ($stmt->execute()) {
+            // Record audit log for scheduling action.
+            recordAuditLog($userId, 'Schedule Medical Assistance', "Assistance scheduled for {$assistance_date} with description: {$description}");
             echo json_encode(["status" => "success", "message" => "Medical assistance request scheduled successfully."]);
         } else {
             http_response_code(500);
@@ -96,6 +99,9 @@ if ($method === 'POST') {
             $subject = "Your Medical Assistance Request Has Been Accepted";
             $message = "Hello,\n\nYour medical assistance request has been accepted. Details: " . $accept_details;
             if (sendMedicalAssistanceEmail($userEmail, $subject, $message)) {
+                // Record audit log for acceptance.
+                $adminId = $_SESSION['user_id'];
+                recordAuditLog($adminId, 'Accept Medical Assistance', "Assistance request ID {$assistance_id} accepted with details: {$accept_details}");
                 echo json_encode(["status" => "success", "message" => "Request accepted and details sent by email."]);
             } else {
                 http_response_code(500);
@@ -126,6 +132,8 @@ if ($method === 'POST') {
         }
         $stmt->bind_param("i", $assistance_id);
         if ($stmt->execute()) {
+            // Record audit log for marking as done.
+            recordAuditLog($userId, 'Mark Medical Assistance Done', "Assistance request ID {$assistance_id} marked as done");
             echo json_encode(["status" => "success", "message" => "Request marked as done."]);
         } else {
             http_response_code(500);

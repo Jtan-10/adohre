@@ -227,8 +227,11 @@ $roleY = $circleY + $circleDiameter + 70; // 30px below the profile photo
 imagettftext($idCard, $fontSize, 0, $roleX, $roleY, $roleColor, $fontPath, ucfirst(strtolower($user['role'])));
 
 // ----------------------------------------------------------------
-// 7) Output the final image as PNG
+// 7) Log the virtual ID generation event
+recordAuditLog($user_id, "Generate Virtual ID", "Virtual ID card generated for user: " . $userFullName);
+
 // ----------------------------------------------------------------
+// 8) Output the final image as PNG
 header("Content-Type: image/png");
 imagepng($idCard);
 imagedestroy($idCard);

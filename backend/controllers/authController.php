@@ -1,11 +1,13 @@
 <?php
+
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 require '../../vendor/autoload.php';
 require_once __DIR__ . '/../db/db_connect.php';
 
-function login($email, $password) {
+function login($email, $password)
+{
     global $conn;
 
     // Sanitize input
@@ -21,21 +23,26 @@ function login($email, $password) {
 
         // Verify password
         if (password_verify($password, $user['password'])) {
+            // Log successful login
+            recordAuditLog($user['user_id'], "User Login", "User logged in successfully using email: $email");
             return [
                 'status' => true,
                 'data' => [
                     'user_id' => $user['user_id'],
                     'first_name' => $user['first_name'],
-                    'profile_image' => $user['profile_image'], // Make sure this field is returned
+                    'profile_image' => $user['profile_image'],
                     'role' => $user['role']
                 ]
             ];
         }
     }
+    // Log failed login attempt
+    recordAuditLog(0, "Failed Login Attempt", "Failed login attempt for email: $email");
     return ['status' => false, 'message' => 'Invalid email or password.'];
 }
 
-function register($first_name, $last_name, $email, $password, $confirm_password) {
+function register($first_name, $last_name, $email, $password, $confirm_password)
+{
     global $conn;
 
     // Sanitize input
@@ -68,13 +75,18 @@ function register($first_name, $last_name, $email, $password, $confirm_password)
     $stmt->bind_param('ssss', $first_name, $last_name, $email, $hashed_password);
 
     if ($stmt->execute()) {
+        $newUserId = $conn->insert_id;
+        // Log the successful registration
+        recordAuditLog($newUserId, "User Registration", "Account created for email: $email");
         return ['status' => true, 'message' => 'Account created successfully.'];
     } else {
+        recordAuditLog(0, "User Registration Failed", "Registration failed for email: $email");
         return ['status' => false, 'message' => 'An error occurred. Please try again.'];
     }
 }
 
-function generateOTP($email) {
+function generateOTP($email)
+{
     global $conn;
 
     // Sanitize input
@@ -98,7 +110,11 @@ function generateOTP($email) {
     $stmt->bind_param("sss", $otp, $expiry, $email);
 
     if ($stmt->execute()) {
-        error_log("OTP generated for email: $email, OTP: $otp");
+        // Log OTP generation without revealing the OTP
+        $userRow = $conn->query("SELECT user_id FROM users WHERE email = '$email'")->fetch_assoc();
+        $userId = $userRow ? $userRow['user_id'] : 0;
+        recordAuditLog($userId, "OTP Generation", "OTP generated for email: $email, expires at $expiry");
+        // Removed detailed OTP logging for security
         return sendEmailOTP($email, $otp);
     }
 
@@ -106,14 +122,15 @@ function generateOTP($email) {
     return false;
 }
 
-function verifyOTP($email, $enteredOtp) {
+function verifyOTP($email, $enteredOtp)
+{
     global $conn;
 
     // Sanitize input
     $email = filter_var($email, FILTER_SANITIZE_EMAIL);
 
     // Check OTP and expiry in the database
-    $stmt = $conn->prepare("SELECT otp_code, otp_expiry FROM users WHERE email = ?");
+    $stmt = $conn->prepare("SELECT otp_code, otp_expiry, user_id FROM users WHERE email = ?");
     $stmt->bind_param("s", $email);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -126,13 +143,18 @@ function verifyOTP($email, $enteredOtp) {
             $stmt = $conn->prepare("UPDATE users SET otp_code = NULL, otp_expiry = NULL WHERE email = ?");
             $stmt->bind_param("s", $email);
             $stmt->execute();
+            // Log successful OTP verification
+            recordAuditLog($row['user_id'], "OTP Verification", "OTP verified successfully for email: $email");
             return true;
         }
     }
+    // Log failed OTP verification
+    recordAuditLog(0, "OTP Verification Failed", "Failed OTP verification for email: $email");
     return false;
 }
 
-function emailExists($email) {
+function emailExists($email)
+{
     global $conn;
 
     // Sanitize input
@@ -146,43 +168,44 @@ function emailExists($email) {
     return $result->fetch_assoc();
 }
 
-function sendEmailOTP($email, $otp) {
+function sendEmailOTP($email, $otp)
+{
     // Ensure session is started.
     if (session_status() === PHP_SESSION_NONE) {
         session_start();
     }
-    
+
     // Log the OTP request (do not log the OTP itself).
     error_log("sendEmailOTP request for email: " . $email . " at " . date('Y-m-d H:i:s'));
-    
+
     // Rate limiting: allow a maximum of 5 OTP requests per email within 10 minutes.
     $window = 600;           // 10 minutes in seconds
     $maxRequests = 5;        // Maximum allowed requests per window
     $now = time();
-    
+
     if (!isset($_SESSION['otp_requests'])) {
         $_SESSION['otp_requests'] = [];
     }
-    
+
     if (!isset($_SESSION['otp_requests'][$email])) {
         $_SESSION['otp_requests'][$email] = ['count' => 0, 'first_request_time' => $now];
     }
-    
+
     // Reset count if the window has expired.
     if ($now - $_SESSION['otp_requests'][$email]['first_request_time'] > $window) {
         $_SESSION['otp_requests'][$email]['count'] = 0;
         $_SESSION['otp_requests'][$email]['first_request_time'] = $now;
     }
-    
+
     // Check if the rate limit has been reached.
     if ($_SESSION['otp_requests'][$email]['count'] >= $maxRequests) {
         error_log("Rate limit exceeded for email: " . $email);
         return false;
     }
-    
+
     // Increment the OTP request count.
     $_SESSION['otp_requests'][$email]['count']++;
-    
+
     $mail = new PHPMailer(true);
     try {
         // SMTP setup.
@@ -209,9 +232,7 @@ function sendEmailOTP($email, $otp) {
     }
 }
 
-
-function generateVirtualId($length = 16) {
+function generateVirtualId($length = 16)
+{
     return bin2hex(random_bytes($length / 2)); // Generates a random hex string
 }
-
-?>

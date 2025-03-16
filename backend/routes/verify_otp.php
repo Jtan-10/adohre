@@ -79,6 +79,9 @@ if (verifyOTP($email, $otp)) {
         $_SESSION['profile_image'] = $user['profile_image'];
         $_SESSION['role']          = $user['role'];
 
+        // Record successful login in the audit log
+        recordAuditLog($user['user_id'], 'Login via OTP', 'User logged in successfully via OTP.');
+
         echo json_encode(['status' => true, 'message' => 'Login successful!']);
     } else {
         // Do not reveal details about whether the email exists
@@ -86,6 +89,9 @@ if (verifyOTP($email, $otp)) {
         echo json_encode(['status' => false, 'message' => 'Invalid credentials.']);
     }
 } else {
+    // Record OTP failure in the audit log (user_id 0 because it's unknown)
+    recordAuditLog(0, 'OTP verification failed', 'Failed OTP verification attempt for email: ' . $email);
+    
     http_response_code(401);
     echo json_encode(['status' => false, 'message' => 'Invalid OTP.']);
 }

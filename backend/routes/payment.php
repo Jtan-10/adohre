@@ -160,12 +160,12 @@ if ($method === 'GET') {
         if ($stmt === false) {
             error_log("Database error in update_payment_fee: " . $conn->error);
             echo json_encode(['status' => false, 'message' => 'Internal server error']);
-            exit;
+            exit();
         }
         $stmt->bind_param("ssssi", $reference_number, $relativeImagePath, $mode_of_payment, $payment_date, $payment_id);
         if ($stmt->execute()) {
             // After updating, retrieve user details for notification
-            $query = "SELECT u.email, u.first_name, p.payment_type, p.amount, p.mode_of_payment, p.payment_date
+            $query = "SELECT u.email, u.first_name, p.payment_type, p.amount, p.mode_of_payment, p.payment_date, p.user_id
                       FROM payments p
                       JOIN users u ON p.user_id = u.user_id
                       WHERE p.payment_id = ?";
@@ -258,6 +258,10 @@ if ($method === 'GET') {
                     error_log("Email could not be sent. Mailer Error: " . $mail->ErrorInfo);
                 }
             }
+
+            // Audit log the payment fee update
+            recordAuditLog($_SESSION['user_id'], 'Update Payment Fee', "Payment ID $payment_id updated to Pending. Reference: $reference_number, Mode: $mode_of_payment, Payment Date: $payment_date");
+            
             echo json_encode(['status' => true, 'message' => 'Payment updated successfully.']);
             exit();
         } else {
@@ -273,7 +277,7 @@ if ($method === 'GET') {
 
         if (empty($user_id) || empty($payment_type) || empty($amount)) {
             echo json_encode(['status' => false, 'message' => 'User ID, Payment Type, and Amount are required.']);
-            exit;
+            exit();
         }
 
         $due_date = date('Y-m-d', strtotime('+1 year'));
@@ -293,7 +297,7 @@ if ($method === 'GET') {
                 $image = $target_file;
             } else {
                 echo json_encode(['status' => false, 'message' => 'Failed to upload image.']);
-                exit;
+                exit();
             }
         }
 
@@ -301,23 +305,25 @@ if ($method === 'GET') {
         if ($stmt === false) {
             error_log("Database error in payment push: " . $conn->error);
             echo json_encode(['status' => false, 'message' => 'Internal server error']);
-            exit;
+            exit();
         }
         $stmt->bind_param("isdsssss", $user_id, $payment_type, $amount, $status, $payment_date, $due_date, $reference_number, $image);
         if ($stmt->execute()) {
+            // Audit log the creation of a new payment record.
+            recordAuditLog($_SESSION['user_id'], 'New Payment Created', "Payment created with type: $payment_type, amount: $amount, due date: $due_date");
             echo json_encode(['status' => true, 'message' => 'Payment pushed successfully.']);
-            exit;
+            exit();
         } else {
             error_log("Failed to push payment: " . $stmt->error);
             echo json_encode(['status' => false, 'message' => 'Internal server error']);
-            exit;
+            exit();
         }
     }
 } elseif ($method === 'PUT') {
     $input = json_decode(file_get_contents('php://input'), true);
     if (!isset($input['payment_id']) || !isset($input['status'])) {
         echo json_encode(['status' => false, 'message' => 'Invalid input']);
-        exit;
+        exit();
     }
     $payment_id = $input['payment_id'];
     $newStatus = $input['status'];
@@ -326,18 +332,20 @@ if ($method === 'GET') {
     if ($stmt === false) {
         error_log("Database error in PUT request: " . $conn->error);
         echo json_encode(['status' => false, 'message' => 'Internal server error']);
-        exit;
+        exit();
     }
     $stmt->bind_param("si", $newStatus, $payment_id);
     if ($stmt->execute()) {
+        // Audit log the payment status update.
+        recordAuditLog($_SESSION['user_id'], 'Update Payment Status', "Payment ID $payment_id updated to status: $newStatus");
         echo json_encode(['status' => true, 'message' => 'Payment status updated successfully.']);
-        exit;
+        exit();
     } else {
         error_log("Failed to update payment status: " . $stmt->error);
         echo json_encode(['status' => false, 'message' => 'Internal server error']);
-        exit;
+        exit();
     }
 } else {
     echo json_encode(['status' => false, 'message' => 'Unsupported request method']);
-    exit;
+    exit();
 }
