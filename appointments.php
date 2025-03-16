@@ -92,13 +92,16 @@ if ($stmt) {
             <div class="alert alert-info"><?= htmlspecialchars($message) ?></div>
         <?php endif; ?>
 
+        <!-- Added API message container -->
+        <div id="api-message"></div>
+
         <!-- Appointment Scheduling Form -->
         <div class="card mb-4">
             <div class="card-header bg-primary text-white">
                 <h3>Schedule a New Appointment</h3>
             </div>
             <div class="card-body">
-                <form id="appointment-form">
+                <form id="appointment-form" method="POST">
                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                     <div class="mb-3">
                         <label for="appointment_date" class="form-label">Appointment Date &amp; Time</label>
@@ -159,8 +162,11 @@ if ($stmt) {
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
     <script>
         const apiUrl = 'backend/routes/appointments_api.php';
+        // Added currentUser role and csrf_token for later use.
         const currentUser = {
-            id: <?= json_encode($userId) ?>
+            id: <?= json_encode($userId) ?>,
+            role: <?= json_encode($_SESSION['role'] ?? 'user') ?>,
+            csrf_token: <?= json_encode($_SESSION['csrf_token']) ?>
         };
 
         // Helper function to display a message.
@@ -184,10 +190,9 @@ if ($stmt) {
                         // Filter: past appointments are those whose appointment_date is less than now OR accepted.
                         const past = appointments.filter(appt => (appt.appointment_date < now) || (appt.accepted == 1));
                         // Upcoming appointments: those with a future appointment_date and not accepted.
-                        const upcoming = appointments.filter(appt => (appt.appointment_date >= now) && (appt.accepted ==
-                            0));
+                        const upcoming = appointments.filter(appt => (appt.appointment_date >= now) && (appt.accepted == 0));
 
-                        // Render past appointments.
+                        // Render past appointments without admin actions.
                         let pastHtml = "";
                         if (past.length === 0) {
                             pastHtml = "<p>No current (past) appointments.</p>";
@@ -198,7 +203,6 @@ if ($stmt) {
                     <th>Appointment ID</th>
                     <th>Date &amp; Time</th>
                     <th>Description</th>
-                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>`;
@@ -209,15 +213,9 @@ if ($stmt) {
                   <td id="desc-${appt.appointment_id}">
                       ${appt.description || ""}
                       ${appt.accepted == 1 ? '<span class="badge bg-success">Accepted</span>' : ""}
+                      ${appt.accept_details ? '<br><small>' + appt.accept_details + '</small>' : ""}
                   </td>
-                  <td>`;
-                                if (appt.accepted != 1) {
-                                    pastHtml +=
-                                        `<button class="btn btn-success btn-sm" onclick="acceptAppointment(${appt.appointment_id})">Accept</button>`;
-                                } else {
-                                    pastHtml += `<em>Accepted</em>`;
-                                }
-                                pastHtml += `</td></tr>`;
+                </tr>`;
                             });
                             pastHtml += `</tbody></table>`;
                         }
@@ -260,39 +258,7 @@ if ($stmt) {
                 });
         }
 
-        // Function to accept an appointment.
-        function acceptAppointment(appointmentId) {
-            if (!confirm(
-                    "Do you want to accept this appointment? It will be removed from the current appointments list.")) {
-                return;
-            }
-            fetch(apiUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        action: 'accept_appointment',
-                        appointment_id: appointmentId,
-                        user_id: currentUser.id
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        // Remove the accepted appointment row.
-                        document.getElementById('appt-row-' + appointmentId).remove();
-                        loadAppointments();
-                        alert("Appointment accepted.");
-                    } else {
-                        alert(data.error || "Failed to accept appointment.");
-                    }
-                })
-                .catch(err => {
-                    console.error("Error accepting appointment:", err);
-                    alert("Error accepting appointment.");
-                });
-        }
+        // Removed the acceptAppointment() function since admin acceptance is handled separately.
 
         // Calendar integration using FullCalendar.
         let calendar;
@@ -300,12 +266,15 @@ if ($stmt) {
         function loadCalendarEvents(appointments) {
             const events = [];
             appointments.forEach(appt => {
+                // Append "Accepted:" to title if appointment has been accepted.
+                let eventTitle = (appt.accepted == 1 ? "Accepted: " : "") + (appt.description || "No description");
                 events.push({
                     id: appt.appointment_id,
-                    title: appt.description || "No description",
+                    title: eventTitle,
                     start: appt.appointment_date,
                     className: (appt.accepted == 1) ? 'strikethrough' : '',
-                    description: appt.description || "No description"
+                    description: appt.description || "No description",
+                    accept_details: appt.accept_details || ""
                 });
             });
             if (calendar) {
@@ -326,15 +295,50 @@ if ($stmt) {
                 },
                 events: [], // Will be loaded via AJAX.
                 eventDidMount: function(info) {
-                    // Set tooltip with description and start time.
-                    let desc = info.event.extendedProps.description || info.event.title ||
-                        "No description";
+                    // Build tooltip text with description and accepted details if available.
+                    let tooltipText = info.event.extendedProps.description || info.event.title || "No description";
+                    if (info.event.extendedProps.accept_details) {
+                        tooltipText += "\nDetails: " + info.event.extendedProps.accept_details;
+                    }
                     let start = info.event.start ? info.event.start.toLocaleString() : "";
-                    info.el.setAttribute('title', desc + " (" + start + ")");
+                    info.el.setAttribute('title', tooltipText + " (" + start + ")");
                 }
             });
             calendar.render();
             loadAppointments();
+            
+            // Intercept scheduling form submission.
+            document.getElementById('appointment-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const appointment_date = document.getElementById('appointment_date').value;
+                const description = document.getElementById('description').value;
+                const csrf_token = document.querySelector('input[name="csrf_token"]').value;
+                
+                fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'schedule_appointment',
+                        appointment_date: appointment_date,
+                        description: description,
+                        csrf_token: csrf_token
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showMessage(data.message, "success");
+                        document.getElementById('appointment-form').reset();
+                        loadAppointments();
+                    } else {
+                        showMessage(data.error || "Failed to schedule appointment", "danger");
+                    }
+                })
+                .catch(err => {
+                    console.error("Error scheduling appointment:", err);
+                    showMessage("Error scheduling appointment", "danger");
+                });
+            });
         });
     </script>
     <?php include('footer.php'); ?>

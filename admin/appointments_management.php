@@ -57,6 +57,8 @@ if ($result) {
         <?php require_once 'admin_sidebar.php'; ?>
         <div class="container mt-5">
             <h1 class="mb-4">Appointment Management</h1>
+            <!-- Added API message container -->
+            <div id="api-message"></div>
             <table class="table table-striped">
                 <thead>
                     <tr>
@@ -70,8 +72,7 @@ if ($result) {
                 </thead>
                 <tbody id="appointments-table">
                     <?php foreach ($appointments as $appt): ?>
-                        <tr id="appt-<?= htmlspecialchars($appt['appointment_id']) ?>"
-                            class="<?= $appt['accepted'] ? 'strikethrough' : '' ?>">
+                        <tr id="appt-<?= htmlspecialchars($appt['appointment_id']) ?>" class="">
                             <td><?= htmlspecialchars($appt['appointment_id']) ?></td>
                             <td><?= htmlspecialchars($appt['first_name'] . ' ' . $appt['last_name'] . ' (' . $appt['email'] . ')') ?>
                             </td>
@@ -80,9 +81,8 @@ if ($result) {
                             <td><?= $appt['accepted'] ? 'Yes' : 'No' ?></td>
                             <td>
                                 <?php if (!$appt['accepted']): ?>
-                                    <button class="btn btn-success btn-sm"
-                                        onclick="acceptAppointmentAdmin(<?= $appt['appointment_id'] ?>)">Mark as
-                                        Accepted</button>
+                                    <!-- New accept button with data attribute -->
+                                    <button class="btn btn-success btn-sm accept-btn" data-appointment-id="<?= $appt['appointment_id'] ?>">Mark as Accepted</button>
                                 <?php else: ?>
                                     <em>Accepted</em>
                                 <?php endif; ?>
@@ -94,47 +94,99 @@ if ($result) {
         </div>
     </div>
 
+    <!-- Modal for accepting appointment -->
+    <div class="modal fade" id="acceptModal" tabindex="-1" aria-labelledby="acceptModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <!-- ...existing modal header... -->
+          <div class="modal-header">
+            <h5 class="modal-title" id="acceptModalLabel">Accept Appointment</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="accept-form">
+              <div class="mb-3">
+                <label for="accept-details" class="form-label">Additional Details</label>
+                <textarea class="form-control" id="accept-details" name="accept_details" rows="3" placeholder="Enter details to send via email"></textarea>
+              </div>
+              <input type="hidden" id="modal-appointment-id" name="appointment_id" value="">
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" id="modal-submit-btn" class="btn btn-primary">Send & Accept</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script nonce="<?= $cspNonce ?>">
-        // Function to mark an appointment as accepted via AJAX.
-        function acceptAppointmentAdmin(appointmentId) {
-            if (!confirm("Mark this appointment as accepted?")) return;
-
-            // Send a POST request to your admin API endpoint.
-            fetch('../backend/routes/admin_appointments_api.php', {
+        // Function to display a message in the API message container.
+        function showMessage(message, type = 'info') {
+            const msgDiv = document.getElementById('api-message');
+            msgDiv.innerHTML = `<div class="alert alert-${type}" role="alert">${message}</div>`;
+            setTimeout(() => { msgDiv.innerHTML = ''; }, 5000);
+        }
+        
+        // Open modal on accept button click.
+        document.addEventListener('DOMContentLoaded', function() {
+            const acceptButtons = document.querySelectorAll('.accept-btn');
+            acceptButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const appointmentId = this.getAttribute('data-appointment-id');
+                    document.getElementById('modal-appointment-id').value = appointmentId;
+                    // Open modal using Bootstrap.
+                    const modalEl = document.getElementById('acceptModal');
+                    const modal = new bootstrap.Modal(modalEl);
+                    modal.show();
+                });
+            });
+            
+            // On modal submit, send details via AJAX.
+            document.getElementById('modal-submit-btn').addEventListener('click', function() {
+                const appointmentId = document.getElementById('modal-appointment-id').value;
+                const details = document.getElementById('accept-details').value;
+                if(!confirm("Send details via email and mark appointment as accepted?")) return;
+                fetch('../backend/routes/appointments_api.php', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        action: 'accept_appointment',
+                        action: 'accept_appointment_with_details',
                         appointment_id: appointmentId,
+                        accept_details: details,
                         csrf_token: csrfToken
                     })
                 })
                 .then(response => response.json())
                 .then(data => {
-                    if (data.status === 'success') {
-                        // Update the row visually.
+                    if(data.status === 'success'){
+                        // Update row without crossing it out.
                         const row = document.getElementById('appt-' + appointmentId);
-                        if (row) {
-                            row.classList.add('strikethrough');
-                            // Update the Accepted column (5th cell, index 4)
-                            row.cells[4].innerText = "Yes";
-                            // Replace the action cell with a text indicator.
-                            row.cells[5].innerHTML = "<em>Accepted</em>";
+                        if(row){
+                            const cells = row.querySelectorAll('td');
+                            if(cells.length >= 6){
+                                cells[4].innerText = "Yes";
+                                cells[5].innerHTML = "<em>Accepted</em>";
+                            }
                         }
-                        alert("Appointment marked as accepted.");
+                        showMessage(data.message, "success");
+                        // Close modal and reset form.
+                        const modalEl = document.getElementById('acceptModal');
+                        const modal = bootstrap.Modal.getInstance(modalEl);
+                        modal.hide();
+                        document.getElementById('accept-form').reset();
                     } else {
-                        alert(data.error || "Failed to mark appointment as accepted.");
+                        showMessage(data.error || "Failed to accept appointment.", "danger");
                     }
                 })
                 .catch(err => {
                     console.error("Error:", err);
-                    alert("Error marking appointment as accepted.");
+                    showMessage("Error processing request.", "danger");
                 });
-        }
+            });
+        });
     </script>
 </body>
 
