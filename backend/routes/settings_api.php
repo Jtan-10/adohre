@@ -213,73 +213,76 @@ switch ($action) {
         }
         break;
 
-    case 'restore_database':
-        if (isset($_FILES['restore_file']) && $_FILES['restore_file']['error'] === UPLOAD_ERR_OK) {
-            $dbHost = $servername;
-            $dbUser = $username;
-            $dbPass = $password;
-            $dbName = $dbname;
-
-            // Move the uploaded file to a temporary location.
-            $tempRestore = tempnam(sys_get_temp_dir(), 'restore_') . '.sql';
-            if (!move_uploaded_file($_FILES['restore_file']['tmp_name'], $tempRestore)) {
-                error_log("Failed to move uploaded restore file.");
-                echo json_encode([
-                    'status'  => false,
-                    'message' => "Failed to move uploaded restore file."
-                ]);
-                exit;
-            }
-
-            error_log("Starting database restore from file: $tempRestore");
-
-            // Escape shell arguments.
-            $dbHostEscaped      = escapeshellarg($dbHost);
-            $dbUserEscaped      = escapeshellarg($dbUser);
-            $dbNameEscaped      = escapeshellarg($dbName);
-            $tempRestoreEscaped = escapeshellarg($tempRestore);
-
-            $command = "mysql --host={$dbHostEscaped} --user={$dbUserEscaped} --password={$dbPass} {$dbNameEscaped} < $tempRestoreEscaped";
-            error_log("Restore command: $command");
-
-            $output = [];
-            exec($command, $output, $returnVar);
-            unlink($tempRestore);
-
-            if ($returnVar === 0) {
-                error_log("Database restore successful.");
-
-                $auditStmt = $conn->prepare("
-                    INSERT INTO audit_logs (user_id, action, details) 
-                    VALUES (?, 'Database Restore', 'Database restored from uploaded file')
-                ");
-                $userId = $_SESSION['user_id'];
-                $auditStmt->bind_param("i", $userId);
-                $auditStmt->execute();
-                $auditStmt->close();
-
-                echo json_encode([
-                    'status'  => true,
-                    'message' => "Database restore successful."
-                ]);
+        case 'restore_database':
+            if (isset($_FILES['restore_file']) && $_FILES['restore_file']['error'] === UPLOAD_ERR_OK) {
+                $dbHost = $servername;
+                $dbUser = $username;
+                $dbPass = $password;
+                $dbName = $dbname;
+        
+                // Move the uploaded file to a temporary location.
+                $tempRestore = tempnam(sys_get_temp_dir(), 'restore_') . '.sql';
+                if (!move_uploaded_file($_FILES['restore_file']['tmp_name'], $tempRestore)) {
+                    error_log("Failed to move uploaded restore file.");
+                    echo json_encode([
+                        'status'  => false,
+                        'message' => "Failed to move uploaded restore file."
+                    ]);
+                    exit;
+                }
+        
+                error_log("Starting database restore from file: $tempRestore");
+        
+                // Escape shell arguments.
+                $dbHostEscaped      = escapeshellarg($dbHost);
+                $dbUserEscaped      = escapeshellarg($dbUser);
+                $dbNameEscaped      = escapeshellarg($dbName);
+                $tempRestoreEscaped = escapeshellarg($tempRestore);
+        
+                // Use the full path to the mysql client.
+                $mysqlPath = '/opt/lampp/bin/mysql';
+                // Build the restore command.
+                $command = "$mysqlPath --host={$dbHostEscaped} --user={$dbUserEscaped} --password={$dbPass} {$dbNameEscaped} < $tempRestoreEscaped";
+                error_log("Restore command: $command");
+        
+                $output = [];
+                exec($command, $output, $returnVar);
+                unlink($tempRestore); // Remove the temporary file.
+        
+                if ($returnVar === 0) {
+                    error_log("Database restore successful.");
+        
+                    // Log the restore action.
+                    $auditStmt = $conn->prepare("
+                        INSERT INTO audit_logs (user_id, action, details) 
+                        VALUES (?, 'Database Restore', 'Database restored from uploaded file')
+                    ");
+                    $userId = $_SESSION['user_id'];
+                    $auditStmt->bind_param("i", $userId);
+                    $auditStmt->execute();
+                    $auditStmt->close();
+        
+                    echo json_encode([
+                        'status'  => true,
+                        'message' => "Database restore successful."
+                    ]);
+                } else {
+                    $errorMessage = implode("\n", $output);
+                    error_log("Database restore failed: " . $errorMessage);
+                    echo json_encode([
+                        'status'  => false,
+                        'message' => "Database restore failed."
+                    ]);
+                }
             } else {
-                $errorMessage = implode("\n", $output);
-                error_log("Database restore failed: " . $errorMessage);
+                error_log("No restore file uploaded.");
                 echo json_encode([
                     'status'  => false,
-                    'message' => "Database restore failed."
+                    'message' => "No restore file uploaded."
                 ]);
             }
-        } else {
-            error_log("No restore file uploaded.");
-            echo json_encode([
-                'status'  => false,
-                'message' => "No restore file uploaded."
-            ]);
-        }
-        break;
-
-    case 'get_audit_logs':
+            break;
+        case 'get_audit_logs':
         $auditLogs = [];
         $result = $conn->query("
             SELECT al.*, u.first_name, u.last_name 
