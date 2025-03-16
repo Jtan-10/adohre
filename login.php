@@ -14,45 +14,46 @@ $scriptNonce = bin2hex(random_bytes(16));
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'nonce-<?php echo $scriptNonce; ?>'; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; img-src 'self' data:;">
+        content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://static.cloudflareinsights.com 'nonce-<?php echo $scriptNonce; ?>'; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; img-src 'self' data:;">
+
     <title>Login - Member Link</title>
     <link rel="icon" href="assets/logo.png" type="image/jpg" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body {
-            display: flex;
-            min-height: 100vh;
-            margin: 0;
-        }
+    body {
+        display: flex;
+        min-height: 100vh;
+        margin: 0;
+    }
 
-        .left-pane {
-            flex: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            background: #ffffff;
-        }
+    .left-pane {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        background: #ffffff;
+    }
 
-        .right-pane {
-            flex: 1;
-            background: url('assets/green_bg.png') no-repeat center center/cover;
-        }
+    .right-pane {
+        flex: 1;
+        background: url('assets/green_bg.png') no-repeat center center/cover;
+    }
 
-        .form-control {
-            border-radius: 0.5rem;
-        }
+    .form-control {
+        border-radius: 0.5rem;
+    }
 
-        .btn-success {
-            width: 100%;
-            border-radius: 0.5rem;
-        }
+    .btn-success {
+        width: 100%;
+        border-radius: 0.5rem;
+    }
 
-        #loadingScreen {
-            z-index: 1055;
-            /* Ensure it appears above everything else */
-            display: none;
-        }
+    #loadingScreen {
+        z-index: 1055;
+        /* Ensure it appears above everything else */
+        display: none;
+    }
     </style>
 </head>
 
@@ -128,95 +129,95 @@ $scriptNonce = bin2hex(random_bytes(16));
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous">
     </script>
     <script nonce="<?php echo $scriptNonce; ?>">
-        document.getElementById('loginBtn').addEventListener('click', async () => {
-            const email = document.getElementById('email').value;
+    document.getElementById('loginBtn').addEventListener('click', async () => {
+        const email = document.getElementById('email').value;
 
-            if (!email) {
-                showModal('Error', 'Please enter your email.');
-                return;
-            }
-
-            showLoading(); // Show loading screen
-            try {
-                const response = await fetch('backend/routes/login.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        email,
-                        csrf_token: '<?php echo $_SESSION["csrf_token"]; ?>'
-                    })
-                });
-
-                const result = await response.json();
-                hideLoading(); // Hide loading screen
-
-                if (result.status) {
-                    showModal('Success', result.message, `otp.php?action=login&email=${email}`);
-                } else {
-                    showModal('Error', result.message);
-                }
-            } catch (error) {
-                hideLoading();
-                console.error('Error:', error);
-                showModal('Error', 'An error occurred. Please try again.');
-            }
-        });
-
-        document.getElementById('uploadBtn').addEventListener('click', async () => {
-            const formData = new FormData(document.getElementById('virtualIdForm'));
-            const fileInput = document.getElementById('virtualIdImage');
-
-            if (!fileInput.files.length) {
-                showModal('Error', 'Please upload an image.');
-                return;
-            }
-
-            try {
-                const response = await fetch('backend/routes/login.php', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const result = await response.json();
-
-                if (result.status) {
-                    showModal('Success', 'Login successful.', 'index.php');
-                } else {
-                    showModal('Error', result.message);
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                showModal('Error', 'An error occurred. Please try again.');
-            }
-        });
-
-        // Show Loading Screen
-        function showLoading() {
-            document.getElementById('loadingScreen').classList.remove('d-none');
-            document.getElementById('loadingScreen').style.display = 'flex';
+        if (!email) {
+            showModal('Error', 'Please enter your email.');
+            return;
         }
 
-        // Hide Loading Screen
-        function hideLoading() {
-            document.getElementById('loadingScreen').classList.add('d-none');
-            document.getElementById('loadingScreen').style.display = 'none';
-        }
+        showLoading(); // Show loading screen
+        try {
+            const response = await fetch('backend/routes/login.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    email,
+                    csrf_token: '<?php echo $_SESSION["csrf_token"]; ?>'
+                })
+            });
 
-        // Show Bootstrap Modal
-        function showModal(title, message, redirectUrl = null) {
-            document.getElementById('responseModalLabel').textContent = title;
-            document.getElementById('responseModalBody').textContent = message;
-            const modal = new bootstrap.Modal(document.getElementById('responseModal'));
-            modal.show();
+            const result = await response.json();
+            hideLoading(); // Hide loading screen
 
-            if (redirectUrl) {
-                modal._element.addEventListener('hidden.bs.modal', () => {
-                    window.location.href = redirectUrl;
-                });
+            if (result.status) {
+                showModal('Success', result.message, `otp.php?action=login&email=${email}`);
+            } else {
+                showModal('Error', result.message);
             }
+        } catch (error) {
+            hideLoading();
+            console.error('Error:', error);
+            showModal('Error', 'An error occurred. Please try again.');
         }
+    });
+
+    document.getElementById('uploadBtn').addEventListener('click', async () => {
+        const formData = new FormData(document.getElementById('virtualIdForm'));
+        const fileInput = document.getElementById('virtualIdImage');
+
+        if (!fileInput.files.length) {
+            showModal('Error', 'Please upload an image.');
+            return;
+        }
+
+        try {
+            const response = await fetch('backend/routes/login.php', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.status) {
+                showModal('Success', 'Login successful.', 'index.php');
+            } else {
+                showModal('Error', result.message);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showModal('Error', 'An error occurred. Please try again.');
+        }
+    });
+
+    // Show Loading Screen
+    function showLoading() {
+        document.getElementById('loadingScreen').classList.remove('d-none');
+        document.getElementById('loadingScreen').style.display = 'flex';
+    }
+
+    // Hide Loading Screen
+    function hideLoading() {
+        document.getElementById('loadingScreen').classList.add('d-none');
+        document.getElementById('loadingScreen').style.display = 'none';
+    }
+
+    // Show Bootstrap Modal
+    function showModal(title, message, redirectUrl = null) {
+        document.getElementById('responseModalLabel').textContent = title;
+        document.getElementById('responseModalBody').textContent = message;
+        const modal = new bootstrap.Modal(document.getElementById('responseModal'));
+        modal.show();
+
+        if (redirectUrl) {
+            modal._element.addEventListener('hidden.bs.modal', () => {
+                window.location.href = redirectUrl;
+            });
+        }
+    }
     </script>
 </body>
 

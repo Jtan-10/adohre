@@ -64,10 +64,13 @@ $news = $newsData['news'][0];
 <head>
     <meta charset="UTF-8">
     <!-- Updated CSP including nonce for inline style, a hash for known inline styles from external libraries, and font-src directive -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; 
-                 style-src 'self' 'nonce-<?php echo $style_nonce; ?>' 'sha256-p6mA130cDc4HStcM59w4BqV/qpvgY7ZMDK0IMyF0VKk=' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; 
-                 script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; 
-                 font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;">
+    <meta http-equiv="Content-Security-Policy" content="
+  default-src 'self'; 
+  style-src 'self' 'nonce-<?php echo $style_nonce; ?>' 'sha256-p6mA130cDc4HStcM59w4BqV/qpvgY7ZMDK0IMyF0VKk=' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; 
+  script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://static.cloudflareinsights.com; 
+  font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;
+">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($news['title']); ?> - ADOHRE News</title>
     <link rel="icon" href="assets/logo.png" type="image/jpg" />
@@ -76,30 +79,30 @@ $news = $newsData['news'][0];
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style nonce="<?php echo $style_nonce; ?>">
-        .news-detail-container {
-            max-width: 800px;
-            margin: 2rem auto;
-            padding: 1rem;
-        }
+    .news-detail-container {
+        max-width: 800px;
+        margin: 2rem auto;
+        padding: 1rem;
+    }
 
-        .news-detail-img {
-            width: 100%;
-            height: auto;
-            object-fit: cover;
-            border-radius: 12px;
-            margin-bottom: 1.5rem;
-        }
+    .news-detail-img {
+        width: 100%;
+        height: auto;
+        object-fit: cover;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+    }
 
-        .news-meta {
-            color: #28a745;
-            font-size: 0.9rem;
-            margin-bottom: 1rem;
-        }
+    .news-meta {
+        color: #28a745;
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+    }
 
-        .news-content {
-            font-size: 1.1rem;
-            line-height: 1.6;
-        }
+    .news-content {
+        font-size: 1.1rem;
+        line-height: 1.6;
+    }
     </style>
 </head>
 
@@ -114,8 +117,8 @@ $news = $newsData['news'][0];
             <span class="ms-3"><i class="fas fa-eye"></i> <?php echo intval($news['views']); ?> views</span>
         </div>
         <?php if (!empty($news['image'])): ?>
-            <img src="<?php echo htmlspecialchars($news['image']); ?>" alt="<?php echo htmlspecialchars($news['title']); ?>"
-                class="news-detail-img">
+        <img src="<?php echo htmlspecialchars($news['image']); ?>" alt="<?php echo htmlspecialchars($news['title']); ?>"
+            class="news-detail-img">
         <?php endif; ?>
         <div class="news-content">
             <?php echo nl2br(htmlspecialchars($news['content'])); ?>

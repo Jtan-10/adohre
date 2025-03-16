@@ -49,7 +49,8 @@ header("X-Content-Type-Options: nosniff");
 header("X-Frame-Options: SAMEORIGIN");
 header("X-XSS-Protection: 1; mode=block");
 header("Referrer-Policy: strict-origin-when-cross-origin");
-header("Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://code.jquery.com https://cdn.datatables.net 'nonce-{$cspNonce}'; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; frame-src https://docs.google.com;");
+header("Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://code.jquery.com https://cdn.datatables.net https://static.cloudflareinsights.com 'nonce-{$cspNonce}'; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; frame-src https://docs.google.com;");
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -63,21 +64,21 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' https://c
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous" />
     <style>
-        .form-section {
-            margin: 20px 0;
-            padding: 15px;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            background: #f9f9f9;
-        }
+    .form-section {
+        margin: 20px 0;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        background: #f9f9f9;
+    }
 
-        table {
-            margin-top: 15px;
-        }
+    table {
+        margin-top: 15px;
+    }
 
-        .nav-btn {
-            margin-bottom: 20px;
-        }
+    .nav-btn {
+        margin-bottom: 20px;
+    }
     </style>
 </head>
 
@@ -161,146 +162,146 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' https://c
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous">
     </script>
     <script nonce="<?php echo $cspNonce; ?>">
-        document.addEventListener('DOMContentLoaded', function() {
-            const linkInput = document.getElementById('assessmentFormLink');
-            const previewContainer = document.getElementById('formPreviewContainer');
-            const previewFrame = document.getElementById('formPreview');
-            const trainingSelect = document.getElementById('assessmentTraining');
-            const participantsList = document.getElementById('participantsList');
-            const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+    document.addEventListener('DOMContentLoaded', function() {
+        const linkInput = document.getElementById('assessmentFormLink');
+        const previewContainer = document.getElementById('formPreviewContainer');
+        const previewFrame = document.getElementById('formPreview');
+        const trainingSelect = document.getElementById('assessmentTraining');
+        const participantsList = document.getElementById('participantsList');
+        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
 
-            // Security: Validate and sanitize URL input
-            linkInput.addEventListener('input', function() {
-                let link = linkInput.value.trim();
-                if (link) {
-                    // Only allow specific domains for embedding
-                    if (!link.match(
-                            /^https:\/\/(docs\.google\.com|forms\.microsoft\.com|forms\.office\.com)/i)) {
-                        alert('Only Google Forms and Microsoft Forms are supported for security reasons.');
-                        linkInput.value = '';
-                        previewContainer.style.display = 'none';
-                        return;
-                    }
-
-                    if (link.indexOf('docs.google.com/forms') !== -1 && link.indexOf('hl=') === -1) {
-                        link += (link.indexOf('?') === -1) ? '?hl=en' : '&hl=en';
-                    }
-                    previewFrame.src = link;
-                    previewContainer.style.display = 'block';
-                } else {
-                    previewContainer.style.display = 'none';
-                }
-            });
-
-            // When a training is selected, automatically fetch assessment form link and participants.
-            trainingSelect.addEventListener('change', function() {
-                const trainingId = trainingSelect.value;
-                if (trainingId) {
-                    if (!isNumeric(trainingId)) {
-                        alert('Invalid training selection.');
-                        return;
-                    }
-                    fetchAssessmentForm(trainingId);
-                    fetchParticipants(trainingId);
-                } else {
-                    participantsList.innerHTML = '';
+        // Security: Validate and sanitize URL input
+        linkInput.addEventListener('input', function() {
+            let link = linkInput.value.trim();
+            if (link) {
+                // Only allow specific domains for embedding
+                if (!link.match(
+                        /^https:\/\/(docs\.google\.com|forms\.microsoft\.com|forms\.office\.com)/i)) {
+                    alert('Only Google Forms and Microsoft Forms are supported for security reasons.');
                     linkInput.value = '';
                     previewContainer.style.display = 'none';
+                    return;
                 }
-            });
 
-            // Security: Input validation helper
-            function isNumeric(value) {
-                return /^\d+$/.test(value);
+                if (link.indexOf('docs.google.com/forms') !== -1 && link.indexOf('hl=') === -1) {
+                    link += (link.indexOf('?') === -1) ? '?hl=en' : '&hl=en';
+                }
+                previewFrame.src = link;
+                previewContainer.style.display = 'block';
+            } else {
+                previewContainer.style.display = 'none';
             }
+        });
 
-            // Fetch the assessment form link for the selected training.
-            function fetchAssessmentForm(trainingId) {
-                fetch(
-                        `../../backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${encodeURIComponent(trainingId)}&csrf_token=${encodeURIComponent(csrfToken)}`, {
-                            headers: {
-                                'X-Requested-With': 'XMLHttpRequest'
-                            }
-                        }
-                    )
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Network response was not ok');
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (data.status && data.form_link) {
-                            linkInput.value = data.form_link;
-                            let link = data.form_link;
-                            if (link.indexOf('docs.google.com/forms') !== -1 && link.indexOf('hl=') === -1) {
-                                link += (link.indexOf('?') === -1) ? '?hl=en' : '&hl=en';
-                            }
-                            previewFrame.src = link;
-                            previewContainer.style.display = 'block';
-                        } else {
-                            linkInput.value = '';
-                            previewContainer.style.display = 'none';
-                        }
-                    })
-                    .catch(err => {
-                        console.error('Fetch error:', err);
-                        alert('Failed to fetch assessment information. Please try again later.');
-                        linkInput.value = '';
-                        previewContainer.style.display = 'none';
-                    });
+        // When a training is selected, automatically fetch assessment form link and participants.
+        trainingSelect.addEventListener('change', function() {
+            const trainingId = trainingSelect.value;
+            if (trainingId) {
+                if (!isNumeric(trainingId)) {
+                    alert('Invalid training selection.');
+                    return;
+                }
+                fetchAssessmentForm(trainingId);
+                fetchParticipants(trainingId);
+            } else {
+                participantsList.innerHTML = '';
+                linkInput.value = '';
+                previewContainer.style.display = 'none';
             }
+        });
 
-            // Handle Assessment Form submission (release assessment)
-            document.getElementById('assessmentForm').addEventListener('submit', function(e) {
-                e.preventDefault();
-                const formData = new FormData(this);
-                formData.append('action', 'save_assessment_form');
+        // Security: Input validation helper
+        function isNumeric(value) {
+            return /^\d+$/.test(value);
+        }
 
-                fetch('../../backend/routes/assessment_manager.php', {
-                        method: 'POST',
-                        body: formData,
+        // Fetch the assessment form link for the selected training.
+        function fetchAssessmentForm(trainingId) {
+            fetch(
+                    `../../backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${encodeURIComponent(trainingId)}&csrf_token=${encodeURIComponent(csrfToken)}`, {
                         headers: {
                             'X-Requested-With': 'XMLHttpRequest'
                         }
-                    })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Network response was not ok');
+                    }
+                )
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.status && data.form_link) {
+                        linkInput.value = data.form_link;
+                        let link = data.form_link;
+                        if (link.indexOf('docs.google.com/forms') !== -1 && link.indexOf('hl=') === -1) {
+                            link += (link.indexOf('?') === -1) ? '?hl=en' : '&hl=en';
                         }
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (data.status) {
-                            alert('Assessment released successfully!');
-                        } else {
-                            alert('Error: ' + (data.message || 'Unknown error occurred'));
-                        }
-                    })
-                    .catch(err => {
-                        console.error('Fetch error:', err);
-                        alert('Failed to connect to the server. Please try again later.');
-                    });
-            });
+                        previewFrame.src = link;
+                        previewContainer.style.display = 'block';
+                    } else {
+                        linkInput.value = '';
+                        previewContainer.style.display = 'none';
+                    }
+                })
+                .catch(err => {
+                    console.error('Fetch error:', err);
+                    alert('Failed to fetch assessment information. Please try again later.');
+                    linkInput.value = '';
+                    previewContainer.style.display = 'none';
+                });
+        }
 
-            // Function to fetch participants for the selected training.
-            function fetchParticipants(trainingId) {
-                fetch(
-                        `../../backend/routes/assessment_manager.php?action=fetch_participants&training_id=${encodeURIComponent(trainingId)}&csrf_token=${encodeURIComponent(csrfToken)}`, {
-                            headers: {
-                                'X-Requested-With': 'XMLHttpRequest'
-                            }
+        // Handle Assessment Form submission (release assessment)
+        document.getElementById('assessmentForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            formData.append('action', 'save_assessment_form');
+
+            fetch('../../backend/routes/assessment_manager.php', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.status) {
+                        alert('Assessment released successfully!');
+                    } else {
+                        alert('Error: ' + (data.message || 'Unknown error occurred'));
+                    }
+                })
+                .catch(err => {
+                    console.error('Fetch error:', err);
+                    alert('Failed to connect to the server. Please try again later.');
+                });
+        });
+
+        // Function to fetch participants for the selected training.
+        function fetchParticipants(trainingId) {
+            fetch(
+                    `../../backend/routes/assessment_manager.php?action=fetch_participants&training_id=${encodeURIComponent(trainingId)}&csrf_token=${encodeURIComponent(csrfToken)}`, {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
                         }
-                    )
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Network response was not ok');
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (data.status) {
-                            let html = `<table class="table">
+                    }
+                )
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.status) {
+                        let html = `<table class="table">
                                   <thead>
                                     <tr>
                                       <th>Name</th>
@@ -311,18 +312,18 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' https://c
                                   </thead>
                                   <tbody>`;
 
-                            if (data.participants && data.participants.length > 0) {
-                                data.participants.forEach(participant => {
-                                    // Security: HTML escape all output
-                                    const name = escapeHTML(participant.first_name + ' ' + participant
-                                        .last_name);
-                                    const assessmentStatus = escapeHTML(participant.assessment_status);
-                                    const certStatus = escapeHTML(participant.certificate_status ||
-                                        'Not Released');
-                                    const userId = escapeHTML(participant.user_id);
-                                    const trainingId = escapeHTML(participant.training_id);
+                        if (data.participants && data.participants.length > 0) {
+                            data.participants.forEach(participant => {
+                                // Security: HTML escape all output
+                                const name = escapeHTML(participant.first_name + ' ' + participant
+                                    .last_name);
+                                const assessmentStatus = escapeHTML(participant.assessment_status);
+                                const certStatus = escapeHTML(participant.certificate_status ||
+                                    'Not Released');
+                                const userId = escapeHTML(participant.user_id);
+                                const trainingId = escapeHTML(participant.training_id);
 
-                                    html += `<tr>
+                                html += `<tr>
                                       <td>${name}</td>
                                       <td>${assessmentStatus}</td>
                                       <td>${certStatus}</td>
@@ -332,217 +333,217 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' https://c
                                         </button>
                                       </td>
                                       </tr>`;
-                                });
-                            } else {
-                                html +=
-                                    `<tr><td colspan="4" class="text-center">No participants found</td></tr>`;
-                            }
-
-                            html += `</tbody></table>`;
-                            participantsList.innerHTML = html;
-
-                            // Security: HTML escape helper function - FIX TYPE ERROR
-                            function escapeHTML(str) {
-                                // Handle null, undefined, or non-string values
-                                if (str === null || str === undefined) {
-                                    return '';
-                                }
-                                // Convert to string explicitly before using string methods
-                                str = String(str);
-                                return str
-                                    .replace(/&/g, '&amp;')
-                                    .replace(/</g, '&lt;')
-                                    .replace(/>/g, '&gt;')
-                                    .replace(/"/g, '&quot;')
-                                    .replace(/'/g, '&#039;');
-                            }
-
-                            // Attach event listeners for individual "Release Certificate" buttons.
-                            document.querySelectorAll('.release-certificate').forEach(btn => {
-                                btn.addEventListener('click', function() {
-                                    const userId = this.getAttribute('data-userid');
-                                    const trainingId = this.getAttribute('data-trainingid');
-
-                                    if (!isNumeric(userId) || !isNumeric(trainingId)) {
-                                        alert('Invalid participant or training data');
-                                        return;
-                                    }
-
-                                    if (confirm('Release certificate for this participant?')) {
-                                        fetch(`../../backend/models/generate_certificate.php?action=release_certificate&user_id=${encodeURIComponent(userId)}&training_id=${encodeURIComponent(trainingId)}&csrf_token=${encodeURIComponent(csrfToken)}`, {
-                                                headers: {
-                                                    'X-Requested-With': 'XMLHttpRequest'
-                                                }
-                                            })
-                                            .then(response => {
-                                                if (!response.ok) {
-                                                    throw new Error(
-                                                        'Network response was not ok');
-                                                }
-                                                return response.text().then(text => {
-                                                    try {
-                                                        return JSON.parse(text);
-                                                    } catch (e) {
-                                                        console.error(
-                                                            'Invalid JSON response:',
-                                                            text);
-                                                        throw new Error(
-                                                            'Server returned invalid response'
-                                                        );
-                                                    }
-                                                });
-                                            })
-                                            .then(result => {
-                                                if (result.status) {
-                                                    alert(
-                                                        'Certificate released successfully.'
-                                                    );
-                                                    fetchParticipants(trainingId);
-                                                } else {
-                                                    alert('Error: ' + (result.message ||
-                                                        'Unknown error occurred'));
-                                                }
-                                            })
-                                            .catch(err => {
-                                                console.error('Fetch error:', err);
-                                                alert(
-                                                    'Failed to release certificate. Please try again later.'
-                                                );
-                                            });
-                                    }
-                                });
                             });
                         } else {
-                            participantsList.innerHTML =
-                                '<div class="alert alert-danger">Error fetching participants: ' +
-                                (data.message || 'Unknown error') + '</div>';
+                            html +=
+                                `<tr><td colspan="4" class="text-center">No participants found</td></tr>`;
                         }
-                    })
-                    .catch(err => {
-                        console.error('Fetch error:', err);
+
+                        html += `</tbody></table>`;
+                        participantsList.innerHTML = html;
+
+                        // Security: HTML escape helper function - FIX TYPE ERROR
+                        function escapeHTML(str) {
+                            // Handle null, undefined, or non-string values
+                            if (str === null || str === undefined) {
+                                return '';
+                            }
+                            // Convert to string explicitly before using string methods
+                            str = String(str);
+                            return str
+                                .replace(/&/g, '&amp;')
+                                .replace(/</g, '&lt;')
+                                .replace(/>/g, '&gt;')
+                                .replace(/"/g, '&quot;')
+                                .replace(/'/g, '&#039;');
+                        }
+
+                        // Attach event listeners for individual "Release Certificate" buttons.
+                        document.querySelectorAll('.release-certificate').forEach(btn => {
+                            btn.addEventListener('click', function() {
+                                const userId = this.getAttribute('data-userid');
+                                const trainingId = this.getAttribute('data-trainingid');
+
+                                if (!isNumeric(userId) || !isNumeric(trainingId)) {
+                                    alert('Invalid participant or training data');
+                                    return;
+                                }
+
+                                if (confirm('Release certificate for this participant?')) {
+                                    fetch(`../../backend/models/generate_certificate.php?action=release_certificate&user_id=${encodeURIComponent(userId)}&training_id=${encodeURIComponent(trainingId)}&csrf_token=${encodeURIComponent(csrfToken)}`, {
+                                            headers: {
+                                                'X-Requested-With': 'XMLHttpRequest'
+                                            }
+                                        })
+                                        .then(response => {
+                                            if (!response.ok) {
+                                                throw new Error(
+                                                    'Network response was not ok');
+                                            }
+                                            return response.text().then(text => {
+                                                try {
+                                                    return JSON.parse(text);
+                                                } catch (e) {
+                                                    console.error(
+                                                        'Invalid JSON response:',
+                                                        text);
+                                                    throw new Error(
+                                                        'Server returned invalid response'
+                                                    );
+                                                }
+                                            });
+                                        })
+                                        .then(result => {
+                                            if (result.status) {
+                                                alert(
+                                                    'Certificate released successfully.'
+                                                );
+                                                fetchParticipants(trainingId);
+                                            } else {
+                                                alert('Error: ' + (result.message ||
+                                                    'Unknown error occurred'));
+                                            }
+                                        })
+                                        .catch(err => {
+                                            console.error('Fetch error:', err);
+                                            alert(
+                                                'Failed to release certificate. Please try again later.'
+                                            );
+                                        });
+                                }
+                            });
+                        });
+                    } else {
                         participantsList.innerHTML =
-                            '<div class="alert alert-danger">Failed to fetch participants. Please try again later.</div>';
-                    });
+                            '<div class="alert alert-danger">Error fetching participants: ' +
+                            (data.message || 'Unknown error') + '</div>';
+                    }
+                })
+                .catch(err => {
+                    console.error('Fetch error:', err);
+                    participantsList.innerHTML =
+                        '<div class="alert alert-danger">Failed to fetch participants. Please try again later.</div>';
+                });
+        }
+
+        // Redirect to the certificate editor when "Configure Certificate" is clicked.
+        document.getElementById('configureCertificateBtn').addEventListener('click', function() {
+            const trainingId = trainingSelect.value;
+            if (!trainingId) {
+                alert('Please select a training first.');
+                return;
             }
 
-            // Redirect to the certificate editor when "Configure Certificate" is clicked.
-            document.getElementById('configureCertificateBtn').addEventListener('click', function() {
-                const trainingId = trainingSelect.value;
-                if (!trainingId) {
-                    alert('Please select a training first.');
-                    return;
-                }
+            if (!isNumeric(trainingId)) {
+                alert('Invalid training selection.');
+                return;
+            }
 
-                if (!isNumeric(trainingId)) {
-                    alert('Invalid training selection.');
-                    return;
-                }
-
-                window.location.href =
-                    `certificate_editor.php?training_id=${encodeURIComponent(trainingId)}&csrf_token=${encodeURIComponent(csrfToken)}`;
-            });
-
-            // Batch Release Certificates: Show confirmation modal.
-            document.getElementById('batchReleaseBtn').addEventListener('click', function() {
-                const trainingId = trainingSelect.value;
-                if (!trainingId) {
-                    alert('Please select a training first.');
-                    return;
-                }
-
-                if (!isNumeric(trainingId)) {
-                    alert('Invalid training selection.');
-                    return;
-                }
-
-                const batchModal = new bootstrap.Modal(document.getElementById('batchReleaseModal'));
-                batchModal.show();
-            });
-
-            // When the user confirms batch release, fetch all participants, then release certificates in batch.
-            document.getElementById('confirmBatchRelease').addEventListener('click', function() {
-                const trainingId = trainingSelect.value;
-                if (!trainingId) {
-                    alert('Please select a training first.');
-                    return;
-                }
-
-                if (!isNumeric(trainingId)) {
-                    alert('Invalid training selection.');
-                    return;
-                }
-
-                fetch(`../../backend/routes/assessment_manager.php?action=fetch_participants&training_id=${encodeURIComponent(trainingId)}&csrf_token=${encodeURIComponent(csrfToken)}`, {
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest'
-                        }
-                    })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Network response was not ok');
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (data.status) {
-                            // Collect all user_ids with certificate_status "Not Released" (or empty)
-                            const userIds = data.participants
-                                .filter(p => !p.certificate_status || p.certificate_status ===
-                                    'Not Released')
-                                .map(p => p.user_id);
-
-                            if (userIds.length === 0) {
-                                alert('No certificates to release.');
-                                return;
-                            }
-
-                            fetch('../../backend/models/generate_certificate.php', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        'X-Requested-With': 'XMLHttpRequest'
-                                    },
-                                    body: JSON.stringify({
-                                        action: 'batch_release_certificates',
-                                        training_id: trainingId,
-                                        user_ids: userIds,
-                                        csrf_token: csrfToken
-                                    })
-                                })
-                                .then(response => {
-                                    if (!response.ok) {
-                                        throw new Error('Network response was not ok');
-                                    }
-                                    return response.json();
-                                })
-                                .then(result => {
-                                    if (result.status) {
-                                        alert('Certificates released successfully.');
-                                        bootstrap.Modal.getInstance(document.getElementById(
-                                            'batchReleaseModal')).hide();
-                                        fetchParticipants(trainingId);
-                                    } else {
-                                        alert('Error: ' + (result.message ||
-                                            'Unknown error occurred'));
-                                    }
-                                })
-                                .catch(err => {
-                                    console.error('Fetch error:', err);
-                                    alert(
-                                        'Failed to release certificates. Please try again later.'
-                                    );
-                                });
-                        } else {
-                            alert('Error fetching participants: ' + (data.message ||
-                                'Unknown error occurred'));
-                        }
-                    })
-                    .catch(err => {
-                        console.error('Fetch error:', err);
-                        alert('Failed to fetch participants. Please try again later.');
-                    });
-            });
+            window.location.href =
+                `certificate_editor.php?training_id=${encodeURIComponent(trainingId)}&csrf_token=${encodeURIComponent(csrfToken)}`;
         });
+
+        // Batch Release Certificates: Show confirmation modal.
+        document.getElementById('batchReleaseBtn').addEventListener('click', function() {
+            const trainingId = trainingSelect.value;
+            if (!trainingId) {
+                alert('Please select a training first.');
+                return;
+            }
+
+            if (!isNumeric(trainingId)) {
+                alert('Invalid training selection.');
+                return;
+            }
+
+            const batchModal = new bootstrap.Modal(document.getElementById('batchReleaseModal'));
+            batchModal.show();
+        });
+
+        // When the user confirms batch release, fetch all participants, then release certificates in batch.
+        document.getElementById('confirmBatchRelease').addEventListener('click', function() {
+            const trainingId = trainingSelect.value;
+            if (!trainingId) {
+                alert('Please select a training first.');
+                return;
+            }
+
+            if (!isNumeric(trainingId)) {
+                alert('Invalid training selection.');
+                return;
+            }
+
+            fetch(`../../backend/routes/assessment_manager.php?action=fetch_participants&training_id=${encodeURIComponent(trainingId)}&csrf_token=${encodeURIComponent(csrfToken)}`, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.status) {
+                        // Collect all user_ids with certificate_status "Not Released" (or empty)
+                        const userIds = data.participants
+                            .filter(p => !p.certificate_status || p.certificate_status ===
+                                'Not Released')
+                            .map(p => p.user_id);
+
+                        if (userIds.length === 0) {
+                            alert('No certificates to release.');
+                            return;
+                        }
+
+                        fetch('../../backend/models/generate_certificate.php', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                },
+                                body: JSON.stringify({
+                                    action: 'batch_release_certificates',
+                                    training_id: trainingId,
+                                    user_ids: userIds,
+                                    csrf_token: csrfToken
+                                })
+                            })
+                            .then(response => {
+                                if (!response.ok) {
+                                    throw new Error('Network response was not ok');
+                                }
+                                return response.json();
+                            })
+                            .then(result => {
+                                if (result.status) {
+                                    alert('Certificates released successfully.');
+                                    bootstrap.Modal.getInstance(document.getElementById(
+                                        'batchReleaseModal')).hide();
+                                    fetchParticipants(trainingId);
+                                } else {
+                                    alert('Error: ' + (result.message ||
+                                        'Unknown error occurred'));
+                                }
+                            })
+                            .catch(err => {
+                                console.error('Fetch error:', err);
+                                alert(
+                                    'Failed to release certificates. Please try again later.'
+                                );
+                            });
+                    } else {
+                        alert('Error fetching participants: ' + (data.message ||
+                            'Unknown error occurred'));
+                    }
+                })
+                .catch(err => {
+                    console.error('Fetch error:', err);
+                    alert('Failed to fetch participants. Please try again later.');
+                });
+        });
+    });
     </script>
 </body>
 

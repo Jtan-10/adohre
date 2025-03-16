@@ -10,7 +10,7 @@ header('Content-Type: application/json');
 // Add secure headers
 header("X-Content-Type-Options: nosniff");
 header("X-Frame-Options: DENY");
-header("Content-Security-Policy: default-src 'self';");
+header("Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://static.cloudflareinsights.com;");
 
 // Start the session securely
 session_start();

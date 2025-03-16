@@ -1,15 +1,16 @@
 <?php
 define('APP_INIT', true); // Added to enable proper access.
 // Send the CSP header before any output.
-header("Content-Security-Policy: default-src 'self' https://cdn.jsdelivr.net; script-src 'self' https://cdn.jsdelivr.net 'nonce-<?= \$cspNonce ?>';
+header("Content-Security-Policy: default-src 'self' https://cdn.jsdelivr.net; script-src 'self' https://cdn.jsdelivr.net https://static.cloudflareinsights.com 'nonce-<?= \$cspNonce ?>';
 style-src 'self' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net;");
+
 
 require_once 'admin_header.php';
 
 // Check if the user is logged in and is an admin
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-    header("Location: ../login.php");
-    exit;
+header("Location: ../login.php");
+exit;
 }
 ?>
 
@@ -25,23 +26,23 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style nonce="<?= $cspNonce ?>">
-        body {
-            background-color: #f5f6fa;
-        }
+    body {
+        background-color: #f5f6fa;
+    }
 
-        .content {
-            padding: 20px;
-        }
+    .content {
+        padding: 20px;
+    }
 
-        .chart-container canvas {
-            max-width: 100%;
-            height: 300px;
-        }
+    .chart-container canvas {
+        max-width: 100%;
+        height: 300px;
+    }
 
-        .card {
-            border-radius: 10px;
-            margin-bottom: 20px;
-        }
+    .card {
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
     </style>
 </head>
 

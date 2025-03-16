@@ -12,8 +12,13 @@ error_reporting(0);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Updated Content Security Policy for production -->
-    <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; font-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; frame-src 'self' https://www.youtube.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; img-src 'self' data:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; 
+               font-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; 
+               frame-src 'self' https://www.youtube.com; 
+               style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; 
+               script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://static.cloudflareinsights.com; 
+               img-src 'self' data:;">
+
     <title>Events - ADOHRE</title>
     <link rel="icon" href="assets/logo.png" type="image/jpg" />
     <!-- Bootstrap CSS -->
