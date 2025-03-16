@@ -3,7 +3,7 @@
 session_set_cookie_params([
     'lifetime' => 0,
     'path' => '/',
-    'domain' => 'example.com', // replace with your domain
+    'domain' => 'adohre.site', // replace with your domain
     'secure' => true,          // ensure using HTTPS
     'httponly' => true,
     'samesite' => 'Strict'     // or 'Lax' based on your requirements
