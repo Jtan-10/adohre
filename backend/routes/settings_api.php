@@ -1,18 +1,29 @@
 <?php
 // backend/routes/settings_api.php
 
-// Secure session settings (adjust as needed).
+// Production best practices: disable error display and log errors instead.
+// (In php.ini, display_errors should be Off on production.)
+// Alternatively, force these settings in your production scripts:
+    ini_set('display_errors', '0');  // Do not display errors to users
+    ini_set('log_errors', '1');      // Log errors to a file or system log
+    error_reporting(E_ALL);          // Report all errors (they will be logged, not displayed)
+    
+// Set secure session cookie parameters.
 session_set_cookie_params([
     'lifetime' => 0,
-    'secure'   => true,
+    'secure'   => true,   // Ensure HTTPS is used.
     'httponly' => true,
     'samesite' => 'Strict'
 ]);
-
 session_start();
+
+// It is recommended to regenerate the session ID periodically (e.g. on login)
+// to mitigate session fixation attacks.
+
+// Set Content-Type to JSON.
 header('Content-Type: application/json');
 
-// Only allow admin access.
+// Only allow access to authenticated admin users.
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     http_response_code(403);
     echo json_encode(['status' => false, 'message' => 'Access denied.']);
@@ -22,19 +33,20 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
 // Include database connection.
 require_once __DIR__ . '/../db/db_connect.php';
 
-// Include s3config.php for S3 uploads.
+// Include S3 configuration and AWS SDK initialization.
 require_once __DIR__ . '/../s3config.php';
 
-$action = $_REQUEST['action'] ?? '';
+// Sanitize the "action" parameter.
+$action = filter_input(INPUT_GET, 'action', FILTER_SANITIZE_STRING) ?? '';
 
 switch ($action) {
 
     case 'update_header_settings':
-        $headerName    = $_POST['header_name'] ?? '';
+        $headerName    = trim($_POST['header_name'] ?? '');
         $message       = "";
-        $headerLogoUrl = null;  // Will hold the new S3 URL if we upload a logo.
+        $headerLogoUrl = null;  // Will store the new S3 URL if a logo is uploaded.
 
-        // 1) Update header name in the 'settings' table.
+        // 1) Update header name if provided.
         if (!empty($headerName)) {
             $stmt = $conn->prepare("
                 INSERT INTO settings (`key`, value) 
@@ -44,11 +56,10 @@ switch ($action) {
             $stmt->bind_param("s", $headerName);
             if ($stmt->execute()) {
                 $message .= "Header name updated. ";
-                // Update session so the header can be shown immediately.
                 $_SESSION['header_name'] = $headerName;
             } else {
-                $message .= "Failed to update header name. ";
                 error_log("Failed to update header name: " . $stmt->error);
+                $message .= "Failed to update header name. ";
             }
             $stmt->close();
         }
@@ -62,12 +73,12 @@ switch ($action) {
                 $message .= "Invalid logo file type. ";
                 error_log("Invalid logo file type: " . $fileType);
             } else {
-                // Generate a unique S3 object key for the uploaded file.
+                // Generate a unique S3 key.
                 $ext   = pathinfo($_FILES['header_logo']['name'], PATHINFO_EXTENSION);
                 $s3Key = 'uploads/settings/header_logo_' . time() . '.' . $ext;
 
                 try {
-                    // Upload to S3 with public-read so the logo is accessible.
+                    // Upload the file to S3 with public-read ACL.
                     $result = $s3->putObject([
                         'Bucket'      => $bucketName,
                         'Key'         => $s3Key,
@@ -76,14 +87,14 @@ switch ($action) {
                         'ContentType' => $fileType
                     ]);
 
-                    // Convert the full S3 URL to your local /s3proxy/ path (if desired).
+                    // Optionally, convert the S3 URL to a local proxy URL.
                     $headerLogoUrl = str_replace(
                         "https://{$bucketName}.s3." . $_ENV['AWS_REGION'] . ".amazonaws.com/",
                         "/s3proxy/",
                         $result['ObjectURL']
                     );
 
-                    // Save the new logo path to the 'settings' table.
+                    // Save the logo URL in the database.
                     $stmt = $conn->prepare("
                         INSERT INTO settings (`key`, value) 
                         VALUES ('header_logo', ?) 
@@ -94,19 +105,18 @@ switch ($action) {
                         $message .= "Header logo updated. ";
                         $_SESSION['header_logo'] = $headerLogoUrl;
                     } else {
-                        $message .= "Failed to update header logo. ";
                         error_log("Failed to update header logo in DB: " . $stmt->error);
+                        $message .= "Failed to update header logo. ";
                     }
                     $stmt->close();
-
                 } catch (Exception $e) {
-                    $message .= "S3 upload error: " . $e->getMessage();
                     error_log("S3 upload error: " . $e->getMessage());
+                    $message .= "S3 upload error. ";
                 }
             }
         }
 
-        // 3) Log the update to audit_logs.
+        // 3) Log the action in audit_logs.
         $auditStmt = $conn->prepare("
             INSERT INTO audit_logs (user_id, action, details) 
             VALUES (?, 'Update Header Settings', ?)
@@ -116,7 +126,6 @@ switch ($action) {
         $auditStmt->execute();
         $auditStmt->close();
 
-        // 4) Return the updated values in JSON.
         echo json_encode([
             'status'      => true,
             'message'     => $message,
@@ -132,36 +141,35 @@ switch ($action) {
         $dbPass = $password;
         $dbName = $dbname;
 
+        // Define backup directory (ensure it is outside web root if possible).
         $backupDir = __DIR__ . '/../../backups/';
         if (!file_exists($backupDir) && !mkdir($backupDir, 0755, true)) {
             $error = error_get_last();
             error_log("Failed to create backup directory: " . print_r($error, true));
             echo json_encode([
                 'status'  => false,
-                'message' => "Failed to create backup directory: " . $error['message']
+                'message' => "Failed to create backup directory."
             ]);
             exit;
         }
 
         $backupFile = $backupDir . "backup_" . date('Ymd_His') . ".sql";
-        // Note: Do not use escapeshellarg() on $backupFile before constructing the command,
-        // since it is used to redirect output.
+
+        // Escape shell arguments.
         $dbHostEscaped = escapeshellarg($dbHost);
         $dbUserEscaped = escapeshellarg($dbUser);
         $dbNameEscaped = escapeshellarg($dbName);
         $backupFileEscaped = escapeshellarg($backupFile);
 
+        // Full path to mysqldump.
         $mysqldumpPath = '/opt/lampp/bin/mysqldump';
-        // Build command using full path to mysqldump.
         $command = "$mysqldumpPath --host={$dbHostEscaped} --user={$dbUserEscaped} --password={$dbPass} {$dbNameEscaped} > $backupFileEscaped";
-
         error_log("Starting database backup. Command: $command");
 
         $output = [];
         exec($command, $output, $returnVar);
 
         if ($returnVar === 0) {
-            // Upload backup file to S3.
             $s3Key = 'backups/' . basename($backupFile);
             try {
                 $result = $s3->putObject([
@@ -171,14 +179,13 @@ switch ($action) {
                     'ACL'         => 'private',
                     'ContentType' => 'application/sql'
                 ]);
-                // Remove local backup file after successful upload.
                 unlink($backupFile);
 
                 $s3BackupUrl   = $result['ObjectURL'];
-                $backupMessage = "Backup created on S3: " . $s3BackupUrl;
+                $backupMessage = "Backup created on S3.";
                 error_log("Database backup successful. S3 URL: " . $s3BackupUrl);
 
-                // Log backup action.
+                // Log the backup action.
                 $auditStmt = $conn->prepare("
                     INSERT INTO audit_logs (user_id, action, details) 
                     VALUES (?, 'Database Backup', ?)
@@ -193,7 +200,7 @@ switch ($action) {
                 error_log("Backup upload failed: " . $e->getMessage());
                 echo json_encode([
                     'status'  => false,
-                    'message' => "Backup upload failed: " . $e->getMessage()
+                    'message' => "Backup upload failed."
                 ]);
             }
         } else {
@@ -201,7 +208,7 @@ switch ($action) {
             error_log("Database backup command failed: " . $errorMessage);
             echo json_encode([
                 'status'  => false,
-                'message' => "Database backup failed: " . $errorMessage
+                'message' => "Database backup failed."
             ]);
         }
         break;
@@ -232,17 +239,16 @@ switch ($action) {
             $dbNameEscaped      = escapeshellarg($dbName);
             $tempRestoreEscaped = escapeshellarg($tempRestore);
 
-            // Build the restore command.
             $command = "mysql --host={$dbHostEscaped} --user={$dbUserEscaped} --password={$dbPass} {$dbNameEscaped} < $tempRestoreEscaped";
             error_log("Restore command: $command");
 
             $output = [];
             exec($command, $output, $returnVar);
-            unlink($tempRestore); // Remove the temp file.
+            unlink($tempRestore);
 
             if ($returnVar === 0) {
                 error_log("Database restore successful.");
-                // Log restore action.
+
                 $auditStmt = $conn->prepare("
                     INSERT INTO audit_logs (user_id, action, details) 
                     VALUES (?, 'Database Restore', 'Database restored from uploaded file')
@@ -261,7 +267,7 @@ switch ($action) {
                 error_log("Database restore failed: " . $errorMessage);
                 echo json_encode([
                     'status'  => false,
-                    'message' => "Database restore failed: " . $errorMessage
+                    'message' => "Database restore failed."
                 ]);
             }
         } else {
