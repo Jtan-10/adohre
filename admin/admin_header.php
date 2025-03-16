@@ -11,6 +11,7 @@ if (session_status() === PHP_SESSION_NONE) {
     ]);
     session_start();
 }
+
 // Add secure HTTP headers for production
 header('Strict-Transport-Security: max-age=31536000; includeSubDomains; preload');
 header('X-Frame-Options: SAMEORIGIN');
@@ -23,6 +24,10 @@ require_once __DIR__ . '/../backend/db/db_connect.php';
 
 // Check if the user is logged in
 $isLoggedIn = isset($_SESSION['user_id']);
+
+// Get dynamic header name and logo from session (with fallback)
+$headerName = $_SESSION['header_name'] ?? 'ADOHRE';
+$headerLogo = $_SESSION['header_logo'] ?? '/capstone-php/assets/logo.png';
 ?>
 <!-- Content Security Policy Meta Tag -->
 <meta http-equiv="Content-Security-Policy" content="
@@ -42,20 +47,23 @@ $isLoggedIn = isset($_SESSION['user_id']);
         <?php else: ?>
         <div class="hamburger-placeholder"></div>
         <?php endif; ?>
+
         <a class="navbar-brand d-flex align-items-center text-white" href="/capstone-php/admin/dashboard.php">
-            <img src="/capstone-php/assets/logo.png" alt="ADOHRE Logo" width="30" height="28"
+            <img src="<?= htmlspecialchars($headerLogo, ENT_QUOTES) ?>"
+                alt="<?= htmlspecialchars($headerName, ENT_QUOTES) ?> Logo" width="30" height="28"
                 class="d-inline-block align-text-top">
-            <span class="ms-2">ADOHRE</span>
+            <span class="ms-2"><?= htmlspecialchars($headerName, ENT_QUOTES) ?></span>
         </a>
+
         <ul class="navbar-nav ms-auto d-flex flex-row align-items-center">
             <?php if ($isLoggedIn): ?>
             <li class="nav-item dropdown mx-2 position-relative">
                 <a class="nav-link dropdown-toggle text-white" href="#" id="navbarDropdown" role="button"
                     data-bs-toggle="dropdown" aria-expanded="false">
                     <img id="profileImageNav" src="<?php echo isset($_SESSION['profile_image'])
-                                                            ? htmlspecialchars($_SESSION['profile_image'], ENT_QUOTES, 'UTF-8')
-                                                            : '/capstone-php/assets/default-profile.jpeg'; ?>"
-                        alt="Profile Image" class="rounded-circle" width="30" height="30">
+                                ? htmlspecialchars($_SESSION['profile_image'], ENT_QUOTES, 'UTF-8')
+                                : '/capstone-php/assets/default-profile.jpeg'; ?>" alt="Profile Image"
+                        class="rounded-circle" width="30" height="30">
                 </a>
                 <ul class="dropdown-menu dropdown-menu-end position-absolute" aria-labelledby="navbarDropdown">
                     <li><a class="dropdown-item" href="/capstone-php/index.php">Home</a></li>
@@ -71,8 +79,12 @@ $isLoggedIn = isset($_SESSION['user_id']);
                 </ul>
             </li>
             <?php else: ?>
-            <li class="nav-item mx-2"><a href="/capstone-php/login.php" class="btn btn-light btn-sm">Login</a></li>
-            <li class="nav-item mx-2"><a href="/capstone-php/signup.php" class="btn btn-light btn-sm">Sign Up</a></li>
+            <li class="nav-item mx-2">
+                <a href="/capstone-php/login.php" class="btn btn-light btn-sm">Login</a>
+            </li>
+            <li class="nav-item mx-2">
+                <a href="/capstone-php/signup.php" class="btn btn-light btn-sm">Sign Up</a>
+            </li>
             <?php endif; ?>
         </ul>
     </div>
