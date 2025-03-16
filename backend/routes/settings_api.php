@@ -1,13 +1,10 @@
 <?php
-// backend/routes/settings_api.php
-
 // Production best practices: disable error display and log errors instead.
-// (In php.ini, display_errors should be Off on production.)
-// Alternatively, force these settings in your production scripts:
-    ini_set('display_errors', '0');  // Do not display errors to users
-    ini_set('log_errors', '1');      // Log errors to a file or system log
-    error_reporting(E_ALL);          // Report all errors (they will be logged, not displayed)
-    
+// (Ensure in your php.ini, display_errors is Off.)
+ini_set('display_errors', '0');  // Do not display errors to users
+ini_set('log_errors', '1');      // Enable error logging
+error_reporting(E_ALL);          // Report all errors (they will be logged, not displayed)
+
 // Set secure session cookie parameters.
 session_set_cookie_params([
     'lifetime' => 0,
@@ -16,9 +13,6 @@ session_set_cookie_params([
     'samesite' => 'Strict'
 ]);
 session_start();
-
-// It is recommended to regenerate the session ID periodically (e.g. on login)
-// to mitigate session fixation attacks.
 
 // Set Content-Type to JSON.
 header('Content-Type: application/json');
@@ -53,15 +47,19 @@ switch ($action) {
                 VALUES ('header_name', ?) 
                 ON DUPLICATE KEY UPDATE value = VALUES(value)
             ");
-            $stmt->bind_param("s", $headerName);
-            if ($stmt->execute()) {
-                $message .= "Header name updated. ";
-                $_SESSION['header_name'] = $headerName;
+            if ($stmt) {
+                $stmt->bind_param("s", $headerName);
+                if ($stmt->execute()) {
+                    $message .= "Header name updated. ";
+                    $_SESSION['header_name'] = $headerName;
+                } else {
+                    error_log("Failed to update header name: " . $stmt->error);
+                    $message .= "Failed to update header name. ";
+                }
+                $stmt->close();
             } else {
-                error_log("Failed to update header name: " . $stmt->error);
-                $message .= "Failed to update header name. ";
+                error_log("Prepare failed for header name update: " . $conn->error);
             }
-            $stmt->close();
         }
 
         // 2) Process header logo upload if provided.
@@ -100,15 +98,19 @@ switch ($action) {
                         VALUES ('header_logo', ?) 
                         ON DUPLICATE KEY UPDATE value = VALUES(value)
                     ");
-                    $stmt->bind_param("s", $headerLogoUrl);
-                    if ($stmt->execute()) {
-                        $message .= "Header logo updated. ";
-                        $_SESSION['header_logo'] = $headerLogoUrl;
+                    if ($stmt) {
+                        $stmt->bind_param("s", $headerLogoUrl);
+                        if ($stmt->execute()) {
+                            $message .= "Header logo updated. ";
+                            $_SESSION['header_logo'] = $headerLogoUrl;
+                        } else {
+                            error_log("Failed to update header logo in DB: " . $stmt->error);
+                            $message .= "Failed to update header logo. ";
+                        }
+                        $stmt->close();
                     } else {
-                        error_log("Failed to update header logo in DB: " . $stmt->error);
-                        $message .= "Failed to update header logo. ";
+                        error_log("Prepare failed for header logo update: " . $conn->error);
                     }
-                    $stmt->close();
                 } catch (Exception $e) {
                     error_log("S3 upload error: " . $e->getMessage());
                     $message .= "S3 upload error. ";
@@ -121,10 +123,14 @@ switch ($action) {
             INSERT INTO audit_logs (user_id, action, details) 
             VALUES (?, 'Update Header Settings', ?)
         ");
-        $userId = $_SESSION['user_id'];
-        $auditStmt->bind_param("is", $userId, $message);
-        $auditStmt->execute();
-        $auditStmt->close();
+        if ($auditStmt) {
+            $userId = $_SESSION['user_id'];
+            $auditStmt->bind_param("is", $userId, $message);
+            $auditStmt->execute();
+            $auditStmt->close();
+        } else {
+            error_log("Prepare failed for audit log: " . $conn->error);
+        }
 
         echo json_encode([
             'status'      => true,
@@ -179,6 +185,7 @@ switch ($action) {
                     'ACL'         => 'private',
                     'ContentType' => 'application/sql'
                 ]);
+                // Remove the local backup file after upload.
                 unlink($backupFile);
 
                 $s3BackupUrl   = $result['ObjectURL'];
@@ -190,10 +197,14 @@ switch ($action) {
                     INSERT INTO audit_logs (user_id, action, details) 
                     VALUES (?, 'Database Backup', ?)
                 ");
-                $userId = $_SESSION['user_id'];
-                $auditStmt->bind_param("is", $userId, $backupMessage);
-                $auditStmt->execute();
-                $auditStmt->close();
+                if ($auditStmt) {
+                    $userId = $_SESSION['user_id'];
+                    $auditStmt->bind_param("is", $userId, $backupMessage);
+                    $auditStmt->execute();
+                    $auditStmt->close();
+                } else {
+                    error_log("Prepare failed for backup audit log: " . $conn->error);
+                }
 
                 echo json_encode(['status' => true, 'message' => $backupMessage]);
             } catch (Exception $e) {
@@ -213,76 +224,79 @@ switch ($action) {
         }
         break;
 
-        case 'restore_database':
-            if (isset($_FILES['restore_file']) && $_FILES['restore_file']['error'] === UPLOAD_ERR_OK) {
-                $dbHost = $servername;
-                $dbUser = $username;
-                $dbPass = $password;
-                $dbName = $dbname;
-        
-                // Move the uploaded file to a temporary location.
-                $tempRestore = tempnam(sys_get_temp_dir(), 'restore_') . '.sql';
-                if (!move_uploaded_file($_FILES['restore_file']['tmp_name'], $tempRestore)) {
-                    error_log("Failed to move uploaded restore file.");
-                    echo json_encode([
-                        'status'  => false,
-                        'message' => "Failed to move uploaded restore file."
-                    ]);
-                    exit;
-                }
-        
-                error_log("Starting database restore from file: $tempRestore");
-        
-                // Escape shell arguments.
-                $dbHostEscaped      = escapeshellarg($dbHost);
-                $dbUserEscaped      = escapeshellarg($dbUser);
-                $dbNameEscaped      = escapeshellarg($dbName);
-                $tempRestoreEscaped = escapeshellarg($tempRestore);
-        
-                // Use the full path to the mysql client.
-                $mysqlPath = '/opt/lampp/bin/mysql';
-                // Build the restore command.
-                $command = "$mysqlPath --host={$dbHostEscaped} --user={$dbUserEscaped} --password={$dbPass} {$dbNameEscaped} < $tempRestoreEscaped";
-                error_log("Restore command: $command");
-        
-                $output = [];
-                exec($command, $output, $returnVar);
-                unlink($tempRestore); // Remove the temporary file.
-        
-                if ($returnVar === 0) {
-                    error_log("Database restore successful.");
-        
-                    // Log the restore action.
-                    $auditStmt = $conn->prepare("
-                        INSERT INTO audit_logs (user_id, action, details) 
-                        VALUES (?, 'Database Restore', 'Database restored from uploaded file')
-                    ");
+    case 'restore_database':
+        if (isset($_FILES['restore_file']) && $_FILES['restore_file']['error'] === UPLOAD_ERR_OK) {
+            $dbHost = $servername;
+            $dbUser = $username;
+            $dbPass = $password;
+            $dbName = $dbname;
+
+            // Move the uploaded file to a temporary location.
+            $tempRestore = tempnam(sys_get_temp_dir(), 'restore_') . '.sql';
+            if (!move_uploaded_file($_FILES['restore_file']['tmp_name'], $tempRestore)) {
+                error_log("Failed to move uploaded restore file.");
+                echo json_encode([
+                    'status'  => false,
+                    'message' => "Failed to move uploaded restore file."
+                ]);
+                exit;
+            }
+
+            error_log("Starting database restore from file: $tempRestore");
+
+            // Escape shell arguments.
+            $dbHostEscaped      = escapeshellarg($dbHost);
+            $dbUserEscaped      = escapeshellarg($dbUser);
+            $dbNameEscaped      = escapeshellarg($dbName);
+            $tempRestoreEscaped = escapeshellarg($tempRestore);
+
+            // Use the full path to the mysql client.
+            $mysqlPath = '/opt/lampp/bin/mysql';
+            $command = "$mysqlPath --host={$dbHostEscaped} --user={$dbUserEscaped} --password={$dbPass} {$dbNameEscaped} < $tempRestoreEscaped";
+            error_log("Restore command: $command");
+
+            $output = [];
+            exec($command, $output, $returnVar);
+            unlink($tempRestore); // Remove the temporary file.
+
+            if ($returnVar === 0) {
+                error_log("Database restore successful.");
+
+                $auditStmt = $conn->prepare("
+                    INSERT INTO audit_logs (user_id, action, details) 
+                    VALUES (?, 'Database Restore', 'Database restored from uploaded file')
+                ");
+                if ($auditStmt) {
                     $userId = $_SESSION['user_id'];
                     $auditStmt->bind_param("i", $userId);
                     $auditStmt->execute();
                     $auditStmt->close();
-        
-                    echo json_encode([
-                        'status'  => true,
-                        'message' => "Database restore successful."
-                    ]);
                 } else {
-                    $errorMessage = implode("\n", $output);
-                    error_log("Database restore failed: " . $errorMessage);
-                    echo json_encode([
-                        'status'  => false,
-                        'message' => "Database restore failed."
-                    ]);
+                    error_log("Prepare failed for restore audit log: " . $conn->error);
                 }
+
+                echo json_encode([
+                    'status'  => true,
+                    'message' => "Database restore successful."
+                ]);
             } else {
-                error_log("No restore file uploaded.");
+                $errorMessage = implode("\n", $output);
+                error_log("Database restore failed: " . $errorMessage);
                 echo json_encode([
                     'status'  => false,
-                    'message' => "No restore file uploaded."
+                    'message' => "Database restore failed."
                 ]);
             }
-            break;
-        case 'get_audit_logs':
+        } else {
+            error_log("No restore file uploaded.");
+            echo json_encode([
+                'status'  => false,
+                'message' => "No restore file uploaded."
+            ]);
+        }
+        break;
+
+    case 'get_audit_logs':
         $auditLogs = [];
         $result = $conn->query("
             SELECT al.*, u.first_name, u.last_name 
