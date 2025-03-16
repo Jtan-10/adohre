@@ -25,6 +25,7 @@ if ($result) {
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -32,12 +33,16 @@ if ($result) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
     <style>
-        .strikethrough { text-decoration: line-through !important; color: gray !important; }
+        .strikethrough {
+            text-decoration: line-through !important;
+            color: gray !important;
+        }
     </style>
     <script nonce="<?= $cspNonce ?>">
         const csrfToken = "<?= htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8') ?>";
     </script>
 </head>
+
 <body>
     <div class="d-flex">
         <?php require_once 'admin_sidebar.php'; ?>
@@ -66,8 +71,10 @@ if ($result) {
                             <td>
                                 <?php if (!$req['accepted']): ?>
                                     <button class="btn btn-success btn-sm accept-btn" data-assistance-id="<?= $req['assistance_id'] ?>">Mark as Accepted</button>
+                                <?php elseif ($req['accepted'] && !isset($req['done']) || $req['done'] == 0): ?>
+                                    <button class="btn btn-warning btn-sm done-btn" data-assistance-id="<?= $req['assistance_id'] ?>">Mark as Done</button>
                                 <?php else: ?>
-                                    <em>Accepted</em>
+                                    <em>Completed</em>
                                 <?php endif; ?>
                             </td>
                         </tr>
@@ -78,88 +85,128 @@ if ($result) {
     </div>
     <!-- Modal for accepting request -->
     <div class="modal fade" id="acceptModal" tabindex="-1" aria-labelledby="acceptModalLabel" aria-hidden="true">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <!-- ...existing modal header... -->
-          <div class="modal-header">
-            <h5 class="modal-title" id="acceptModalLabel">Accept Medical Assistance Request</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <form id="accept-form">
-              <div class="mb-3">
-                <label for="accept-details" class="form-label">Additional Details</label>
-                <textarea class="form-control" id="accept-details" name="accept_details" rows="3" placeholder="Enter details to send via email"></textarea>
-              </div>
-              <input type="hidden" id="modal-assistance-id" name="assistance_id" value="">
-            </form>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="button" id="modal-submit-btn" class="btn btn-primary">Send & Accept</button>
-          </div>
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <!-- ...existing modal header... -->
+                <div class="modal-header">
+                    <h5 class="modal-title" id="acceptModalLabel">Accept Medical Assistance Request</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="accept-form">
+                        <div class="mb-3">
+                            <label for="accept-details" class="form-label">Additional Details</label>
+                            <textarea class="form-control" id="accept-details" name="accept_details" rows="3" placeholder="Enter details to send via email"></textarea>
+                        </div>
+                        <input type="hidden" id="modal-assistance-id" name="assistance_id" value="">
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" id="modal-submit-btn" class="btn btn-primary">Send & Accept</button>
+                </div>
+            </div>
         </div>
-      </div>
     </div>
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script nonce="<?= $cspNonce ?>">
-    function showMessage(message, type = 'info') {
-        const msgDiv = document.getElementById('api-message');
-        msgDiv.innerHTML = `<div class="alert alert-${type}" role="alert">${message}</div>`;
-        setTimeout(() => { msgDiv.innerHTML = ''; }, 5000);
-    }
-    document.addEventListener('DOMContentLoaded', function() {
-        const acceptButtons = document.querySelectorAll('.accept-btn');
-        acceptButtons.forEach(btn => {
-            btn.addEventListener('click', function() {
-                const assistanceId = this.getAttribute('data-assistance-id');
-                document.getElementById('modal-assistance-id').value = assistanceId;
-                const modalEl = document.getElementById('acceptModal');
-                const modal = new bootstrap.Modal(modalEl);
-                modal.show();
-            });
-        });
-        document.getElementById('modal-submit-btn').addEventListener('click', function() {
-            const assistanceId = document.getElementById('modal-assistance-id').value;
-            const details = document.getElementById('accept-details').value;
-            if(!confirm("Send details via email and mark request as accepted?")) return;
-            fetch('../backend/routes/medical_assistance_api.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'accept_medical_assistance_with_details',
-                    assistance_id: assistanceId,
-                    accept_details: details,
-                    csrf_token: csrfToken
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if(data.status === 'success'){
-                    const row = document.getElementById('req-' + assistanceId);
-                    if(row){
-                        const cells = row.querySelectorAll('td');
-                        if(cells.length >= 6){
-                            cells[4].innerText = "Yes";
-                            cells[5].innerHTML = "<em>Accepted</em>";
-                        }
-                    }
-                    showMessage(data.message, "success");
+        function showMessage(message, type = 'info') {
+            const msgDiv = document.getElementById('api-message');
+            msgDiv.innerHTML = `<div class="alert alert-${type}" role="alert">${message}</div>`;
+            setTimeout(() => {
+                msgDiv.innerHTML = '';
+            }, 5000);
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            const acceptButtons = document.querySelectorAll('.accept-btn');
+            acceptButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const assistanceId = this.getAttribute('data-assistance-id');
+                    document.getElementById('modal-assistance-id').value = assistanceId;
                     const modalEl = document.getElementById('acceptModal');
-                    const modal = bootstrap.Modal.getInstance(modalEl);
-                    modal.hide();
-                    document.getElementById('accept-form').reset();
-                } else {
-                    showMessage(data.error || "Failed to accept request.", "danger");
-                }
-            })
-            .catch(err => {
-                console.error("Error:", err);
-                showMessage("Error processing request.", "danger");
+                    const modal = new bootstrap.Modal(modalEl);
+                    modal.show();
+                });
+            });
+            document.getElementById('modal-submit-btn').addEventListener('click', function() {
+                const assistanceId = document.getElementById('modal-assistance-id').value;
+                const details = document.getElementById('accept-details').value;
+                if (!confirm("Send details via email and mark request as accepted?")) return;
+                fetch('../backend/routes/medical_assistance_api.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            action: 'accept_medical_assistance_with_details',
+                            assistance_id: assistanceId,
+                            accept_details: details,
+                            csrf_token: csrfToken
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            const row = document.getElementById('req-' + assistanceId);
+                            if (row) {
+                                const cells = row.querySelectorAll('td');
+                                if (cells.length >= 6) {
+                                    cells[4].innerText = "Yes";
+                                    cells[5].innerHTML = "<em>Accepted</em>";
+                                }
+                            }
+                            showMessage(data.message, "success");
+                            const modalEl = document.getElementById('acceptModal');
+                            const modal = bootstrap.Modal.getInstance(modalEl);
+                            modal.hide();
+                            document.getElementById('accept-form').reset();
+                        } else {
+                            showMessage(data.error || "Failed to accept request.", "danger");
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Error:", err);
+                        showMessage("Error processing request.", "danger");
+                    });
+            });
+
+            document.querySelectorAll('.done-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const assistanceId = this.getAttribute('data-assistance-id');
+                    if (!confirm("Are you sure you want to mark this request as done?")) return;
+                    fetch('../backend/routes/medical_assistance_api.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                action: 'mark_done',
+                                assistance_id: assistanceId,
+                                csrf_token: csrfToken
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                showMessage(data.message, 'success');
+                                // Update row display to Completed
+                                const row = document.getElementById('req-' + assistanceId);
+                                if (row) {
+                                    row.querySelector('td:last-child').innerHTML = "<em>Completed</em>";
+                                }
+                            } else {
+                                showMessage(data.error || "Failed to mark as done", "danger");
+                            }
+                        })
+                        .catch(err => {
+                            console.error("Error marking request as done:", err);
+                            showMessage("Error marking as done", "danger");
+                        });
+                });
             });
         });
-    });
     </script>
 </body>
+
 </html>

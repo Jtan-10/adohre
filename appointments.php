@@ -118,19 +118,24 @@ if ($stmt) {
             </div>
         </div>
 
-        <!-- Tabs for Past (Current) and Upcoming Appointments -->
+        <!-- Tabs for Current/Past, Upcoming, and Completed Appointments -->
         <ul class="nav nav-tabs" id="appointmentTabs" role="tablist">
             <li class="nav-item" role="presentation">
                 <button class="nav-link active" id="past-tab" data-bs-toggle="tab" data-bs-target="#past" type="button"
-                    role="tab" aria-controls="past" aria-selected="true">Current/Past Appointments</button>
+                    role="tab" aria-controls="past" aria-selected="true">Current Appointments</button>
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="upcoming-tab" data-bs-toggle="tab" data-bs-target="#upcoming" type="button"
                     role="tab" aria-controls="upcoming" aria-selected="false">Upcoming Appointments</button>
             </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="completed-tab" data-bs-toggle="tab" data-bs-target="#completed"
+                    type="button" role="tab" aria-controls="completed" aria-selected="false">Completed
+                    Appointments</button>
+            </li>
         </ul>
         <div class="tab-content" id="appointmentTabsContent">
-            <!-- Past (Current) Appointments Tab -->
+            <!-- Current/Past Appointments Tab -->
             <div class="tab-pane fade show active" id="past" role="tabpanel" aria-labelledby="past-tab">
                 <div class="card mt-3">
                     <div class="card-body" id="past-appointments-container">
@@ -143,6 +148,14 @@ if ($stmt) {
                 <div class="card mt-3">
                     <div class="card-body" id="upcoming-appointments-container">
                         <p>Loading upcoming appointments...</p>
+                    </div>
+                </div>
+            </div>
+            <!-- Completed Appointments Tab -->
+            <div class="tab-pane fade" id="completed" role="tabpanel" aria-labelledby="completed-tab">
+                <div class="card mt-3">
+                    <div class="card-body" id="completed-appointments-container">
+                        <p>Loading completed appointments...</p>
                     </div>
                 </div>
             </div>
@@ -188,11 +201,15 @@ if ($stmt) {
                         // Get current date/time in MySQL format (YYYY-MM-DD HH:MM:SS).
                         const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
                         // Filter: past appointments are those whose appointment_date is less than now OR accepted.
-                        const past = appointments.filter(appt => (appt.appointment_date < now) || (appt.accepted == 1));
+                        const past = appointments.filter(appt => ((appt.appointment_date < now) || (appt.accepted ==
+                            1)) && appt.done != 1);
                         // Upcoming appointments: those with a future appointment_date and not accepted.
-                        const upcoming = appointments.filter(appt => (appt.appointment_date >= now) && (appt.accepted == 0));
+                        const upcoming = appointments.filter(appt => (appt.appointment_date >= now) && (appt.accepted ==
+                            0) && appt.done != 1);
+                        // Completed appointments: those marked as done.
+                        const completed = appointments.filter(appt => appt.done == 1);
 
-                        // Render past appointments without admin actions.
+                        // Render past appointments with "Done" button if accepted.
                         let pastHtml = "";
                         if (past.length === 0) {
                             pastHtml = "<p>No current (past) appointments.</p>";
@@ -203,6 +220,7 @@ if ($stmt) {
                     <th>Appointment ID</th>
                     <th>Date &amp; Time</th>
                     <th>Description</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>`;
@@ -215,6 +233,7 @@ if ($stmt) {
                       ${appt.accepted == 1 ? '<span class="badge bg-success">Accepted</span>' : ""}
                       ${appt.accept_details ? '<br><small>' + appt.accept_details + '</small>' : ""}
                   </td>
+                  <td>${(appt.accepted == 1) ? '<button class="btn btn-sm btn-success" onclick="markDone(' + appt.appointment_id + ')">Done</button>' : ''}</td>
                 </tr>`;
                             });
                             pastHtml += `</tbody></table>`;
@@ -246,6 +265,35 @@ if ($stmt) {
                         }
                         document.getElementById('upcoming-appointments-container').innerHTML = upcomingHtml;
 
+                        // Render completed appointments.
+                        let completedHtml = "";
+                        if (completed.length === 0) {
+                            completedHtml = "<p>No completed appointments.</p>";
+                        } else {
+                            completedHtml = `<table class="table table-striped">
+                <thead>
+                  <tr>
+                    <th>Appointment ID</th>
+                    <th>Date &amp; Time</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>`;
+                            completed.forEach(appt => {
+                                completedHtml += `<tr>
+                  <td>${appt.appointment_id}</td>
+                  <td>${appt.appointment_date}</td>
+                  <td id="desc-${appt.appointment_id}">
+                      ${appt.description || ""}
+                      ${appt.accepted == 1 ? '<span class="badge bg-success">Accepted</span>' : ""}
+                      ${appt.accept_details ? '<br><small>' + appt.accept_details + '</small>' : ""}
+                  </td>
+                </tr>`;
+                            });
+                            completedHtml += `</tbody></table>`;
+                        }
+                        document.getElementById('completed-appointments-container').innerHTML = completedHtml;
+
                         // Update calendar events.
                         loadCalendarEvents(appointments);
                     } else {
@@ -272,7 +320,7 @@ if ($stmt) {
                     id: appt.appointment_id,
                     title: eventTitle,
                     start: appt.appointment_date,
-                    className: (appt.accepted == 1) ? 'strikethrough' : '',
+                    className: (appt.done == 1) ? 'strikethrough' : '',
                     description: appt.description || "No description",
                     accept_details: appt.accept_details || ""
                 });
@@ -281,6 +329,33 @@ if ($stmt) {
                 calendar.removeAllEventSources();
                 calendar.addEventSource(events);
             }
+        }
+
+        function markDone(appointmentId) {
+            fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'mark_done',
+                        appointment_id: appointmentId,
+                        csrf_token: currentUser.csrf_token
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showMessage(data.message, 'success');
+                        loadAppointments();
+                    } else {
+                        showMessage(data.error || "Failed to mark as done", "danger");
+                    }
+                })
+                .catch(err => {
+                    console.error("Error marking appointment as done:", err);
+                    showMessage("Error marking as done", "danger");
+                });
         }
 
         // Initialize FullCalendar.
@@ -296,7 +371,8 @@ if ($stmt) {
                 events: [], // Will be loaded via AJAX.
                 eventDidMount: function(info) {
                     // Build tooltip text with description and accepted details if available.
-                    let tooltipText = info.event.extendedProps.description || info.event.title || "No description";
+                    let tooltipText = info.event.extendedProps.description || info.event.title ||
+                        "No description";
                     if (info.event.extendedProps.accept_details) {
                         tooltipText += "\nDetails: " + info.event.extendedProps.accept_details;
                     }
@@ -306,38 +382,40 @@ if ($stmt) {
             });
             calendar.render();
             loadAppointments();
-            
+
             // Intercept scheduling form submission.
             document.getElementById('appointment-form').addEventListener('submit', function(e) {
                 e.preventDefault();
                 const appointment_date = document.getElementById('appointment_date').value;
                 const description = document.getElementById('description').value;
                 const csrf_token = document.querySelector('input[name="csrf_token"]').value;
-                
+
                 fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'schedule_appointment',
-                        appointment_date: appointment_date,
-                        description: description,
-                        csrf_token: csrf_token
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            action: 'schedule_appointment',
+                            appointment_date: appointment_date,
+                            description: description,
+                            csrf_token: csrf_token
+                        })
                     })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        showMessage(data.message, "success");
-                        document.getElementById('appointment-form').reset();
-                        loadAppointments();
-                    } else {
-                        showMessage(data.error || "Failed to schedule appointment", "danger");
-                    }
-                })
-                .catch(err => {
-                    console.error("Error scheduling appointment:", err);
-                    showMessage("Error scheduling appointment", "danger");
-                });
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            showMessage(data.message, "success");
+                            document.getElementById('appointment-form').reset();
+                            loadAppointments();
+                        } else {
+                            showMessage(data.error || "Failed to schedule appointment", "danger");
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Error scheduling appointment:", err);
+                        showMessage("Error scheduling appointment", "danger");
+                    });
             });
         });
     </script>

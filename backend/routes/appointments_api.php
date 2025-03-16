@@ -18,6 +18,7 @@ $role = $_SESSION['role'] ?? 'user';
 require_once '../db/db_connect.php';
 // Include PHPMailer via Composer's autoloader
 require_once '../../vendor/autoload.php';
+
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
@@ -48,10 +49,10 @@ if ($method === 'POST') {
         $appointment_date = date('Y-m-d H:i:s', strtotime($data['appointment_date']));
         $description = trim($data['description'] ?? '');
         $stmt = $conn->prepare("INSERT INTO appointments (user_id, appointment_date, description) VALUES (?, ?, ?)");
-        if (!$stmt) { 
-            http_response_code(500); 
-            echo json_encode(["error" => "Internal Server Error"]); 
-            exit; 
+        if (!$stmt) {
+            http_response_code(500);
+            echo json_encode(["error" => "Internal Server Error"]);
+            exit;
         }
         $stmt->bind_param("iss", $userId, $appointment_date, $description);
         if ($stmt->execute()) {
@@ -82,10 +83,10 @@ if ($method === 'POST') {
         $appointment_id = $data['appointment_id'];
         $accept_details = trim($data['accept_details'] ?? '');
         $stmt = $conn->prepare("UPDATE appointments SET accepted = 1, accept_details = ? WHERE appointment_id = ?");
-        if (!$stmt) { 
-            http_response_code(500); 
-            echo json_encode(["error" => "Internal Server Error"]); 
-            exit; 
+        if (!$stmt) {
+            http_response_code(500);
+            echo json_encode(["error" => "Internal Server Error"]);
+            exit;
         }
         $stmt->bind_param("si", $accept_details, $appointment_id);
         if ($stmt->execute()) {
@@ -130,24 +131,51 @@ if ($method === 'POST') {
         if ($role === 'admin') {
             // Admin version: update without checking user_id.
             $stmt = $conn->prepare("UPDATE appointments SET accepted = 1 WHERE appointment_id = ?");
-            if (!$stmt) { 
-                http_response_code(500); 
-                echo json_encode(["error" => "Internal Server Error"]); 
-                exit; 
+            if (!$stmt) {
+                http_response_code(500);
+                echo json_encode(["error" => "Internal Server Error"]);
+                exit;
             }
             $stmt->bind_param("i", $appointment_id);
         } else {
             // User version: ensure the appointment belongs to the user.
             $stmt = $conn->prepare("UPDATE appointments SET accepted = 1 WHERE appointment_id = ? AND user_id = ?");
-            if (!$stmt) { 
-                http_response_code(500); 
-                echo json_encode(["error" => "Internal Server Error"]); 
-                exit; 
+            if (!$stmt) {
+                http_response_code(500);
+                echo json_encode(["error" => "Internal Server Error"]);
+                exit;
             }
             $stmt->bind_param("ii", $appointment_id, $userId);
         }
         if ($stmt->execute()) {
             echo json_encode(["status" => "success", "message" => "Appointment accepted successfully."]);
+        } else {
+            http_response_code(500);
+            echo json_encode(["error" => "Internal Server Error"]);
+        }
+        $stmt->close();
+        exit;
+    } elseif ($action === 'mark_done') {
+        if (empty($data['appointment_id']) || !isset($data['csrf_token'])) {
+            http_response_code(400);
+            echo json_encode(["error" => "Missing parameters"]);
+            exit;
+        }
+        if ($data['csrf_token'] !== $_SESSION['csrf_token']) {
+            http_response_code(403);
+            echo json_encode(["error" => "Invalid CSRF token"]);
+            exit;
+        }
+        $appointment_id = $data['appointment_id'];
+        $stmt = $conn->prepare("UPDATE appointments SET done = 1 WHERE appointment_id = ?");
+        if (!$stmt) {
+            http_response_code(500);
+            echo json_encode(["error" => "Internal Server Error"]);
+            exit;
+        }
+        $stmt->bind_param("i", $appointment_id);
+        if ($stmt->execute()) {
+            echo json_encode(["status" => "success", "message" => "Appointment marked as done."]);
         } else {
             http_response_code(500);
             echo json_encode(["error" => "Internal Server Error"]);
@@ -194,7 +222,8 @@ if ($method === 'POST') {
  * @param string $body Email body.
  * @return bool True if sent successfully, false otherwise.
  */
-function sendAppointmentEmail($email, $subject, $body) {
+function sendAppointmentEmail($email, $subject, $body)
+{
     $mail = new PHPMailer(true);
     try {
         // SMTP configuration using environment variables.
@@ -213,10 +242,17 @@ function sendAppointmentEmail($email, $subject, $body) {
         $mail->Body    = $body;
 
         $mail->send();
+        // Log the sent email into the database
+        global $conn;
+        $userId = $_SESSION['user_id'];
+        $stmtLog = $conn->prepare("INSERT INTO email_notifications (user_id, subject, body) VALUES (?, ?, ?)");
+        $stmtLog->bind_param("iss", $userId, $subject, $body);
+        $stmtLog->execute();
+        $stmtLog->close();
+
         return true;
     } catch (Exception $e) {
         error_log("PHPMailer Error: " . $mail->ErrorInfo);
         return false;
     }
 }
-?>

@@ -113,19 +113,19 @@ try {
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
-        
+
         // Log the certificate email request (logging only the email and timestamp).
         error_log("emailCertificate request for participant: " . $participant['email'] . " at " . date('Y-m-d H:i:s'));
-        
+
         // Rate limiting: Allow a maximum of 3 certificate emails per email within a 1-hour window.
         $window = 3600;        // 1 hour in seconds.
         $maxRequests = 3;      // Maximum allowed requests.
         $now = time();
-        
+
         if (!isset($_SESSION['certificate_email_requests'])) {
             $_SESSION['certificate_email_requests'] = [];
         }
-        
+
         $email = $participant['email'];
         if (!isset($_SESSION['certificate_email_requests'][$email])) {
             $_SESSION['certificate_email_requests'][$email] = [
@@ -133,34 +133,34 @@ try {
                 'first_request_time' => $now
             ];
         }
-        
+
         // Reset count if the time window has expired.
         if ($now - $_SESSION['certificate_email_requests'][$email]['first_request_time'] > $window) {
             $_SESSION['certificate_email_requests'][$email]['count'] = 0;
             $_SESSION['certificate_email_requests'][$email]['first_request_time'] = $now;
         }
-        
+
         // Check if the rate limit has been reached.
         if ($_SESSION['certificate_email_requests'][$email]['count'] >= $maxRequests) {
             error_log("Rate limit exceeded for certificate emails for: " . $email);
             return false;
         }
-        
+
         // Increment the count.
         $_SESSION['certificate_email_requests'][$email]['count']++;
-        
+
         // Validate participant's email.
         if (!isset($participant['email']) || !filter_var($participant['email'], FILTER_VALIDATE_EMAIL)) {
             error_log("Invalid email address provided for participant.");
             return false;
         }
-        
+
         // Validate participant's first name.
         if (!isset($participant['first_name']) || empty(trim($participant['first_name']))) {
             error_log("Participant first name is required.");
             return false;
         }
-        
+
         // Validate that the PDF file exists and is of type application/pdf.
         if (!file_exists($pdfPath)) {
             error_log("PDF file does not exist: " . $pdfPath);
@@ -170,7 +170,7 @@ try {
             error_log("Invalid file type for certificate, expected application/pdf: " . $pdfPath);
             return false;
         }
-        
+
         $mail = new PHPMailer(true);
         try {
             // SMTP setup.
@@ -181,42 +181,52 @@ try {
             $mail->Password   = $_ENV['SMTP_PASS'];
             $mail->SMTPSecure = $_ENV['SMTP_SECURE'];
             $mail->Port       = $_ENV['SMTP_PORT'];
-    
+
             // Enforce secure SMTP connection.
             $mail->SMTPOptions = [
                 'ssl' => [
                     'verify_peer'      => true,
                     'verify_peer_name' => true,
-                    'allow_self_signed'=> false,
+                    'allow_self_signed' => false,
                 ],
             ];
-    
+
             // Set sender and recipient.
             $mail->setFrom($_ENV['SMTP_FROM'], $_ENV['SMTP_FROM_NAME']);
             $mail->addAddress($participant['email']);
             $mail->Subject = "Your Course Completion Certificate";
-    
+
             // Sanitize participant's first name.
             $firstName = htmlspecialchars($participant['first_name'], ENT_QUOTES, 'UTF-8');
-    
+
             // Prepare email body.
             $body = "Dear {$firstName},\n\n" .
-                    "Congratulations on completing your course.\n\n" .
-                    "Best regards,\nYour Organization";
+                "Congratulations on completing your course.\n\n" .
+                "Best regards,\nYour Organization";
             $mail->Body = $body;
-    
+
             // Attach the PDF certificate.
             $mail->addAttachment($pdfPath);
-    
+
             // Attempt to send the email.
             $mail->send();
+
+            global $conn;
+            // Log the sent certificate email into the database
+            $stmtLog = $conn->prepare("INSERT INTO email_notifications (user_id, subject, body) VALUES (?, ?, ?)");
+            $subjectLog = $mail->Subject;
+            $bodyLog = $mail->Body;
+            $stmtLog->bind_param("iss", $participant['user_id'], $subjectLog, $bodyLog);
+            $stmtLog->execute();
+            $stmtLog->close();
+
             return true;
         } catch (Exception $e) {
             error_log("PHPMailer Error: " . $mail->ErrorInfo);
             return false;
         }
     }
-    
+
 
     /**
      * Insert the generated PDF path into `certificates` and update `training_registrations`.

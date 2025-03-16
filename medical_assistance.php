@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['schedule_medical_assi
     $assistance_date_input = $_POST['assistance_date'] ?? '';
     $assistance_date = date('Y-m-d H:i:s', strtotime($assistance_date_input));
     $description = trim($_POST['description'] ?? '');
-    
+
     // Assume table "medical_assistance" exists.
     $stmt = $conn->prepare("INSERT INTO medical_assistance (user_id, assistance_date, description) VALUES (?, ?, ?)");
     if ($stmt) {
@@ -69,13 +69,14 @@ if ($stmt) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
     <style>
-        .strikethrough {
-            text-decoration: line-through !important;
-            color: gray !important;
-        }
-        .page-bottom-padding {
-            padding-bottom: 50px;
-        }
+    .strikethrough {
+        text-decoration: line-through !important;
+        color: gray !important;
+    }
+
+    .page-bottom-padding {
+        padding-bottom: 50px;
+    }
     </style>
 </head>
 
@@ -88,7 +89,7 @@ if ($stmt) {
     <div class="container mt-5 page-bottom-padding">
         <h1 class="mb-4">Medical Assistance Requests</h1>
         <?php if ($message): ?>
-            <div class="alert alert-info"><?= htmlspecialchars($message) ?></div>
+        <div class="alert alert-info"><?= htmlspecialchars($message) ?></div>
         <?php endif; ?>
         <!-- Added API message container -->
         <div id="api-message"></div>
@@ -102,23 +103,31 @@ if ($stmt) {
                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                     <div class="mb-3">
                         <label for="assistance_date" class="form-label">Request Date &amp; Time</label>
-                        <input type="datetime-local" class="form-control" id="assistance_date" name="assistance_date" required>
+                        <input type="datetime-local" class="form-control" id="assistance_date" name="assistance_date"
+                            required>
                     </div>
                     <div class="mb-3">
                         <label for="description" class="form-label">Description (Optional)</label>
                         <textarea class="form-control" id="description" name="description" rows="3"></textarea>
                     </div>
-                    <button type="submit" name="schedule_medical_assistance" class="btn btn-primary">Schedule Request</button>
+                    <button type="submit" name="schedule_medical_assistance" class="btn btn-primary">Schedule
+                        Request</button>
                 </form>
             </div>
         </div>
-        <!-- Tabs for Current/Past and Upcoming Requests -->
+        <!-- Tabs for Current/Past, Upcoming, and Completed Requests -->
         <ul class="nav nav-tabs" id="assistanceTabs" role="tablist">
             <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="past-tab" data-bs-toggle="tab" data-bs-target="#past" type="button" role="tab" aria-controls="past" aria-selected="true">Current/Past Requests</button>
+                <button class="nav-link active" id="past-tab" data-bs-toggle="tab" data-bs-target="#past" type="button"
+                    role="tab" aria-controls="past" aria-selected="true">Current Requests</button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="upcoming-tab" data-bs-toggle="tab" data-bs-target="#upcoming" type="button" role="tab" aria-controls="upcoming" aria-selected="false">Upcoming Requests</button>
+                <button class="nav-link" id="upcoming-tab" data-bs-toggle="tab" data-bs-target="#upcoming" type="button"
+                    role="tab" aria-controls="upcoming" aria-selected="false">Upcoming Requests</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="completed-tab" data-bs-toggle="tab" data-bs-target="#completed"
+                    type="button" role="tab" aria-controls="completed" aria-selected="false">Completed Requests</button>
             </li>
         </ul>
         <div class="tab-content" id="assistanceTabsContent">
@@ -138,6 +147,14 @@ if ($stmt) {
                     </div>
                 </div>
             </div>
+            <!-- Completed Requests Tab -->
+            <div class="tab-pane fade" id="completed" role="tabpanel" aria-labelledby="completed-tab">
+                <div class="card mt-3">
+                    <div class="card-body" id="completed-assistance-container">
+                        <p>Loading completed assistance requests...</p>
+                    </div>
+                </div>
+            </div>
         </div>
         <!-- Calendar View -->
         <div class="card mt-4">
@@ -152,34 +169,72 @@ if ($stmt) {
     <!-- FullCalendar JS -->
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
     <script>
-        const apiUrl = 'backend/routes/medical_assistance_api.php'; // update endpoint if needed
-        const currentUser = {
-            id: <?= json_encode($userId) ?>,
-            role: <?= json_encode($_SESSION['role'] ?? 'user') ?>,
-            csrf_token: <?= json_encode($_SESSION['csrf_token']) ?>
-        };
+    const apiUrl = 'backend/routes/medical_assistance_api.php'; // update endpoint if needed
+    const currentUser = {
+        id: <?= json_encode($userId) ?>,
+        role: <?= json_encode($_SESSION['role'] ?? 'user') ?>,
+        csrf_token: <?= json_encode($_SESSION['csrf_token']) ?>
+    };
 
-        function showMessage(message, type = 'info') {
-            const msgDiv = document.getElementById('api-message');
-            msgDiv.innerHTML = `<div class="alert alert-${type}" role="alert">${message}</div>`;
-            setTimeout(() => { msgDiv.innerHTML = ''; }, 5000);
-        }
+    function showMessage(message, type = 'info') {
+        const msgDiv = document.getElementById('api-message');
+        msgDiv.innerHTML = `<div class="alert alert-${type}" role="alert">${message}</div>`;
+        setTimeout(() => {
+            msgDiv.innerHTML = '';
+        }, 5000);
+    }
 
-        function loadAssistance() {
-            fetch(apiUrl)
-                .then(response => response.json())
-                .then(data => {
-                    if(data.status === 'success'){
-                        const assistance = data.assistance;
-                        const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
-                        const past = assistance.filter(req => (req.assistance_date < now) || (req.accepted == 1));
-                        const upcoming = assistance.filter(req => (req.assistance_date >= now) && (req.accepted == 0));
+    function loadAssistance() {
+        fetch(apiUrl)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const assistance = data.assistance;
+                    const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+                    // Filter requests:
+                    const past = assistance.filter(req => ((req.assistance_date < now || req.accepted == 1) && req
+                        .done != 1));
+                    const upcoming = assistance.filter(req => (req.assistance_date >= now && req.accepted == 0 &&
+                        req.done != 1));
+                    const completed = assistance.filter(req => req.done == 1);
 
-                        let pastHtml = "";
-                        if (past.length === 0) {
-                            pastHtml = "<p>No current (past) assistance requests.</p>";
-                        } else {
-                            pastHtml = `<table class="table table-striped">
+                    // Current/Past Requests (with Done button)
+                    let pastHtml = "";
+                    if (past.length === 0) {
+                        pastHtml = "<p>No current (past) assistance requests.</p>";
+                    } else {
+                        pastHtml = `<table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Request ID</th>
+                                        <th>Date &amp; Time</th>
+                                        <th>Description</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
+                        past.forEach(req => {
+                            pastHtml += `<tr id="req-row-${req.assistance_id}">
+                                    <td>${req.assistance_id}</td>
+                                    <td>${req.assistance_date}</td>
+                                    <td>
+                                        ${req.description || ""}
+                                        ${req.accepted == 1 ? '<span class="badge bg-success">Accepted</span>' : ""}
+                                        ${req.accept_details ? '<br><small>' + req.accept_details + '</small>' : ""}
+                                    </td>
+                                    <td><button class="btn btn-sm btn-success" onclick="markDone(${req.assistance_id})">Done</button></td>
+                                </tr>`;
+                        });
+                        pastHtml += `</tbody></table>`;
+                    }
+                    document.getElementById('past-assistance-container').innerHTML = pastHtml;
+
+                    // Upcoming Requests
+                    let upcomingHtml = "";
+                    if (upcoming.length === 0) {
+                        upcomingHtml = "<p>No upcoming assistance requests.</p>";
+                    } else {
+                        upcomingHtml = `<table class="table table-striped">
                                 <thead>
                                     <tr>
                                         <th>Request ID</th>
@@ -188,8 +243,33 @@ if ($stmt) {
                                     </tr>
                                 </thead>
                                 <tbody>`;
-                            past.forEach(req => {
-                                pastHtml += `<tr id="req-row-${req.assistance_id}">
+                        upcoming.forEach(req => {
+                            upcomingHtml += `<tr>
+                                    <td>${req.assistance_id}</td>
+                                    <td>${req.assistance_date}</td>
+                                    <td>${req.description || ""}</td>
+                                </tr>`;
+                        });
+                        upcomingHtml += `</tbody></table>`;
+                    }
+                    document.getElementById('upcoming-assistance-container').innerHTML = upcomingHtml;
+
+                    // Completed Requests
+                    let completedHtml = "";
+                    if (completed.length === 0) {
+                        completedHtml = "<p>No completed assistance requests.</p>";
+                    } else {
+                        completedHtml = `<table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Request ID</th>
+                                        <th>Date &amp; Time</th>
+                                        <th>Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
+                        completed.forEach(req => {
+                            completedHtml += `<tr>
                                     <td>${req.assistance_id}</td>
                                     <td>${req.assistance_date}</td>
                                     <td>
@@ -198,95 +278,103 @@ if ($stmt) {
                                         ${req.accept_details ? '<br><small>' + req.accept_details + '</small>' : ""}
                                     </td>
                                 </tr>`;
-                            });
-                            pastHtml += `</tbody></table>`;
-                        }
-                        document.getElementById('past-assistance-container').innerHTML = pastHtml;
-
-                        let upcomingHtml = "";
-                        if (upcoming.length === 0) {
-                            upcomingHtml = "<p>No upcoming assistance requests.</p>";
-                        } else {
-                            upcomingHtml = `<table class="table table-striped">
-                                <thead>
-                                    <tr>
-                                        <th>Request ID</th>
-                                        <th>Date &amp; Time</th>
-                                        <th>Description</th>
-                                    </tr>
-                                </thead>
-                                <tbody>`;
-                            upcoming.forEach(req => {
-                                upcomingHtml += `<tr>
-                                    <td>${req.assistance_id}</td>
-                                    <td>${req.assistance_date}</td>
-                                    <td>${req.description || ""}</td>
-                                </tr>`;
-                            });
-                            upcomingHtml += `</tbody></table>`;
-                        }
-                        document.getElementById('upcoming-assistance-container').innerHTML = upcomingHtml;
-                        loadCalendarEvents(assistance);
-                    } else {
-                        showMessage(data.error || "Failed to load assistance requests", "danger");
+                        });
+                        completedHtml += `</tbody></table>`;
                     }
-                })
-                .catch(err => {
-                    console.error("Error loading medical assistance:", err);
-                    showMessage("Error loading assistance requests", "danger");
-                });
-        }
+                    document.getElementById('completed-assistance-container').innerHTML = completedHtml;
 
-        let calendar;
-        function loadCalendarEvents(assistance) {
-            const events = [];
-            assistance.forEach(req => {
-                let eventTitle = (req.accepted == 1 ? "Accepted: " : "") + (req.description || "No description");
-                events.push({
-                    id: req.assistance_id,
-                    title: eventTitle,
-                    start: req.assistance_date,
-                    className: (req.accepted == 1) ? 'strikethrough' : '',
-                    description: req.description || "No description",
-                    accept_details: req.accept_details || ""
-                });
-            });
-            if(calendar){
-                calendar.removeAllEventSources();
-                calendar.addEventSource(events);
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', function(){
-            let calendarEl = document.getElementById('calendar-view');
-            calendar = new FullCalendar.Calendar(calendarEl, {
-                initialView: 'dayGridMonth',
-                headerToolbar: {
-                    left: 'prev,next today',
-                    center: 'title',
-                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
-                },
-                events: [],
-                eventDidMount: function(info) {
-                    let tooltipText = info.event.extendedProps.description || info.event.title || "No description";
-                    if(info.event.extendedProps.accept_details){
-                        tooltipText += "\nDetails: " + info.event.extendedProps.accept_details;
-                    }
-                    let start = info.event.start ? info.event.start.toLocaleString() : "";
-                    info.el.setAttribute('title', tooltipText + " (" + start + ")");
+                    loadCalendarEvents(assistance);
+                } else {
+                    showMessage(data.error || "Failed to load assistance requests", "danger");
                 }
+            })
+            .catch(err => {
+                console.error("Error loading medical assistance:", err);
+                showMessage("Error loading assistance requests", "danger");
             });
-            calendar.render();
-            loadAssistance();
+    }
 
-            document.getElementById('medical-assistance-form').addEventListener('submit', function(e){
-                e.preventDefault();
-                const assistance_date = document.getElementById('assistance_date').value;
-                const description = document.getElementById('description').value;
-                const csrf_token = document.querySelector('input[name="csrf_token"]').value;
-                fetch(apiUrl, {
+    function loadCalendarEvents(assistance) {
+        const events = [];
+        assistance.forEach(req => {
+            let eventTitle = (req.accepted == 1 ? "Accepted: " : "") + (req.description || "No description");
+            events.push({
+                id: req.assistance_id,
+                title: eventTitle,
+                start: req.assistance_date,
+                // Only strike-through if the request is marked done.
+                className: (req.done == 1) ? 'strikethrough' : '',
+                description: req.description || "No description",
+                accept_details: req.accept_details || ""
+            });
+        });
+        if (calendar) {
+            calendar.removeAllEventSources();
+            calendar.addEventSource(events);
+        }
+    }
+
+    function markDone(requestId) {
+        fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action: 'mark_done',
+                    assistance_id: requestId,
+                    csrf_token: currentUser.csrf_token,
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showMessage(data.message, 'success');
+                    loadAssistance();
+                } else {
+                    showMessage(data.error || "Failed to mark as done", "danger");
+                }
+            })
+            .catch(err => {
+                console.error("Error marking request as done:", err);
+                showMessage("Error marking as done", "danger");
+            });
+    }
+
+    let calendar;
+    document.addEventListener('DOMContentLoaded', function() {
+        let calendarEl = document.getElementById('calendar-view');
+        calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            },
+            events: [],
+            eventDidMount: function(info) {
+                let tooltipText = info.event.extendedProps.description || info.event.title ||
+                    "No description";
+                if (info.event.extendedProps.accept_details) {
+                    tooltipText += "\nDetails: " + info.event.extendedProps.accept_details;
+                }
+                let start = info.event.start ? info.event.start.toLocaleString() : "";
+                info.el.setAttribute('title', tooltipText + " (" + start + ")");
+            }
+        });
+        calendar.render();
+        loadAssistance();
+
+        document.getElementById('medical-assistance-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const assistance_date = document.getElementById('assistance_date').value;
+            const description = document.getElementById('description').value;
+            const csrf_token = document.querySelector('input[name="csrf_token"]').value;
+            fetch(apiUrl, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({
                         action: 'schedule_medical_assistance',
                         assistance_date: assistance_date,
@@ -296,7 +384,7 @@ if ($stmt) {
                 })
                 .then(response => response.json())
                 .then(data => {
-                    if(data.status === 'success'){
+                    if (data.status === 'success') {
                         showMessage(data.message, "success");
                         document.getElementById('medical-assistance-form').reset();
                         loadAssistance();
@@ -308,10 +396,11 @@ if ($stmt) {
                     console.error("Error scheduling request:", err);
                     showMessage("Error scheduling request", "danger");
                 });
-            });
         });
+    });
     </script>
     <?php include('footer.php'); ?>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
+
 </html>

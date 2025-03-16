@@ -13,6 +13,7 @@ $role = $_SESSION['role'] ?? 'user';
 
 require_once '../db/db_connect.php';
 require_once '../../vendor/autoload.php';
+
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
@@ -105,6 +106,33 @@ if ($method === 'POST') {
             echo json_encode(["error" => "Internal Server Error"]);
         }
         exit;
+    } elseif ($action === 'mark_done') {
+        if (empty($data['assistance_id']) || !isset($data['csrf_token'])) {
+            http_response_code(400);
+            echo json_encode(["error" => "Missing parameters"]);
+            exit;
+        }
+        if ($data['csrf_token'] !== $_SESSION['csrf_token']) {
+            http_response_code(403);
+            echo json_encode(["error" => "Invalid CSRF token"]);
+            exit;
+        }
+        $assistance_id = $data['assistance_id'];
+        $stmt = $conn->prepare("UPDATE medical_assistance SET done = 1 WHERE assistance_id = ?");
+        if (!$stmt) {
+            http_response_code(500);
+            echo json_encode(["error" => "Internal Server Error"]);
+            exit;
+        }
+        $stmt->bind_param("i", $assistance_id);
+        if ($stmt->execute()) {
+            echo json_encode(["status" => "success", "message" => "Request marked as done."]);
+        } else {
+            http_response_code(500);
+            echo json_encode(["error" => "Internal Server Error"]);
+        }
+        $stmt->close();
+        exit;
     } else {
         http_response_code(400);
         echo json_encode(["error" => "Invalid action"]);
@@ -137,7 +165,8 @@ if ($method === 'POST') {
     exit;
 }
 
-function sendMedicalAssistanceEmail($email, $subject, $body) {
+function sendMedicalAssistanceEmail($email, $subject, $body)
+{
     $mail = new PHPMailer(true);
     try {
         $mail->isSMTP();
@@ -152,10 +181,17 @@ function sendMedicalAssistanceEmail($email, $subject, $body) {
         $mail->Subject = $subject;
         $mail->Body    = $body;
         $mail->send();
+        // Log the sent email into the database
+        global $conn;
+        $userId = $_SESSION['user_id'];
+        $stmtLog = $conn->prepare("INSERT INTO email_notifications (user_id, subject, body) VALUES (?, ?, ?)");
+        $stmtLog->bind_param("iss", $userId, $subject, $body);
+        $stmtLog->execute();
+        $stmtLog->close();
+
         return true;
     } catch (Exception $e) {
         error_log("PHPMailer Error: " . $mail->ErrorInfo);
         return false;
     }
 }
-?>

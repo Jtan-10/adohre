@@ -167,16 +167,45 @@
         </div>
     </div>
 
-
-
-
-
-
     <!-- Notifications -->
     <div class="tab-pane fade" id="notifications" role="tabpanel" aria-labelledby="notifications-tab">
         <h4>Notifications</h4>
-        <p>View recent notifications.</p>
-        <!-- Add your notification details here -->
+        <div id="notificationsList">
+            <!-- Notifications will be loaded here -->
+        </div>
+        <script>
+            // Load notifications when the Notifications tab is shown
+            document.addEventListener("DOMContentLoaded", function() {
+                var notificationsTab = document.getElementById('notifications-tab');
+                notificationsTab.addEventListener('shown.bs.tab', function() {
+                    fetch('backend/routes/notifications.php')
+                        .then(response => response.json())
+                        .then(data => {
+                            var container = document.getElementById('notificationsList');
+                            if (data.status && data.notifications.length > 0) {
+                                let html = '';
+                                data.notifications.forEach(function(notif) {
+                                    html += `<div class="card mb-2">
+                                        <div class="card-body">
+                                            <h5 class="card-title">${notif.subject}</h5>
+                                            <p class="card-text">${notif.body}</p>
+                                            <p class="card-text"><small class="text-muted">Show full message in email</small></p>
+                                            <p class="card-text"><small class="text-muted">${notif.sent_at}</small></p>
+                                        </div>
+                                    </div>`;
+                                });
+                                container.innerHTML = html;
+                            } else {
+                                container.innerHTML = '<p>No notifications found.</p>';
+                            }
+                        })
+                        .catch(err => {
+                            document.getElementById('notificationsList').innerHTML =
+                                '<p>Error loading notifications.</p>';
+                        });
+                });
+            });
+        </script>
     </div>
 
     <!-- Virtual ID -->

@@ -8,12 +8,12 @@ use PHPMailer\PHPMailer\Exception;
 
 // Add secure session cookie settings for production
 session_set_cookie_params([
-	'lifetime' => 0,
-	'path' => '/',
-	'domain' => '', // set your domain if needed
-	'secure' => true,
-	'httponly' => true,
-	'samesite' => 'Strict'
+    'lifetime' => 0,
+    'path' => '/',
+    'domain' => '', // set your domain if needed
+    'secure' => true,
+    'httponly' => true,
+    'samesite' => 'Strict'
 ]);
 session_start();
 // Ensure the user is logged in
@@ -27,7 +27,7 @@ $method = $_SERVER['REQUEST_METHOD'];
 if ($method === 'GET') {
     // Default action is to get all payments
     $action = isset($_GET['action']) ? $_GET['action'] : 'get_all_payments';
-    
+
     if ($action === 'get_all_payments') {
         $payments = [];
         // Retrieve all payments with corresponding user details, including mode_of_payment
@@ -70,13 +70,12 @@ if ($method === 'GET') {
             $payments[] = $row;
         }
         $stmt->close();
-        
+
         echo json_encode([
             'status' => true,
             'pendingPayments' => $payments
         ]);
         exit;
-    
     } elseif ($action === 'get_payments') {
         // New branch for filtering by status
         $user_id = isset($_GET['user_id']) ? intval($_GET['user_id']) : 0;
@@ -105,10 +104,10 @@ if ($method === 'GET') {
     } else {
         echo json_encode(['status' => false, 'message' => 'Invalid GET action']);
         exit;
-    } 
+    }
 } elseif ($method === 'POST') {
     $action = isset($_GET['action']) ? $_GET['action'] : 'push_payment';
-    
+
     // New branch: update payment fee details
     if ($action === 'update_payment_fee') {
         // Retrieve and validate required fields for fee update
@@ -119,7 +118,7 @@ if ($method === 'GET') {
             echo json_encode(['status' => false, 'message' => 'Payment ID, Reference Number, and Mode of Payment are required.']);
             exit();
         }
-        
+
         // Process image upload via S3 if provided
         $relativeImagePath = null;
         if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
@@ -152,10 +151,10 @@ if ($method === 'GET') {
                 exit();
             }
         }
-        
+
         // Automatically generate the payment date (current timestamp)
         $payment_date = date('Y-m-d H:i:s');
-        
+
         // Update the payment record: set reference_number, image, mode_of_payment, payment_date and change status to 'Pending'
         $stmt = $conn->prepare("UPDATE payments SET reference_number = ?, image = ?, mode_of_payment = ?, status = 'Pending', payment_date = ? WHERE payment_id = ?");
         if ($stmt === false) {
@@ -176,10 +175,10 @@ if ($method === 'GET') {
             $resultUser = $stmtUser->get_result();
             $details = $resultUser->fetch_assoc();
             $stmtUser->close();
-        
+
             // Log the email sending attempt
             error_log("Sending payment update email to: " . $details['email'] . " at " . date('Y-m-d H:i:s'));
-        
+
             // Rate limiting for email sending: allow maximum 5 emails per recipient within a 1-hour window.
             if (session_status() === PHP_SESSION_NONE) {
                 session_start();
@@ -188,7 +187,7 @@ if ($method === 'GET') {
             $maxEmails = 10;
             $now = time();
             $recipient = $details['email'];
-        
+
             if (!isset($_SESSION['email_send_requests'])) {
                 $_SESSION['email_send_requests'] = [];
             }
@@ -210,7 +209,7 @@ if ($method === 'GET') {
             } else {
                 // Increment count and proceed to send the email.
                 $_SESSION['email_send_requests'][$recipient]['count']++;
-        
+
                 $mail = new PHPMailer(true);
                 try {
                     // SMTP configuration using environment variables.
@@ -221,19 +220,19 @@ if ($method === 'GET') {
                     $mail->Password   = $_ENV['SMTP_PASS'];
                     $mail->SMTPSecure = $_ENV['SMTP_SECURE'];
                     $mail->Port       = $_ENV['SMTP_PORT'];
-        
+
                     // Enforce secure SMTP options.
                     $mail->SMTPOptions = [
                         'ssl' => [
                             'verify_peer'      => true,
                             'verify_peer_name' => true,
-                            'allow_self_signed'=> false,
+                            'allow_self_signed' => false,
                         ],
                     ];
-        
+
                     $mail->setFrom($_ENV['SMTP_FROM'], $_ENV['SMTP_FROM_NAME']);
                     $mail->addAddress($details['email']);
-        
+
                     $mail->isHTML(true);
                     $mail->Subject = "Payment Update Notification";
                     $mail->Body    = "
@@ -245,8 +244,16 @@ if ($method === 'GET') {
                         <p><strong>Payment Date:</strong> " . htmlspecialchars($details['payment_date'], ENT_QUOTES, 'UTF-8') . "</p>
                         <p>Please check your account for further details.</p>";
                     $mail->AltBody = strip_tags($mail->Body);
-        
+
                     $mail->send();
+                    // Log the sent email into the database
+                    $stmtLog = $conn->prepare("INSERT INTO email_notifications (user_id, subject, body) VALUES (?, ?, ?)");
+                    $subjectLog = "Payment Update Notification";
+                    $bodyLog = $mail->Body;
+                    // Using user_id from the retrieved details ($details array)
+                    $stmtLog->bind_param("iss", $details['user_id'], $subjectLog, $bodyLog);
+                    $stmtLog->execute();
+                    $stmtLog->close();
                 } catch (Exception $e) {
                     error_log("Email could not be sent. Mailer Error: " . $mail->ErrorInfo);
                 }
@@ -258,7 +265,7 @@ if ($method === 'GET') {
             echo json_encode(['status' => false, 'message' => 'Internal server error']);
             exit();
         }
-    } else { 
+    } else {
         // Required input from admin: user_id, payment_type, amount.
         $user_id      = isset($_POST['user_id']) ? trim($_POST['user_id']) : '';
         $payment_type = isset($_POST['payment_type']) ? trim($_POST['payment_type']) : '';
@@ -334,4 +341,3 @@ if ($method === 'GET') {
     echo json_encode(['status' => false, 'message' => 'Unsupported request method']);
     exit;
 }
-?>

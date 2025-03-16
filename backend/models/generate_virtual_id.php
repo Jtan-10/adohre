@@ -79,24 +79,36 @@ $cardHeight = imagesy($idCard);  // Expected: 841
 // 4) Load & crop the user's profile photo into a circle
 //    Adjust the coordinates to match the circular cutout on your template.
 // ----------------------------------------------------------------
-$profilePath = __DIR__ . '/../../' . ($user['profile_image'] ?? 'assets/default-profile.jpeg');
-if (!file_exists($profilePath)) {
-    $profilePath = __DIR__ . '/../../assets/default-profile.jpeg';
-}
-
-$profileImage = null;
-$ext = strtolower(pathinfo($profilePath, PATHINFO_EXTENSION));
-switch ($ext) {
-    case 'jpg':
-    case 'jpeg':
-        $profileImage = @imagecreatefromjpeg($profilePath);
-        break;
-    case 'png':
-        $profileImage = @imagecreatefrompng($profilePath);
-        break;
-    case 'gif':
-        $profileImage = @imagecreatefromgif($profilePath);
-        break;
+if (!empty($user['profile_image']) && strpos($user['profile_image'], '/s3proxy/') === 0) {
+    // Load the image via remote URL if using S3 proxy path
+    $remoteUrl = "http://".$_SERVER['HTTP_HOST'].$user['profile_image'];
+    $profileImageData = @file_get_contents($remoteUrl);
+    if ($profileImageData !== false) {
+        $profileImage = imagecreatefromstring($profileImageData);
+    } else {
+        // Fallback to default image if remote load fails
+        $profileImage = imagecreatefromjpeg(__DIR__ . '/../../assets/default-profile.jpeg');
+    }
+} else {
+    $localPath = __DIR__ . '/../../' . ($user['profile_image'] ?? 'assets/default-profile.jpeg');
+    if (!file_exists($localPath)) {
+        $localPath = __DIR__ . '/../../assets/default-profile.jpeg';
+    }
+    $ext = strtolower(pathinfo($localPath, PATHINFO_EXTENSION));
+    switch ($ext) {
+        case 'jpg':
+        case 'jpeg':
+            $profileImage = @imagecreatefromjpeg($localPath);
+            break;
+        case 'png':
+            $profileImage = @imagecreatefrompng($localPath);
+            break;
+        case 'gif':
+            $profileImage = @imagecreatefromgif($localPath);
+            break;
+        default:
+            $profileImage = imagecreatefromjpeg(__DIR__ . '/../../assets/default-profile.jpeg');
+    }
 }
 
 if ($profileImage) {
