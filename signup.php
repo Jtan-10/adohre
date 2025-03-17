@@ -96,6 +96,22 @@ if (isset($_SESSION['user_id'])) {
         /* Ensure it appears above everything else */
         display: none;
     }
+
+    /* Add media query for mobile responsiveness */
+    @media (max-width: 768px) {
+        body {
+            flex-direction: column; /* Stack panes vertically */
+        }
+        .left-pane, .right-pane {
+            flex: none;
+            width: 100%;
+            height: auto;
+        }
+        .right-pane {
+            min-height: 200px; /* Ensure a visible area for the right pane */
+            background-size: cover;
+        }
+    }
     </style>
     <!-- Include the global TTS module (create tts.js with your TTS functions) -->
     <script src="tts.js"></script>

@@ -112,6 +112,22 @@ if ($action === 'login' && $emailParam) {
         margin-top: 10px;
         border: 1px solid #ccc;
     }
+
+    @media (max-width: 768px) {
+        body {
+            flex-direction: column; /* stack vertically */
+        }
+        .left-pane, .right-pane {
+            flex: none;
+            width: 100%;
+        }
+        .right-pane {
+            display: none; /* hide background image on mobile */
+        }
+        .left-pane {
+            padding: 15px;
+        }
+    }
     </style>
     <!-- Include the global TTS module (create tts.js with your TTS functions) -->
     <script src="tts.js"></script>

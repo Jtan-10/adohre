@@ -53,6 +53,20 @@ $scriptNonce = bin2hex(random_bytes(16));
         /* Ensure it appears above everything else */
         display: none;
     }
+
+    /* Responsive styles */
+    @media only screen and (max-width: 768px) {
+        body {
+            flex-direction: column;
+        }
+        .left-pane, .right-pane {
+            flex: unset;
+            width: 100%;
+        }
+        .right-pane {
+            height: 200px; /* Adjust height as needed */
+        }
+    }
     </style>
 </head>
 

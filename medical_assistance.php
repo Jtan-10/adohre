@@ -206,7 +206,7 @@ if ($stmt) {
                         if (past.length === 0) {
                             pastHtml = "<p>No current (past) assistance requests.</p>";
                         } else {
-                            pastHtml = `<table class="table table-striped">
+                            pastHtml = `<div class="table-responsive"><table class="table table-striped">
                                 <thead>
                                     <tr>
                                         <th>Request ID</th>
@@ -228,7 +228,7 @@ if ($stmt) {
                                     <td><button class="btn btn-sm btn-success" onclick="markDone(${req.assistance_id})">Done</button></td>
                                 </tr>`;
                             });
-                            pastHtml += `</tbody></table>`;
+                            pastHtml += `</tbody></table></div>`;
                         }
                         document.getElementById('past-assistance-container').innerHTML = pastHtml;
 
@@ -237,7 +237,7 @@ if ($stmt) {
                         if (upcoming.length === 0) {
                             upcomingHtml = "<p>No upcoming assistance requests.</p>";
                         } else {
-                            upcomingHtml = `<table class="table table-striped">
+                            upcomingHtml = `<div class="table-responsive"><table class="table table-striped">
                                 <thead>
                                     <tr>
                                         <th>Request ID</th>
@@ -253,7 +253,7 @@ if ($stmt) {
                                     <td>${req.description || ""}</td>
                                 </tr>`;
                             });
-                            upcomingHtml += `</tbody></table>`;
+                            upcomingHtml += `</tbody></table></div>`;
                         }
                         document.getElementById('upcoming-assistance-container').innerHTML = upcomingHtml;
 
@@ -262,7 +262,7 @@ if ($stmt) {
                         if (completed.length === 0) {
                             completedHtml = "<p>No completed assistance requests.</p>";
                         } else {
-                            completedHtml = `<table class="table table-striped">
+                            completedHtml = `<div class="table-responsive"><table class="table table-striped">
                                 <thead>
                                     <tr>
                                         <th>Request ID</th>
@@ -282,7 +282,7 @@ if ($stmt) {
                                     </td>
                                 </tr>`;
                             });
-                            completedHtml += `</tbody></table>`;
+                            completedHtml += `</tbody></table></div>`;
                         }
                         document.getElementById('completed-assistance-container').innerHTML = completedHtml;
 

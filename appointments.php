@@ -79,6 +79,16 @@ if ($stmt) {
         .page-bottom-padding {
             padding-bottom: 50px;
         }
+        
+        /* Make calendar responsive */
+        #calendar-view {
+            overflow-x: auto;
+        }
+        @media (max-width: 576px) {
+            #calendar-view {
+                height: auto;
+            }
+        }
     </style>
 </head>
 
@@ -216,7 +226,7 @@ if ($stmt) {
                         if (past.length === 0) {
                             pastHtml = "<p>No current (past) appointments.</p>";
                         } else {
-                            pastHtml = `<table class="table table-striped">
+                            pastHtml = `<div class="table-responsive"><table class="table table-striped">
                 <thead>
                   <tr>
                     <th>Appointment ID</th>
@@ -238,7 +248,7 @@ if ($stmt) {
                   <td>${(appt.accepted == 1) ? '<button class="btn btn-sm btn-success" onclick="markDone(' + appt.appointment_id + ')">Done</button>' : ''}</td>
                 </tr>`;
                             });
-                            pastHtml += `</tbody></table>`;
+                            pastHtml += `</tbody></table></div>`;
                         }
                         document.getElementById('past-appointments-container').innerHTML = pastHtml;
 
@@ -247,7 +257,7 @@ if ($stmt) {
                         if (upcoming.length === 0) {
                             upcomingHtml = "<p>No upcoming appointments.</p>";
                         } else {
-                            upcomingHtml = `<table class="table table-striped">
+                            upcomingHtml = `<div class="table-responsive"><table class="table table-striped">
                 <thead>
                   <tr>
                     <th>Appointment ID</th>
@@ -263,7 +273,7 @@ if ($stmt) {
                   <td>${appt.description || ""}</td>
                 </tr>`;
                             });
-                            upcomingHtml += `</tbody></table>`;
+                            upcomingHtml += `</tbody></table></div>`;
                         }
                         document.getElementById('upcoming-appointments-container').innerHTML = upcomingHtml;
 
@@ -272,7 +282,7 @@ if ($stmt) {
                         if (completed.length === 0) {
                             completedHtml = "<p>No completed appointments.</p>";
                         } else {
-                            completedHtml = `<table class="table table-striped">
+                            completedHtml = `<div class="table-responsive"><table class="table table-striped">
                 <thead>
                   <tr>
                     <th>Appointment ID</th>
@@ -292,7 +302,7 @@ if ($stmt) {
                   </td>
                 </tr>`;
                             });
-                            completedHtml += `</tbody></table>`;
+                            completedHtml += `</tbody></table></div>`;
                         }
                         document.getElementById('completed-appointments-container').innerHTML = completedHtml;
 
