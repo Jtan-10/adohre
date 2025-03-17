@@ -30,6 +30,111 @@ require_once __DIR__ . '/../db/db_connect.php';
 // Include S3 configuration and AWS SDK initialization.
 require_once __DIR__ . '/../s3config.php';
 
+
+// =====================
+// STEGANOGRAPHY HELPER FUNCTIONS
+// =====================
+
+// Define a secret key for steganography encryption (store this securely in production, e.g. via an environment variable)
+define('STEGANOGRAPHY_KEY', 'my-very-strong-secret-key');
+
+/**
+ * Encrypt secret data using AES-256-CBC.
+ *
+ * @param string $data The plain secret data.
+ * @param string $key  The encryption key.
+ * @return string The concatenated IV and ciphertext.
+ */
+function encryptSecret($data, $key) {
+    $cipher = "AES-256-CBC";
+    $ivlen = openssl_cipher_iv_length($cipher);
+    $iv = openssl_random_pseudo_bytes($ivlen);
+    $ciphertext_raw = openssl_encrypt($data, $cipher, $key, OPENSSL_RAW_DATA, $iv);
+    return $iv . $ciphertext_raw;
+}
+
+/**
+ * Decrypt secret data using AES-256-CBC.
+ *
+ * @param string $encryptedData The concatenated IV and ciphertext.
+ * @param string $key           The encryption key.
+ * @return string The decrypted plain data.
+ */
+function decryptSecret($encryptedData, $key) {
+    $cipher = "AES-256-CBC";
+    $ivlen = openssl_cipher_iv_length($cipher);
+    $iv = substr($encryptedData, 0, $ivlen);
+    $ciphertext_raw = substr($encryptedData, $ivlen);
+    return openssl_decrypt($ciphertext_raw, $cipher, $key, OPENSSL_RAW_DATA, $iv);
+}
+
+/**
+ * Embed secret data into an image using a basic LSB steganography method.
+ *
+ * @param string $inputPath  Path to the original image.
+ * @param string $secretData The plain secret data to embed.
+ * @param string $outputPath Path to save the modified image.
+ * @return string The output path.
+ * @throws Exception if the image cannot be processed.
+ */
+function steganographyEncryptImage($inputPath, $secretData, $outputPath) {
+    // Encrypt the secret data.
+    $encryptedSecret = encryptSecret($secretData, STEGANOGRAPHY_KEY);
+    // Convert encrypted secret to a binary string.
+    $binarySecret = '';
+    for ($i = 0; $i < strlen($encryptedSecret); $i++) {
+        $binarySecret .= str_pad(decbin(ord($encryptedSecret[$i])), 8, '0', STR_PAD_LEFT);
+    }
+    // Append a null terminator (8 zeros) to mark the end.
+    $binarySecret .= '00000000';
+    $secretLength = strlen($binarySecret);
+
+    // Load the image.
+    $imgData = file_get_contents($inputPath);
+    if ($imgData === false) {
+        throw new Exception("Failed to read input image.");
+    }
+    $img = imagecreatefromstring($imgData);
+    if (!$img) {
+        throw new Exception("Failed to create image from input.");
+    }
+
+    $width = imagesx($img);
+    $height = imagesy($img);
+    if ($secretLength > ($width * $height)) {
+        throw new Exception("Secret data is too large to embed in this image.");
+    }
+
+    $bitIndex = 0;
+    // Loop through each pixel and embed secret bits into the least-significant bit of the blue channel.
+    for ($y = 0; $y < $height && $bitIndex < $secretLength; $y++) {
+        for ($x = 0; $x < $width && $bitIndex < $secretLength; $x++) {
+            $rgb = imagecolorat($img, $x, $y);
+            $r = ($rgb >> 16) & 0xFF;
+            $g = ($rgb >> 8) & 0xFF;
+            $b = $rgb & 0xFF;
+            $bit = intval($binarySecret[$bitIndex]);
+            $newB = ($b & 0xFE) | $bit;
+            $newColor = imagecolorallocate($img, $r, $g, $newB);
+            imagesetpixel($img, $x, $y, $newColor);
+            $bitIndex++;
+        }
+    }
+
+    // Save the modified image as PNG.
+    if (!imagepng($img, $outputPath)) {
+        imagedestroy($img);
+        throw new Exception("Failed to save encrypted image.");
+    }
+    imagedestroy($img);
+    return $outputPath;
+}
+
+// =====================
+// END STEGANOGRAPHY HELPER FUNCTIONS
+// =====================
+
+
 // Sanitize the "action" parameter.
 $action = filter_input(INPUT_GET, 'action', FILTER_SANITIZE_STRING) ?? '';
 
@@ -75,15 +180,35 @@ switch ($action) {
                 $ext   = pathinfo($_FILES['header_logo']['name'], PATHINFO_EXTENSION);
                 $s3Key = 'uploads/settings/header_logo_' . time() . '.' . $ext;
 
+                // -------------------------------
+                // STEGANOGRAPHY ENCRYPTION STEP for Header Logo
+                // -------------------------------
+                // Define secret data (for example, header logo, user ID and timestamp)
+                $secretData = "HeaderLogo;UserID:" . $_SESSION['user_id'] . ";Timestamp:" . time();
+                // Create a temporary file for the encrypted image.
+                $encryptedTempPath = tempnam(sys_get_temp_dir(), 'encrypted_') . '.png';
+                try {
+                    steganographyEncryptImage($_FILES['header_logo']['tmp_name'], $secretData, $encryptedTempPath);
+                } catch (Exception $e) {
+                    error_log("Steganography encryption error: " . $e->getMessage());
+                    $message .= "Error processing logo image. ";
+                }
+                // Use the encrypted image for upload.
+                $uploadSource = $encryptedTempPath;
+                // -------------------------------
+
                 try {
                     // Upload the file to S3 with public-read ACL.
                     $result = $s3->putObject([
                         'Bucket'      => $bucketName,
                         'Key'         => $s3Key,
-                        'Body'        => fopen($_FILES['header_logo']['tmp_name'], 'rb'),
+                        'Body'        => fopen($uploadSource, 'rb'),
                         'ACL'         => 'public-read',
                         'ContentType' => $fileType
                     ]);
+
+                    // Remove the temporary encrypted file.
+                    @unlink($encryptedTempPath);
 
                     // Convert the full S3 URL to a local proxy URL if desired.
                     $headerLogoUrl = str_replace(
