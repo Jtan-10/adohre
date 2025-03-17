@@ -1,8 +1,7 @@
 <?php
 define('APP_INIT', true); // Added to enable proper access.
 // Send the CSP header before any output.
-header("Content-Security-Policy: default-src 'self' https://cdn.jsdelivr.net; script-src 'self' https://cdn.jsdelivr.net https://static.cloudflareinsights.com 'nonce-<?= \$cspNonce ?>';
-style-src 'self' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net;");
+
 
 
 require_once 'admin_header.php';

@@ -5,11 +5,7 @@
 <head>
     <meta charset="UTF-8" />
     <!-- Updated security meta tag to allow YouTube and Google Docs frames -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://static.cloudflareinsights.com; 
-               script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://static.cloudflareinsights.com; 
-               style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; 
-               img-src 'self' data:; 
-               frame-src 'self' https://www.youtube.com https://docs.google.com;">
+
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Trainings - ADOHRE</title>
@@ -440,59 +436,62 @@
             }
         }
 
-        // "Take Assessment" button event listener: opens the assessment modal with embedded form.
-        document.getElementById('takeAssessmentBtn').addEventListener('click', function() {
-            if (window.currentAssessmentForm) {
-                let formLink = window.currentAssessmentForm;
-                if (formLink.indexOf('docs.google.com/forms') !== -1 && formLink.indexOf('hl=') === -
-                    1) {
-                    formLink += (formLink.indexOf('?') === -1) ? '?hl=en' : '&hl=en';
-                }
-                document.getElementById('assessmentIframe').src = formLink;
-                let assessmentModal = new bootstrap.Modal(document.getElementById('assessmentModal'));
-                assessmentModal.show();
-            } else {
-                alert("No assessment form link available for this training.");
-            }
-        });
-
-        // "Mark as Done" button event listener: sends request to mark assessment as completed.
-        document.getElementById('markDoneBtn').addEventListener('click', function() {
-            const trainingId = window.currentTrainingId;
-            if (!trainingId) {
-                alert("Training not selected.");
-                return;
-            }
-            fetch('/capstone-php/backend/routes/assessment_manager.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        action: 'mark_assessment_done',
-                        user_id: userId,
-                        training_id: trainingId
-                    })
-                })
-                .then(resp => resp.json())
-                .then(result => {
-                    // If the response message contains "already marked", show that message;
-                    // otherwise show the normal message.
-                    if (result.status) {
-                        if (result.message.toLowerCase().includes("already marked")) {
-                            alert(result.message);
-                        } else {
-                            alert("Assessment marked as completed.");
-                        }
-                    } else {
-                        alert("Error: " + result.message);
+        const takeAssessmentBtn = document.getElementById('takeAssessmentBtn');
+        if (takeAssessmentBtn) {
+            takeAssessmentBtn.addEventListener('click', function() {
+                if (window.currentAssessmentForm) {
+                    let formLink = window.currentAssessmentForm;
+                    if (formLink.indexOf('docs.google.com/forms') !== -1 && formLink.indexOf('hl=') ===
+                        -1) {
+                        formLink += (formLink.indexOf('?') === -1) ? '?hl=en' : '&hl=en';
                     }
-                })
-                .catch(err => {
-                    console.error(err);
-                    alert("Failed to mark assessment as completed.");
-                });
-        });
+                    document.getElementById('assessmentIframe').src = formLink;
+                    let assessmentModal = new bootstrap.Modal(document.getElementById(
+                        'assessmentModal'));
+                    assessmentModal.show();
+                } else {
+                    alert("No assessment form link available for this training.");
+                }
+            });
+        }
+
+        const markDoneBtn = document.getElementById('markDoneBtn');
+        if (markDoneBtn) {
+            markDoneBtn.addEventListener('click', function() {
+                const trainingId = window.currentTrainingId;
+                if (!trainingId) {
+                    alert("Training not selected.");
+                    return;
+                }
+                fetch('/capstone-php/backend/routes/assessment_manager.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            action: 'mark_assessment_done',
+                            user_id: userId,
+                            training_id: trainingId
+                        })
+                    })
+                    .then(resp => resp.json())
+                    .then(result => {
+                        if (result.status) {
+                            if (result.message.toLowerCase().includes("already marked")) {
+                                alert(result.message);
+                            } else {
+                                alert("Assessment marked as completed.");
+                            }
+                        } else {
+                            alert("Error: " + result.message);
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        alert("Failed to mark assessment as completed.");
+                    });
+            });
+        }
 
     });
     </script>

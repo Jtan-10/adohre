@@ -13,13 +13,7 @@ $csp_nonce = base64_encode(random_bytes(16));
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Membership Application Form</title>
-    <meta http-equiv="Content-Security-Policy" content="
-  default-src 'self'; 
-  script-src 'self' 'nonce-<?php echo $csp_nonce; ?>' https://cdn.jsdelivr.net https://static.cloudflareinsights.com; 
-  style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; 
-  img-src 'self' data:; 
-  connect-src 'self' https://api.ocr.space;
-">
+
 
 
     <script nonce="<?php echo $csp_nonce; ?>"

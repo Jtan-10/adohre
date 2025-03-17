@@ -20,7 +20,7 @@ $mode = isset($_GET['mode']) ? $_GET['mode'] : '';
 
 // Set secure headers
 header('X-Content-Type-Options: nosniff');
-header("Content-Security-Policy: default-src 'none'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:;");
+
 
 // Prepare the query to prevent SQL injection.
 $sql = "SELECT cm.message, cm.sent_at, cm.is_admin, u.first_name, u.last_name

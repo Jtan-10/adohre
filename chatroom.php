@@ -14,7 +14,6 @@ session_start();
 $nonce = base64_encode(random_bytes(16));
 
 // Set HTTP security headers with updated CSP using the nonce.
-header("Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://meet.jit.si https://static.cloudflareinsights.com 'nonce-$nonce'; style-src 'self' https://cdn.jsdelivr.net 'sha256-aplL7vYwF1FNN+yXTOWH8+mfuVgRwdBPcoME8a8R1GA='; font-src 'self' https://cdn.jsdelivr.net; img-src 'self';");
 header("X-Frame-Options: SAMEORIGIN");
 header("X-Content-Type-Options: nosniff");
 header("Referrer-Policy: no-referrer");

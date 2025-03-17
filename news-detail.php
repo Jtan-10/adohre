@@ -64,12 +64,7 @@ $news = $newsData['news'][0];
 <head>
     <meta charset="UTF-8">
     <!-- Updated CSP including nonce for inline style, a hash for known inline styles from external libraries, and font-src directive -->
-    <meta http-equiv="Content-Security-Policy" content="
-  default-src 'self'; 
-  style-src 'self' 'nonce-<?php echo $style_nonce; ?>' 'sha256-p6mA130cDc4HStcM59w4BqV/qpvgY7ZMDK0IMyF0VKk=' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; 
-  script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://static.cloudflareinsights.com; 
-  font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;
-">
+
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($news['title']); ?> - ADOHRE News</title>

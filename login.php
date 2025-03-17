@@ -13,8 +13,7 @@ $scriptNonce = bin2hex(random_bytes(16));
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://static.cloudflareinsights.com 'nonce-<?php echo $scriptNonce; ?>'; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; img-src 'self' data:;">
+
 
     <title>Login - Member Link</title>
     <link rel="icon" href="assets/logo.png" type="image/jpg" />

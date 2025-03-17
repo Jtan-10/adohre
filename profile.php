@@ -13,7 +13,7 @@ if (!isset($_SESSION['initiated'])) {
 // Add security headers
 header("X-Frame-Options: SAMEORIGIN");
 header("X-Content-Type-Options: nosniff");
-header("Content-Security-Policy: default-src 'self' https://cdn.jsdelivr.net https://static.cloudflareinsights.com; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: https://cdn.jsdelivr.net https://static.cloudflareinsights.com;");
+
 
 ?>
 <!DOCTYPE html>

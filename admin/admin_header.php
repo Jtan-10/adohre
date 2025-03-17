@@ -30,13 +30,7 @@ $headerName = $_SESSION['header_name'] ?? 'ADOHRE';
 $headerLogo = $_SESSION['header_logo'] ?? '/capstone-php/assets/logo.png';
 ?>
 <!-- Content Security Policy Meta Tag -->
-<meta http-equiv="Content-Security-Policy" content="
-    default-src 'self' https://static.cloudflareinsights.com;
-    frame-src 'self' https://docs.google.com;
-    script-src 'self' https://cdn.jsdelivr.net https://code.jquery.com https://cdn.datatables.net https://static.cloudflareinsights.com 'nonce-<?= $cspNonce ?>';
-    style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.datatables.net;
-    img-src 'self' data: https://cdn.jsdelivr.net;
-    font-src 'self' https://cdn.jsdelivr.net;">
+
 
 
 <nav class="navbar navbar-expand-lg bg-success text-white">
