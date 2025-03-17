@@ -20,14 +20,6 @@ if (!$auth_user_id) {
     exit();
 }
 
-// For state-changing actions, enforce CSRF token validation.
-if (in_array($method, ['POST', 'PUT', 'DELETE'])) {
-    if (!isset($_SERVER['HTTP_X_CSRF_TOKEN']) || $_SERVER['HTTP_X_CSRF_TOKEN'] !== ($_SESSION['csrf_token'] ?? '')) {
-        http_response_code(403);
-        echo json_encode(['status' => false, 'message' => 'Invalid CSRF token.']);
-        exit();
-    }
-}
 
 try {
     if ($method === 'GET') {
