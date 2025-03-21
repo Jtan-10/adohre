@@ -2,6 +2,8 @@
 // Set secure session cookie parameters
 session_set_cookie_params([
     'lifetime' => 0,
+    'path' => '/',
+    'domain' => '', // current domain
     'secure' => true,
     'httponly' => true,
     'samesite' => 'Lax'
