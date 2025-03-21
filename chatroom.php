@@ -67,6 +67,12 @@ $userName = $_SESSION['first_name'] . ' ' . $_SESSION['last_name'];
 <html lang="en">
 
 <head>
+<script nonce="<?= $nonce ?>">
+  // Override alert with a no-op function:
+  window.alert = function() {
+    // do nothing
+  };
+</script>
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">

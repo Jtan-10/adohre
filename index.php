@@ -41,7 +41,7 @@ if (isset($_SESSION['user_id'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>ADOHRE | Empowering Health Retirees</title>
     <link rel="icon" href="assets/logo.png" type="image/jpg">
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#000000">
 
     <!-- Google Fonts for Modern Typography -->
