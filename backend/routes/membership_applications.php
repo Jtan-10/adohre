@@ -1,7 +1,7 @@
 <?php
 require_once '../db/db_connect.php';
 header('Content-Type: application/json');
-
+session_start();
 $method = $_SERVER['REQUEST_METHOD'];
 
 try {

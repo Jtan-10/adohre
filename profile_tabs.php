@@ -4,10 +4,12 @@
         <button class="nav-link active" id="account-tab" data-bs-toggle="tab" data-bs-target="#account" type="button"
             role="tab" aria-controls="account" aria-selected="true">Account Settings</button>
     </li>
+    <?php if (isset($_SESSION['user_id']) && (isset($_SESSION['role']) && $_SESSION['role'] !== 'user')): ?>
     <li class="nav-item">
         <button class="nav-link" id="events-tab" data-bs-toggle="tab" data-bs-target="#events" type="button" role="tab"
             aria-controls="events" aria-selected="false">Events</button>
     </li>
+    <?php endif; ?>
     <li class="nav-item">
         <button class="nav-link" id="trainings-tab" data-bs-toggle="tab" data-bs-target="#trainings" type="button"
             role="tab" aria-controls="trainings" aria-selected="false">Trainings</button>
@@ -174,18 +176,18 @@
             <!-- Notifications will be loaded here -->
         </div>
         <script>
-            // Load notifications when the Notifications tab is shown
-            document.addEventListener("DOMContentLoaded", function() {
-                var notificationsTab = document.getElementById('notifications-tab');
-                notificationsTab.addEventListener('shown.bs.tab', function() {
-                    fetch('backend/routes/notifications.php')
-                        .then(response => response.json())
-                        .then(data => {
-                            var container = document.getElementById('notificationsList');
-                            if (data.status && data.notifications.length > 0) {
-                                let html = '';
-                                data.notifications.forEach(function(notif) {
-                                    html += `<div class="card mb-2">
+        // Load notifications when the Notifications tab is shown
+        document.addEventListener("DOMContentLoaded", function() {
+            var notificationsTab = document.getElementById('notifications-tab');
+            notificationsTab.addEventListener('shown.bs.tab', function() {
+                fetch('backend/routes/notifications.php')
+                    .then(response => response.json())
+                    .then(data => {
+                        var container = document.getElementById('notificationsList');
+                        if (data.status && data.notifications.length > 0) {
+                            let html = '';
+                            data.notifications.forEach(function(notif) {
+                                html += `<div class="card mb-2">
                                         <div class="card-body">
                                             <h5 class="card-title">${notif.subject}</h5>
                                             <p class="card-text">${notif.body}</p>
@@ -193,18 +195,18 @@
                                             <p class="card-text"><small class="text-muted">${notif.sent_at}</small></p>
                                         </div>
                                     </div>`;
-                                });
-                                container.innerHTML = html;
-                            } else {
-                                container.innerHTML = '<p>No notifications found.</p>';
-                            }
-                        })
-                        .catch(err => {
-                            document.getElementById('notificationsList').innerHTML =
-                                '<p>Error loading notifications.</p>';
-                        });
-                });
+                            });
+                            container.innerHTML = html;
+                        } else {
+                            container.innerHTML = '<p>No notifications found.</p>';
+                        }
+                    })
+                    .catch(err => {
+                        document.getElementById('notificationsList').innerHTML =
+                            '<p>Error loading notifications.</p>';
+                    });
             });
+        });
         </script>
     </div>
 

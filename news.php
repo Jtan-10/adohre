@@ -1,9 +1,5 @@
 <?php
 session_start();
-if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
-    exit;
-}
 $nonce = bin2hex(random_bytes(16)); // generate nonce
 
 // Production security headers with updated Content Security Policy

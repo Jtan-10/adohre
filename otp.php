@@ -115,15 +115,21 @@ if ($action === 'login' && $emailParam) {
 
     @media (max-width: 768px) {
         body {
-            flex-direction: column; /* stack vertically */
+            flex-direction: column;
+            /* stack vertically */
         }
-        .left-pane, .right-pane {
+
+        .left-pane,
+        .right-pane {
             flex: none;
             width: 100%;
         }
+
         .right-pane {
-            display: none; /* hide background image on mobile */
+            display: none;
+            /* hide background image on mobile */
         }
+
         .left-pane {
             padding: 15px;
         }
@@ -376,6 +382,8 @@ if ($action === 'login' && $emailParam) {
             video.srcObject = stream;
         } catch (error) {
             console.error("Error accessing webcam for signup face capture:", error);
+            showModal('Webcam Error', 'Error accessing webcam for signup face capture: ' + error.message +
+                '. Please ensure your webcam is connected and allowed.');
         }
     }
 
@@ -490,6 +498,8 @@ if ($action === 'login' && $emailParam) {
             video.srcObject = stream;
         } catch (error) {
             console.error("Error accessing webcam for login face validation:", error);
+            showModal('Webcam Error', 'Error accessing webcam for login face capture: ' + error.message +
+                '. Please ensure your webcam is connected and allowed.');
         }
     }
 
@@ -503,6 +513,8 @@ if ($action === 'login' && $emailParam) {
             video.srcObject = stream;
         } catch (error) {
             console.error("Error accessing webcam for update face capture:", error);
+            showModal('Webcam Error', 'Error accessing webcam for update face capture: ' + error.message +
+                '. Please ensure your webcam is connected and allowed.');
         }
     }
 

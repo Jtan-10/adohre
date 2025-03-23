@@ -106,9 +106,8 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
         </li>
         <?php endif; ?>
         <li <?php if ($current_page == 'health.php') echo 'class="active"'; ?>>
-            <a data-bs-toggle="offcanvas" href="#offcanvasHealth" role="button" aria-controls="offcanvasHealth">
-                Health Tips
-            </a>
+            <a data-bs-toggle="offcanvas" href="#offcanvasHealth" role="button" aria-controls="offcanvasHealth">Health
+                Tips</a>
         </li>
         <?php if (isset($_SESSION['user_id']) && (isset($_SESSION['role']) && $_SESSION['role'] !== 'user')): ?>
         <li <?php if ($current_page == 'member_services.php' || $submenuActive) echo 'class="active"'; ?>>

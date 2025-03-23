@@ -8,9 +8,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     exit;
 }
 
-if (!isset($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -135,6 +133,7 @@ if (!isset($_SESSION['csrf_token'])) {
                             <select class="form-select" id="role" name="role" required>
                                 <option value="admin">Admin</option>
                                 <option value="member">Member</option>
+                                <option value="trainer">Trainer</option>
                                 <option value="user">User</option>
                             </select>
                         </div>
@@ -177,6 +176,7 @@ if (!isset($_SESSION['csrf_token'])) {
                             <select class="form-select" id="editRole" name="role" required>
                                 <option value="admin">Admin</option>
                                 <option value="member">Member</option>
+                                <option value="trainer">Trainer</option>
                                 <option value="user">User</option>
                             </select>
                         </div>

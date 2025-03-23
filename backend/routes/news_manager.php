@@ -21,11 +21,6 @@ use Aws\Exception\AwsException;
 
 header('Content-Type: application/json');
 
-if (!isset($_SESSION['user_id'])) {
-    http_response_code(401);
-    echo json_encode(['status' => false, 'message' => 'Unauthorized']);
-    exit;
-}
 
 // Replace action assignment with sanitized input
 $action = filter_input(INPUT_POST, 'action', FILTER_SANITIZE_STRING)

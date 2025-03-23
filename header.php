@@ -4,6 +4,19 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 require_once 'backend/db/db_connect.php';
 
+// Update the user's role from the database on each page load:
+if (isset($_SESSION['user_id'])) {
+    $stmt = $conn->prepare("SELECT role FROM users WHERE user_id = ?");
+    $stmt->bind_param("i", $_SESSION['user_id']);
+    $stmt->execute();
+    $stmt->bind_result($currentRole);
+    if ($stmt->fetch()) {
+        $_SESSION['role'] = $currentRole;
+    }
+    $stmt->close();
+    $conn->close();
+}
+
 // Check if the user is logged in.
 $isLoggedIn = isset($_SESSION['user_id']);
 
@@ -36,6 +49,8 @@ $headerLogo = $_SESSION['header_logo'] ?? 'assets/logo.png';
                 <li class="nav-item"><a class="nav-link text-white" href="news.php">News</a></li>
                 <?php if ($isLoggedIn && (isset($_SESSION['role']) && $_SESSION['role'] !== 'user')): ?>
                 <li class="nav-item"><a class="nav-link text-white" href="events.php">Events</a></li>
+                <?php endif; ?>
+                <?php if (isset($_SESSION['user_id'])): ?>
                 <li class="nav-item"><a class="nav-link text-white" href="trainings.php">Trainings</a></li>
                 <?php endif; ?>
                 <?php if ($isLoggedIn): ?>
