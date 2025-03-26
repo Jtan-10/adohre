@@ -1,7 +1,5 @@
 <?php
 // Add security headers before any output
-
-
 header("X-Frame-Options: DENY");
 header("Strict-Transport-Security: max-age=31536000; includeSubDomains; preload");
 header("X-Content-Type-Options: nosniff");
@@ -116,7 +114,6 @@ if ($action === 'login' && $emailParam) {
     @media (max-width: 768px) {
         body {
             flex-direction: column;
-            /* stack vertically */
         }
 
         .left-pane,
@@ -127,7 +124,6 @@ if ($action === 'login' && $emailParam) {
 
         .right-pane {
             display: none;
-            /* hide background image on mobile */
         }
 
         .left-pane {
@@ -235,7 +231,7 @@ if ($action === 'login' && $emailParam) {
             <span class="visually-hidden">Loading...</span>
         </div>
     </div>
-    <!-- Bootstrap Modal -->
+    <!-- Response Modal -->
     <div class="modal fade" id="responseModal" tabindex="-1" aria-labelledby="responseModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -253,6 +249,25 @@ if ($action === 'login' && $emailParam) {
         </div>
     </div>
 
+    <!-- Check Spam Folder Modal -->
+    <div class="modal fade" id="checkSpamModal" tabindex="-1" aria-labelledby="checkSpamModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="checkSpamModalLabel">Check Your Spam Folder</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    An OTP has been sent to your email address. If you do not see it in your inbox within a few minutes,
+                    please check your spam or junk folder.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Include Visually Impaired Modal -->
     <?php
     define('IN_CAPSTONE', true);
@@ -264,7 +279,7 @@ if ($action === 'login' && $emailParam) {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous">
     </script>
-    <script>
+    <script nonce="<?php echo $scriptNonce; ?>">
     const urlParams = new URLSearchParams(window.location.search);
     const email = urlParams.get('email') || sessionStorage.getItem('email');
     const action = urlParams.get('action'); // 'signup' or 'login'
@@ -329,6 +344,9 @@ if ($action === 'login' && $emailParam) {
                         startFaceVideoForLogin();
                     }
                 }
+                // Show the "Check Your Spam Folder" modal after a successful OTP send
+                const spamModal = new bootstrap.Modal(document.getElementById('checkSpamModal'));
+                spamModal.show();
             } else {
                 showModal('Error', result.message);
             }
@@ -362,6 +380,9 @@ if ($action === 'login' && $emailParam) {
             hideLoading();
             if (result.status) {
                 showModal('Success', result.message);
+                // Also show the spam folder instruction modal
+                const spamModal = new bootstrap.Modal(document.getElementById('checkSpamModal'));
+                spamModal.show();
             } else {
                 showModal('Error', result.message);
             }
@@ -590,7 +611,6 @@ if ($action === 'login' && $emailParam) {
         canvas.height = video.videoHeight;
         const context = canvas.getContext('2d');
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
         const detection = await faceValidation.detectFace(canvas);
         const resultParagraph = document.getElementById('faceValidationResult');
         if (detection && referenceDescriptor) {

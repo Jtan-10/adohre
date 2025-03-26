@@ -13,8 +13,6 @@ $scriptNonce = bin2hex(random_bytes(16));
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-
     <title>Login - Member Link</title>
     <link rel="icon" href="assets/logo.png" type="image/jpg" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -50,7 +48,6 @@ $scriptNonce = bin2hex(random_bytes(16));
 
     #loadingScreen {
         z-index: 1055;
-        /* Ensure it appears above everything else */
         display: none;
     }
 
@@ -59,12 +56,15 @@ $scriptNonce = bin2hex(random_bytes(16));
         body {
             flex-direction: column;
         }
-        .left-pane, .right-pane {
+
+        .left-pane,
+        .right-pane {
             flex: unset;
             width: 100%;
         }
+
         .right-pane {
-            height: 200px; /* Adjust height as needed */
+            height: 200px;
         }
     }
     </style>
@@ -121,7 +121,7 @@ $scriptNonce = bin2hex(random_bytes(16));
         </div>
     </div>
 
-    <!-- Bootstrap Modal -->
+    <!-- Response Modal (General Notifications) -->
     <div class="modal fade" id="responseModal" tabindex="-1" aria-labelledby="responseModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -138,18 +138,36 @@ $scriptNonce = bin2hex(random_bytes(16));
             </div>
         </div>
     </div>
+
+    <!-- Check Spam Folder Modal -->
+    <div class="modal fade" id="checkSpamModal" tabindex="-1" aria-labelledby="checkSpamModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="checkSpamModalLabel">Check Your Spam Folder</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    An OTP has been sent to your email address. If you do not see it in your inbox within a few minutes,
+                    please check your spam or junk folder.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous">
     </script>
     <script nonce="<?php echo $scriptNonce; ?>">
     document.getElementById('loginBtn').addEventListener('click', async () => {
         const email = document.getElementById('email').value;
-
         if (!email) {
             showModal('Error', 'Please enter your email.');
             return;
         }
-
         showLoading(); // Show loading screen
         try {
             const response = await fetch('backend/routes/login.php', {
@@ -162,12 +180,13 @@ $scriptNonce = bin2hex(random_bytes(16));
                     csrf_token: '<?php echo $_SESSION["csrf_token"]; ?>'
                 })
             });
-
             const result = await response.json();
             hideLoading(); // Hide loading screen
-
             if (result.status) {
                 showModal('Success', result.message, `otp.php?action=login&email=${email}`);
+                // Also show the "Check Your Spam Folder" modal
+                const spamModal = new bootstrap.Modal(document.getElementById('checkSpamModal'));
+                spamModal.show();
             } else {
                 showModal('Error', result.message);
             }
@@ -181,20 +200,16 @@ $scriptNonce = bin2hex(random_bytes(16));
     document.getElementById('uploadBtn').addEventListener('click', async () => {
         const formData = new FormData(document.getElementById('virtualIdForm'));
         const fileInput = document.getElementById('virtualIdImage');
-
         if (!fileInput.files.length) {
             showModal('Error', 'Please upload an image.');
             return;
         }
-
         try {
             const response = await fetch('backend/routes/login.php', {
                 method: 'POST',
                 body: formData
             });
-
             const result = await response.json();
-
             if (result.status) {
                 showModal('Success', 'Login successful.', 'index.php');
             } else {
@@ -224,7 +239,6 @@ $scriptNonce = bin2hex(random_bytes(16));
         document.getElementById('responseModalBody').textContent = message;
         const modal = new bootstrap.Modal(document.getElementById('responseModal'));
         modal.show();
-
         if (redirectUrl) {
             modal._element.addEventListener('hidden.bs.modal', () => {
                 window.location.href = redirectUrl;

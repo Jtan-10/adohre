@@ -20,8 +20,6 @@ header("X-XSS-Protection: 1; mode=block");
 header("Strict-Transport-Security: max-age=31536000; includeSubDomains");
 header("Referrer-Policy: no-referrer");
 
-
-
 // Add secure session cookie settings.
 session_set_cookie_params([
     'lifetime' => 0,
@@ -100,15 +98,20 @@ if (isset($_SESSION['user_id'])) {
     /* Add media query for mobile responsiveness */
     @media (max-width: 768px) {
         body {
-            flex-direction: column; /* Stack panes vertically */
+            flex-direction: column;
+            /* Stack panes vertically */
         }
-        .left-pane, .right-pane {
+
+        .left-pane,
+        .right-pane {
             flex: none;
             width: 100%;
             height: auto;
         }
+
         .right-pane {
-            min-height: 200px; /* Ensure a visible area for the right pane */
+            min-height: 200px;
+            /* Ensure a visible area for the right pane */
             background-size: cover;
         }
     }
@@ -147,8 +150,7 @@ if (isset($_SESSION['user_id'])) {
             <span class="visually-hidden">Loading...</span>
         </div>
     </div>
-
-    <!-- Bootstrap Modal -->
+    <!-- Response Modal -->
     <div class="modal fade" id="responseModal" tabindex="-1" aria-labelledby="responseModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -165,17 +167,32 @@ if (isset($_SESSION['user_id'])) {
             </div>
         </div>
     </div>
-
+    <!-- Check Spam Folder Modal -->
+    <div class="modal fade" id="checkSpamModal" tabindex="-1" aria-labelledby="checkSpamModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="checkSpamModalLabel">Check Your Spam Folder</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    An OTP has been sent to your email address. If you do not see it in your inbox within a few minutes,
+                    please check your spam or junk folder.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
     <!-- Include Visually Impaired Modal -->
     <?php 
     define('IN_CAPSTONE', true);
     include 'visually_impaired_modal.php'; 
     ?>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous">
     </script>
-
     <script nonce="<?php echo $csp_nonce; ?>">
     // Set up Speech Recognition.
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -324,6 +341,10 @@ if (isset($_SESSION['user_id'])) {
                 hideLoading();
                 if (result.status) {
                     showModal('Success', result.message, `otp.php?action=signup&email=${email}`);
+                    // Also show the "Check Your Spam Folder" modal.
+                    const spamModal = new bootstrap.Modal(document.getElementById(
+                        'checkSpamModal'));
+                    spamModal.show();
                 } else {
                     showModal('Error', result.message);
                 }
@@ -333,7 +354,6 @@ if (isset($_SESSION['user_id'])) {
                 showModal('Error', 'An error occurred. Please try again.');
             }
         });
-
 
         function hideLoading() {
             const ls = document.getElementById('loadingScreen');
