@@ -222,6 +222,8 @@ if (isset($_SESSION['user_id'])) {
     <!-- Sidebar -->
     <?php include('sidebar.php'); ?>
 
+    <?php include 'privacy_and_cookie_notice.php'; ?>
+
     <!-- Main Content -->
     <main role="main">
         <!-- Carousel (if any) -->

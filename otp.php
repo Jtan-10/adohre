@@ -344,9 +344,6 @@ if ($action === 'login' && $emailParam) {
                         startFaceVideoForLogin();
                     }
                 }
-                // Show the "Check Your Spam Folder" modal after a successful OTP send
-                const spamModal = new bootstrap.Modal(document.getElementById('checkSpamModal'));
-                spamModal.show();
             } else {
                 showModal('Error', result.message);
             }
