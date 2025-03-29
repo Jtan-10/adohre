@@ -19,12 +19,6 @@ header("X-Content-Type-Options: nosniff");
 session_start();
 require_once 'backend/db/db_connect.php';
 
-// Check if the user is logged in and has completed face validation
-if (!isset($_SESSION['user_id']) || !isset($_SESSION['face_validated']) || $_SESSION['face_validated'] !== true) {
-    header("Location: otp.php?action=login");
-    exit();
-}
-
 // Default visually impaired flag is 0.
 $isVisuallyImpaired = 0;
 if (isset($_SESSION['user_id'])) {
