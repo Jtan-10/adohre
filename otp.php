@@ -616,7 +616,23 @@ if ($action === 'login' && $emailParam) {
             const threshold = 0.6;
             if (distance < threshold) {
                 resultParagraph.innerText = "Face matched successfully!";
-                showModal('Success', 'Login successful!', 'index.php');
+                // Set session variables after successful face validation
+                const response = await fetch('backend/routes/verify_otp.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email,
+                        otp: document.getElementById('otp').value
+                    })
+                });
+                const result = await response.json();
+                if (result.status) {
+                    showModal('Success', 'Login successful!', 'index.php');
+                } else {
+                    showModal('Error', 'Failed to set session. Please try again.');
+                }
             } else {
                 resultParagraph.innerText = "Face did not match. Please try again.";
             }
