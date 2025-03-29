@@ -80,16 +80,13 @@ $cardHeight = imagesy($idCard);  // Expected: 841
 //    Adjust the coordinates to match the circular cutout on your template.
 // ----------------------------------------------------------------
 if (!empty($user['profile_image']) && strpos($user['profile_image'], '/s3proxy/') === 0) {
-    // Use the correct protocol based on the current connection.
-    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
-    $remoteUrl = $protocol . $_SERVER['HTTP_HOST'] . $user['profile_image'];
-    
-    // Attempt to load the image data from the remote URL.
+    // Load the image via remote URL if using S3 proxy path
+    $remoteUrl = "http://".$_SERVER['HTTP_HOST'].$user['profile_image'];
     $profileImageData = @file_get_contents($remoteUrl);
     if ($profileImageData !== false) {
         $profileImage = imagecreatefromstring($profileImageData);
     } else {
-        // Fallback to default image if remote load fails.
+        // Fallback to default image if remote load fails
         $profileImage = imagecreatefromjpeg(__DIR__ . '/../../assets/default-profile.jpeg');
     }
 } else {
