@@ -2,10 +2,10 @@
 // Set secure session cookie parameters (adjust 'domain' as needed)
 session_set_cookie_params([
     'lifetime' => 0,
-    'path' => '/',
-    'secure' => true,          // ensure using HTTPS
+    'path'     => '/',
+    'secure'   => true,          // ensure using HTTPS
     'httponly' => true,
-    'samesite' => 'Strict'     // or 'Lax' based on your requirements
+    'samesite' => 'Strict'       // or 'Lax' based on your requirements
 ]);
 session_start();
 
@@ -48,7 +48,6 @@ $otp = trim($data['otp']);
 
 // Verify OTP using the function defined in authController.php
 if (verifyOTP($email, $otp)) {
-    // Fetch user data for session
     global $conn;
     if (!$conn) {
         error_log('Database connection not initialized');
@@ -73,23 +72,20 @@ if (verifyOTP($email, $otp)) {
     if ($user) {
         // Regenerate session ID to prevent session fixation attacks
         session_regenerate_id(true);
-        $_SESSION['user_id']       = $user['user_id'];
-        $_SESSION['first_name']    = $user['first_name'];
-        $_SESSION['last_name']     = $user['last_name'];
-        $_SESSION['profile_image'] = $user['profile_image'];
-        $_SESSION['role']          = $user['role'];
-
-        // Record successful login in the audit log
-        recordAuditLog($user['user_id'], 'Login via OTP', 'User logged in successfully via OTP.');
-
-        echo json_encode(['status' => true, 'message' => 'Login successful!']);
+        // Do NOT set permanent login variables yet.
+        $_SESSION['otp_verified'] = true;
+        $_SESSION['temp_user'] = $user; // store user data temporarily
+        
+        // Record successful OTP verification (pending face validation)
+        recordAuditLog($user['user_id'], 'OTP Verified', 'OTP verified successfully, pending face validation.');
+        
+        echo json_encode(['status' => true, 'message' => 'OTP verified! Please complete face validation.']);
     } else {
         // Do not reveal details about whether the email exists
         http_response_code(401);
         echo json_encode(['status' => false, 'message' => 'Invalid credentials.']);
     }
 } else {
-    // Record OTP failure in the audit log (user_id 0 because it's unknown)
     recordAuditLog(0, 'OTP verification failed', 'Failed OTP verification attempt for email: ' . $email);
     
     http_response_code(401);

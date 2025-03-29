@@ -608,6 +608,8 @@ if ($action === 'login' && $emailParam) {
         canvas.height = video.videoHeight;
         const context = canvas.getContext('2d');
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // Perform face detection using your faceValidation module
         const detection = await faceValidation.detectFace(canvas);
         const resultParagraph = document.getElementById('faceValidationResult');
         if (detection && referenceDescriptor) {
@@ -616,30 +618,34 @@ if ($action === 'login' && $emailParam) {
             const threshold = 0.6;
             if (distance < threshold) {
                 resultParagraph.innerText = "Face matched successfully!";
-                // Set session variables after successful face validation
-                const response = await fetch('backend/routes/verify_otp.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        email,
-                        otp: document.getElementById('otp').value
-                    })
-                });
-                const result = await response.json();
-                if (result.status) {
-                    showModal('Success', 'Login successful!', 'index.php');
-                } else {
-                    showModal('Error', 'Failed to set session. Please try again.');
+                // Only now, call the backend endpoint to complete login
+                try {
+                    const completeResponse = await fetch('backend/routes/complete_login.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            email: email
+                        })
+                    });
+                    const completeResult = await completeResponse.json();
+                    if (completeResult.status) {
+                        showModal('Success', 'Login successful!', 'index.php');
+                    } else {
+                        resultParagraph.innerText = "Error finalizing login: " + completeResult.message;
+                    }
+                } catch (error) {
+                    resultParagraph.innerText = "Error finalizing login: " + error.message;
                 }
             } else {
                 resultParagraph.innerText = "Face did not match. Please try again.";
             }
         } else {
-            resultParagraph.innerText = "No face detected or no reference descriptor available.";
+            resultParagraph.innerText = "No face detected or no reference available.";
         }
     });
+
 
     // Utility: Show/hide loading screen
     function showLoading() {

@@ -13,19 +13,25 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// Check for valid session (ensure the user is authenticated).
-if (!isset($_SESSION['user_id'])) {
+// Check for valid session: allow if either full login or temporary OTP-verified login exists.
+if (!isset($_SESSION['user_id']) && !isset($_SESSION['temp_user'])) {
     http_response_code(401);
     echo json_encode(['status' => false, 'message' => 'Unauthorized access.']);
     exit;
 }
 
-// Validate CSRF token if your application uses one.
-if (!isset($_SERVER['HTTP_X_CSRF_TOKEN']) || $_SERVER['HTTP_X_CSRF_TOKEN'] !== $_SESSION['csrf_token']) {
-    http_response_code(403);
-    echo json_encode(['status' => false, 'message' => 'Invalid CSRF token.']);
-    exit;
-}
+// Use the authenticated user's ID from session.
+// If the user isn't fully logged in, use the temporary session.
+$user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : $_SESSION['temp_user']['user_id'];
+
+// (Optional) Fetch the user's email from the database using user_id.
+$stmt = $conn->prepare("SELECT email FROM users WHERE user_id = ?");
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$row = $result->fetch_assoc();
+$email = $row['email'] ?? '';
+$stmt->close();
 
 // Read and decode the JSON payload.
 $input = file_get_contents("php://input");
@@ -37,23 +43,15 @@ if (empty($data)) {
 }
 
 // Ensure required fields are provided.
-if (empty($data['email']) || empty($data['first_name']) || empty($data['last_name'])) {
+if (empty($data['first_name']) || empty($data['last_name'])) {
     http_response_code(400);
-    echo json_encode(['status' => false, 'message' => 'Missing required fields.']);
+    echo json_encode(['status' => false, 'message' => 'Missing required fields: first_name and last_name.']);
     exit;
 }
 
 // Sanitize and validate the input.
-$email = filter_var(trim($data['email']), FILTER_SANITIZE_EMAIL);
 $first_name = htmlspecialchars(trim($data['first_name']), ENT_QUOTES, 'UTF-8');
-$last_name = htmlspecialchars(trim($data['last_name']), ENT_QUOTES, 'UTF-8');
-
-// Validate email format.
-if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-    http_response_code(400);
-    echo json_encode(['status' => false, 'message' => 'Invalid email format.']);
-    exit;
-}
+$last_name  = htmlspecialchars(trim($data['last_name']), ENT_QUOTES, 'UTF-8');
 
 // Validate length constraints.
 if (strlen($first_name) > 50 || strlen($last_name) > 50) {
@@ -62,7 +60,6 @@ if (strlen($first_name) > 50 || strlen($last_name) > 50) {
     exit;
 }
 
-global $conn;
 $s3Key = '';
 $relativeFileName = '';
 
@@ -125,34 +122,32 @@ if (!empty($data['faceData'])) {
 
 // Prepare the update query securely using prepared statements.
 if (!empty($relativeFileName)) {
-    $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ?, face_image = ? WHERE email = ?");
+    $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ?, face_image = ? WHERE user_id = ?");
     if ($stmt === false) {
         error_log('Database prepare error: ' . $conn->error);
         http_response_code(500);
         echo json_encode(['status' => false, 'message' => 'Database error.']);
         exit;
     }
-    $stmt->bind_param("ssss", $first_name, $last_name, $relativeFileName, $email);
+    $stmt->bind_param("sssi", $first_name, $last_name, $relativeFileName, $user_id);
 } else {
-    $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ? WHERE email = ?");
+    $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ? WHERE user_id = ?");
     if ($stmt === false) {
         error_log('Database prepare error: ' . $conn->error);
         http_response_code(500);
         echo json_encode(['status' => false, 'message' => 'Database error.']);
         exit;
     }
-    $stmt->bind_param("sss", $first_name, $last_name, $email);
+    $stmt->bind_param("ssi", $first_name, $last_name, $user_id);
 }
 
 if ($stmt->execute()) {
     // Audit log: record that the user updated their profile details.
-    // We use the user_id from the session.
-    recordAuditLog($_SESSION['user_id'], 'Profile Update', 'User updated profile details' . (!empty($relativeFileName) ? ' (face image updated)' : ''));
-
+    recordAuditLog($user_id, 'Profile Update', 'User updated profile details' . (!empty($relativeFileName) ? ' (face image updated)' : ''));
     http_response_code(200);
     echo json_encode(['status' => true, 'message' => 'Profile updated successfully!']);
 } else {
-    error_log("Database execution error for email: $email - " . $stmt->error);
+    error_log("Database execution error for user_id: $user_id - " . $stmt->error);
     http_response_code(500);
     echo json_encode(['status' => false, 'message' => 'Failed to update profile details.']);
 }
@@ -160,3 +155,4 @@ if ($stmt->execute()) {
 $stmt->close();
 $conn->close();
 exit;
+?>
