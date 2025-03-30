@@ -1,13 +1,27 @@
 <script nonce="<?= $cspNonce ?>">
 document.addEventListener('DOMContentLoaded', function() {
+    // Ensure the required elements exist
+    const announcementForm = document.getElementById('announcementForm');
+    const announcementsListElement = document.getElementById('announcementsList');
+
+    if (!announcementForm) {
+        console.error("announcementForm element not found.");
+        return;
+    }
+    if (!announcementsListElement) {
+        console.error("announcementsList element not found.");
+        return;
+    }
+
     // Fetch and display existing announcements
     fetchContent();
 
     // Handle form submission (Add/Update Announcement)
-    document.getElementById('announcementForm').addEventListener('submit', function(e) {
+    announcementForm.addEventListener('submit', function(e) {
         e.preventDefault();
         const formData = new FormData(this);
-        const id = document.getElementById('announcementId').value;
+        const idField = document.getElementById('announcementId');
+        const id = idField ? idField.value : '';
 
         // Determine if it's Add or Update
         const action = id ? 'update_announcement' : 'add_announcement';
@@ -23,8 +37,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then((response) => response.json())
             .then((data) => {
                 if (data.status) {
-                    // Populate Announcements List
-                    const announcementsList = data.announcements
+                    const announcementsHtml = data.announcements
                         .map((announcement) => {
                             // Normalize announcement text:
                             // Collapse three or more consecutive newlines into just two,
@@ -44,36 +57,38 @@ document.addEventListener('DOMContentLoaded', function() {
                                     hour12: true
                                 });
                             return `
-                        <div class="card mb-3">
-                            <div class="card-body">
-                                <p class="card-text" style="white-space: pre-wrap;">
-                                    ${normalizedText}
-                                </p>
-                                <small class="text-muted">Posted on: ${formattedDate}</small>
-                                <div class="mt-2">
-                                    <button class="btn btn-primary btn-sm edit-announcement" data-id="${announcement.announcement_id}">Edit</button>
-                                    <button class="btn btn-danger btn-sm delete-announcement" data-id="${announcement.announcement_id}">Delete</button>
+                                <div class="card mb-3">
+                                    <div class="card-body">
+                                        <p class="card-text" style="white-space: pre-wrap;">
+                                            ${normalizedText}
+                                        </p>
+                                        <small class="text-muted">Posted on: ${formattedDate}</small>
+                                        <div class="mt-2">
+                                            <button class="btn btn-primary btn-sm edit-announcement" data-id="${announcement.announcement_id}">Edit</button>
+                                            <button class="btn btn-danger btn-sm delete-announcement" data-id="${announcement.announcement_id}">Delete</button>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
-                    `;
+                            `;
                         })
                         .join('');
-                    document.getElementById('announcementsList').innerHTML = announcementsList;
+                    announcementsListElement.innerHTML = announcementsHtml ||
+                        '<p class="text-center text-muted">No announcements</p>';
+
                     // Attach event listeners for Edit and Delete buttons...
-                    document.querySelectorAll('.edit-announcement').forEach((button) =>
+                    document.querySelectorAll('.edit-announcement').forEach((button) => {
                         button.addEventListener('click', function() {
                             editAnnouncement(this.getAttribute('data-id'));
-                        })
-                    );
-                    document.querySelectorAll('.delete-announcement').forEach((button) =>
+                        });
+                    });
+                    document.querySelectorAll('.delete-announcement').forEach((button) => {
                         button.addEventListener('click', function() {
                             deleteAnnouncement(this.getAttribute('data-id'));
-                        })
-                    );
+                        });
+                    });
                 }
             })
-            .catch((err) => console.error(err));
+            .catch((err) => console.error('Fetch error:', err));
     }
 
     // Edit Announcement
@@ -83,11 +98,15 @@ document.addEventListener('DOMContentLoaded', function() {
             .then((data) => {
                 if (data.status) {
                     const announcement = data.announcement;
-                    document.getElementById('announcementId').value = announcement.announcement_id;
-                    document.getElementById('announcementText').value = announcement.text;
+                    const announcementIdField = document.getElementById('announcementId');
+                    const announcementTextField = document.getElementById('announcementText');
+                    if (announcementIdField && announcementTextField) {
+                        announcementIdField.value = announcement.announcement_id;
+                        announcementTextField.value = announcement.text;
+                    }
                 }
             })
-            .catch((err) => console.error(err));
+            .catch((err) => console.error('Edit announcement error:', err));
     }
 
     // Delete Announcement
@@ -112,8 +131,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.status) {
                     alert(successMessage);
                     fetchContent();
-                    document.getElementById('announcementForm').reset();
-                    document.getElementById('announcementId').value = '';
+                    announcementForm.reset();
+                    const idField = document.getElementById('announcementId');
+                    if (idField) idField.value = '';
                 } else {
                     alert(`Error: ${data.message}`);
                 }
