@@ -294,24 +294,38 @@ error_reporting(0);
 
         function renderAnnouncements(announcements) {
             const announcementsList = document.getElementById('announcementsList');
-            const html = announcements.map(announcement => `
+            const html = announcements.map(announcement => {
+                // Format created_at to include date and time in 12-hour format
+                const formattedDate = new Date(announcement.created_at).toLocaleString('en-US', {
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: 'numeric',
+                    minute: 'numeric',
+                    hour12: true
+                });
+                return `
             <div class="announcement-card">
                 <div class="d-flex align-items-start mb-2">
                     <i class="fas fa-bullhorn text-primary me-3 mt-1"></i>
                     <div>
                         <p class="mb-1 fw-semibold">${announcement.title || 'Important Update'}</p>
-                        <p class="text-muted mb-0 small">${announcement.text}</p>
+                        <p class="text-muted mb-0 small" style="white-space: pre-wrap;">
+                            ${announcement.text}
+                        </p>
                         <div class="text-end mt-2">
                             <small class="text-muted">
-                                ${new Date(announcement.date).toLocaleDateString()}
+                                Posted on: ${formattedDate}
                             </small>
                         </div>
                     </div>
                 </div>
             </div>
-        `).join('');
+        `;
+            }).join('');
             announcementsList.innerHTML = html || '<p class="text-center text-muted">No announcements</p>';
         }
+
 
         function showError(message) {
             eventsList.innerHTML = `
