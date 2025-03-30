@@ -21,7 +21,6 @@ use Aws\Exception\AwsException;
 
 header('Content-Type: application/json');
 
-
 // Replace action assignment with sanitized input
 $action = filter_input(INPUT_POST, 'action', FILTER_SANITIZE_STRING)
     ?: filter_input(INPUT_GET, 'action', FILTER_SANITIZE_STRING);
@@ -41,6 +40,9 @@ switch ($action) {
         break;
     case 'like':
         likeNews();
+        break;
+    case 'increment_view': // New action for incrementing view count
+        incrementView();
         break;
     default:
         http_response_code(400);
@@ -289,7 +291,37 @@ function likeNews()
     $stmt->bind_param("ii", $news_id, $user_id);
     if ($stmt->execute()) {
         recordAuditLog($user_id, 'Like News', "News ID $news_id " . ($exists ? "unliked" : "liked") . ".");
-        echo json_encode(['status' => true, 'message' => $actionMsg]);
+        // Optionally, fetch the updated like count:
+        $result = $conn->query("SELECT COUNT(*) AS like_count FROM news_likes WHERE news_id = $news_id");
+        $data = $result->fetch_assoc();
+        echo json_encode(['status' => true, 'message' => $actionMsg, 'like_count' => intval($data['like_count'])]);
+    } else {
+        http_response_code(500);
+        echo json_encode(['status' => false, 'message' => 'Database error: ' . $stmt->error]);
+    }
+    $stmt->close();
+}
+
+function incrementView() {
+    global $conn;
+    // Validate news_id from POST data
+    $news_id = filter_input(INPUT_POST, 'news_id', FILTER_VALIDATE_INT);
+    if (!$news_id) {
+        echo json_encode(['status' => false, 'message' => 'Invalid news id']);
+        return;
+    }
+    $stmt = $conn->prepare("UPDATE news SET views = views + 1 WHERE news_id = ?");
+    if (!$stmt) {
+        http_response_code(500);
+        echo json_encode(['status' => false, 'message' => 'Database error: ' . $conn->error]);
+        return;
+    }
+    $stmt->bind_param("i", $news_id);
+    if ($stmt->execute()) {
+        // Optionally, fetch the updated view count:
+        $result = $conn->query("SELECT views FROM news WHERE news_id = $news_id");
+        $row = $result->fetch_assoc();
+        echo json_encode(['status' => true, 'views' => intval($row['views'])]);
     } else {
         http_response_code(500);
         echo json_encode(['status' => false, 'message' => 'Database error: ' . $stmt->error]);

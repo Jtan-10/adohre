@@ -63,9 +63,7 @@ $news = $newsData['news'][0];
 
 <head>
     <meta charset="UTF-8">
-    <!-- Updated CSP including nonce for inline style, a hash for known inline styles from external libraries, and font-src directive -->
-
-
+    <!-- Updated CSP including nonce for inline style -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($news['title']); ?> - ADOHRE News</title>
     <link rel="icon" href="assets/logo.png" type="image/jpg" />
@@ -110,6 +108,13 @@ $news = $newsData['news'][0];
             <span class="ms-3"><i class="fas fa-user"></i> <?php echo htmlspecialchars($news['author']); ?></span>
             <span class="ms-3"><i class="fas fa-folder"></i> <?php echo htmlspecialchars($news['category']); ?></span>
             <span class="ms-3"><i class="fas fa-eye"></i> <?php echo intval($news['views']); ?> views</span>
+            <!-- Like Button -->
+            <span class="ms-3">
+                <button id="like-button" class="btn btn-outline-success btn-sm">
+                    <i class="fas fa-thumbs-up"></i> Like (<span
+                        id="like-count"><?php echo intval($news['likes_count']); ?></span>)
+                </button>
+            </span>
         </div>
         <?php if (!empty($news['image'])): ?>
         <img src="<?php echo htmlspecialchars($news['image']); ?>" alt="<?php echo htmlspecialchars($news['title']); ?>"
@@ -124,6 +129,38 @@ $news = $newsData['news'][0];
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Font Awesome JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <script nonce="<?php echo $style_nonce; ?>">
+    // Like button functionality
+    document.getElementById('like-button').addEventListener('click', function() {
+        // Disable the button to prevent multiple clicks
+        this.disabled = true;
+        fetch('backend/routes/news_manager.php?action=like', {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: 'news_id=<?php echo $news_id; ?>'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status) {
+                    // Update the like count displayed on the button
+                    document.getElementById('like-count').textContent = data.like_count;
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An unexpected error occurred. Please try again.');
+            })
+            .finally(() => {
+                // Re-enable the button
+                document.getElementById('like-button').disabled = false;
+            });
+    });
+    </script>
 </body>
 
 </html>
