@@ -1,20 +1,20 @@
-div class="form-section">
-<h3>Manage Announcements</h3>
+<div class="form-section">
+    <h3>Manage Announcements</h3>
 
-<!-- Announcement Form -->
-<form id="announcementForm">
-    <div class="mb-3">
-        <label for="announcementText" class="form-label">Announcement</label>
-        <textarea id="announcementText" name="text" class="form-control" required></textarea>
-    </div>
-    <input type="hidden" id="announcementId" name="id"> <!-- Hidden field for updating announcements -->
-    <button type="submit" class="btn btn-primary">Save Announcement</button>
-</form>
-<hr>
+    <!-- Announcement Form -->
+    <form id="announcementForm">
+        <div class="mb-3">
+            <label for="announcementText" class="form-label">Announcement</label>
+            <textarea id="announcementText" name="text" class="form-control" required></textarea>
+        </div>
+        <input type="hidden" id="announcementId" name="id"> <!-- Hidden field for updating announcements -->
+        <button type="submit" class="btn btn-primary">Save Announcement</button>
+    </form>
+    <hr>
 
-<!-- Announcements List -->
-<h4>Existing Announcements</h4>
-<div id="announcementsList"></div>
+    <!-- Announcements List -->
+    <h4>Existing Announcements</h4>
+    <div id="announcementsList"></div>
 </div>
 
 <!-- Updated inline script with matching nonce -->
