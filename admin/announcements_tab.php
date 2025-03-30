@@ -59,14 +59,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.status) {
                     const announcementsList = data.announcements
                         .map((announcement) => {
-                            // Step 1: Remove any leading newlines
-                            let normalizedText = announcement.text.replace(/^[\r\n]+/, '');
-
-                            // Step 2: Collapse three or more consecutive newlines (with optional spaces) into two
-                            normalizedText = normalizedText.replace(/(\r?\n\s*){3,}/g, '\n\n');
-
-                            // Step 3: Trim leftover leading/trailing whitespace
-                            normalizedText = normalizedText.trim();
+                            const normalizedText = announcement.text.replace(/^[\r\n]+/, '').replace(
+                                /(\r?\n\s*){3,}/g, '\n\n').trim();
 
                             // Format the date
                             const formattedDate = new Date(announcement.created_at).toLocaleString(
