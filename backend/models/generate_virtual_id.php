@@ -84,6 +84,8 @@ if (!empty($user['profile_image']) && strpos($user['profile_image'], '/s3proxy/'
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
     $remoteUrl = $protocol . $_SERVER['HTTP_HOST'] . $user['profile_image'];
     
+    error_log("Remote URL: " . $remoteUrl);
+
     // Attempt to load the image data from the remote URL.
     $profileImageData = @file_get_contents($remoteUrl);
     if ($profileImageData !== false) {
