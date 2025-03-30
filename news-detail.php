@@ -108,13 +108,6 @@ $news = $newsData['news'][0];
             <span class="ms-3"><i class="fas fa-user"></i> <?php echo htmlspecialchars($news['author']); ?></span>
             <span class="ms-3"><i class="fas fa-folder"></i> <?php echo htmlspecialchars($news['category']); ?></span>
             <span class="ms-3"><i class="fas fa-eye"></i> <?php echo intval($news['views']); ?> views</span>
-            <!-- Like Button -->
-            <span class="ms-3">
-                <button id="like-button" class="btn btn-outline-success btn-sm">
-                    <i class="fas fa-thumbs-up"></i> Like (<span
-                        id="like-count"><?php echo intval($news['likes_count']); ?></span>)
-                </button>
-            </span>
         </div>
         <?php if (!empty($news['image'])): ?>
         <img src="<?php echo htmlspecialchars($news['image']); ?>" alt="<?php echo htmlspecialchars($news['title']); ?>"
@@ -123,6 +116,13 @@ $news = $newsData['news'][0];
         <div class="news-content">
             <?php echo nl2br(htmlspecialchars($news['content'])); ?>
         </div>
+        <!-- Like Button -->
+        <span class="ms-3">
+            <button id="like-button" class="btn btn-outline-success btn-sm">
+                <i class="fas fa-thumbs-up"></i> Like (<span
+                    id="like-count"><?php echo intval($news['likes_count']); ?></span>)
+            </button>
+        </span>
     </div>
     <?php include('footer.php'); ?>
     <!-- Bootstrap JS -->
