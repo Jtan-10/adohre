@@ -1,23 +1,3 @@
-<div class="form-section">
-    <h3>Manage Announcements</h3>
-
-    <!-- Announcement Form -->
-    <form id="announcementForm">
-        <div class="mb-3">
-            <label for="announcementText" class="form-label">Announcement</label>
-            <textarea id="announcementText" name="text" class="form-control" required></textarea>
-        </div>
-        <input type="hidden" id="announcementId" name="id"> <!-- Hidden field for updating announcements -->
-        <button type="submit" class="btn btn-primary">Save Announcement</button>
-    </form>
-    <hr>
-
-    <!-- Announcements List -->
-    <h4>Existing Announcements</h4>
-    <div id="announcementsList"></div>
-</div>
-
-<!-- Updated inline script with matching nonce -->
 <script nonce="<?= $cspNonce ?>">
 document.addEventListener('DOMContentLoaded', function() {
     // Fetch and display existing announcements
@@ -46,6 +26,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Populate Announcements List
                     const announcementsList = data.announcements
                         .map((announcement) => {
+                            // Normalize announcement text:
+                            // Collapse three or more consecutive newlines into just two,
+                            // and trim leading/trailing whitespace.
+                            const normalizedText = announcement.text
+                                .replace(/(\r?\n\s*){3,}/g, '\n\n')
+                                .trim();
+
                             // Format created_at date and time
                             const formattedDate = new Date(announcement.created_at).toLocaleString(
                                 'en-US', {
@@ -60,7 +47,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="card mb-3">
                             <div class="card-body">
                                 <p class="card-text" style="white-space: pre-wrap;">
-                                    ${announcement.text}
+                                    ${normalizedText}
                                 </p>
                                 <small class="text-muted">Posted on: ${formattedDate}</small>
                                 <div class="mt-2">
@@ -88,8 +75,6 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch((err) => console.error(err));
     }
-
-
 
     // Edit Announcement
     function editAnnouncement(id) {

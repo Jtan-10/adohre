@@ -40,7 +40,9 @@ try {
         }
 
         // -- ANNOUNCEMENTS --
-        $announcementsQuery = "SELECT * FROM announcements ORDER BY created_at DESC";
+        // Note: Since the announcements table has only text and created_at,
+        // we alias an empty string as "title" so the front-end can use it.
+        $announcementsQuery = "SELECT announcement_id, text, created_at, '' AS title FROM announcements ORDER BY created_at DESC";
         $announcementsResult = $conn->query($announcementsQuery);
         $announcements = $announcementsResult->fetch_all(MYSQLI_ASSOC);
 
@@ -245,7 +247,8 @@ try {
         // ----------------------------
         $announcement_id = $_GET['id'];
 
-        $stmt = $conn->prepare("SELECT * FROM announcements WHERE announcement_id = ?");
+        // Return title as empty string since our table doesn't have a separate title field.
+        $stmt = $conn->prepare("SELECT announcement_id, text, created_at, '' AS title FROM announcements WHERE announcement_id = ?");
         $stmt->bind_param('i', $announcement_id);
         $stmt->execute();
         $result = $stmt->get_result();

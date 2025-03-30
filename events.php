@@ -295,6 +295,8 @@ error_reporting(0);
         function renderAnnouncements(announcements) {
             const announcementsList = document.getElementById('announcementsList');
             const html = announcements.map(announcement => {
+                // Normalize text: collapse 3+ consecutive newlines into 2 and trim extra whitespace
+                const normalizedText = announcement.text.replace(/(\r?\n\s*){3,}/g, '\n\n').trim();
                 // Format created_at to include date and time in 12-hour format
                 const formattedDate = new Date(announcement.created_at).toLocaleString('en-US', {
                     month: 'long',
@@ -311,7 +313,7 @@ error_reporting(0);
                     <div>
                         <p class="mb-1 fw-semibold">${announcement.title || 'Important Update'}</p>
                         <p class="text-muted mb-0 small" style="white-space: pre-wrap;">
-                            ${announcement.text}
+                            ${normalizedText}
                         </p>
                         <div class="text-end mt-2">
                             <small class="text-muted">
