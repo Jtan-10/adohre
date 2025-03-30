@@ -1,7 +1,7 @@
 <?php
 // Production settings: disable error display
-ini_set('display_errors', 0);
-error_reporting(0);
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
 
 require_once '../db/db_connect.php';
 require '../../vendor/autoload.php'; // Include the QR Code library
