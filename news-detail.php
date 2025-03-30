@@ -116,13 +116,15 @@ $news = $newsData['news'][0];
         <div class="news-content">
             <?php echo nl2br(htmlspecialchars($news['content'])); ?>
         </div>
-        <!-- Like Button -->
-        <span class="ms-3">
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <a href="news.php" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to News
+            </a>
             <button id="like-button" class="btn btn-outline-success btn-sm">
                 <i class="fas fa-thumbs-up"></i> Like (<span
                     id="like-count"><?php echo intval($news['likes_count']); ?></span>)
             </button>
-        </span>
+        </div>
     </div>
     <?php include('footer.php'); ?>
     <!-- Bootstrap JS -->
