@@ -61,9 +61,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         .map((announcement) => {
                             // Normalize announcement text:
                             // Collapse three or more consecutive newlines into just two,
-                            // and trim leading/trailing whitespace.
+                            // and trim leading/trailing whitespace and newlines.
                             const normalizedText = announcement.text
-                                .replace(/(\r?\n\s*){3,}/g, '\n\n')
+                                .replace(/(^[\s\r\n]+|[\s\r\n]+$)/g,
+                                '') // Trim leading/trailing whitespace and newlines
+                                .replace(/(\r?\n\s*){3,}/g,
+                                '\n\n') // Collapse 3+ consecutive newlines into 2
                                 .trim();
 
                             // Format created_at date and time
