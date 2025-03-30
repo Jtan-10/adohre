@@ -37,6 +37,19 @@ if ($updateStmt) {
     error_log("Database error updating views: " . $conn->error);
 }
 
+// Helper function to format view count
+function formatViews($views) {
+    if ($views >= 1000000000) {
+        return number_format($views / 1000000000, 1) . 'B';
+    } elseif ($views >= 1000000) {
+        return number_format($views / 1000000, 1) . 'M';
+    } elseif ($views >= 1000) {
+        return number_format($views / 1000, 1) . 'K';
+    } else {
+        return $views;
+    }
+}
+
 // Build the URL for the backend route to fetch the news detail.
 $base_url = "http://localhost/capstone-php/backend/routes/news_manager.php";
 $url = $base_url . "?action=fetch&id=" . $news_id;
@@ -49,7 +62,6 @@ $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $url);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_COOKIE, session_name() . '=' . session_id());
-// Add connection timeout for production
 curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
 curl_setopt($ch, CURLOPT_TIMEOUT, 10);
 $response = curl_exec($ch);
@@ -116,7 +128,8 @@ $news = $newsData['news'][0];
             <span><i class="fas fa-clock"></i> <?php echo date("F j, Y", strtotime($news['published_date'])); ?></span>
             <span class="ms-3"><i class="fas fa-user"></i> <?php echo htmlspecialchars($news['author']); ?></span>
             <span class="ms-3"><i class="fas fa-folder"></i> <?php echo htmlspecialchars($news['category']); ?></span>
-            <span class="ms-3"><i class="fas fa-eye"></i> <?php echo intval($news['views']); ?> views</span>
+            <span class="ms-3"><i class="fas fa-eye"></i> <?php echo formatViews(intval($news['views'])); ?>
+                views</span>
         </div>
         <?php if (!empty($news['image'])): ?>
         <img src="<?php echo htmlspecialchars($news['image']); ?>" alt="<?php echo htmlspecialchars($news['title']); ?>"
@@ -125,7 +138,7 @@ $news = $newsData['news'][0];
         <div class="news-content">
             <?php echo nl2br(htmlspecialchars($news['content'])); ?>
         </div>
-        <!-- Like Button and Back Button in one row -->
+        <!-- Like and Back Buttons in one row -->
         <div class="d-flex justify-content-between align-items-center mt-3">
             <a href="news.php" class="btn btn-secondary">
                 <i class="fas fa-arrow-left"></i> Back to News
@@ -144,7 +157,6 @@ $news = $newsData['news'][0];
     <script nonce="<?php echo $style_nonce; ?>">
     // Like button functionality
     document.getElementById('like-button').addEventListener('click', function() {
-        // Disable the button to prevent multiple clicks
         this.disabled = true;
         fetch('backend/routes/news_manager.php?action=like', {
                 method: 'POST',
@@ -157,7 +169,6 @@ $news = $newsData['news'][0];
             .then(response => response.json())
             .then(data => {
                 if (data.status) {
-                    // Update the like count displayed on the button
                     document.getElementById('like-count').textContent = data.like_count;
                 } else {
                     alert('Error: ' + data.message);
@@ -168,7 +179,6 @@ $news = $newsData['news'][0];
                 alert('An unexpected error occurred. Please try again.');
             })
             .finally(() => {
-                // Re-enable the button
                 document.getElementById('like-button').disabled = false;
             });
     });

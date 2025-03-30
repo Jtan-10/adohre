@@ -7,7 +7,6 @@ document.addEventListener("DOMContentLoaded", function() {
       .then(data => {
           if (data.status) {
               renderNews(data.news);
-              addViewCountListeners(); // Attach click listeners after rendering
           } else {
               showError('Failed to load news');
           }
@@ -48,36 +47,5 @@ document.addEventListener("DOMContentLoaded", function() {
           <p>${message}</p>
         </div>
       `;
-  }
-
-  // Add click event listeners to the "read-more" links to increment view count before navigating
-  function addViewCountListeners() {
-      const links = document.querySelectorAll('.read-more');
-      links.forEach(link => {
-          link.addEventListener('click', function(e) {
-              e.preventDefault();
-              const newsId = this.getAttribute('data-id');
-              const targetUrl = this.href;
-              // Send POST request to increment view count
-              fetch('backend/routes/news_manager.php?action=increment_view', {
-                  method: 'POST',
-                  credentials: 'include',
-                  headers: {
-                      'Content-Type': 'application/x-www-form-urlencoded'
-                  },
-                  body: 'news_id=' + encodeURIComponent(newsId)
-              })
-              .then(response => response.json())
-              .then(data => {
-                  // Redirect to the news detail page after view count is updated
-                  window.location.href = targetUrl;
-              })
-              .catch(error => {
-                  console.error('Error incrementing view count:', error);
-                  // In case of error, navigate anyway
-                  window.location.href = targetUrl;
-              });
-          });
-      });
   }
 });
