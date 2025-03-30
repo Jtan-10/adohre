@@ -1,7 +1,7 @@
 <?php
 // Production settings: disable error display
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
+ini_set('display_errors', 0);
+error_reporting(0);
 
 require_once '../db/db_connect.php';
 require '../../vendor/autoload.php'; // Include the QR Code library
@@ -84,35 +84,20 @@ if (!empty($user['profile_image']) && strpos($user['profile_image'], '/s3proxy/'
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
     $remoteUrl = $protocol . $_SERVER['HTTP_HOST'] . $user['profile_image'];
     
-    error_log("DEBUG: Attempting to load remote image from URL: " . $remoteUrl);
-
     // Attempt to load the image data from the remote URL.
     $profileImageData = @file_get_contents($remoteUrl);
     if ($profileImageData !== false) {
-        error_log("DEBUG: Successfully retrieved remote image data. Data length: " . strlen($profileImageData));
         $profileImage = imagecreatefromstring($profileImageData);
-        if (!$profileImage) {
-            error_log("ERROR: imagecreatefromstring failed to create image from remote data.");
-        }
     } else {
-        error_log("ERROR: file_get_contents failed to retrieve image from: " . $remoteUrl);
         // Fallback to default image if remote load fails.
-        $fallbackPath = __DIR__ . '/../../assets/default-profile.jpeg';
-        error_log("DEBUG: Using fallback image from local path: " . $fallbackPath);
-        $profileImage = imagecreatefromjpeg($fallbackPath);
-        if (!$profileImage) {
-            error_log("ERROR: imagecreatefromjpeg failed to load fallback image.");
-        }
+        $profileImage = imagecreatefromjpeg(__DIR__ . '/../../assets/default-profile.jpeg');
     }
 } else {
     $localPath = __DIR__ . '/../../' . ($user['profile_image'] ?? 'assets/default-profile.jpeg');
-    error_log("DEBUG: Using local path for profile image: " . $localPath);
     if (!file_exists($localPath)) {
-        error_log("WARNING: Local file not found at " . $localPath . ". Falling back to default image.");
         $localPath = __DIR__ . '/../../assets/default-profile.jpeg';
     }
     $ext = strtolower(pathinfo($localPath, PATHINFO_EXTENSION));
-    error_log("DEBUG: Local image extension determined as: " . $ext);
     switch ($ext) {
         case 'jpg':
         case 'jpeg':
@@ -125,16 +110,9 @@ if (!empty($user['profile_image']) && strpos($user['profile_image'], '/s3proxy/'
             $profileImage = @imagecreatefromgif($localPath);
             break;
         default:
-            error_log("WARNING: Unknown file extension. Defaulting to JPEG fallback.");
             $profileImage = imagecreatefromjpeg(__DIR__ . '/../../assets/default-profile.jpeg');
     }
-    if (!$profileImage) {
-        error_log("ERROR: Failed to load local image from " . $localPath);
-    } else {
-        error_log("DEBUG: Successfully loaded local image.");
-    }
 }
-
 
 
 if ($profileImage) {
