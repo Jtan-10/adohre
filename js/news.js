@@ -30,7 +30,7 @@ document.addEventListener("DOMContentLoaded", function() {
             </div>
             <h3 class="h4 fw-bold mb-3">${article.title}</h3>
             <p class="text-muted mb-3">${article.excerpt}</p>
-            <a href="news-detail.php?id=${article.news_id}" class="read-more" data-id="${article.news_id}">
+            <a href="news-detail.php?id=${article.news_id}" class="read-more" data-id="${article.news_id}" rel="noreferrer">
               Read More 
               <i class="fas fa-arrow-right"></i>
             </a>
