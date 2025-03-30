@@ -57,19 +57,18 @@ document.addEventListener('DOMContentLoaded', function() {
             .then((response) => response.json())
             .then((data) => {
                 if (data.status) {
-                    const announcementsHtml = data.announcements
+                    const announcementsList = data.announcements
                         .map((announcement) => {
-                            // Normalize announcement text:
-                            // Collapse three or more consecutive newlines into just two,
-                            // and trim leading/trailing whitespace and newlines.
-                            const normalizedText = announcement.text
-                                .replace(/(^[\s\r\n]+|[\s\r\n]+$)/g,
-                                '') // Trim leading/trailing whitespace and newlines
-                                .replace(/(\r?\n\s*){3,}/g,
-                                '\n\n') // Collapse 3+ consecutive newlines into 2
-                                .trim();
+                            // Step 1: Remove any leading newlines
+                            let normalizedText = announcement.text.replace(/^[\r\n]+/, '');
 
-                            // Format created_at date and time
+                            // Step 2: Collapse three or more consecutive newlines (with optional spaces) into two
+                            normalizedText = normalizedText.replace(/(\r?\n\s*){3,}/g, '\n\n');
+
+                            // Step 3: Trim leftover leading/trailing whitespace
+                            normalizedText = normalizedText.trim();
+
+                            // Format the date
                             const formattedDate = new Date(announcement.created_at).toLocaleString(
                                 'en-US', {
                                     month: 'long',
@@ -79,40 +78,41 @@ document.addEventListener('DOMContentLoaded', function() {
                                     minute: 'numeric',
                                     hour12: true
                                 });
+
                             return `
-                                <div class="card mb-3">
-                                    <div class="card-body">
-                                        <p class="card-text" style="white-space: pre-wrap;">
-                                            ${normalizedText}
-                                        </p>
-                                        <small class="text-muted">Posted on: ${formattedDate}</small>
-                                        <div class="mt-2">
-                                            <button class="btn btn-primary btn-sm edit-announcement" data-id="${announcement.announcement_id}">Edit</button>
-                                            <button class="btn btn-danger btn-sm delete-announcement" data-id="${announcement.announcement_id}">Delete</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            `;
+              <div class="card mb-3">
+                <div class="card-body">
+                  <p class="card-text" style="white-space: pre-wrap;">
+                    ${normalizedText}
+                  </p>
+                  <small class="text-muted">Posted on: ${formattedDate}</small>
+                  <div class="mt-2">
+                    <button class="btn btn-primary btn-sm edit-announcement" data-id="${announcement.announcement_id}">Edit</button>
+                    <button class="btn btn-danger btn-sm delete-announcement" data-id="${announcement.announcement_id}">Delete</button>
+                  </div>
+                </div>
+              </div>
+            `;
                         })
                         .join('');
-                    announcementsListElement.innerHTML = announcementsHtml ||
-                        '<p class="text-center text-muted">No announcements</p>';
 
-                    // Attach event listeners for Edit and Delete buttons...
-                    document.querySelectorAll('.edit-announcement').forEach((button) => {
-                        button.addEventListener('click', function() {
-                            editAnnouncement(this.getAttribute('data-id'));
-                        });
+                    document.getElementById('announcementsList').innerHTML =
+                        announcementsList || '<p class="text-center text-muted">No announcements</p>';
+
+                    // Attach event listeners for Edit/Delete after rendering
+                    document.querySelectorAll('.edit-announcement').forEach((btn) => {
+                        btn.addEventListener('click', () => editAnnouncement(btn.getAttribute(
+                            'data-id')));
                     });
-                    document.querySelectorAll('.delete-announcement').forEach((button) => {
-                        button.addEventListener('click', function() {
-                            deleteAnnouncement(this.getAttribute('data-id'));
-                        });
+                    document.querySelectorAll('.delete-announcement').forEach((btn) => {
+                        btn.addEventListener('click', () => deleteAnnouncement(btn.getAttribute(
+                            'data-id')));
                     });
                 }
             })
             .catch((err) => console.error('Fetch error:', err));
     }
+
 
     // Edit Announcement
     function editAnnouncement(id) {
