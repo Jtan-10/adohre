@@ -1,9 +1,10 @@
 <?php
+// news_manager.php
 // Add secure session cookie settings and production-level error reporting
 session_set_cookie_params([
-    'secure' => true,
-    'httponly' => true,
-    'samesite' => 'Strict'
+    'secure'    => true,
+    'httponly'  => true,
+    'samesite'  => 'Strict'
 ]);
 if (getenv('ENVIRONMENT') !== 'development') {
     error_reporting(0);
@@ -50,15 +51,13 @@ switch ($action) {
         break;
 }
 
-function handleImageUpload()
-{
+function handleImageUpload() {
     global $s3, $bucketName; // Ensure these are available from s3config.php
 
     if (!isset($_FILES['image']) || $_FILES['image']['error'] === UPLOAD_ERR_NO_FILE) {
         return null;
     }
 
-    // Allowed file types and max file size (2 MB)
     $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
     $max_file_size = 2 * 1024 * 1024; // 2 MB
 
@@ -72,19 +71,17 @@ function handleImageUpload()
         exit();
     }
 
-    // Generate a unique file name
     $file_name = uniqid() . '_' . time() . '_' . basename($_FILES['image']['name']);
     $s3_key = 'uploads/news_images/' . $file_name;
 
     try {
         $result = $s3->putObject([
-            'Bucket' => $bucketName, // from s3config.php
+            'Bucket' => $bucketName,
             'Key'    => $s3_key,
             'Body'   => fopen($_FILES['image']['tmp_name'], 'rb'),
-            'ACL'    => 'public-read' // Adjust permissions as needed
+            'ACL'    => 'public-read'
         ]);
 
-        // Return the S3 key or full URL if needed:
         return str_replace(
             "https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/",
             "/s3proxy/",
@@ -96,27 +93,25 @@ function handleImageUpload()
     }
 }
 
-function fetchNews()
-{
+function fetchNews() {
     global $conn;
-    // Join with users table to get creator's full name
     $newsQuery = "SELECT 
-    n.news_id, 
-    n.title, 
-    n.excerpt, 
-    n.content, 
-    n.category, 
-    n.image, 
-    n.author_first, 
-    n.author_last, 
-    CONCAT(n.author_first, ' ', n.author_last) AS author,
-    n.published_date, 
-    n.created_by, 
-    n.views,
-    CONCAT(u.first_name, ' ', u.last_name) AS creator,
-    (SELECT COUNT(*) FROM news_likes WHERE news_id = n.news_id) AS likes_count
-  FROM news n 
-  LEFT JOIN users u ON n.created_by = u.user_id";
+        n.news_id, 
+        n.title, 
+        n.excerpt, 
+        n.content, 
+        n.category, 
+        n.image, 
+        n.author_first, 
+        n.author_last, 
+        CONCAT(n.author_first, ' ', n.author_last) AS author,
+        n.published_date, 
+        n.created_by, 
+        n.views,
+        CONCAT(u.first_name, ' ', u.last_name) AS creator,
+        (SELECT COUNT(*) FROM news_likes WHERE news_id = n.news_id) AS likes_count
+      FROM news n 
+      LEFT JOIN users u ON n.created_by = u.user_id";
 
     if (isset($_GET['id'])) {
         $newsQuery .= " WHERE n.news_id = ?";
@@ -146,12 +141,11 @@ function fetchNews()
     $stmt->close();
     echo json_encode([
         'status' => true,
-        'news' => $news
+        'news'   => $news
     ]);
 }
 
-function addNews()
-{
+function addNews() {
     global $conn;
     if ($_SESSION['role'] !== 'admin') {
         http_response_code(403);
@@ -159,7 +153,6 @@ function addNews()
         return;
     }
     $image_path = handleImageUpload();
-    // Get the manual author inputs separately.
     $author_first = trim($_POST['author_first']);
     $author_last = trim($_POST['author_last']);
 
@@ -176,7 +169,6 @@ function addNews()
     $created_by = $_SESSION['user_id'];
     $stmt->bind_param("sssssssi", $title, $excerpt, $content, $category, $image_path, $author_first, $author_last, $created_by);
     if ($stmt->execute()) {
-        // Audit log: record news addition.
         recordAuditLog($created_by, 'Add News', "News titled '$title' added.");
         echo json_encode(['status' => true, 'message' => 'News article added successfully']);
     } else {
@@ -186,8 +178,7 @@ function addNews()
     $stmt->close();
 }
 
-function updateNews()
-{
+function updateNews() {
     global $conn;
     if ($_SESSION['role'] !== 'admin') {
         http_response_code(403);
@@ -195,7 +186,6 @@ function updateNews()
         return;
     }
     $image_path = handleImageUpload();
-    // Get updated author inputs.
     $author_first = trim($_POST['author_first']);
     $author_last = trim($_POST['author_last']);
 
@@ -230,8 +220,7 @@ function updateNews()
     $stmt->close();
 }
 
-function deleteNews()
-{
+function deleteNews() {
     global $conn;
     if ($_SESSION['role'] !== 'admin') {
         http_response_code(403);
@@ -256,8 +245,7 @@ function deleteNews()
     $stmt->close();
 }
 
-function likeNews()
-{
+function likeNews() {
     global $conn;
     $checkStmt = $conn->prepare("SELECT like_id FROM news_likes WHERE news_id=? AND user_id=?");
     if (!$checkStmt) {
@@ -291,7 +279,6 @@ function likeNews()
     $stmt->bind_param("ii", $news_id, $user_id);
     if ($stmt->execute()) {
         recordAuditLog($user_id, 'Like News', "News ID $news_id " . ($exists ? "unliked" : "liked") . ".");
-        // Optionally, fetch the updated like count:
         $result = $conn->query("SELECT COUNT(*) AS like_count FROM news_likes WHERE news_id = $news_id");
         $data = $result->fetch_assoc();
         echo json_encode(['status' => true, 'message' => $actionMsg, 'like_count' => intval($data['like_count'])]);
@@ -318,7 +305,6 @@ function incrementView() {
     }
     $stmt->bind_param("i", $news_id);
     if ($stmt->execute()) {
-        // Optionally, fetch the updated view count:
         $result = $conn->query("SELECT views FROM news WHERE news_id = $news_id");
         $row = $result->fetch_assoc();
         echo json_encode(['status' => true, 'views' => intval($row['views'])]);

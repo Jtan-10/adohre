@@ -2,10 +2,10 @@
 // news-detail.php
 // Set secure session cookie parameters (adjust domain/path as needed)
 session_set_cookie_params([
-    'lifetime' => 0,
-    'secure' => true,
-    'httponly' => true,
-    'samesite' => 'Lax'
+    'lifetime'  => 0,
+    'secure'    => true,
+    'httponly'  => true,
+    'samesite'  => 'Lax'
 ]);
 session_start();
 
@@ -24,9 +24,20 @@ if (!$news_id) {
     header("Location: news.php");
     exit;
 }
-
 $news_id = intval($news_id);
-// Build the URL for the backend route.
+
+// Connect to the database and update the view count
+require_once 'backend/db/db_connect.php';
+$updateStmt = $conn->prepare("UPDATE news SET views = views + 1 WHERE news_id = ?");
+if ($updateStmt) {
+    $updateStmt->bind_param("i", $news_id);
+    $updateStmt->execute();
+    $updateStmt->close();
+} else {
+    error_log("Database error updating views: " . $conn->error);
+}
+
+// Build the URL for the backend route to fetch the news detail.
 $base_url = "http://localhost/capstone-php/backend/routes/news_manager.php";
 $url = $base_url . "?action=fetch&id=" . $news_id;
 
@@ -42,7 +53,6 @@ curl_setopt($ch, CURLOPT_COOKIE, session_name() . '=' . session_id());
 curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
 curl_setopt($ch, CURLOPT_TIMEOUT, 10);
 $response = curl_exec($ch);
-// Check for cURL errors.
 if (curl_errno($ch)) {
     error_log("cURL error in news-detail.php: " . curl_error($ch));
     curl_close($ch);
@@ -55,7 +65,6 @@ if (!$newsData || !$newsData['status'] || count($newsData['news']) < 1) {
     echo "<p class='text-center mt-5'>News article not found.</p>";
     exit;
 }
-
 $news = $newsData['news'][0];
 ?>
 <!DOCTYPE html>
@@ -116,6 +125,7 @@ $news = $newsData['news'][0];
         <div class="news-content">
             <?php echo nl2br(htmlspecialchars($news['content'])); ?>
         </div>
+        <!-- Like Button and Back Button in one row -->
         <div class="d-flex justify-content-between align-items-center mt-3">
             <a href="news.php" class="btn btn-secondary">
                 <i class="fas fa-arrow-left"></i> Back to News
