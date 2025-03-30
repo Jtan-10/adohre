@@ -158,6 +158,7 @@ $csp_nonce = base64_encode(random_bytes(16));
         if (!signaturePad.isEmpty()) {
             const signatureData = signaturePad.toDataURL();
             document.getElementById("signature").value = signatureData;
+            signaturePad.clear(); // Added line: Clear the signature pad after capturing
         } else {
             alert("Please provide your signature.");
             e.preventDefault();
