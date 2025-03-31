@@ -2,7 +2,11 @@
 // deploy.php - Webhook receiver for GitHub deployment
 
 // Use Composer's autoload to load Dotenv
-require_once __DIR__ . '/backend/db/db_connect.php';
+require_once __DIR__ . '/vendor/autoload.php';
+
+// Load environment variables from .env file located in capstone-php
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+$dotenv->load();
 
 // Get the secret from the environment
 $secret = getenv('GITHUB_WEBHOOK_SECRET');
