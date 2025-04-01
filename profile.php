@@ -311,34 +311,38 @@ header("X-Content-Type-Options: nosniff");
             const eventsTab = document.getElementById('events-tab');
             if (eventsTab) {
                 eventsTab.addEventListener('click', function() {
-                    fetch(
-                            `backend/routes/event_registration.php?action=get_joined_events&user_id=${userId}`
-                        )
+                    fetch(`backend/routes/event_registration.php?action=get_joined_events`)
                         .then(response => response.json())
                         .then(data => {
+                            const joinedEventsList = document.getElementById(
+                                'joinedEventsList');
                             if (data.status) {
                                 const events = data.events;
-                                const eventsList = events.map(event => `
-                            <div class="card mb-3">
-                                <div class="row g-0">
-                                    <div class="col-md-4">
-                                        <img src="${event.image || 'assets/default-image.jpeg'}" class="img-fluid rounded-start" alt="${event.title}">
-                                    </div>
-                                    <div class="col-md-8">
-                                        <div class="card-body">
-                                            <h5 class="card-title">${event.title}</h5>
-                                            <p class="card-text">${event.description}</p>
-                                            <p><strong>Date:</strong> ${event.date}</p>
-                                            <p><strong>Location:</strong> ${event.location}</p>
+                                if (events && events.length > 0) {
+                                    const eventsList = events.map(event => `
+                                <div class="card mb-3">
+                                    <div class="row g-0">
+                                        <div class="col-md-4">
+                                            <img src="${event.image || 'assets/default-image.jpeg'}" class="img-fluid rounded-start" alt="${event.title}">
+                                        </div>
+                                        <div class="col-md-8">
+                                            <div class="card-body">
+                                                <h5 class="card-title">${event.title}</h5>
+                                                <p class="card-text">${event.description}</p>
+                                                <p><strong>Date:</strong> ${event.date}</p>
+                                                <p><strong>Location:</strong> ${event.location}</p>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        `).join('');
-                                document.getElementById('joinedEventsList').innerHTML =
-                                    eventsList || '<p>No joined events yet.</p>';
+                            `).join('');
+                                    joinedEventsList.innerHTML = eventsList;
+                                } else {
+                                    joinedEventsList.innerHTML =
+                                        '<p>No joined events yet.</p>';
+                                }
                             } else {
-                                document.getElementById('joinedEventsList').innerHTML =
+                                joinedEventsList.innerHTML =
                                     `<p>${data.message || 'Failed to load events.'}</p>`;
                             }
                         })
@@ -350,6 +354,7 @@ header("X-Content-Type-Options: nosniff");
                 });
             }
         });
+
 
         document.getElementById('trainings-tab').addEventListener('click', function() {
             fetch(`backend/routes/training_registration.php?action=get_joined_trainings`)

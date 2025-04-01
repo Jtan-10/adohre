@@ -191,7 +191,7 @@
                                         <div class="card-body">
                                             <h5 class="card-title">${notif.subject}</h5>
                                             <p class="card-text">${notif.body}</p>
-                                            <p class="card-text"><small class="text-muted">Show full message in email</small></p>
+                                            <p class="card-text"><small class="text-muted">See full message in email</small></p>
                                             <p class="card-text"><small class="text-muted">${notif.sent_at}</small></p>
                                         </div>
                                     </div>`;

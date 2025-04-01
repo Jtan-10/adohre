@@ -68,8 +68,8 @@ try {
             if (session_status() === PHP_SESSION_NONE) {
                 session_start();
             }
-            $window = 3600;        // 1 hour window in seconds.
-            $maxEmails = 10;        // Maximum allowed emails per recipient within the window.
+            $window = 3600;  // 1 hour
+            $maxEmails = 10; // Maximum emails per window
             $now = time();
             $userEmail = $user['email'];
 
@@ -83,24 +83,18 @@ try {
                 ];
             }
 
-            // Reset counter if window expired.
+            // Reset counter if the window has expired.
             if ($now - $_SESSION['email_send_requests'][$userEmail]['first_request_time'] > $window) {
                 $_SESSION['email_send_requests'][$userEmail]['count'] = 0;
                 $_SESSION['email_send_requests'][$userEmail]['first_request_time'] = $now;
             }
 
-            // Check if the rate limit has been reached.
-            if ($_SESSION['email_send_requests'][$userEmail]['count'] >= $maxEmails) {
-                error_log("Rate limit exceeded for sending emails to: " . $userEmail);
-                // Optionally, you can notify the user or take other actions.
-            } else {
-                // Increment the count and proceed to send the email.
+            if ($_SESSION['email_send_requests'][$userEmail]['count'] < $maxEmails) {
                 $_SESSION['email_send_requests'][$userEmail]['count']++;
 
                 // Send email notification using PHPMailer.
                 $mail = new PHPMailer(true);
                 try {
-                    // SMTP configuration using environment variables.
                     $mail->isSMTP();
                     $mail->Host       = $_ENV['SMTP_HOST'];
                     $mail->SMTPAuth   = true;
@@ -109,7 +103,6 @@ try {
                     $mail->SMTPSecure = $_ENV['SMTP_SECURE'];
                     $mail->Port       = $_ENV['SMTP_PORT'];
 
-                    // Enforce secure SMTP connection.
                     $mail->SMTPOptions = [
                         'ssl' => [
                             'verify_peer'      => true,
@@ -142,15 +135,14 @@ try {
                     $stmtLog->close();
                 } catch (Exception $e) {
                     error_log("Email could not be sent. Mailer Error: {$mail->ErrorInfo}");
-                    // Optionally handle email failure
                 }
+            } else {
+                error_log("Rate limit exceeded for sending emails to: " . $userEmail);
             }
             echo json_encode(['status' => true, 'message' => 'Successfully joined the event.']);
         }
     } elseif ($action === 'get_joined_events') {
         $userId = $_SESSION['user_id'];
-
-        // Fetch joined events for the logged-in user
         $query = "SELECT e.event_id, e.title, e.description, e.date, e.location, e.image
                   FROM event_registrations er
                   JOIN events e ON er.event_id = e.event_id
