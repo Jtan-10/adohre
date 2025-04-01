@@ -143,40 +143,44 @@ try {
             $last_name  = trim($_POST['last_name'] ?? '');
             $email      = trim($_POST['email'] ?? '');
             $role       = trim($_POST['role'] ?? '');
-            
+        
             if (!$first_name || !$last_name || !$email || !$role) {
                 http_response_code(400);
                 echo json_encode(['status' => false, 'message' => 'All fields are required.']);
                 exit();
             }
-            
+        
             if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 http_response_code(400);
                 echo json_encode(['status' => false, 'message' => 'Invalid email format.']);
                 exit();
             }
-            
-            // Insert new user record into the database
-            $stmt = $conn->prepare('INSERT INTO users (first_name, last_name, email, role) VALUES (?, ?, ?, ?)');
-            $stmt->bind_param('ssss', $first_name, $last_name, $email, $role);
-            
+        
+            // Include the controller that contains generateVirtualId()
+            require_once '../controllers/authControllers.php';
+            // Generate a unique virtual ID using the helper function.
+            $virtual_id = generateVirtualId(16);
+        
+            // Insert new user record into the database including the virtual_id
+            $stmt = $conn->prepare('INSERT INTO users (first_name, last_name, email, role, virtual_id) VALUES (?, ?, ?, ?, ?)');
+            $stmt->bind_param('sssss', $first_name, $last_name, $email, $role, $virtual_id);
+        
             if ($stmt->execute()) {
                 // Get the newly inserted user's ID
                 $newUserId = $conn->insert_id;
                 $stmt->close();
-                
+        
                 // If the new user is a member, add a record to the members table
                 if ($role === 'member') {
-                    // Insert the member record with an initial membership_status (e.g., "inactive")
-                    $initialStatus = 'inactive';
+                    $initialStatus = 'inactive'; // Change to "active" if needed
                     $stmtMember = $conn->prepare("INSERT INTO members (user_id, membership_status) VALUES (?, ?)");
                     $stmtMember->bind_param("is", $newUserId, $initialStatus);
                     $stmtMember->execute();
                     $stmtMember->close();
                 }
-                
-                // Record an audit log for the creation event
-                recordAuditLog($auth_user_id, 'Admin Create User', "Admin created new user: $first_name $last_name, email: $email, role: $role");
+        
+                // Record an audit log for the creation event.
+                recordAuditLog($auth_user_id, 'Admin Create User', "Admin created new user: $first_name $last_name, email: $email, role: $role, virtual_id: $virtual_id");
                 echo json_encode(['status' => true, 'message' => 'User created successfully.']);
             } else {
                 error_log('DB insert error: ' . $stmt->error);
@@ -184,7 +188,7 @@ try {
                 echo json_encode(['status' => false, 'message' => 'Error creating user.']);
             }
             exit();
-        }
+        }        
         // --- Profile update for logged-in user ---
         // If a file upload is included, process the profile image.
         if (!empty($_FILES['profile_image']['name'])) {
