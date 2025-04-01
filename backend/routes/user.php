@@ -298,9 +298,11 @@ try {
         }
     } 
     elseif ($method === 'PUT') {
-        // If the request is to regenerate the virtual ID, allow any user to do so.
+        // Decode the JSON payload at the very start
+        $data = json_decode(file_get_contents("php://input"), true);
+    
+        // Check if the request is to regenerate the virtual ID (allow any user to do so)
         if (isset($data['regenerate_virtual_id']) && filter_var($data['regenerate_virtual_id'], FILTER_VALIDATE_BOOLEAN)) {
-            // Include the controller that contains generateVirtualId()
             require_once '../controllers/authControllers.php';
             $new_virtual_id = generateVirtualId(16);
             $stmt = $conn->prepare("UPDATE users SET virtual_id = ? WHERE user_id = ?");
@@ -320,18 +322,10 @@ try {
             }
         }
         
-    
         // --- Admin updating other users ---
         if ($auth_user_role !== 'admin') {
             http_response_code(403);
             echo json_encode(['status' => false, 'message' => 'Forbidden']);
-            exit();
-        }
-    
-        $data = json_decode(file_get_contents("php://input"), true);
-        if (!$data) {
-            http_response_code(400);
-            echo json_encode(['status' => false, 'message' => 'Invalid input.']);
             exit();
         }
     
@@ -404,8 +398,7 @@ try {
             http_response_code(500);
             echo json_encode(['status' => false, 'message' => 'Error updating user.']);
         }
-    }
-    
+    } 
     elseif ($method === 'DELETE') {
         // --- Admin deleting a user ---
         if ($auth_user_role !== 'admin') {
