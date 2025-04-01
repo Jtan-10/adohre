@@ -31,14 +31,35 @@ try {
         // ----------------------------
 
         // -- EVENTS --
-        $eventsQuery = "SELECT * FROM events ORDER BY date DESC";
-        $eventsResult = $conn->query($eventsQuery);
-        $events = [];
-        while ($row = $eventsResult->fetch_assoc()) {
-            // Set a default image if none provided
-            $row['image'] = $row['image'] ?: '../assets/default-image.jpg';
-            $events[] = $row;
-        }
+// Get the current user ID
+$user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 0;
+
+// Updated query to add a "joined" flag.
+// If a matching registration is found for the current user, joined will be 1; otherwise, 0.
+$eventsQuery = "
+    SELECT e.*,
+           IF(er.registration_id IS NOT NULL, 1, 0) AS joined
+    FROM events e
+    LEFT JOIN event_registrations er 
+         ON e.event_id = er.event_id AND er.user_id = ?
+    ORDER BY e.date DESC
+";
+
+// Use a prepared statement to bind the user id
+$stmt = $conn->prepare($eventsQuery);
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$eventsResult = $stmt->get_result();
+$events = [];
+while ($row = $eventsResult->fetch_assoc()) {
+    // Convert the joined flag to boolean for easier use on the front end
+    $row['joined'] = (bool)$row['joined'];
+    // Set a default image if none provided (update path as needed)
+    $row['image'] = $row['image'] ?: '../assets/default-image.jpg';
+    $events[] = $row;
+}
+$stmt->close();
+
 
         // -- ANNOUNCEMENTS --
         // Updated query to retrieve title from announcements table

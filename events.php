@@ -160,7 +160,7 @@ error_reporting(0);
             <!-- Events Section -->
             <div class="col-lg-8">
                 <div class="events-container">
-                    <h2 class="section-title">Upcoming Events</h2>
+                    <h2 class="section-title">Events</h2>
                     <div class="scrollable-section">
                         <div id="eventsList">
                             <!-- Events will be populated here -->
