@@ -45,7 +45,8 @@ define('STEGANOGRAPHY_KEY', 'my-very-strong-secret-key');
  * @param string $key  The encryption key.
  * @return string The concatenated IV and ciphertext.
  */
-function encryptSecret($data, $key) {
+function encryptSecret($data, $key)
+{
     $cipher = "AES-256-CBC";
     $ivlen = openssl_cipher_iv_length($cipher);
     $iv = openssl_random_pseudo_bytes($ivlen);
@@ -60,7 +61,8 @@ function encryptSecret($data, $key) {
  * @param string $key           The encryption key.
  * @return string The decrypted plain data.
  */
-function decryptSecret($encryptedData, $key) {
+function decryptSecret($encryptedData, $key)
+{
     $cipher = "AES-256-CBC";
     $ivlen = openssl_cipher_iv_length($cipher);
     $iv = substr($encryptedData, 0, $ivlen);
@@ -77,7 +79,8 @@ function decryptSecret($encryptedData, $key) {
  * @return string The output path.
  * @throws Exception if the image cannot be processed.
  */
-function steganographyEncryptImage($inputPath, $secretData, $outputPath) {
+function steganographyEncryptImage($inputPath, $secretData, $outputPath)
+{
     // Encrypt the secret data.
     $encryptedSecret = encryptSecret($secretData, STEGANOGRAPHY_KEY);
     // Convert encrypted secret to a binary string.
@@ -257,48 +260,49 @@ switch ($action) {
     case 'backup_database':
         // Remove any previously set Content-Type header so we can output file data.
         header_remove('Content-Type');
-        
+
         // Use credentials from db_connect.php.
         $dbHost = $servername;
         $dbUser = $username;
         $dbPass = $password;
         $dbName = $dbname;
-        
+
         // Define backup directory (adjust the path as needed for your server).
         $backupDir = __DIR__ . '/../../backups/';
         if (!is_dir($backupDir)) {
             if (!mkdir($backupDir, 0755, true)) {
-            $error = error_get_last();
-            error_log("Failed to create backup directory: " . print_r($error, true));
-            header('Content-Type: text/plain');
-            echo "Failed to create backup directory. Check permissions on: $backupDir";
-            exit;
+                $error = error_get_last();
+                error_log("Failed to create backup directory: " . print_r($error, true));
+                header('Content-Type: text/plain');
+                echo "Failed to create backup directory. Check permissions on: $backupDir";
+                exit;
             }
         }
-        
+
         // Generate a backup file name.
         $backupFile = $backupDir . "backup_" . date('Ymd_His') . ".sql";
-        
+
         // Escape shell arguments.
         $dbHostEscaped = escapeshellarg($dbHost);
         $dbUserEscaped = escapeshellarg($dbUser);
+        $dbPassEscaped = escapeshellarg($dbPass); // added
         $dbNameEscaped = escapeshellarg($dbName);
         $backupFileEscaped = escapeshellarg($backupFile);
-        
+
         // Determine the full path to mysqldump.
         // Try Bitnami's path first, then fallback to LAMPP path.
         $mysqldumpPath = '/opt/bitnami/mysql/bin/mysqldump';
         if (!file_exists($mysqldumpPath)) {
             $mysqldumpPath = '/opt/lampp/bin/mysqldump';
         }
-        
+
         // Build the command. (Be cautious with passwords in shell commands.)
-        $command = "$mysqldumpPath --host={$dbHostEscaped} --user={$dbUserEscaped} --password={$dbPass} {$dbNameEscaped} > $backupFileEscaped";
+        $command = "$mysqldumpPath --host={$dbHostEscaped} --user={$dbUserEscaped} --password={$dbPassEscaped} {$dbNameEscaped} > $backupFileEscaped";
         error_log("Starting database backup. Command: $command");
-    
+
         $output = [];
         exec($command, $output, $returnVar);
-    
+
         if ($returnVar === 0 && file_exists($backupFile)) {
             // Set headers so the browser will download the file.
             header('Content-Description: File Transfer');
@@ -308,7 +312,7 @@ switch ($action) {
             header('Cache-Control: must-revalidate');
             header('Pragma: public');
             header('Content-Length: ' . filesize($backupFile));
-    
+
             // Output the file to the browser.
             readfile($backupFile);
             // Delete the temporary backup file.
@@ -323,7 +327,7 @@ switch ($action) {
             exit();
         }
         break;
-            
+
     case 'restore_database':
         if (isset($_FILES['restore_file']) && $_FILES['restore_file']['error'] === UPLOAD_ERR_OK) {
             $dbHost = $servername;
@@ -347,12 +351,13 @@ switch ($action) {
             // Escape shell arguments.
             $dbHostEscaped      = escapeshellarg($dbHost);
             $dbUserEscaped      = escapeshellarg($dbUser);
+            $dbPassEscaped      = escapeshellarg($dbPass); // added
             $dbNameEscaped      = escapeshellarg($dbName);
             $tempRestoreEscaped = escapeshellarg($tempRestore);
 
             // Use the full path to the mysql client.
             $mysqlPath = '/opt/lampp/bin/mysql';
-            $command = "$mysqlPath --host={$dbHostEscaped} --user={$dbUserEscaped} --password={$dbPass} {$dbNameEscaped} < $tempRestoreEscaped";
+            $command = "$mysqlPath --host={$dbHostEscaped} --user={$dbUserEscaped} --password={$dbPassEscaped} {$dbNameEscaped} < $tempRestoreEscaped";
             error_log("Restore command: $command");
 
             $output = [];
@@ -419,4 +424,3 @@ switch ($action) {
 
 // Close the database connection.
 $conn->close();
-?>
