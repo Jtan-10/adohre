@@ -32,6 +32,25 @@ if (isset($_SESSION['user_id'])) {
     }
     $stmt->close();
 }
+
+
+// Check if the logged-in user is a member and does not have a membership application record.
+if (isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
+    $stmtApp = $conn->prepare("SELECT COUNT(*) as count FROM membership_applications WHERE user_id = ?");
+    $stmtApp->bind_param("i", $_SESSION['user_id']);
+    $stmtApp->execute();
+    $resultApp = $stmtApp->get_result()->fetch_assoc();
+    $stmtApp->close();
+    if ($resultApp['count'] == 0) {
+        // Option 1: Force redirection to the membership application form
+        header("Location: membership_form.php?warning=1");
+        exit();
+
+        // Option 2: Or, you might choose to display a warning message on the dashboard instead of a redirect.
+        // For example, you could set a flag and later show a modal or a banner:
+        // $showMembershipWarning = true;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">

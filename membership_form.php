@@ -12,7 +12,7 @@ $csp_nonce = base64_encode(random_bytes(16));
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Membership Application Form</title>
+    <title>Membership Form</title>
 
 
 
@@ -41,6 +41,12 @@ $csp_nonce = base64_encode(random_bytes(16));
 </head>
 
 <body>
+    <?php if (isset($_GET['warning']) && $_GET['warning'] == 1): ?>
+    <div class="alert alert-warning text-center" role="alert">
+        You must complete the membership form in order to activate your membership.
+    </div>
+    <?php endif; ?>
+
     <div class="container my-5">
         <h1 class="text-center text-success mb-4">Membership Application Form</h1>
 
