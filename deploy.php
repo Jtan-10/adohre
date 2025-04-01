@@ -5,11 +5,11 @@
 require_once __DIR__ . '/vendor/autoload.php';
 
 // Load environment variables from .env file located in the current directory
-$dotenv = Dotenv\Dotenv::createImmutable('/home/bitnami/htdocs/capstone-php');
+$dotenv = Dotenv\Dotenv::createImmutable('/opt/bitnami/apache/htdocs/capstone-php');
 $dotenv->load();
 
 error_log("deploy.php debug: __DIR__ is " . __DIR__);
-error_log("deploy.php debug: Checking for .env at " . '/home/bitnami/htdocs/capstone-php/.env');
+error_log("deploy.php debug: Checking for .env at " . '/opt/bitnami/apache/htdocs/capstone-php/.env');
 
 
 // Get the secret from the environment
