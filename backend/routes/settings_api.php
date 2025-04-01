@@ -254,7 +254,7 @@ switch ($action) {
         ]);
         break;
 
-        case 'backup_database':
+    case 'backup_database':
             // Remove any previously set Content-Type header so we can output file data.
             header_remove('Content-Type');
             
