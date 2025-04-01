@@ -338,6 +338,26 @@ if ($method === 'GET') {
     if ($stmt->execute()) {
         // Audit log the payment status update.
         recordAuditLog($_SESSION['user_id'], 'Update Payment Status', "Payment ID $payment_id updated to status: $newStatus");
+
+        // If the new status is "Completed", update the member's membership_status to "active"
+        if (strtolower($newStatus) === 'completed') {
+            // Retrieve the user_id from the payments table for the given payment_id
+            $stmtUser = $conn->prepare("SELECT user_id FROM payments WHERE payment_id = ?");
+            $stmtUser->bind_param("i", $payment_id);
+            $stmtUser->execute();
+            $resultUser = $stmtUser->get_result();
+            if ($resultUser->num_rows === 1) {
+                $row = $resultUser->fetch_assoc();
+                $user_id = $row['user_id'];
+                // Update the membership_status to 'active' in the members table
+                $stmtUpdateMember = $conn->prepare("UPDATE members SET membership_status = 'active' WHERE user_id = ?");
+                $stmtUpdateMember->bind_param("i", $user_id);
+                $stmtUpdateMember->execute();
+                $stmtUpdateMember->close();
+            }
+            $stmtUser->close();
+        }
+
         echo json_encode(['status' => true, 'message' => 'Payment status updated successfully.']);
         exit();
     } else {
