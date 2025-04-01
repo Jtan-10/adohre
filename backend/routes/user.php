@@ -143,26 +143,39 @@ try {
             $last_name  = trim($_POST['last_name'] ?? '');
             $email      = trim($_POST['email'] ?? '');
             $role       = trim($_POST['role'] ?? '');
-    
+            
             if (!$first_name || !$last_name || !$email || !$role) {
                 http_response_code(400);
                 echo json_encode(['status' => false, 'message' => 'All fields are required.']);
                 exit();
             }
-    
+            
             if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 http_response_code(400);
                 echo json_encode(['status' => false, 'message' => 'Invalid email format.']);
                 exit();
             }
-    
+            
             // Insert new user record into the database
             $stmt = $conn->prepare('INSERT INTO users (first_name, last_name, email, role) VALUES (?, ?, ?, ?)');
             $stmt->bind_param('ssss', $first_name, $last_name, $email, $role);
-    
+            
             if ($stmt->execute()) {
+                // Get the newly inserted user's ID
+                $newUserId = $conn->insert_id;
                 $stmt->close();
-                // Optionally, record an audit log for the creation event
+                
+                // If the new user is a member, add a record to the members table
+                if ($role === 'member') {
+                    // Insert the member record with an initial membership_status (e.g., "inactive")
+                    $initialStatus = 'inactive';
+                    $stmtMember = $conn->prepare("INSERT INTO members (user_id, membership_status) VALUES (?, ?)");
+                    $stmtMember->bind_param("is", $newUserId, $initialStatus);
+                    $stmtMember->execute();
+                    $stmtMember->close();
+                }
+                
+                // Record an audit log for the creation event
                 recordAuditLog($auth_user_id, 'Admin Create User', "Admin created new user: $first_name $last_name, email: $email, role: $role");
                 echo json_encode(['status' => true, 'message' => 'User created successfully.']);
             } else {
@@ -339,6 +352,25 @@ try {
         if ($stmt->execute()) {
             $stmt->close();
             recordAuditLog($auth_user_id, 'Admin User Update', "Admin updated user {$user_id}: {$first_name} {$last_name}, email: {$email}, role: {$role}.");
+            
+            // After updating the user, if the new role is 'member',
+            // ensure a corresponding record exists in the members table.
+            if ($role === 'member') {
+                $stmt_member = $conn->prepare("SELECT * FROM members WHERE user_id = ?");
+                $stmt_member->bind_param("i", $user_id);
+                $stmt_member->execute();
+                $result_member = $stmt_member->get_result();
+                if ($result_member->num_rows === 0) {
+                    // Insert a record in the members table with an initial status, e.g., "inactive"
+                    $initialStatus = 'inactive';
+                    $stmt_insert = $conn->prepare("INSERT INTO members (user_id, membership_status) VALUES (?, ?)");
+                    $stmt_insert->bind_param("is", $user_id, $initialStatus);
+                    $stmt_insert->execute();
+                    $stmt_insert->close();
+                }
+                $stmt_member->close();
+            }
+            
             echo json_encode(['status' => true, 'message' => 'User updated successfully.']);
         } else {
             error_log('DB update error: ' . $stmt->error);
