@@ -321,48 +321,116 @@
                 showError('Failed to load trainings');
             });
 
+        // Updated renderTrainings() function with tabs for upcoming and past trainings
         function renderTrainings(trainings) {
-            const html = trainings.map(training => `
-          <div class="col-12">
-            <div class="training-card card">
-              <div class="row g-0">
-                <div class="col-md-4">
-                  <img src="${training.image || 'assets/default-training.jpg'}" 
-                       class="img-fluid training-image" 
-                       alt="${training.title}">
-                </div>
-                <div class="col-md-8 p-3">
-                  <div class="training-badge">
-                    <i class="fas fa-chalkboard-teacher me-2"></i>
-                    ${training.modality || 'In-person'}
+            const now = new Date();
+            // Filter trainings based on the schedule date
+            const upcomingTrainings = trainings.filter(training => new Date(training.schedule) >= now);
+            const pastTrainings = trainings.filter(training => new Date(training.schedule) < now);
+
+            // Build upcoming trainings HTML
+            const upcomingHtml = upcomingTrainings.map(training => `
+            <div class="col-12">
+              <div class="training-card card">
+                <div class="row g-0">
+                  <div class="col-md-4">
+                    <img src="${training.image || 'assets/default-training.jpg'}" 
+                         class="img-fluid training-image" 
+                         alt="${training.title}">
                   </div>
-                  <h3 class="h5 fw-bold mb-2">${training.title}</h3>
-                  <div class="d-flex flex-column gap-2">
-                    <div class="d-flex align-items-center">
-                      <i class="fas fa-calendar-day text-primary me-2"></i>
-                      <span>${new Date(training.schedule).toLocaleString()}</span>
+                  <div class="col-md-8 p-3">
+                    <div class="training-badge">
+                      <i class="fas fa-chalkboard-teacher me-2"></i>
+                      ${training.modality || 'In-person'}
                     </div>
-                    <div class="d-flex align-items-center">
-                      <i class="fas fa-user-friends text-primary me-2"></i>
-                      <span>${training.capacity} slots available</span>
+                    <h3 class="h5 fw-bold mb-2">${training.title}</h3>
+                    <div class="d-flex flex-column gap-2">
+                      <div class="d-flex align-items-center">
+                        <i class="fas fa-calendar-day text-primary me-2"></i>
+                        <span>${new Date(training.schedule).toLocaleString()}</span>
+                      </div>
+                      <div class="d-flex align-items-center">
+                        <i class="fas fa-user-friends text-primary me-2"></i>
+                        <span>${training.capacity} slots available</span>
+                      </div>
                     </div>
-                  </div>
-                  <div class="mt-3">
-                    ${training.joined == 1 
-                      ? `<button class="btn btn-primary view-training-btn" data-training-id="${training.training_id}">
-                           <i class="fas fa-eye me-2"></i>View Training
-                         </button>`
-                      : `<button class="btn btn-success join-training-btn" data-training-id="${training.training_id}">
-                           <i class="fas fa-user-plus me-2"></i>Join Training
-                         </button>`}
+                    <div class="mt-3">
+                      ${training.joined == 1 
+                        ? `<button class="btn btn-primary view-training-btn" data-training-id="${training.training_id}">
+                             <i class="fas fa-eye me-2"></i>View Training
+                           </button>`
+                        : `<button class="btn btn-success join-training-btn" data-training-id="${training.training_id}">
+                             <i class="fas fa-user-plus me-2"></i>Join Training
+                           </button>`}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
         `).join('');
-            trainingsList.innerHTML = html ||
-                '<p class="text-center text-muted">No trainings available currently</p>';
+
+            // Build past trainings HTML (disable join functionality)
+            const pastHtml = pastTrainings.map(training => `
+            <div class="col-12">
+              <div class="training-card card">
+                <div class="row g-0">
+                  <div class="col-md-4">
+                    <img src="${training.image || 'assets/default-training.jpg'}" 
+                         class="img-fluid training-image" 
+                         alt="${training.title}">
+                  </div>
+                  <div class="col-md-8 p-3">
+                    <div class="training-badge">
+                      <i class="fas fa-chalkboard-teacher me-2"></i>
+                      ${training.modality || 'In-person'}
+                    </div>
+                    <h3 class="h5 fw-bold mb-2">${training.title}</h3>
+                    <div class="d-flex flex-column gap-2">
+                      <div class="d-flex align-items-center">
+                        <i class="fas fa-calendar-day text-primary me-2"></i>
+                        <span>${new Date(training.schedule).toLocaleString()}</span>
+                      </div>
+                      <div class="d-flex align-items-center">
+                        <i class="fas fa-user-friends text-primary me-2"></i>
+                        <span>${training.capacity} slots available</span>
+                      </div>
+                    </div>
+                    <div class="mt-3">
+                      <button class="btn btn-secondary" disabled>Past Training</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+        `).join('');
+
+            // Render both tabs: Upcoming and Past Trainings
+            trainingsList.innerHTML = `
+           <ul class="nav nav-tabs" id="trainingsTab" role="tablist">
+             <li class="nav-item" role="presentation">
+               <button class="nav-link active" id="upcoming-tab" data-bs-toggle="tab" data-bs-target="#upcomingTrainings" type="button" role="tab">
+                 Upcoming Trainings
+               </button>
+             </li>
+             <li class="nav-item" role="presentation">
+               <button class="nav-link" id="past-tab" data-bs-toggle="tab" data-bs-target="#pastTrainings" type="button" role="tab">
+                 Past Trainings
+               </button>
+             </li>
+           </ul>
+           <div class="tab-content mt-3">
+             <div class="tab-pane fade show active" id="upcomingTrainings" role="tabpanel">
+               <div class="row g-4">
+                 ${upcomingHtml || '<p class="text-center text-muted">No upcoming trainings</p>'}
+               </div>
+             </div>
+             <div class="tab-pane fade" id="pastTrainings" role="tabpanel">
+               <div class="row g-4">
+                 ${pastHtml || '<p class="text-center text-muted">No past trainings</p>'}
+               </div>
+             </div>
+           </div>
+        `;
         }
 
         async function joinTraining(trainingId, button) {
@@ -415,8 +483,7 @@
             // For participants, fetch the assessment form link
             if (role !== 'trainer') {
                 fetch(
-                        `/capstone-php/backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${training.training_id}`
-                    )
+                        `/capstone-php/backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${training.training_id}`)
                     .then(response => response.json())
                     .then(data => {
                         const assessmentSection = document.getElementById('assessmentSection');
@@ -493,8 +560,17 @@
             });
         }
 
+        function showError(message) {
+            trainingsList.innerHTML = `
+            <div class="col-12 text-center text-danger">
+                <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                <p>${message}</p>
+            </div>
+        `;
+        }
     });
     </script>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous">
     </script>
