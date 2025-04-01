@@ -292,27 +292,6 @@ error_reporting(0);
             eventsList.innerHTML = html || '<p class="text-center text-muted">No upcoming events</p>';
         }
 
-        function formatAnnouncementText(text) {
-            // Split the text by newlines, trim whitespace, and remove empty lines
-            const lines = text.split('\n').map(line => line.trim()).filter(line => line !== '');
-
-            // Format each line
-            const formattedLines = lines.map(line => {
-                // If the line contains a colon, assume it's a label/value pair
-                if (line.includes(':')) {
-                    const parts = line.split(':');
-                    const label = parts[0].trim() + ':';
-                    const value = parts.slice(1).join(':').trim();
-                    return `<p><strong>${label}</strong> ${value}</p>`;
-                } else {
-                    // For lines without a colon (likely a title), you can use a heading tag
-                    return `<p><strong>${line}</strong></p>`;
-                }
-            });
-
-            return formattedLines.join('');
-        }
-
         function renderAnnouncements(announcements) {
             const announcementsList = document.getElementById('announcementsList');
             const html = announcements.map(announcement => {
