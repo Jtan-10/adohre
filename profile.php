@@ -307,19 +307,19 @@ header("X-Content-Type-Options: nosniff");
         });
 
         // Fetch the joined events when the "Events" tab is clicked
-        document.addEventListener("DOMContentLoaded", function() {
-            const eventsTab = document.getElementById('events-tab');
-            if (eventsTab) {
-                eventsTab.addEventListener('click', function() {
-                    fetch(`backend/routes/event_registration.php?action=get_joined_events`)
-                        .then(response => response.json())
-                        .then(data => {
-                            const joinedEventsList = document.getElementById(
-                                'joinedEventsList');
-                            if (data.status) {
-                                const events = data.events;
-                                if (events && events.length > 0) {
-                                    const eventsList = events.map(event => `
+        // Check if the Events tab element exists (it will only be in the DOM if the condition in profile_tabs.php is met)
+        const eventsTabEl = document.getElementById('events-tab');
+        if (eventsTabEl) {
+            // Use the Bootstrap "shown.bs.tab" event to trigger when the tab becomes active
+            eventsTabEl.addEventListener('shown.bs.tab', function() {
+                fetch(`backend/routes/event_registration.php?action=get_joined_events`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const joinedEventsList = document.getElementById('joinedEventsList');
+                        if (data.status) {
+                            const events = data.events;
+                            if (events && events.length > 0) {
+                                const eventsList = events.map(event => `
                                 <div class="card mb-3">
                                     <div class="row g-0">
                                         <div class="col-md-4">
@@ -336,24 +336,22 @@ header("X-Content-Type-Options: nosniff");
                                     </div>
                                 </div>
                             `).join('');
-                                    joinedEventsList.innerHTML = eventsList;
-                                } else {
-                                    joinedEventsList.innerHTML =
-                                        '<p>No joined events yet.</p>';
-                                }
+                                joinedEventsList.innerHTML = eventsList;
                             } else {
-                                joinedEventsList.innerHTML =
-                                    `<p>${data.message || 'Failed to load events.'}</p>`;
+                                joinedEventsList.innerHTML = '<p>No joined events yet.</p>';
                             }
-                        })
-                        .catch(err => {
-                            console.error(err);
-                            document.getElementById('joinedEventsList').innerHTML =
-                                `<p>An error occurred while fetching events. Please try again later.</p>`;
-                        });
-                });
-            }
-        });
+                        } else {
+                            joinedEventsList.innerHTML =
+                                `<p>${data.message || 'Failed to load events.'}</p>`;
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        document.getElementById('joinedEventsList').innerHTML =
+                            `<p>An error occurred while fetching events. Please try again later.</p>`;
+                    });
+            });
+        }
 
 
         document.getElementById('trainings-tab').addEventListener('click', function() {
