@@ -2,6 +2,7 @@
 session_start();
 require_once '../db/db_connect.php';
 require_once '../s3config.php';
+require_once '../controllers/authController.php';
 
 header('Content-Type: application/json');
 header("X-Content-Type-Options: nosniff");
@@ -157,7 +158,6 @@ try {
             }
         
             // Include the controller that contains generateVirtualId()
-            require_once '../controllers/authControllers.php';
             // Generate a unique virtual ID using the helper function.
             $virtual_id = generateVirtualId(16);
         
@@ -303,7 +303,6 @@ try {
     
         // Check if the request is to regenerate the virtual ID (allow any user to do so)
         if (isset($data['regenerate_virtual_id']) && filter_var($data['regenerate_virtual_id'], FILTER_VALIDATE_BOOLEAN)) {
-            require_once '../controllers/authControllers.php';
             $new_virtual_id = generateVirtualId(16);
             $stmt = $conn->prepare("UPDATE users SET virtual_id = ? WHERE user_id = ?");
             $stmt->bind_param("si", $new_virtual_id, $auth_user_id);
