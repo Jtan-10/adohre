@@ -10,6 +10,7 @@ $dotenv->load();
 
 // Get the secret from the environment
 $secret = getenv('GITHUB_WEBHOOK_SECRET');
+error_log("deploy.php debug: GITHUB_WEBHOOK_SECRET is: " . var_export($secret, true));
 if (!$secret) {
     error_log("deploy.php error: Webhook secret is not configured.");
     http_response_code(500);
