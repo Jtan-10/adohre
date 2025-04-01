@@ -13,7 +13,6 @@ error_reporting(0);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Updated Content Security Policy for production -->
 
-
     <title>Events - ADOHRE</title>
     <link rel="icon" href="assets/logo.png" type="image/jpg" />
     <!-- Bootstrap CSS -->
@@ -163,7 +162,7 @@ error_reporting(0);
                 <div class="events-container">
                     <h2 class="section-title">Upcoming Events</h2>
                     <div class="scrollable-section">
-                        <div class="row g-4" id="eventsList">
+                        <div id="eventsList">
                             <!-- Events will be populated here -->
                         </div>
                     </div>
@@ -198,8 +197,6 @@ error_reporting(0);
             if (!joinBtn) return;
 
             const eventId = joinBtn.dataset.eventId;
-            const card = joinBtn.closest('.event-card');
-
             try {
                 joinBtn.innerHTML =
                     `<span class="spinner-border spinner-border-sm" role="status"></span> Joining...`;
@@ -219,7 +216,7 @@ error_reporting(0);
                 const data = await response.json();
 
                 if (data.status) {
-                    // Update button state
+                    // Permanently update button state for joined events
                     joinBtn.innerHTML = `Joined <i class="fas fa-check ms-2"></i>`;
                     joinBtn.classList.remove('btn-success');
                     joinBtn.classList.add('btn-secondary');
@@ -260,8 +257,22 @@ error_reporting(0);
                 showError('Failed to load events');
             });
 
+        // --- Updated renderEvents() ---
         function renderEvents(events) {
-            const html = events.map(event => `
+            const now = new Date();
+            const upcomingEvents = events.filter(event => new Date(event.date) >= now);
+            const pastEvents = events.filter(event => new Date(event.date) < now);
+
+            // Build upcoming events HTML
+            const upcomingHtml = upcomingEvents.map(event => {
+                const eventDate = new Date(event.date);
+                const dateStr = eventDate.toLocaleDateString();
+                const joinBtn = `<button class="btn ${event.joined ? 'btn-secondary' : 'btn-success'} btn-sm join-event-btn" 
+                    data-event-id="${event.event_id}"
+                    ${event.joined ? 'disabled' : ''}>
+                    ${event.joined ? 'Joined <i class="fas fa-check ms-2"></i>' : 'Join Now <i class="fas fa-arrow-right ms-2"></i>'}
+                </button>`;
+                return `
             <div class="col-12">
                 <div class="event-card">
                     <img src="${event.image || 'assets/default-event.jpg'}" 
@@ -270,7 +281,7 @@ error_reporting(0);
                     <div class="event-card-body">
                         <div class="event-date">
                             <i class="fas fa-calendar-alt me-2"></i>
-                            ${new Date(event.date).toLocaleDateString()}
+                            ${dateStr}
                         </div>
                         <h3 class="h5 fw-bold mb-3">${event.title}</h3>
                         <p class="text-muted mb-3">${event.description}</p>
@@ -279,18 +290,72 @@ error_reporting(0);
                                 <i class="fas fa-map-marker-alt text-primary me-2"></i>
                                 <span class="text-muted">${event.location}</span>
                             </div>
-                            <button class="btn ${event.joined ? 'btn-secondary' : 'btn-success'} btn-sm join-event-btn" 
-                                data-event-id="${event.event_id}"
-                                ${event.joined ? 'disabled' : ''}>
-                                ${event.joined ? 'Joined <i class="fas fa-check ms-2"></i>' : 'Join Now <i class="fas fa-arrow-right ms-2"></i>'}
-                            </button>
+                            ${joinBtn}
                         </div>
                     </div>
                 </div>
-            </div>
-        `).join('');
-            eventsList.innerHTML = html || '<p class="text-center text-muted">No upcoming events</p>';
+            </div>`;
+            }).join('');
+
+            // Build past events HTML (join not available)
+            const pastHtml = pastEvents.map(event => {
+                const eventDate = new Date(event.date);
+                const dateStr = eventDate.toLocaleDateString();
+                const pastBtn = `<button class="btn btn-secondary btn-sm" disabled>Past Event</button>`;
+                return `
+            <div class="col-12">
+                <div class="event-card">
+                    <img src="${event.image || 'assets/default-event.jpg'}" 
+                         class="card-img-top" 
+                         alt="${event.title}">
+                    <div class="event-card-body">
+                        <div class="event-date">
+                            <i class="fas fa-calendar-alt me-2"></i>
+                            ${dateStr}
+                        </div>
+                        <h3 class="h5 fw-bold mb-3">${event.title}</h3>
+                        <p class="text-muted mb-3">${event.description}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="location">
+                                <i class="fas fa-map-marker-alt text-primary me-2"></i>
+                                <span class="text-muted">${event.location}</span>
+                            </div>
+                            ${pastBtn}
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+            }).join('');
+
+            // Render both tabs: Upcoming and Past events
+            eventsList.innerHTML = `
+       <ul class="nav nav-tabs" id="eventsTab" role="tablist">
+         <li class="nav-item" role="presentation">
+           <button class="nav-link active" id="upcoming-tab" data-bs-toggle="tab" data-bs-target="#upcoming" type="button" role="tab">
+             Upcoming Events
+           </button>
+         </li>
+         <li class="nav-item" role="presentation">
+           <button class="nav-link" id="past-tab" data-bs-toggle="tab" data-bs-target="#past" type="button" role="tab">
+             Past Events
+           </button>
+         </li>
+       </ul>
+       <div class="tab-content mt-3">
+         <div class="tab-pane fade show active" id="upcoming" role="tabpanel">
+           <div class="row g-4">
+             ${upcomingHtml || '<p class="text-center text-muted">No upcoming events</p>'}
+           </div>
+         </div>
+         <div class="tab-pane fade" id="past" role="tabpanel">
+           <div class="row g-4">
+             ${pastHtml || '<p class="text-center text-muted">No past events</p>'}
+           </div>
+         </div>
+       </div>
+       `;
         }
+        // --- End updated renderEvents() ---
 
         function renderAnnouncements(announcements) {
             const announcementsList = document.getElementById('announcementsList');
