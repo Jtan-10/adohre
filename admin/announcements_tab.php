@@ -24,6 +24,13 @@
 <!-- Updated inline script with matching nonce -->
 <script nonce="<?= $cspNonce ?>">
 document.addEventListener('DOMContentLoaded', function() {
+    // Utility function to decode HTML entities.
+    function decodeHtmlEntities(str) {
+        const txt = document.createElement('textarea');
+        txt.innerHTML = str;
+        return txt.value;
+    }
+
     // Ensure the required elements exist
     const announcementForm = document.getElementById('announcementForm');
     const announcementsListElement = document.getElementById('announcementsList');
@@ -75,8 +82,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             return `
 <div class="card mb-3">
   <div class="card-body">
-    <p class="h5 mb-2">${announcement.title}</p>
-    <div style="white-space: pre-wrap;">${announcement.text}</div>
+    <p class="h5 mb-2">${decodeHtmlEntities(announcement.title)}</p>
+    <div style="white-space: pre-wrap;">${decodeHtmlEntities(announcement.text)}</div>
     <small class="text-muted">Posted on: ${formattedDate}</small>
     <div class="mt-2">
       <button class="btn btn-primary btn-sm edit-announcement" data-id="${announcement.announcement_id}">Edit</button>
@@ -115,8 +122,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     const announcementContentField = document.getElementById('announcementContent');
                     if (announcementIdField && announcementTitleField && announcementContentField) {
                         announcementIdField.value = announcement.announcement_id;
-                        announcementTitleField.value = announcement.title;
-                        announcementContentField.value = announcement.text;
+                        announcementTitleField.value = decodeHtmlEntities(announcement.title);
+                        announcementContentField.value = decodeHtmlEntities(announcement.text);
                     }
                 }
             })
