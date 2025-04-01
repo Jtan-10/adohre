@@ -255,6 +255,9 @@ switch ($action) {
         break;
 
     case 'backup_database':
+        // Remove any previously set Content-Type header so we can output file data.
+    header_remove('Content-Type');
+    
         // Use credentials from db_connect.php.
         $dbHost = $servername;
         $dbUser = $username;
@@ -290,40 +293,26 @@ switch ($action) {
         exec($command, $output, $returnVar);
 
         if ($returnVar === 0) {
-            $s3Key = 'backups/' . basename($backupFile);
-            try {
-                $result = $s3->putObject([
-                    'Bucket'      => $bucketName,
-                    'Key'         => $s3Key,
-                    'Body'        => fopen($backupFile, 'rb'),
-                    'ACL'         => 'private',
-                    'ContentType' => 'application/sql'
-                ]);
-                // Remove the local backup file after upload.
-                unlink($backupFile);
-
-                $s3BackupUrl   = $result['ObjectURL'];
-                $backupMessage = "Backup created on S3.";
-                error_log("Database backup successful. S3 URL: " . $s3BackupUrl);
-
-                // Record the backup action using the audit log helper.
-                recordAuditLog($_SESSION['user_id'], 'Database Backup', $backupMessage);
-
-                echo json_encode(['status' => true, 'message' => $backupMessage]);
-            } catch (Exception $e) {
-                error_log("Backup upload failed: " . $e->getMessage());
-                echo json_encode([
-                    'status'  => false,
-                    'message' => "Backup upload failed."
-                ]);
-            }
+            // Set headers so the browser will download the file.
+            header('Content-Description: File Transfer');
+            header('Content-Type: application/sql');
+            header('Content-Disposition: attachment; filename="backup_' . date('Ymd_His') . '.sql"');
+            header('Expires: 0');
+            header('Cache-Control: must-revalidate');
+            header('Pragma: public');
+            header('Content-Length: ' . filesize($backupFile));
+        
+            // Output the file to the browser.
+            readfile($backupFile);
+            // Delete the temporary backup file.
+            unlink($backupFile);
+            exit();
         } else {
-            $errorMessage = implode("\n", $output);
-            error_log("Database backup command failed: " . $errorMessage);
-            echo json_encode([
-                'status'  => false,
-                'message' => "Database backup failed."
-            ]);
+            // Delete the temporary file on failure.
+            unlink($backupFile);
+            http_response_code(500);
+            echo json_encode(['status' => false, 'message' => "Database backup failed."]);
+            exit();
         }
         break;
 
