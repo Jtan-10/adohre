@@ -282,7 +282,7 @@ try {
     } 
     elseif ($method === 'PUT') {
         // --- Admin updating other users ---
-        if ($auth_user_role !== 'admin' && $auth_user_role !== 'super admin') {
+        if ($auth_user_role !== 'admin') {
             http_response_code(403);
             echo json_encode(['status' => false, 'message' => 'Forbidden']);
             exit();
@@ -320,10 +320,10 @@ try {
         $result_check = $stmt_check->get_result();
         if ($result_check->num_rows === 1) {
             $target_user = $result_check->fetch_assoc();
-            if (($target_user['role'] === 'admin' || $target_user['role'] === 'super admin')
-                && $user_id !== $auth_user_id && $auth_user_role !== 'super admin') {
+            if (($target_user['role'] === 'admin')
+                && $user_id !== $auth_user_id) {
                 http_response_code(403);
-                echo json_encode(['status' => false, 'message' => 'You are not allowed to edit another admin or super admin.']);
+                echo json_encode(['status' => false, 'message' => 'You are not allowed to edit another admin.']);
                 exit();
             }
         }
@@ -349,7 +349,7 @@ try {
     
     elseif ($method === 'DELETE') {
         // --- Admin deleting a user ---
-        if ($auth_user_role !== 'admin' && $auth_user_role !== 'super admin') {
+        if ($auth_user_role !== 'admin') {
             http_response_code(403);
             echo json_encode(['status' => false, 'message' => 'Forbidden']);
             exit();
@@ -376,10 +376,10 @@ try {
         $result_check = $stmt_check->get_result();
         if ($result_check->num_rows === 1) {
             $target_user = $result_check->fetch_assoc();
-            if (($target_user['role'] === 'admin' || $target_user['role'] === 'super admin')
-                && $user_id !== $auth_user_id && $auth_user_role !== 'super admin') {
+            if (($target_user['role'] === 'admin')
+                && $user_id !== $auth_user_id) {
                 http_response_code(403);
-                echo json_encode(['status' => false, 'message' => 'You are not allowed to delete another admin or super admin.']);
+                echo json_encode(['status' => false, 'message' => 'You are not allowed to delete another admin.']);
                 exit();
             }
         }
