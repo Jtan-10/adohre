@@ -22,124 +22,124 @@ error_reporting(0);
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Custom Styles -->
     <style>
-    :root {
-        --primary-color: #28a745;
-        --secondary-color: #2c3e50;
-        --accent-color: #f8f9fa;
-    }
+        :root {
+            --primary-color: #28a745;
+            --secondary-color: #2c3e50;
+            --accent-color: #f8f9fa;
+        }
 
-    body {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        background-color: #ffffff;
-    }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #ffffff;
+        }
 
-    .events-container {
-        background: var(--accent-color);
-        border-radius: 15px;
-        padding: 2rem;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-    }
+        .events-container {
+            background: var(--accent-color);
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
 
-    .announcements-container {
-        background: #fff;
-        border-radius: 15px;
-        padding: 2rem;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-        border-left: 4px solid var(--primary-color);
-    }
+        .announcements-container {
+            background: #fff;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border-left: 4px solid var(--primary-color);
+        }
 
-    .event-card {
-        border: none;
-        border-radius: 12px;
-        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        background: linear-gradient(145deg, #ffffff, #f8f9fa);
-        overflow: hidden;
-    }
+        .event-card {
+            border: none;
+            border-radius: 12px;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: linear-gradient(145deg, #ffffff, #f8f9fa);
+            overflow: hidden;
+        }
 
-    .event-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 20px rgba(40, 167, 69, 0.15);
-    }
+        .event-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(40, 167, 69, 0.15);
+        }
 
-    .event-card img {
-        height: 220px;
-        object-fit: cover;
-        border-radius: 12px 12px 0 0;
-    }
+        .event-card img {
+            height: 220px;
+            object-fit: cover;
+            border-radius: 12px 12px 0 0;
+        }
 
-    .event-card-body {
-        padding: 1.5rem;
-    }
+        .event-card-body {
+            padding: 1.5rem;
+        }
 
-    .event-date {
-        background: var(--primary-color);
-        color: white;
-        padding: 0.5rem 1rem;
-        border-radius: 20px;
-        font-size: 0.9rem;
-        display: inline-block;
-        margin-bottom: 1rem;
-    }
+        .event-date {
+            background: var(--primary-color);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            display: inline-block;
+            margin-bottom: 1rem;
+        }
 
-    .announcement-card {
-        background: #fff;
-        border-left: 3px solid var(--primary-color);
-        border-radius: 8px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        transition: all 0.3s ease;
-    }
+        .announcement-card {
+            background: #fff;
+            border-left: 3px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            transition: all 0.3s ease;
+        }
 
-    .announcement-card:hover {
-        transform: translateX(5px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    }
+        .announcement-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
 
-    .scrollable-section {
-        max-height: 80vh;
-        overflow-y: auto;
-        padding-right: 1rem;
-    }
+        .scrollable-section {
+            max-height: 80vh;
+            overflow-y: auto;
+            padding-right: 1rem;
+        }
 
-    /* Custom Scrollbar */
-    ::-webkit-scrollbar {
-        width: 8px;
-    }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
 
-    ::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 4px;
-    }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
 
-    ::-webkit-scrollbar-thumb {
-        background: var(--primary-color);
-        border-radius: 4px;
-    }
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 4px;
+        }
 
-    ::-webkit-scrollbar-thumb:hover {
-        background: #218838;
-    }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #218838;
+        }
 
-    .section-title {
-        font-size: 2rem;
-        font-weight: 700;
-        color: var(--secondary-color);
-        margin-bottom: 2rem;
-        position: relative;
-        padding-left: 1.5rem;
-    }
+        .section-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--secondary-color);
+            margin-bottom: 2rem;
+            position: relative;
+            padding-left: 1.5rem;
+        }
 
-    .section-title::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        height: 70%;
-        width: 4px;
-        background: var(--primary-color);
-        border-radius: 2px;
-    }
+        .section-title::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 70%;
+            width: 4px;
+            background: var(--primary-color);
+            border-radius: 2px;
+        }
     </style>
 </head>
 
@@ -186,82 +186,82 @@ error_reporting(0);
 
     <!-- Bootstrap JS -->
     <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        // Securely output the user ID
-        const userId = <?php echo json_encode($_SESSION['user_id']); ?>;
-        const eventsList = document.getElementById('eventsList');
-        let eventsData = [];
+        document.addEventListener("DOMContentLoaded", function() {
+            // Securely output the user ID
+            const userId = <?php echo json_encode($_SESSION['user_id']); ?>;
+            const eventsList = document.getElementById('eventsList');
+            let eventsData = [];
 
-        // Event delegation for dynamic buttons
-        eventsList.addEventListener('click', async (e) => {
-            const joinBtn = e.target.closest('.join-event-btn');
-            if (!joinBtn) return;
+            // Event delegation for dynamic buttons
+            eventsList.addEventListener('click', async (e) => {
+                const joinBtn = e.target.closest('.join-event-btn');
+                if (!joinBtn) return;
 
-            const eventId = joinBtn.dataset.eventId;
-            const card = joinBtn.closest('.event-card');
+                const eventId = joinBtn.dataset.eventId;
+                const card = joinBtn.closest('.event-card');
 
-            try {
-                joinBtn.innerHTML =
-                    `<span class="spinner-border spinner-border-sm" role="status"></span> Joining...`;
-                joinBtn.disabled = true;
-
-                const response = await fetch(
-                    'backend/routes/event_registration.php?action=join_event', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            event_id: eventId
-                        })
-                    });
-
-                const data = await response.json();
-
-                if (data.status) {
-                    // Update button state
-                    joinBtn.innerHTML = `Joined <i class="fas fa-check ms-2"></i>`;
-                    joinBtn.classList.remove('btn-success');
-                    joinBtn.classList.add('btn-secondary');
+                try {
+                    joinBtn.innerHTML =
+                        `<span class="spinner-border spinner-border-sm" role="status"></span> Joining...`;
                     joinBtn.disabled = true;
 
-                    // Update local data
-                    const eventIndex = eventsData.findIndex(e => e.event_id == eventId);
-                    if (eventIndex > -1) {
-                        eventsData[eventIndex].joined = true;
+                    const response = await fetch(
+                        'backend/routes/event_registration.php?action=join_event', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                event_id: eventId
+                            })
+                        });
+
+                    const data = await response.json();
+
+                    if (data.status) {
+                        // Update button state
+                        joinBtn.innerHTML = `Joined <i class="fas fa-check ms-2"></i>`;
+                        joinBtn.classList.remove('btn-success');
+                        joinBtn.classList.add('btn-secondary');
+                        joinBtn.disabled = true;
+
+                        // Update local data
+                        const eventIndex = eventsData.findIndex(e => e.event_id == eventId);
+                        if (eventIndex > -1) {
+                            eventsData[eventIndex].joined = true;
+                        }
+                    } else {
+                        alert(data.message || 'Failed to join event');
+                        joinBtn.innerHTML = `Join Now <i class="fas fa-arrow-right ms-2"></i>`;
+                        joinBtn.disabled = false;
                     }
-                } else {
-                    alert(data.message || 'Failed to join event');
+                } catch (err) {
+                    console.error('Join event error:', err);
+                    alert('Error joining event');
                     joinBtn.innerHTML = `Join Now <i class="fas fa-arrow-right ms-2"></i>`;
                     joinBtn.disabled = false;
                 }
-            } catch (err) {
-                console.error('Join event error:', err);
-                alert('Error joining event');
-                joinBtn.innerHTML = `Join Now <i class="fas fa-arrow-right ms-2"></i>`;
-                joinBtn.disabled = false;
-            }
-        });
-
-        // Fetch and render events
-        fetch('backend/routes/content_manager.php?action=fetch')
-            .then(response => response.json())
-            .then(data => {
-                if (data.status) {
-                    eventsData = data.events;
-                    renderEvents(data.events);
-                    renderAnnouncements(data.announcements);
-                } else {
-                    showError('Failed to load events');
-                }
-            })
-            .catch(err => {
-                console.error('Fetch error:', err);
-                showError('Failed to load events');
             });
 
-        function renderEvents(events) {
-            const html = events.map(event => `
+            // Fetch and render events
+            fetch('backend/routes/content_manager.php?action=fetch')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status) {
+                        eventsData = data.events;
+                        renderEvents(data.events);
+                        renderAnnouncements(data.announcements);
+                    } else {
+                        showError('Failed to load events');
+                    }
+                })
+                .catch(err => {
+                    console.error('Fetch error:', err);
+                    showError('Failed to load events');
+                });
+
+            function renderEvents(events) {
+                const html = events.map(event => `
             <div class="col-12">
                 <div class="event-card">
                     <img src="${event.image || 'assets/default-event.jpg'}" 
@@ -289,26 +289,27 @@ error_reporting(0);
                 </div>
             </div>
         `).join('');
-            eventsList.innerHTML = html || '<p class="text-center text-muted">No upcoming events</p>';
-        }
+                eventsList.innerHTML = html || '<p class="text-center text-muted">No upcoming events</p>';
+            }
 
-        function renderAnnouncements(announcements) {
-            const announcementsList = document.getElementById('announcementsList');
-            const html = announcements.map(announcement => {
-                const normalizedText = announcement.text
-                    .replace(/^[\r\n]+/, '') // Remove leading newlines/whitespace
-                    .replace(/(\r?\n\s*){3,}/g, '\n\n')
-                    .trim();
-                // Format created_at with date and 12-hour time
-                const formattedDate = new Date(announcement.created_at).toLocaleString('en-US', {
-                    month: 'long',
-                    day: 'numeric',
-                    year: 'numeric',
-                    hour: 'numeric',
-                    minute: 'numeric',
-                    hour12: true
-                });
-                return `
+            function renderAnnouncements(announcements) {
+                const announcementsList = document.getElementById('announcementsList');
+                const html = announcements.map(announcement => {
+                    const normalizedText = announcement.text
+                        .split('\n')
+                        .map(line => line.trim())
+                        .filter(line => line.length > 0)
+                        .join('\n\n');
+                    // Format created_at with date and 12-hour time
+                    const formattedDate = new Date(announcement.created_at).toLocaleString('en-US', {
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: 'numeric',
+                        minute: 'numeric',
+                        hour12: true
+                    });
+                    return `
             <div class="announcement-card">
                 <div class="d-flex align-items-start mb-2">
                     <i class="fas fa-bullhorn text-primary me-3 mt-1"></i>
@@ -326,20 +327,20 @@ error_reporting(0);
                 </div>
             </div>
         `;
-            }).join('');
-            announcementsList.innerHTML = html || '<p class="text-center text-muted">No announcements</p>';
-        }
+                }).join('');
+                announcementsList.innerHTML = html || '<p class="text-center text-muted">No announcements</p>';
+            }
 
 
-        function showError(message) {
-            eventsList.innerHTML = `
+            function showError(message) {
+                eventsList.innerHTML = `
             <div class="col-12 text-center text-danger">
                 <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
                 <p>${message}</p>
             </div>
         `;
-        }
-    });
+            }
+        });
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous">
