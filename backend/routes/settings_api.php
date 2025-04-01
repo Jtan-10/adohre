@@ -255,69 +255,75 @@ switch ($action) {
         break;
 
     case 'backup_database':
-            // Remove any previously set Content-Type header so we can output file data.
-            header_remove('Content-Type');
-            
-            // Use credentials from db_connect.php.
-            $dbHost = $servername;
-            $dbUser = $username;
-            $dbPass = $password;
-            $dbName = $dbname;
+        // Remove any previously set Content-Type header so we can output file data.
+        header_remove('Content-Type');
         
-            // Define backup directory (ensure it is outside web root if possible).
-            $backupDir = __DIR__ . '/../../backups/';
-            if (!is_dir($backupDir)) {
-                if (!mkdir($backupDir, 0777, true)) {
-                    $error = error_get_last();
-                    error_log("Failed to create backup directory: " . print_r($error, true));
-                    echo json_encode([
-                        'status'  => false,
-                        'message' => "Failed to create backup directory. Check permissions on: $backupDir"
-                    ]);
-                    exit;
-                }
+        // Use credentials from db_connect.php.
+        $dbHost = $servername;
+        $dbUser = $username;
+        $dbPass = $password;
+        $dbName = $dbname;
+        
+        // Define backup directory (adjust the path as needed for your server).
+        $backupDir = __DIR__ . '/../../backups/';
+        if (!is_dir($backupDir)) {
+            if (!mkdir($backupDir, 0755, true)) {
+            $error = error_get_last();
+            error_log("Failed to create backup directory: " . print_r($error, true));
+            header('Content-Type: text/plain');
+            echo "Failed to create backup directory. Check permissions on: $backupDir";
+            exit;
             }
+        }
         
-            $backupFile = $backupDir . "backup_" . date('Ymd_His') . ".sql";
+        // Generate a backup file name.
+        $backupFile = $backupDir . "backup_" . date('Ymd_His') . ".sql";
         
-            // Escape shell arguments.
-            $dbHostEscaped = escapeshellarg($dbHost);
-            $dbUserEscaped = escapeshellarg($dbUser);
-            $dbNameEscaped = escapeshellarg($dbName);
-            $backupFileEscaped = escapeshellarg($backupFile);
+        // Escape shell arguments.
+        $dbHostEscaped = escapeshellarg($dbHost);
+        $dbUserEscaped = escapeshellarg($dbUser);
+        $dbNameEscaped = escapeshellarg($dbName);
+        $backupFileEscaped = escapeshellarg($backupFile);
         
-            // Full path to mysqldump.
+        // Determine the full path to mysqldump.
+        // Try Bitnami's path first, then fallback to LAMPP path.
+        $mysqldumpPath = '/opt/bitnami/mysql/bin/mysqldump';
+        if (!file_exists($mysqldumpPath)) {
             $mysqldumpPath = '/opt/lampp/bin/mysqldump';
-            $command = "$mysqldumpPath --host={$dbHostEscaped} --user={$dbUserEscaped} --password={$dbPass} {$dbNameEscaped} > $backupFileEscaped";
-            error_log("Starting database backup. Command: $command");
+        }
         
-            $output = [];
-            exec($command, $output, $returnVar);
-        
-            if ($returnVar === 0) {
-                // Set headers so the browser will download the file.
-                header('Content-Description: File Transfer');
-                header('Content-Type: application/sql');
-                header('Content-Disposition: attachment; filename="backup_' . date('Ymd_His') . '.sql"');
-                header('Expires: 0');
-                header('Cache-Control: must-revalidate');
-                header('Pragma: public');
-                header('Content-Length: ' . filesize($backupFile));
-        
-                // Output the file to the browser.
-                readfile($backupFile);
-                // Delete the temporary backup file.
+        // Build the command. (Be cautious with passwords in shell commands.)
+        $command = "$mysqldumpPath --host={$dbHostEscaped} --user={$dbUserEscaped} --password={$dbPass} {$dbNameEscaped} > $backupFileEscaped";
+        error_log("Starting database backup. Command: $command");
+    
+        $output = [];
+        exec($command, $output, $returnVar);
+    
+        if ($returnVar === 0 && file_exists($backupFile)) {
+            // Set headers so the browser will download the file.
+            header('Content-Description: File Transfer');
+            header('Content-Type: application/octet-stream'); // generic binary stream type
+            header('Content-Disposition: attachment; filename="backup_' . date('Ymd_His') . '.sql"');
+            header('Expires: 0');
+            header('Cache-Control: must-revalidate');
+            header('Pragma: public');
+            header('Content-Length: ' . filesize($backupFile));
+    
+            // Output the file to the browser.
+            readfile($backupFile);
+            // Delete the temporary backup file.
+            unlink($backupFile);
+            exit();
+        } else {
+            if (file_exists($backupFile)) {
                 unlink($backupFile);
-                exit();
-            } else {
-                // Delete the temporary file on failure.
-                unlink($backupFile);
-                http_response_code(500);
-                echo json_encode(['status' => false, 'message' => "Database backup failed."]);
-                exit();
             }
-            break;        
-
+            http_response_code(500);
+            echo "Database backup failed.";
+            exit();
+        }
+        break;
+            
     case 'restore_database':
         if (isset($_FILES['restore_file']) && $_FILES['restore_file']['error'] === UPLOAD_ERR_OK) {
             $dbHost = $servername;
