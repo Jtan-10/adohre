@@ -8,6 +8,10 @@ require_once __DIR__ . '/vendor/autoload.php';
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
 $dotenv->load();
 
+error_log("deploy.php debug: __DIR__ is " . __DIR__);
+error_log("deploy.php debug: Checking for .env at " . __DIR__ . '/.env');
+
+
 // Get the secret from the environment
 $secret = getenv('GITHUB_WEBHOOK_SECRET');
 error_log("deploy.php debug: GITHUB_WEBHOOK_SECRET is: " . var_export($secret, true));
