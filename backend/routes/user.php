@@ -298,6 +298,28 @@ try {
         }
     } 
     elseif ($method === 'PUT') {
+        // If the request is to regenerate the virtual ID, allow any user to do so.
+    if (isset($data['regenerate_virtual_id']) && $data['regenerate_virtual_id'] === true) {
+        // Include the controller that contains generateVirtualId()
+        require_once '../controllers/authControllers.php';
+        $new_virtual_id = generateVirtualId(16);
+        $stmt = $conn->prepare("UPDATE users SET virtual_id = ? WHERE user_id = ?");
+        $stmt->bind_param("si", $new_virtual_id, $auth_user_id);
+        if ($stmt->execute()) {
+            $stmt->close();
+            echo json_encode([
+                'status' => true,
+                'message' => 'Virtual ID regenerated successfully.',
+                'virtual_id' => $new_virtual_id
+            ]);
+            exit();
+        } else {
+            http_response_code(500);
+            echo json_encode(['status' => false, 'message' => 'Error regenerating Virtual ID.']);
+            exit();
+        }
+    }
+    
         // --- Admin updating other users ---
         if ($auth_user_role !== 'admin') {
             http_response_code(403);
