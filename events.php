@@ -292,18 +292,34 @@ error_reporting(0);
             eventsList.innerHTML = html || '<p class="text-center text-muted">No upcoming events</p>';
         }
 
+        function formatAnnouncementText(text) {
+            // Split the text by newlines, trim whitespace, and remove empty lines
+            const lines = text.split('\n').map(line => line.trim()).filter(line => line !== '');
+
+            // Format each line
+            const formattedLines = lines.map(line => {
+                // If the line contains a colon, assume it's a label/value pair
+                if (line.includes(':')) {
+                    const parts = line.split(':');
+                    const label = parts[0].trim() + ':';
+                    const value = parts.slice(1).join(':').trim();
+                    return `<p><strong>${label}</strong> ${value}</p>`;
+                } else {
+                    // For lines without a colon (likely a title), you can use a heading tag
+                    return `<h3>${line}</h3>`;
+                }
+            });
+
+            return formattedLines.join('');
+        }
+
         function renderAnnouncements(announcements) {
             const announcementsList = document.getElementById('announcementsList');
             const html = announcements.map(announcement => {
-                // Trim and remove empty lines
-                const lines = announcement.text
-                    .split('\n')
-                    .map(line => line.trim())
-                    .filter(line => line.length > 0);
+                // Use the helper function to format the announcement text
+                const formattedText = formatAnnouncementText(announcement.text);
 
-                const normalizedText = lines.join('\n');
-
-                // Format created_at with date and 12-hour time
+                // Format the created_at timestamp as desired
                 const formattedDate = new Date(announcement.created_at).toLocaleString('en-US', {
                     month: 'long',
                     day: 'numeric',
@@ -318,10 +334,7 @@ error_reporting(0);
         <div class="d-flex align-items-start mb-2">
           <i class="fas fa-bullhorn text-primary me-3 mt-1"></i>
           <div>
-            <p class="mb-1 fw-semibold">${announcement.title || 'Important Update'}</p>
-            <p class="text-muted mb-0 small" style="white-space: normal;">
-              ${normalizedText}
-            </p>
+            ${formattedText}
             <div class="text-end mt-2">
               <small class="text-muted">
                 Posted on: ${formattedDate}
@@ -335,6 +348,7 @@ error_reporting(0);
 
             announcementsList.innerHTML = html || '<p class="text-center text-muted">No announcements</p>';
         }
+
 
 
 
