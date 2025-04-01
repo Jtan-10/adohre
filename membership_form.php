@@ -110,9 +110,15 @@ $csp_nonce = base64_encode(random_bytes(16));
 
             </div>
 
-            <div class="text-center">
-                <button type="submit" id="submit-btn" class="btn btn-success">Submit Application</button>
+            <div class="d-flex justify-content-center gap-2">
+                <a href="index.php" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Home
+                </a>
+                <button type="submit" id="submit-btn" class="btn btn-success">
+                    Submit Application
+                </button>
             </div>
+
         </form>
         <!-- Modal Structure -->
         <div class="modal fade" id="inputModal" tabindex="-1" aria-labelledby="inputModalLabel">
