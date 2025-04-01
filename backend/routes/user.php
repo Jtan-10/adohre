@@ -137,6 +137,41 @@ try {
         }
     } 
     elseif ($method === 'POST') {
+        if (isset($_POST['action']) && $_POST['action'] === 'create_user') {
+            // Validate inputs
+            $first_name = trim($_POST['first_name'] ?? '');
+            $last_name  = trim($_POST['last_name'] ?? '');
+            $email      = trim($_POST['email'] ?? '');
+            $role       = trim($_POST['role'] ?? '');
+    
+            if (!$first_name || !$last_name || !$email || !$role) {
+                http_response_code(400);
+                echo json_encode(['status' => false, 'message' => 'All fields are required.']);
+                exit();
+            }
+    
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                http_response_code(400);
+                echo json_encode(['status' => false, 'message' => 'Invalid email format.']);
+                exit();
+            }
+    
+            // Insert new user record into the database
+            $stmt = $conn->prepare('INSERT INTO users (first_name, last_name, email, role) VALUES (?, ?, ?, ?)');
+            $stmt->bind_param('ssss', $first_name, $last_name, $email, $role);
+    
+            if ($stmt->execute()) {
+                $stmt->close();
+                // Optionally, record an audit log for the creation event
+                recordAuditLog($auth_user_id, 'Admin Create User', "Admin created new user: $first_name $last_name, email: $email, role: $role");
+                echo json_encode(['status' => true, 'message' => 'User created successfully.']);
+            } else {
+                error_log('DB insert error: ' . $stmt->error);
+                http_response_code(500);
+                echo json_encode(['status' => false, 'message' => 'Error creating user.']);
+            }
+            exit();
+        }
         // --- Profile update for logged-in user ---
         // If a file upload is included, process the profile image.
         if (!empty($_FILES['profile_image']['name'])) {
