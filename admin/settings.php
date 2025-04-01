@@ -51,6 +51,7 @@ if ($result) {
 <head>
     <meta charset="UTF-8">
     <title>Admin Settings</title>
+    <link rel="icon" href="../assets/logo.png" type="image/jpg" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -119,11 +120,13 @@ if ($result) {
             <hr>
 
             <h2>Database Backup &amp; Restore</h2>
-            <form id="backupForm" method="POST">
+            <!-- The backup form now submits normally to the backup endpoint so that the SQL file is downloaded -->
+            <form id="backupForm" method="POST" action="../backend/routes/settings_api.php?action=backup_database">
                 <button type="submit" class="btn btn-success">Backup Database</button>
             </form>
             <br>
-            <form id="restoreForm" method="POST" enctype="multipart/form-data">
+            <form id="restoreForm" method="POST" enctype="multipart/form-data"
+                action="../backend/routes/settings_api.php?action=restore_database">
                 <div class="mb-3">
                     <label for="restore_file" class="form-label">Restore Database (Upload SQL file)</label>
                     <input type="file" class="form-control" id="restore_file" name="restore_file" accept=".sql">
@@ -161,7 +164,6 @@ if ($result) {
         }
 
         const formData = new FormData(form);
-        // Updated fetch URL to go one level up:
         fetch('../backend/routes/settings_api.php?action=update_header_settings', {
                 method: 'POST',
                 body: formData
@@ -181,36 +183,15 @@ if ($result) {
             });
     });
 
-
-    // Backup Database form submission.
-    document.getElementById('backupForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const formData = new FormData();
-        // Updated fetch URL:
-        fetch('../backend/routes/settings_api.php?action=backup_database', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status) {
-                    showApiMessage(data.message, 'success');
-                } else {
-                    showApiMessage(data.message, 'danger');
-                }
-            })
-            .catch(error => {
-                console.error("Error during backup:", error);
-                showApiMessage("An error occurred during database backup.", "danger");
-            });
-    });
+    // Remove any JavaScript that intercepts the backup form submission.
+    // The backupForm now submits normally so that the browser can handle the file download.
+    // Similarly, the restoreForm submission remains handled via fetch if desired.
 
     // Restore Database form submission.
     document.getElementById('restoreForm').addEventListener('submit', function(e) {
         e.preventDefault();
         const form = this;
         const formData = new FormData(form);
-        // Updated fetch URL:
         fetch('../backend/routes/settings_api.php?action=restore_database', {
                 method: 'POST',
                 body: formData
