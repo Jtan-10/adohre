@@ -13,7 +13,8 @@ require_once __DIR__ . '/../db/db_connect.php';
 require_once __DIR__ . '/../s3config.php'; // adjust path as needed
 
 // Authentication helper for modifying actions
-function ensureAuthenticated() {
+function ensureAuthenticated()
+{
     if (!isset($_SESSION['user_id'])) {
         http_response_code(401);
         echo json_encode(['status' => false, 'message' => 'Unauthorized']);
@@ -40,9 +41,8 @@ try {
         }
 
         // -- ANNOUNCEMENTS --
-        // Note: Since the announcements table has only text and created_at,
-        // we alias an empty string as "title" so the front-end can use it.
-        $announcementsQuery = "SELECT announcement_id, text, created_at, '' AS title FROM announcements ORDER BY created_at DESC";
+        // Updated query to retrieve title from announcements table
+        $announcementsQuery = "SELECT announcement_id, title, text, created_at FROM announcements ORDER BY created_at DESC";
         $announcementsResult = $conn->query($announcementsQuery);
         $announcements = $announcementsResult->fetch_all(MYSQLI_ASSOC);
 
@@ -200,14 +200,16 @@ try {
         // ----------------------------
         // ADD OR UPDATE ANNOUNCEMENT
         // ----------------------------
-        $text = htmlspecialchars($_POST['text'], ENT_QUOTES, 'UTF-8');
+        // Retrieve title and text from POST data
+        $title = htmlspecialchars($_POST['title'], ENT_QUOTES, 'UTF-8');
+        $text  = htmlspecialchars($_POST['text'], ENT_QUOTES, 'UTF-8');
         $announcement_id = $_POST['id'] ?? null;
         $userId = $_SESSION['user_id'];
 
         if ($action === 'add_announcement') {
-            // Insert new announcement
-            $stmt = $conn->prepare("INSERT INTO announcements (text) VALUES (?)");
-            $stmt->bind_param('s', $text);
+            // Insert new announcement with title and text
+            $stmt = $conn->prepare("INSERT INTO announcements (title, text) VALUES (?, ?)");
+            $stmt->bind_param('ss', $title, $text);
             $stmt->execute();
 
             // Audit log for announcement addition
@@ -215,9 +217,9 @@ try {
 
             echo json_encode(['status' => true, 'message' => 'Announcement added successfully.']);
         } elseif ($action === 'update_announcement') {
-            // Update existing announcement
-            $stmt = $conn->prepare("UPDATE announcements SET text = ? WHERE announcement_id = ?");
-            $stmt->bind_param('si', $text, $announcement_id);
+            // Update existing announcement with new title and text
+            $stmt = $conn->prepare("UPDATE announcements SET title = ?, text = ? WHERE announcement_id = ?");
+            $stmt->bind_param('ssi', $title, $text, $announcement_id);
             $stmt->execute();
 
             // Audit log for announcement update
@@ -247,8 +249,8 @@ try {
         // ----------------------------
         $announcement_id = $_GET['id'];
 
-        // Return title as empty string since our table doesn't have a separate title field.
-        $stmt = $conn->prepare("SELECT announcement_id, text, created_at, '' AS title FROM announcements WHERE announcement_id = ?");
+        // Updated query to retrieve title, text, and created_at
+        $stmt = $conn->prepare("SELECT announcement_id, title, text, created_at FROM announcements WHERE announcement_id = ?");
         $stmt->bind_param('i', $announcement_id);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -375,4 +377,3 @@ try {
         'message' => 'Internal Server Error.'
     ]);
 }
-?>
