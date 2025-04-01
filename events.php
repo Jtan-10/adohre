@@ -295,7 +295,7 @@ error_reporting(0);
         function renderAnnouncements(announcements) {
             const announcementsList = document.getElementById('announcementsList');
             const html = announcements.map(announcement => {
-                // Remove blank lines and join with a single newline
+                // Trim and remove empty lines
                 const lines = announcement.text
                     .split('\n')
                     .map(line => line.trim())
@@ -312,27 +312,30 @@ error_reporting(0);
                     minute: 'numeric',
                     hour12: true
                 });
+
                 return `
-            <div class="announcement-card">
-                <div class="d-flex align-items-start mb-2">
-                    <i class="fas fa-bullhorn text-primary me-3 mt-1"></i>
-                    <div>
-                        <p class="mb-1 fw-semibold">${announcement.title || 'Important Update'}</p>
-                        <p class="text-muted mb-0 small" style="white-space: pre-wrap;">
-                            ${normalizedText}
-                        </p>
-                        <div class="text-end mt-2">
-                            <small class="text-muted">
-                                Posted on: ${formattedDate}
-                            </small>
-                        </div>
-                    </div>
-                </div>
+      <div class="announcement-card">
+        <div class="d-flex align-items-start mb-2">
+          <i class="fas fa-bullhorn text-primary me-3 mt-1"></i>
+          <div>
+            <p class="mb-1 fw-semibold">${announcement.title || 'Important Update'}</p>
+            <p class="text-muted mb-0 small" style="white-space: normal;">
+              ${normalizedText}
+            </p>
+            <div class="text-end mt-2">
+              <small class="text-muted">
+                Posted on: ${formattedDate}
+              </small>
             </div>
-        `;
+          </div>
+        </div>
+      </div>
+    `;
             }).join('');
+
             announcementsList.innerHTML = html || '<p class="text-center text-muted">No announcements</p>';
         }
+
 
 
         function showError(message) {
