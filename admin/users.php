@@ -223,16 +223,16 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                     data: null,
                     render: function(data, type, row) {
                         return `
-                                <div class="dropdown">
-                                    <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                        Action
-                                    </button>
-                                    <ul class="dropdown-menu">
-                                        <li><a class="dropdown-item" href="view_user.php?user_id=${row.user_id}">View</a></li>
-                                        <li><a class="dropdown-item edit-user" href="#" data-user-id="${row.user_id}">Edit</a></li>
-                                        <li><a class="dropdown-item text-danger delete-user" href="#" data-user-id="${row.user_id}">Delete</a></li>
-                                    </ul>
-                                </div>`;
+                            <div class="dropdown">
+                                <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    Action
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="view_user.php?user_id=${row.user_id}">View</a></li>
+                                    <li><a class="dropdown-item edit-user" href="#" data-user-id="${row.user_id}">Edit</a></li>
+                                    <li><a class="dropdown-item text-danger delete-user" href="#" data-user-id="${row.user_id}">Delete</a></li>
+                                </ul>
+                            </div>`;
                     },
                 },
             ],
@@ -324,6 +324,29 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
             e.preventDefault();
             var userId = $(this).data('user-id');
             deleteUser(userId);
+        });
+
+        // Create user form submission moved inside document ready
+        $('#createUserForm').on('submit', function(e) {
+            e.preventDefault();
+            $.ajax({
+                url: "../backend/routes/user.php",
+                type: "POST",
+                data: $(this).serialize(),
+                dataType: "json",
+                success: function(data) {
+                    alert(data.message);
+                    if (data.status) {
+                        $('#createUserModal').modal('hide');
+                        $('#usersTable').DataTable().ajax.reload();
+                        $('#createUserForm')[0].reset();
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error("Error creating user:", error);
+                    alert("An error occurred while creating the user.");
+                }
+            });
         });
     });
     </script>
