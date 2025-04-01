@@ -306,7 +306,7 @@ error_reporting(0);
                     return `<p><strong>${label}</strong> ${value}</p>`;
                 } else {
                     // For lines without a colon (likely a title), you can use a heading tag
-                    return `<h3>${line}</h3>`;
+                    return `<p><strong>${line}</strong></p>`;
                 }
             });
 
