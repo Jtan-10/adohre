@@ -79,6 +79,10 @@ function decryptSecret($encryptedData, $key)
  * @return string The output path.
  * @throws Exception if the image cannot be processed.
  */
+/**
+ * Embed secret data into an image using a basic LSB steganography method.
+ * Preserves alpha for PNG images with transparent background.
+ */
 function steganographyEncryptImage($inputPath, $secretData, $outputPath)
 {
     // Encrypt the secret data.
@@ -92,7 +96,7 @@ function steganographyEncryptImage($inputPath, $secretData, $outputPath)
     $binarySecret .= '00000000';
     $secretLength = strlen($binarySecret);
 
-    // Load the image.
+    // Load the image from file.
     $imgData = file_get_contents($inputPath);
     if ($imgData === false) {
         throw new Exception("Failed to read input image.");
@@ -102,9 +106,14 @@ function steganographyEncryptImage($inputPath, $secretData, $outputPath)
         throw new Exception("Failed to create image from input.");
     }
 
-    $width = imagesx($img);
+    // IMPORTANT: If this is a PNG with transparency, preserve alpha channel:
+    imagealphablending($img, false);
+    imagesavealpha($img, true);
+
+    $width  = imagesx($img);
     $height = imagesy($img);
     if ($secretLength > ($width * $height)) {
+        imagedestroy($img);
         throw new Exception("Secret data is too large to embed in this image.");
     }
 
@@ -112,26 +121,36 @@ function steganographyEncryptImage($inputPath, $secretData, $outputPath)
     // Loop through each pixel and embed secret bits into the least-significant bit of the blue channel.
     for ($y = 0; $y < $height && $bitIndex < $secretLength; $y++) {
         for ($x = 0; $x < $width && $bitIndex < $secretLength; $x++) {
-            $rgb = imagecolorat($img, $x, $y);
-            $r = ($rgb >> 16) & 0xFF;
-            $g = ($rgb >> 8) & 0xFF;
-            $b = $rgb & 0xFF;
-            $bit = intval($binarySecret[$bitIndex]);
-            $newB = ($b & 0xFE) | $bit;
-            $newColor = imagecolorallocate($img, $r, $g, $newB);
-            imagesetpixel($img, $x, $y, $newColor);
+            $rgba = imagecolorat($img, $x, $y);
+            
+            // Extract RGBA components:
+            $r = ($rgba >> 16) & 0xFF;
+            $g = ($rgba >> 8) & 0xFF;
+            $b = $rgba & 0xFF;
+            // For truecolor images, the alpha is in the top 7 bits:
+            $alpha = ($rgba & 0x7F000000) >> 24;
+
+            // Set the LSB of the blue channel to the next secret bit.
+            $bit = (int) $binarySecret[$bitIndex];
+            $b   = ($b & 0xFE) | $bit;
             $bitIndex++;
+
+            // Allocate the color with alpha preserved:
+            $newColor = imagecolorallocatealpha($img, $r, $g, $b, $alpha);
+            imagesetpixel($img, $x, $y, $newColor);
         }
     }
 
-    // Save the modified image as PNG.
+    // Save the modified image as PNG (preserving alpha).
     if (!imagepng($img, $outputPath)) {
         imagedestroy($img);
         throw new Exception("Failed to save encrypted image.");
     }
     imagedestroy($img);
+
     return $outputPath;
 }
+
 
 // =====================
 // END STEGANOGRAPHY HELPER FUNCTIONS
