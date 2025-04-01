@@ -282,47 +282,62 @@ try {
     } 
     elseif ($method === 'PUT') {
         // --- Admin updating other users ---
-        if ($auth_user_role !== 'admin') {
+        if ($auth_user_role !== 'admin' && $auth_user_role !== 'super admin') {
             http_response_code(403);
             echo json_encode(['status' => false, 'message' => 'Forbidden']);
             exit();
         }
-
+    
         $data = json_decode(file_get_contents("php://input"), true);
         if (!$data) {
             http_response_code(400);
             echo json_encode(['status' => false, 'message' => 'Invalid input.']);
             exit();
         }
-
+    
         $user_id    = intval($data['user_id'] ?? 0);
         $first_name = trim($data['first_name'] ?? '');
         $last_name  = trim($data['last_name'] ?? '');
         $email      = trim($data['email'] ?? '');
         $role       = trim($data['role'] ?? '');
-
+    
         if (!$user_id || !$first_name || !$last_name || !$email || !$role) {
             http_response_code(400);
             echo json_encode(['status' => false, 'message' => 'All fields are required.']);
             exit();
         }
-
+    
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             http_response_code(400);
             echo json_encode(['status' => false, 'message' => 'Invalid email format.']);
             exit();
         }
-
+    
+        // --- New check: Prevent non-super-admins from editing other admins or super admins ---
+        $stmt_check = $conn->prepare("SELECT role FROM users WHERE user_id = ?");
+        $stmt_check->bind_param("i", $user_id);
+        $stmt_check->execute();
+        $result_check = $stmt_check->get_result();
+        if ($result_check->num_rows === 1) {
+            $target_user = $result_check->fetch_assoc();
+            if (($target_user['role'] === 'admin' || $target_user['role'] === 'super admin')
+                && $user_id !== $auth_user_id && $auth_user_role !== 'super admin') {
+                http_response_code(403);
+                echo json_encode(['status' => false, 'message' => 'You are not allowed to edit another admin or super admin.']);
+                exit();
+            }
+        }
+        $stmt_check->close();
+    
         // Sanitize inputs.
         $first_name = htmlspecialchars($first_name, ENT_QUOTES, 'UTF-8');
         $last_name  = htmlspecialchars($last_name, ENT_QUOTES, 'UTF-8');
         $role       = htmlspecialchars($role, ENT_QUOTES, 'UTF-8');
-
+    
         $stmt = $conn->prepare('UPDATE users SET first_name = ?, last_name = ?, email = ?, role = ? WHERE user_id = ?');
         $stmt->bind_param('ssssi', $first_name, $last_name, $email, $role, $user_id);
         if ($stmt->execute()) {
             $stmt->close();
-            // Audit log for admin user update.
             recordAuditLog($auth_user_id, 'Admin User Update', "Admin updated user {$user_id}: {$first_name} {$last_name}, email: {$email}, role: {$role}.");
             echo json_encode(['status' => true, 'message' => 'User updated successfully.']);
         } else {
@@ -330,34 +345,50 @@ try {
             http_response_code(500);
             echo json_encode(['status' => false, 'message' => 'Error updating user.']);
         }
-    } 
+    }
+    
     elseif ($method === 'DELETE') {
         // --- Admin deleting a user ---
-        if ($auth_user_role !== 'admin') {
+        if ($auth_user_role !== 'admin' && $auth_user_role !== 'super admin') {
             http_response_code(403);
             echo json_encode(['status' => false, 'message' => 'Forbidden']);
             exit();
         }
-
+    
         $data = json_decode(file_get_contents("php://input"), true);
         if (!$data) {
             http_response_code(400);
             echo json_encode(['status' => false, 'message' => 'Invalid input.']);
             exit();
         }
-
+    
         $user_id = intval($data['user_id'] ?? 0);
         if (!$user_id) {
             http_response_code(400);
             echo json_encode(['status' => false, 'message' => 'User ID is required.']);
             exit();
         }
-
+    
+        // --- New check: Prevent non-super-admins from deleting other admins or super admins ---
+        $stmt_check = $conn->prepare("SELECT role FROM users WHERE user_id = ?");
+        $stmt_check->bind_param("i", $user_id);
+        $stmt_check->execute();
+        $result_check = $stmt_check->get_result();
+        if ($result_check->num_rows === 1) {
+            $target_user = $result_check->fetch_assoc();
+            if (($target_user['role'] === 'admin' || $target_user['role'] === 'super admin')
+                && $user_id !== $auth_user_id && $auth_user_role !== 'super admin') {
+                http_response_code(403);
+                echo json_encode(['status' => false, 'message' => 'You are not allowed to delete another admin or super admin.']);
+                exit();
+            }
+        }
+        $stmt_check->close();
+    
         $stmt = $conn->prepare('DELETE FROM users WHERE user_id = ?');
         $stmt->bind_param('i', $user_id);
         if ($stmt->execute()) {
             $stmt->close();
-            // Audit log for admin deletion.
             recordAuditLog($auth_user_id, 'Admin User Deletion', "Admin deleted user with ID {$user_id}.");
             echo json_encode(['status' => true, 'message' => 'User deleted successfully.']);
         } else {
@@ -365,7 +396,8 @@ try {
             http_response_code(500);
             echo json_encode(['status' => false, 'message' => 'Error deleting user.']);
         }
-    } 
+    }
+    
     else {
         http_response_code(405);
         echo json_encode(['status' => false, 'message' => 'Method not allowed.']);
