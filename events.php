@@ -292,33 +292,9 @@ error_reporting(0);
             eventsList.innerHTML = html || '<p class="text-center text-muted">No upcoming events</p>';
         }
 
-        function formatAnnouncementText(text) {
-            // Split the text by newlines, trim whitespace, and remove empty lines
-            const lines = text.split('\n').map(line => line.trim()).filter(line => line !== '');
-
-            // Format each line
-            const formattedLines = lines.map(line => {
-                // If the line contains a colon, assume it's a label/value pair
-                if (line.includes(':')) {
-                    const parts = line.split(':');
-                    const label = parts[0].trim() + ':';
-                    const value = parts.slice(1).join(':').trim();
-                    return `<p><strong>${label}</strong> ${value}</p>`;
-                } else {
-                    // For lines without a colon (likely a title), you can use a heading tag
-                    return `<p><strong>${line}</strong></p>`;
-                }
-            });
-
-            return formattedLines.join('');
-        }
-
         function renderAnnouncements(announcements) {
             const announcementsList = document.getElementById('announcementsList');
             const html = announcements.map(announcement => {
-                // Use the helper function to format the announcement text
-                const formattedText = formatAnnouncementText(announcement.text);
-
                 // Format the created_at timestamp as desired
                 const formattedDate = new Date(announcement.created_at).toLocaleString('en-US', {
                     month: 'long',
@@ -328,17 +304,15 @@ error_reporting(0);
                     minute: 'numeric',
                     hour12: true
                 });
-
                 return `
       <div class="announcement-card">
         <div class="d-flex align-items-start mb-2">
           <i class="fas fa-bullhorn text-primary me-3 mt-1"></i>
           <div>
-            ${formattedText}
+            <p class="h5 mb-2">${announcement.title}</p>
+            <div style="white-space: pre-wrap;">${announcement.text}</div>
             <div class="text-end mt-2">
-              <small class="text-muted">
-                Posted on: ${formattedDate}
-              </small>
+              <small class="text-muted">Posted on: ${formattedDate}</small>
             </div>
           </div>
         </div>
@@ -348,9 +322,6 @@ error_reporting(0);
 
             announcementsList.innerHTML = html || '<p class="text-center text-muted">No announcements</p>';
         }
-
-
-
 
         function showError(message) {
             eventsList.innerHTML = `

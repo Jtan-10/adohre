@@ -4,8 +4,12 @@
     <!-- Announcement Form -->
     <form id="announcementForm">
         <div class="mb-3">
-            <label for="announcementText" class="form-label">Announcement</label>
-            <textarea id="announcementText" name="text" class="form-control" required></textarea>
+            <label for="announcementTitle" class="form-label">Title</label>
+            <input type="text" id="announcementTitle" name="title" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label for="announcementContent" class="form-label">Content</label>
+            <textarea id="announcementContent" name="text" class="form-control" required></textarea>
         </div>
         <input type="hidden" id="announcementId" name="id"> <!-- Hidden field for updating announcements -->
         <button type="submit" class="btn btn-primary">Save Announcement</button>
@@ -33,24 +37,6 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
 
-    // Add helper to format announcement text
-    function formatAnnouncementText(text) {
-        // Split the text by newlines, trim whitespace, and remove empty lines
-        const lines = text.split('\n').map(line => line.trim()).filter(line => line !== '');
-        // Format each line: if the line contains a colon, wrap it in <p> with label/value
-        const formattedLines = lines.map(line => {
-            if (line.includes(':')) {
-                const parts = line.split(':');
-                const label = parts[0].trim() + ':';
-                const value = parts.slice(1).join(':').trim();
-                return `<p><strong>${label}</strong> ${value}</p>`;
-            } else {
-                return `<p><strong>${line}</strong></p>`;
-            }
-        });
-        return formattedLines.join('');
-    }
-
     // Fetch and display existing announcements
     fetchContent();
 
@@ -72,12 +58,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Fetch and display announcements
     function fetchContent() {
         fetch('../backend/routes/content_manager.php?action=fetch')
-            .then((response) => response.json())
-            .then((data) => {
+            .then(response => response.json())
+            .then(data => {
                 if (data.status) {
                     const announcementsHtml = data.announcements
-                        .map((announcement) => {
-                            const formattedText = formatAnnouncementText(announcement.text);
+                        .map(announcement => {
                             const formattedDate = new Date(announcement.created_at).toLocaleString(
                                 'en-US', {
                                     month: 'long',
@@ -87,9 +72,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                     minute: 'numeric',
                                     hour12: true
                                 });
-                            return `<div class="card mb-3">
+                            return `
+<div class="card mb-3">
   <div class="card-body">
-    ${formattedText}
+    <p class="h5 mb-2">${announcement.title}</p>
+    <div style="white-space: pre-wrap;">${announcement.text}</div>
     <small class="text-muted">Posted on: ${formattedDate}</small>
     <div class="mt-2">
       <button class="btn btn-primary btn-sm edit-announcement" data-id="${announcement.announcement_id}">Edit</button>
@@ -103,36 +90,37 @@ document.addEventListener('DOMContentLoaded', function() {
                         '<p class="text-center text-muted">No announcements</p>';
 
                     // Attach event listeners for Edit/Delete after rendering
-                    document.querySelectorAll('.edit-announcement').forEach((btn) => {
+                    document.querySelectorAll('.edit-announcement').forEach(btn => {
                         btn.addEventListener('click', () => editAnnouncement(btn.getAttribute(
                             'data-id')));
                     });
-                    document.querySelectorAll('.delete-announcement').forEach((btn) => {
+                    document.querySelectorAll('.delete-announcement').forEach(btn => {
                         btn.addEventListener('click', () => deleteAnnouncement(btn.getAttribute(
                             'data-id')));
                     });
                 }
             })
-            .catch((err) => console.error('Fetch error:', err));
+            .catch(err => console.error('Fetch error:', err));
     }
-
 
     // Edit Announcement
     function editAnnouncement(id) {
         fetch(`../backend/routes/content_manager.php?action=get_announcement&id=${id}`)
-            .then((response) => response.json())
-            .then((data) => {
+            .then(response => response.json())
+            .then(data => {
                 if (data.status) {
                     const announcement = data.announcement;
                     const announcementIdField = document.getElementById('announcementId');
-                    const announcementTextField = document.getElementById('announcementText');
-                    if (announcementIdField && announcementTextField) {
+                    const announcementTitleField = document.getElementById('announcementTitle');
+                    const announcementContentField = document.getElementById('announcementContent');
+                    if (announcementIdField && announcementTitleField && announcementContentField) {
                         announcementIdField.value = announcement.announcement_id;
-                        announcementTextField.value = announcement.text;
+                        announcementTitleField.value = announcement.title;
+                        announcementContentField.value = announcement.text;
                     }
                 }
             })
-            .catch((err) => console.error('Edit announcement error:', err));
+            .catch(err => console.error('Edit announcement error:', err));
     }
 
     // Delete Announcement
@@ -141,7 +129,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const formData = new FormData();
             formData.append('action', 'delete_announcement');
             formData.append('id', id);
-
             manageContent(formData, 'Announcement deleted successfully.');
         }
     }
@@ -152,8 +139,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 method: 'POST',
                 body: formData,
             })
-            .then((response) => response.json())
-            .then((data) => {
+            .then(response => response.json())
+            .then(data => {
                 if (data.status) {
                     alert(successMessage);
                     fetchContent();
@@ -164,7 +151,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     alert(`Error: ${data.message}`);
                 }
             })
-            .catch((err) => alert('Failed to connect to the server. Please try again.'));
+            .catch(err => alert('Failed to connect to the server. Please try again.'));
     }
 });
 </script>
