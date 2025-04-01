@@ -1,26 +1,33 @@
 <?php
-// deploy.php - Webhook receiver for GitHub deployment with debugging
+// deploy.php - Webhook receiver for GitHub deployment with extra debugging
+
+error_log("deploy.php debug: __DIR__ is " . __DIR__);
+$envPath = __DIR__ . '/.env';
+error_log("deploy.php debug: Checking for .env at " . $envPath);
+if (!file_exists($envPath)) {
+    error_log("deploy.php error: .env file does not exist at " . $envPath);
+} else {
+    error_log("deploy.php debug: .env file found");
+}
 
 // Use Composer's autoload to load Dotenv
 require_once __DIR__ . '/vendor/autoload.php';
 
-// Load environment variables from .env file located in the current directory
-$dotenv = Dotenv\Dotenv::createImmutable('/opt/bitnami/apache/htdocs/capstone-php');
+// Load environment variables
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
 $dotenv->load();
 
-error_log("deploy.php debug: __DIR__ is " . __DIR__);
-error_log("deploy.php debug: Checking for .env at " . '/opt/bitnami/apache/htdocs/capstone-php/.env');
-
-
-// Get the secret from the environment
+// Debug: check if variable is loaded
 $secret = getenv('GITHUB_WEBHOOK_SECRET');
 error_log("deploy.php debug: GITHUB_WEBHOOK_SECRET is: " . var_export($secret, true));
+
 if (!$secret) {
-    error_log("deploy.php error: Webhook secret is not configured.");
     http_response_code(500);
     echo json_encode(['status' => 'Error', 'message' => 'Webhook secret is not configured.']);
     exit();
 }
+
+// (Rest of your code follows...)
 
 // Retrieve the signature sent by GitHub
 $signature = $_SERVER['HTTP_X_HUB_SIGNATURE'] ?? '';
