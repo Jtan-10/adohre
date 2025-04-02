@@ -167,8 +167,6 @@ function steganographyDecryptImage($inputPath) {
 // END STEGANOGRAPHY HELPER FUNCTIONS
 // =====================
 
-// Continue with your existing code:
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = json_decode(file_get_contents("php://input"), true);
 
@@ -197,7 +195,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         global $conn;
         // Add a new record if the email does not exist
         if (!emailExists($email)) {
-            // Retrieve the visually impaired flag from the session (defaulting to 0 if not set)
             $visually_impaired = (isset($_SESSION['visually_impaired']) && $_SESSION['visually_impaired']) ? 1 : 0;
             $virtual_id = generateVirtualId(); // Generate virtual ID
             $role = 'user'; // Default role
@@ -210,12 +207,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 echo json_encode(['status' => false, 'message' => 'Error creating user record.']);
                 exit;
             }
-            // Get the newly created user ID and record audit log.
             $newUserId = $conn->insert_id;
             recordAuditLog($newUserId, "Signup Initiated", "Temporary user record created for email: $email");
             $stmt->close();
         } else {
-            // If the email already exists, retrieve its user_id
             $stmt = $conn->prepare("SELECT user_id FROM users WHERE email = ?");
             $stmt->bind_param("s", $email);
             $stmt->execute();
@@ -228,7 +223,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Generate OTP and send email
         if (generateOTP($email)) {
-            // Retrieve user ID for audit logging
             $stmt = $conn->prepare("SELECT user_id FROM users WHERE email = ?");
             $stmt->bind_param("s", $email);
             $stmt->execute();
@@ -249,15 +243,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $email = trim($data['email']);
         $otp = trim($data['otp']);
 
-        // Validate email format
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             echo json_encode(['status' => false, 'message' => 'Invalid email format.']);
             exit;
         }
 
-        // Verify OTP
         if (verifyOTP($email, $otp)) {
-            // Retrieve user ID for audit logging
             $stmt = $conn->prepare("SELECT user_id FROM users WHERE email = ?");
             $stmt->bind_param("s", $email);
             $stmt->execute();
@@ -279,13 +270,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $first_name = trim($data['first_name']);
         $last_name = trim($data['last_name']);
 
-        // Validate email
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             echo json_encode(['status' => false, 'message' => 'Invalid email format.']);
             exit;
         }
 
-        // Ensure first name and last name are not empty
         if (empty($first_name) || empty($last_name)) {
             echo json_encode(['status' => false, 'message' => 'First name and last name are required.']);
             exit;
@@ -297,27 +286,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Check if a face image (Base64) was submitted.
         if (isset($data['faceData']) && !empty($data['faceData'])) {
             $faceData = $data['faceData'];
-            // Remove the prefix if it exists (e.g., "data:image/png;base64,")
             if (strpos($faceData, 'base64,') !== false) {
                 $faceData = explode('base64,', $faceData)[1];
             }
             $decodedFaceData = base64_decode($faceData);
             
-            // Write the decoded face data to a temporary file.
+            // Write the decoded clear image data to a temporary file.
             $tempFaceFile = tempnam(sys_get_temp_dir(), 'face_') . '.png';
             file_put_contents($tempFaceFile, $decodedFaceData);
             
-            // Define secret data to embed (for example, embed the email and current timestamp)
-            $secretData = "UserEmail:{$email};Timestamp:" . time();
-            // Encrypt the face image with steganography.
-            $encryptedFaceFile = tempnam(sys_get_temp_dir(), 'enc_face_') . '.png';
-            try {
-                steganographyEncryptImage($tempFaceFile, $secretData, $encryptedFaceFile);
-            } catch (Exception $e) {
-                error_log("Steganography encryption error: " . $e->getMessage());
-                // Fallback: use the original file if encryption fails.
-                $encryptedFaceFile = $tempFaceFile;
-            }
+            // ---- Encryption Step ----
+            // Encrypt the clear image so that when stored it is unrecognizable.
+            $cipher = "AES-256-CBC";
+            $ivlen = openssl_cipher_iv_length($cipher);
+            $iv = openssl_random_pseudo_bytes($ivlen);
+            $encryptionKey = 'my-very-strong-encryption-key'; // Replace with a secure key in production.
+            $clearImageData = file_get_contents($tempFaceFile);
+            $encryptedData = openssl_encrypt($clearImageData, $cipher, $encryptionKey, OPENSSL_RAW_DATA, $iv);
+            // Prepend the IV so we can use it for decryption.
+            $encryptedImageData = $iv . $encryptedData;
+            // Save the encrypted image data to a new temporary file.
+            $encryptedFaceFile = tempnam(sys_get_temp_dir(), 'enc_face_') . '.png'; // Using .png extension
+            file_put_contents($encryptedFaceFile, $encryptedImageData);
+            // ---- End Encryption Step ----
             
             // Generate a unique S3 key.
             $s3Key = 'uploads/faces/' . uniqid() . '.png';
@@ -328,7 +319,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'Key'         => $s3Key,
                     'Body'        => fopen($encryptedFaceFile, 'rb'),
                     'ACL'         => 'public-read',
-                    'ContentType' => 'image/png'
+                    'ContentType' => 'application/octet-stream'
                 ]);
             } catch (Aws\Exception\AwsException $e) {
                 error_log("S3 upload error: " . $e->getMessage());
@@ -339,25 +330,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Clean up temporary files.
             @unlink($tempFaceFile);
             @unlink($encryptedFaceFile);
-
+            
             // Convert S3 URL to local proxy URL if needed.
             $relativeFileName = str_replace(
                 "https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/",
                 "/s3proxy/",
                 $result['ObjectURL']
             );
-
-            // Update the user details including first name, last name, face image, and visually impaired flag.
+            
+            // Update the user details with the encrypted image URL.
             $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ?, face_image = ?, visually_impaired = ? WHERE email = ?");
             $stmt->bind_param("sssis", $first_name, $last_name, $relativeFileName, $visually_impaired, $email);
         } else {
-            // Update without face image.
             $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ?, visually_impaired = ? WHERE email = ?");
             $stmt->bind_param("ssis", $first_name, $last_name, $visually_impaired, $email);
         }
 
         if ($stmt->execute()) {
-            // Retrieve the user ID for audit logging.
             $stmt2 = $conn->prepare("SELECT user_id FROM users WHERE email = ?");
             $stmt2->bind_param("s", $email);
             $stmt2->execute();
@@ -376,15 +365,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->close();
         $conn->close();
         exit;
-    }
-
-    // If request doesn't match any of the above
-    else {
+    } else {
         echo json_encode(['status' => false, 'message' => 'Invalid request.']);
         exit;
     }
 } else {
-    // Handle invalid HTTP methods
     echo json_encode(['status' => false, 'message' => 'Invalid request method.']);
 }
 ?>
