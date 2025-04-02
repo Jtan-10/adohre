@@ -23,12 +23,8 @@ header('X-Frame-Options: SAMEORIGIN');
 header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
 
 // =====================
-// STEGANOGRAPHY HELPER FUNCTIONS
+// HELPER FUNCTIONS
 // =====================
-
-// Define a secret key for steganography encryption.
-// In production, store this securely (e.g. in an environment variable)
-define('STEGANOGRAPHY_KEY', 'my-very-strong-secret-key');
 
 /**
  * Encrypt secret data using AES-256-CBC.
@@ -61,110 +57,41 @@ function decryptSecret($encryptedData, $key) {
 }
 
 /**
- * Embed secret data into an image using a simple LSB steganography method.
+ * embedDataInPng:
+ * Converts binary data into a valid PNG image by mapping every 3 bytes to a pixel (R, G, B).
+ * If the data does not fill the image completely, remaining pixels are padded with black.
  *
- * @param string $inputPath  Path to the original image.
- * @param string $secretData The plain secret data to embed.
- * @param string $outputPath Path to save the modified image.
- * @return string The output path.
- * @throws Exception if the image cannot be processed.
+ * @param string $binaryData The binary data to embed.
+ * @param int    $width      Desired width of the PNG image.
+ * @return GdImage          A GD image object.
  */
-function steganographyEncryptImage($inputPath, $secretData, $outputPath) {
-    // Encrypt the secret data.
-    $encryptedSecret = encryptSecret($secretData, STEGANOGRAPHY_KEY);
-    // Convert encrypted secret to a binary string.
-    $binarySecret = '';
-    for ($i = 0; $i < strlen($encryptedSecret); $i++) {
-        $binarySecret .= str_pad(decbin(ord($encryptedSecret[$i])), 8, '0', STR_PAD_LEFT);
-    }
-    // Append a null terminator (8 zeros) to mark the end.
-    $binarySecret .= '00000000';
-    $secretLength = strlen($binarySecret);
-
-    // Load the image.
-    $imgData = file_get_contents($inputPath);
-    if ($imgData === false) {
-        throw new Exception("Failed to read input image.");
-    }
-    $img = imagecreatefromstring($imgData);
-    if (!$img) {
-        throw new Exception("Failed to create image from input.");
-    }
-
-    $width = imagesx($img);
-    $height = imagesy($img);
-    if ($secretLength > ($width * $height)) {
-        throw new Exception("Secret data is too large to embed in this image.");
-    }
-
-    $bitIndex = 0;
-    // Loop through each pixel and embed secret bits into the least-significant bit of the blue channel.
-    for ($y = 0; $y < $height && $bitIndex < $secretLength; $y++) {
-        for ($x = 0; $x < $width && $bitIndex < $secretLength; $x++) {
-            $rgb = imagecolorat($img, $x, $y);
-            $r = ($rgb >> 16) & 0xFF;
-            $g = ($rgb >> 8) & 0xFF;
-            $b = $rgb & 0xFF;
-            $bit = intval($binarySecret[$bitIndex]);
-            $newB = ($b & 0xFE) | $bit;
-            $newColor = imagecolorallocate($img, $r, $g, $newB);
-            imagesetpixel($img, $x, $y, $newColor);
-            $bitIndex++;
-        }
-    }
-
-    // Save the modified image as PNG.
-    if (!imagepng($img, $outputPath)) {
-        imagedestroy($img);
-        throw new Exception("Failed to save encrypted image.");
-    }
-    imagedestroy($img);
-    return $outputPath;
-}
-
-/**
- * Extract and decrypt secret data from an image that was processed with steganographyEncryptImage().
- *
- * @param string $inputPath Path to the image with embedded secret.
- * @return string The decrypted secret data.
- * @throws Exception if extraction fails.
- */
-function steganographyDecryptImage($inputPath) {
-    $imgData = file_get_contents($inputPath);
-    if ($imgData === false) {
-        throw new Exception("Failed to read input image.");
-    }
-    $img = imagecreatefromstring($imgData);
-    if (!$img) {
-        throw new Exception("Failed to create image from input.");
-    }
-    $width = imagesx($img);
-    $height = imagesy($img);
-    $binaryData = '';
-
+function embedDataInPng($binaryData, $width = 100): GdImage {
+    $dataLen = strlen($binaryData);
+    $numPixels = ceil($dataLen / 3);
+    $height = ceil($numPixels / $width);
+    $img = imagecreatetruecolor($width, $height);
+    $black = imagecolorallocate($img, 0, 0, 0);
+    imagefill($img, 0, 0, $black);
+    
+    $pos = 0;
     for ($y = 0; $y < $height; $y++) {
         for ($x = 0; $x < $width; $x++) {
-            $rgb = imagecolorat($img, $x, $y);
-            $b = $rgb & 0xFF;
-            $binaryData .= ($b & 1) ? '1' : '0';
-            if (strlen($binaryData) >= 8 && substr($binaryData, -8) === '00000000') {
-                break 2;
+            if ($pos < $dataLen) {
+                $r = ($pos < $dataLen) ? ord($binaryData[$pos++]) : 0;
+                $g = ($pos < $dataLen) ? ord($binaryData[$pos++]) : 0;
+                $b = ($pos < $dataLen) ? ord($binaryData[$pos++]) : 0;
+                $color = imagecolorallocate($img, $r, $g, $b);
+                imagesetpixel($img, $x, $y, $color);
+            } else {
+                imagesetpixel($img, $x, $y, $black);
             }
         }
     }
-    imagedestroy($img);
-    // Remove the null terminator.
-    $binaryData = substr($binaryData, 0, -8);
-    $encryptedSecret = '';
-    for ($i = 0; $i < strlen($binaryData); $i += 8) {
-        $byte = substr($binaryData, $i, 8);
-        $encryptedSecret .= chr(bindec($byte));
-    }
-    return decryptSecret($encryptedSecret, STEGANOGRAPHY_KEY);
+    return $img;
 }
 
 // =====================
-// END STEGANOGRAPHY HELPER FUNCTIONS
+// END HELPER FUNCTIONS
 // =====================
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -193,11 +120,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         global $conn;
-        // Add a new record if the email does not exist
         if (!emailExists($email)) {
             $visually_impaired = (isset($_SESSION['visually_impaired']) && $_SESSION['visually_impaired']) ? 1 : 0;
-            $virtual_id = generateVirtualId(); // Generate virtual ID
-            $role = 'user'; // Default role
+            $virtual_id = generateVirtualId();
+            $role = 'user';
 
             $stmt = $conn->prepare("INSERT INTO users (email, role, virtual_id, visually_impaired) VALUES (?, ?, ?, ?)");
             $stmt->bind_param("sssi", $email, $role, $virtual_id, $visually_impaired);
@@ -221,7 +147,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->close();
         }
 
-        // Generate OTP and send email
         if (generateOTP($email)) {
             $stmt = $conn->prepare("SELECT user_id FROM users WHERE email = ?");
             $stmt->bind_param("s", $email);
@@ -237,7 +162,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         exit;
     }
-
     // OTP verification step
     elseif (isset($data['otp'], $data['email']) && !isset($data['first_name'])) {
         $email = trim($data['email']);
@@ -263,8 +187,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         exit;
     }
-
-    // Final signup step: Collecting additional details (first name, last name) and optional faceData.
+    // Final signup step: Collect additional details and optionally process faceData.
     elseif (isset($data['first_name'], $data['last_name'], $data['email'])) {
         $email = trim($data['email']);
         $first_name = trim($data['first_name']);
@@ -295,20 +218,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $tempFaceFile = tempnam(sys_get_temp_dir(), 'face_') . '.png';
             file_put_contents($tempFaceFile, $decodedFaceData);
             
-            // ---- Encryption Step ----
-            // Encrypt the clear image so that when stored it is unrecognizable.
+            // ---- Encryption & Embedding Step ----
+            // Encrypt the clear image data.
             $cipher = "AES-256-CBC";
             $ivlen = openssl_cipher_iv_length($cipher);
             $iv = openssl_random_pseudo_bytes($ivlen);
             $encryptionKey = 'my-very-strong-encryption-key'; // Replace with a secure key in production.
             $clearImageData = file_get_contents($tempFaceFile);
             $encryptedData = openssl_encrypt($clearImageData, $cipher, $encryptionKey, OPENSSL_RAW_DATA, $iv);
-            // Prepend the IV so we can use it for decryption.
+            // Prepend the IV for decryption.
             $encryptedImageData = $iv . $encryptedData;
-            // Save the encrypted image data to a new temporary file.
-            $encryptedFaceFile = tempnam(sys_get_temp_dir(), 'enc_face_') . '.png'; // Using .png extension
-            file_put_contents($encryptedFaceFile, $encryptedImageData);
-            // ---- End Encryption Step ----
+            
+            // Embed the encrypted data into a valid PNG.
+            // Here we create a PNG image from the binary data so that it displays as random static.
+            $pngImage = embedDataInPng($encryptedImageData, 100);
+            $finalEncryptedPngFile = tempnam(sys_get_temp_dir(), 'enc_png_') . '.png';
+            imagepng($pngImage, $finalEncryptedPngFile);
+            imagedestroy($pngImage);
+            // ---- End Encryption & Embedding Step ----
             
             // Generate a unique S3 key.
             $s3Key = 'uploads/faces/' . uniqid() . '.png';
@@ -317,9 +244,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $result = $s3->putObject([
                     'Bucket'      => $bucketName,
                     'Key'         => $s3Key,
-                    'Body'        => fopen($encryptedFaceFile, 'rb'),
+                    'Body'        => fopen($finalEncryptedPngFile, 'rb'),
                     'ACL'         => 'public-read',
-                    'ContentType' => 'application/octet-stream'
+                    'ContentType' => 'image/png'
                 ]);
             } catch (Aws\Exception\AwsException $e) {
                 error_log("S3 upload error: " . $e->getMessage());
@@ -329,7 +256,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             // Clean up temporary files.
             @unlink($tempFaceFile);
-            @unlink($encryptedFaceFile);
+            @unlink($finalEncryptedPngFile);
             
             // Convert S3 URL to local proxy URL if needed.
             $relativeFileName = str_replace(
@@ -338,7 +265,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $result['ObjectURL']
             );
             
-            // Update the user details with the encrypted image URL.
+            // Update the user details with the encrypted PNG image URL.
             $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ?, face_image = ?, visually_impaired = ? WHERE email = ?");
             $stmt->bind_param("sssis", $first_name, $last_name, $relativeFileName, $visually_impaired, $email);
         } else {
