@@ -572,32 +572,6 @@ $scriptNonce = bin2hex(random_bytes(16));
                 }
             });
 
-            document.getElementById('updateCaptureFaceBtn').addEventListener('click', async () => {
-                await loadFaceApiModels();
-                const video = document.getElementById('updateFaceVideo');
-                const canvas = document.getElementById('updateFaceCanvas');
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                const context = canvas.getContext('2d', {
-                    willReadFrequently: true
-                });
-                context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const detection = await faceapi.detectSingleFace(canvas, new faceapi
-                    .TinyFaceDetectorOptions({
-                        inputSize: 416,
-                        scoreThreshold: 0.5
-                    }));
-                if (!detection) {
-                    showModal('Error', 'No face detected. Please recapture your face.');
-                    return;
-                }
-                updateCapturedFaceData = canvas.toDataURL('image/png');
-                console.log("Face captured for update, length:", updateCapturedFaceData.length);
-                const preview = document.getElementById('updateCapturedFacePreview');
-                preview.src = updateCapturedFaceData;
-                preview.style.display = 'block';
-            });
-
             function showLoading() {
                 const ls = document.getElementById('loadingScreen');
                 ls.classList.remove('d-none');
