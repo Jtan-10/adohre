@@ -88,7 +88,7 @@ if (!empty($data['faceData'])) {
         $faceData = explode('base64,', $faceData)[1];
     }
 
-    // Enforce a maximum size limit (adjust the limit as needed).
+    // Enforce a maximum size limit (adjust as needed).
     if (strlen($faceData) > (5 * 1024 * 1024)) { // roughly 5MB limit on base64 string size
         http_response_code(400);
         echo json_encode(['status' => false, 'message' => 'Image size exceeds allowed limit.']);
@@ -111,15 +111,40 @@ if (!empty($data['faceData'])) {
         exit;
     }
 
-    // Generate a secure, unique file name for S3.
-    $s3Key = 'uploads/faces/' . bin2hex(random_bytes(16)) . '.png';
+    // Write the decoded image data to a temporary file.
+    $tempFaceFile = tempnam(sys_get_temp_dir(), 'face_') . '.png';
+    file_put_contents($tempFaceFile, $decodedFaceData);
+
+    // ---- Encryption & Embedding Step ----
+    $cipher = "AES-256-CBC";
+    $ivlen = openssl_cipher_iv_length($cipher);
+    $iv = openssl_random_pseudo_bytes($ivlen);
+    // Retrieve the encryption key from your environment (.env file)
+    $rawKey = getenv('ENCRYPTION_KEY');
+    // Derive a 32-byte key using SHA-256.
+    $encryptionKey = hash('sha256', $rawKey, true);
+    $clearImageData = file_get_contents($tempFaceFile);
+    $encryptedData = openssl_encrypt($clearImageData, $cipher, $encryptionKey, OPENSSL_RAW_DATA, $iv);
+    // Prepend the IV to the encrypted data.
+    $encryptedImageData = $iv . $encryptedData;
+
+    // Embed the encrypted data into a valid PNG.
+    // (Ensure that the embedDataInPng() function is defined in this file or included.)
+    $pngImage = embedDataInPng($encryptedImageData, 100);
+    $finalEncryptedPngFile = tempnam(sys_get_temp_dir(), 'enc_png_') . '.png';
+    imagepng($pngImage, $finalEncryptedPngFile);
+    imagedestroy($pngImage);
+    // ---- End Encryption & Embedding Step ----
+
+    // Generate a unique S3 key (using uniqid for consistency with signup.php).
+    $s3Key = 'uploads/faces/' . uniqid() . '.png';
 
     try {
-        // Upload the image data directly to S3.
+        // Upload the encrypted PNG file to S3.
         $result = $s3->putObject([
             'Bucket'      => $bucketName,
             'Key'         => $s3Key,
-            'Body'        => $decodedFaceData,
+            'Body'        => fopen($finalEncryptedPngFile, 'rb'),
             'ACL'         => 'public-read', // Adjust ACL as needed
             'ContentType' => 'image/png'
         ]);
@@ -135,6 +160,10 @@ if (!empty($data['faceData'])) {
         echo json_encode(['status' => false, 'message' => 'Failed to upload face image.']);
         exit;
     }
+
+    // Clean up temporary files.
+    @unlink($tempFaceFile);
+    @unlink($finalEncryptedPngFile);
 }
 
 // Prepare the update query securely using prepared statements.
