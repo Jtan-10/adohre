@@ -481,7 +481,8 @@ if ($action === 'login' && $emailParam) {
             return;
         }
         try {
-            const fullURL = storedFaceImageURL;
+            const fullURL =
+                `backend/routes/decrypt_image.php?face_url=${encodeURIComponent(storedFaceImageURL)}`;
             const img = new Image();
             img.crossOrigin = "anonymous";
             img.src = fullURL;
