@@ -60,99 +60,99 @@ if (isset($_SESSION['user_id'])) {
     <title>Sign Up - Member Link</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style nonce="<?php echo $csp_nonce; ?>">
-    /* Desktop layout: two panes side by side */
-    body {
-        display: flex;
-        min-height: 100vh;
-        margin: 0;
-        flex-direction: row;
-    }
-
-    /* Left pane: white background on desktop */
-    .left-pane {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        background: #ffffff;
-        padding: 2rem;
-        text-align: center;
-    }
-
-    /* Right pane: green background image */
-    .right-pane {
-        flex: 1;
-        background: url('assets/green_bg.png') no-repeat center center/cover;
-    }
-
-    /* Form styling */
-    .form-control {
-        border-radius: 0.5rem;
-    }
-
-    .btn-success {
-        width: 100%;
-        border-radius: 0.5rem;
-    }
-
-    #loadingScreen {
-        z-index: 1055;
-        display: none;
-    }
-
-    /* Mobile styles (max-width: 768px) */
-    @media (max-width: 768px) {
-
-        /* Use the green background for the entire body */
+        /* Desktop layout: two panes side by side */
         body {
-            flex-direction: column;
-            background: url('assets/green_bg.png') no-repeat center center/cover;
-            background-size: cover;
+            display: flex;
+            min-height: 100vh;
+            margin: 0;
+            flex-direction: row;
         }
 
-        /* Hide the right pane on mobile */
+        /* Left pane: white background on desktop */
+        .left-pane {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: #ffffff;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        /* Right pane: green background image */
         .right-pane {
+            flex: 1;
+            background: url('assets/green_bg.png') no-repeat center center/cover;
+        }
+
+        /* Form styling */
+        .form-control {
+            border-radius: 0.5rem;
+        }
+
+        .btn-success {
+            width: 100%;
+            border-radius: 0.5rem;
+        }
+
+        #loadingScreen {
+            z-index: 1055;
             display: none;
         }
 
-        /* Make left pane transparent and position it relative */
-        .left-pane {
-            position: relative;
-            background: transparent;
-            padding: 1rem;
-        }
+        /* Mobile styles (max-width: 768px) */
+        @media (max-width: 768px) {
 
-        /* Pseudo-element for the white "card" behind the content */
-        .left-pane::before {
-            content: "";
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 100%;
-            max-width: 90%;
-            background: #ffffff;
-            padding: 12rem;
-            border-radius: 0.5rem;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            z-index: -1;
-            /* behind the form/logo text */
-        }
+            /* Use the green background for the entire body */
+            body {
+                flex-direction: column;
+                background: url('assets/green_bg.png') no-repeat center center/cover;
+                background-size: cover;
+            }
 
-        /* Ensure the content is above the pseudo-element */
-        .left-pane * {
-            position: relative;
-            z-index: 1;
+            /* Hide the right pane on mobile */
+            .right-pane {
+                display: none;
+            }
+
+            /* Make left pane transparent and position it relative */
+            .left-pane {
+                position: relative;
+                background: transparent;
+                padding: 1rem;
+            }
+
+            /* Pseudo-element for the white "card" behind the content */
+            .left-pane::before {
+                content: "";
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 100%;
+                max-width: 90%;
+                background: #ffffff;
+                padding: 12rem;
+                border-radius: 0.5rem;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                z-index: -1;
+                /* behind the form/logo text */
+            }
+
+            /* Ensure the content is above the pseudo-element */
+            .left-pane * {
+                position: relative;
+                z-index: 1;
+            }
         }
-    }
     </style>
     <!-- Include the global TTS module (create tts.js with your TTS functions) -->
     <script src="tts.js"></script>
     <!-- Pass the CSRF token and visually impaired flag to JavaScript -->
     <script nonce="<?php echo $csp_nonce; ?>">
-    var csrfToken = <?php echo json_encode($_SESSION['csrf_token']); ?>;
-    var isVisuallyImpaired = <?php echo json_encode($isVisuallyImpaired); ?>;
+        var csrfToken = <?php echo json_encode($_SESSION['csrf_token']); ?>;
+        var isVisuallyImpaired = <?php echo json_encode($isVisuallyImpaired); ?>;
     </script>
 </head>
 
@@ -225,195 +225,212 @@ if (isset($_SESSION['user_id'])) {
     </div>
 
     <!-- Include Visually Impaired Modal -->
-    <?php 
+    <?php
     define('IN_CAPSTONE', true);
-    include 'visually_impaired_modal.php'; 
+    include 'visually_impaired_modal.php';
     ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous">
     </script>
     <script nonce="<?php echo $csp_nonce; ?>">
-    // Set up Speech Recognition.
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let recognition;
-    let validResponseReceived = false; // Flag to check if valid response received.
-    if (SpeechRecognition) {
-        recognition = new SpeechRecognition();
-        recognition.lang = 'en-US';
-        recognition.interimResults = false;
-        recognition.maxAlternatives = 1;
+        // Set up Speech Recognition.
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition;
+        let validResponseReceived = false; // Flag to check if valid response received.
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
 
-        // Function to start listening.
-        function startListening() {
-            validResponseReceived = false;
-            recognition.start();
+            // Function to start listening.
+            function startListening() {
+                validResponseReceived = false;
+                recognition.start();
+            }
+
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript.toLowerCase();
+                console.log("Recognized speech:", transcript);
+                if (transcript.includes("yes")) {
+                    validResponseReceived = true;
+                    TTS.speakMessage("You said yes.", function() {
+                        setVisuallyImpaired(true, visuallyImpairedModal);
+                    });
+                } else if (transcript.includes("no")) {
+                    validResponseReceived = true;
+                    TTS.speakMessage("You said no.", function() {
+                        setVisuallyImpaired(false, visuallyImpairedModal);
+                    });
+                } else {
+                    TTS.speakMessage("Try again.", startListening);
+                }
+            };
+
+            recognition.onerror = function(event) {
+                console.error("Speech recognition error:", event.error);
+                TTS.speakMessage("There was an error with speech recognition. Please click a button instead.",
+                    function() {});
+            };
+
+            recognition.onend = function() {
+                if (!validResponseReceived) {
+                    TTS.speakMessage("Try again.", startListening);
+                }
+            };
+        } else {
+            console.warn("Speech Recognition not supported. Please use the buttons.");
         }
 
-        recognition.onresult = function(event) {
-            const transcript = event.results[0][0].transcript.toLowerCase();
-            console.log("Recognized speech:", transcript);
-            if (transcript.includes("yes")) {
-                validResponseReceived = true;
-                TTS.speakMessage("You said yes.", function() {
-                    setVisuallyImpaired(true, visuallyImpairedModal);
-                });
-            } else if (transcript.includes("no")) {
-                validResponseReceived = true;
-                TTS.speakMessage("You said no.", function() {
-                    setVisuallyImpaired(false, visuallyImpairedModal);
-                });
-            } else {
-                TTS.speakMessage("Try again.", startListening);
-            }
-        };
-
-        recognition.onerror = function(event) {
-            console.error("Speech recognition error:", event.error);
-            TTS.speakMessage("There was an error with speech recognition. Please click a button instead.",
-                function() {});
-        };
-
-        recognition.onend = function() {
-            if (!validResponseReceived) {
-                TTS.speakMessage("Try again.", startListening);
-            }
-        };
-    } else {
-        console.warn("Speech Recognition not supported. Please use the buttons.");
-    }
-
-    // Function to send the visually impaired flag to the server and save it in the session.
-    function setVisuallyImpaired(isImpaired, modalInstance) {
-        const payload = {
-            visually_impaired: isImpaired
-        };
-        console.log("Sending visually impaired flag payload:", payload);
-        fetch('backend/routes/set_visually_impaired.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
-            })
-            .then(response => {
-                console.log("Response headers:", response.headers);
-                return response.json();
-            })
-            .then(data => {
-                console.log("Visually impaired update response:", data);
-                modalInstance.hide();
-            })
-            .catch(error => {
-                console.error("Error updating visually impaired:", error);
-                modalInstance.hide();
-            });
-    }
-
-    // Globalize the initialization using event listeners.
-    document.addEventListener('DOMContentLoaded', function() {
-        // Use the global TTS function for a welcome message.
-        TTS.speakMessage("Welcome to ADOHRE! Please sign up with your email to get started.");
-
-        // Initialize the visually impaired modal so that clicking outside or pressing Escape won't close it.
-        var visuallyImpairedModalElement = document.getElementById('visuallyImpairedModal');
-        window.visuallyImpairedModal = new bootstrap.Modal(visuallyImpairedModalElement, {
-            backdrop: 'static',
-            keyboard: false
-        });
-
-        // When the modal is shown, read its content and then prompt "or say yes or no".
-        visuallyImpairedModalElement.addEventListener('shown.bs.modal', function() {
-            const modalText = document.querySelector('#visuallyImpairedModal .modal-body').innerText
-                .trim();
-            TTS.speakMessage(modalText, function() {
-                TTS.speakMessage("or say yes or no", startListening);
-            });
-        });
-
-        // Show the modal.
-        visuallyImpairedModal.show();
-
-        // Manual button listeners.
-        document.getElementById('btnYes').addEventListener('click', function() {
-            console.log("User clicked Yes.");
-            window.speechSynthesis.cancel();
-            TTS.speakMessage("You said yes.", function() {
-                setVisuallyImpaired(true, visuallyImpairedModal);
-            });
-        });
-
-        document.getElementById('btnNo').addEventListener('click', function() {
-            console.log("User clicked No.");
-            window.speechSynthesis.cancel();
-            TTS.speakMessage("You said no.", function() {
-                setVisuallyImpaired(false, visuallyImpairedModal);
-            });
-        });
-
-        // Show/hide loading screen functions.
-        function showLoading() {
-            const ls = document.getElementById('loadingScreen');
-            ls.classList.remove('d-none');
-            ls.style.display = 'flex';
-        }
-
-        // 'Send OTP' button handler.
-        document.getElementById('signupBtn').addEventListener('click', async () => {
-            const email = document.getElementById('email').value;
-            if (!email) {
-                showModal('Error', 'Please enter your email.');
-                return;
-            }
-            showLoading();
-            try {
-                const response = await fetch('backend/routes/signup.php', {
+        // Function to send the visually impaired flag to the server and save it in the session.
+        function setVisuallyImpaired(isImpaired, modalInstance) {
+            const payload = {
+                visually_impaired: isImpaired
+            };
+            console.log("Sending visually impaired flag payload:", payload);
+            fetch('backend/routes/set_visually_impaired.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        email: email,
-                        csrf_token: csrfToken
-                    })
+                    body: JSON.stringify(payload)
+                })
+                .then(response => {
+                    console.log("Response headers:", response.headers);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Visually impaired update response:", data);
+                    modalInstance.hide();
+                })
+                .catch(error => {
+                    console.error("Error updating visually impaired:", error);
+                    modalInstance.hide();
                 });
-                const result = await response.json();
-                hideLoading();
-                if (result.status) {
-                    showModal('Success', result.message, `otp.php?action=signup&email=${email}`);
-                    // Also show the "Check Your Spam Folder" modal.
-                    const spamModal = new bootstrap.Modal(document.getElementById(
-                        'checkSpamModal'));
-                    spamModal.show();
-                } else {
-                    showModal('Error', result.message);
+        }
+
+        // Globalize the initialization using event listeners.
+        document.addEventListener('DOMContentLoaded', function() {
+            // Use the global TTS function for a welcome message.
+            TTS.speakMessage("Welcome to ADOHRE! Please sign up with your email to get started.");
+
+            // Initialize the visually impaired modal so that clicking outside or pressing Escape won't close it.
+            var visuallyImpairedModalElement = document.getElementById('visuallyImpairedModal');
+            window.visuallyImpairedModal = new bootstrap.Modal(visuallyImpairedModalElement, {
+                backdrop: 'static',
+                keyboard: false
+            });
+
+            // When the modal is shown, read its content and then prompt "or say yes or no".
+            visuallyImpairedModalElement.addEventListener('shown.bs.modal', function() {
+                const modalText = document.querySelector('#visuallyImpairedModal .modal-body').innerText
+                    .trim();
+                TTS.speakMessage(modalText, function() {
+                    TTS.speakMessage("or say yes or no", startListening);
+                });
+            });
+
+            // Show the modal.
+            visuallyImpairedModal.show();
+
+            // Manual button listeners.
+            document.getElementById('btnYes').addEventListener('click', function() {
+                console.log("User clicked Yes.");
+                window.speechSynthesis.cancel();
+                TTS.speakMessage("You said yes.", function() {
+                    setVisuallyImpaired(true, visuallyImpairedModal);
+                });
+            });
+
+            document.getElementById('btnNo').addEventListener('click', function() {
+                console.log("User clicked No.");
+                window.speechSynthesis.cancel();
+                TTS.speakMessage("You said no.", function() {
+                    setVisuallyImpaired(false, visuallyImpairedModal);
+                });
+            });
+
+            // Show/hide loading screen functions.
+            function showLoading() {
+                const ls = document.getElementById('loadingScreen');
+                ls.classList.remove('d-none');
+                ls.style.display = 'flex';
+            }
+
+            // 'Send OTP' button handler.
+            document.getElementById('signupBtn').addEventListener('click', async () => {
+                const email = document.getElementById('email').value;
+                if (!email) {
+                    showModal('Error', 'Please enter your email.');
+                    return;
                 }
-            } catch (error) {
-                hideLoading();
-                console.error('Error:', error);
-                showModal('Error', 'An error occurred. Please try again.');
+                showLoading();
+                try {
+                    // Check email deliverability
+                    const deliverRes = await fetch('backend/routes/check_email_deliverability.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            email: email
+                        })
+                    });
+                    const deliverData = await deliverRes.json();
+                    if (!deliverData.deliverable) {
+                        hideLoading();
+                        showModal('Error', 'The email domain is not capable of receiving emails.');
+                        return;
+                    }
+                    // Proceed with existing signup logic
+                    const response = await fetch('backend/routes/signup.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            email: email,
+                            csrf_token: csrfToken
+                        })
+                    });
+                    const result = await response.json();
+                    hideLoading();
+                    if (result.status) {
+                        showModal('Success', result.message, `otp.php?action=signup&email=${email}`);
+                        // Also show the "Check Your Spam Folder" modal.
+                        const spamModal = new bootstrap.Modal(document.getElementById(
+                            'checkSpamModal'));
+                        spamModal.show();
+                    } else {
+                        showModal('Error', result.message);
+                    }
+                } catch (error) {
+                    hideLoading();
+                    console.error('Error:', error);
+                    showModal('Error', 'An error occurred. Please try again.');
+                }
+            });
+
+            function hideLoading() {
+                const ls = document.getElementById('loadingScreen');
+                ls.classList.add('d-none');
+                ls.style.display = 'none';
+            }
+
+            // Show Bootstrap modal function.
+            function showModal(title, message, redirectUrl = null) {
+                document.getElementById('responseModalLabel').textContent = title;
+                document.getElementById('responseModalBody').textContent = message;
+                var modal = new bootstrap.Modal(document.getElementById('responseModal'));
+                modal.show();
+                if (redirectUrl) {
+                    modal._element.addEventListener('hidden.bs.modal', () => {
+                        window.location.href = redirectUrl;
+                    });
+                }
             }
         });
-
-        function hideLoading() {
-            const ls = document.getElementById('loadingScreen');
-            ls.classList.add('d-none');
-            ls.style.display = 'none';
-        }
-
-        // Show Bootstrap modal function.
-        function showModal(title, message, redirectUrl = null) {
-            document.getElementById('responseModalLabel').textContent = title;
-            document.getElementById('responseModalBody').textContent = message;
-            var modal = new bootstrap.Modal(document.getElementById('responseModal'));
-            modal.show();
-            if (redirectUrl) {
-                modal._element.addEventListener('hidden.bs.modal', () => {
-                    window.location.href = redirectUrl;
-                });
-            }
-        }
-    });
     </script>
 </body>
 
