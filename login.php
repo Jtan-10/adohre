@@ -250,7 +250,7 @@ $scriptNonce = bin2hex(random_bytes(16));
     </script>
 
     <script nonce="<?php echo $scriptNonce; ?>">
-    // Helper function to hide all open modals
+    // Note: The hideAllModals function is defined but not used in showModal so modals do not auto-close.
     function hideAllModals() {
         document.querySelectorAll('.modal.show').forEach(modalEl => {
             let modalInstance = bootstrap.Modal.getInstance(modalEl);
@@ -260,9 +260,8 @@ $scriptNonce = bin2hex(random_bytes(16));
         });
     }
 
-    // Updated showModal function that calls hideAllModals first
+    // Updated showModal function without auto-closing other modals.
     function showModal(title, message, redirectUrl = null) {
-        hideAllModals();
         document.getElementById('responseModalLabel').textContent = title;
         document.getElementById('responseModalBody').textContent = message;
         const modal = new bootstrap.Modal(document.getElementById('responseModal'));
@@ -404,11 +403,9 @@ $scriptNonce = bin2hex(random_bytes(16));
             document.getElementById('storedFacePreview').src = img.src;
             try {
                 const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({
-                        inputSize: 416,
-                        scoreThreshold: 0.5
-                    }))
-                    .withFaceLandmarks()
-                    .withFaceDescriptor();
+                    inputSize: 416,
+                    scoreThreshold: 0.5
+                })).withFaceLandmarks().withFaceDescriptor();
                 if (!detection) {
                     console.error('No face detected in the decrypted reference image.');
                     return;
@@ -543,13 +540,11 @@ $scriptNonce = bin2hex(random_bytes(16));
             canvas.height = video.videoHeight;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const detection = await faceapi
-                .detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions({
+            const detection = await faceapi.detectSingleFace(canvas, new faceapi
+                .TinyFaceDetectorOptions({
                     inputSize: 416,
                     scoreThreshold: 0.5
-                }))
-                .withFaceLandmarks()
-                .withFaceDescriptor();
+                })).withFaceLandmarks().withFaceDescriptor();
             const resultParagraph = document.getElementById('faceValidationResult');
             if (!detection) {
                 resultParagraph.innerText = 'No face detected. Please try again.';
