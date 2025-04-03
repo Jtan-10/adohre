@@ -65,19 +65,28 @@ function decryptSecret($encryptedData, $key) {
  * @param int    $width      Desired width of the PNG image.
  * @return GdImage          A GD image object.
  */
-function embedDataInPng($binaryData, $width = 100): GdImage {
+function embedDataInPng($binaryData): GdImage {
     $dataLen = strlen($binaryData);
+    // Each pixel holds 3 bytes.
     $numPixels = ceil($dataLen / 3);
-    $height = ceil($numPixels / $width);
+
+    // Make the image roughly square:
+    // e.g., width ~ height ~ sqrt(numPixels)
+    $width = (int) floor(sqrt($numPixels));
+    if ($width < 1) {
+        $width = 1;
+    }
+    $height = (int) ceil($numPixels / $width);
+
     $img = imagecreatetruecolor($width, $height);
     $black = imagecolorallocate($img, 0, 0, 0);
     imagefill($img, 0, 0, $black);
-    
+
     $pos = 0;
     for ($y = 0; $y < $height; $y++) {
         for ($x = 0; $x < $width; $x++) {
             if ($pos < $dataLen) {
-                $r = ($pos < $dataLen) ? ord($binaryData[$pos++]) : 0;
+                $r = ord($binaryData[$pos++]) ?: 0;
                 $g = ($pos < $dataLen) ? ord($binaryData[$pos++]) : 0;
                 $b = ($pos < $dataLen) ? ord($binaryData[$pos++]) : 0;
                 $color = imagecolorallocate($img, $r, $g, $b);
@@ -89,6 +98,7 @@ function embedDataInPng($binaryData, $width = 100): GdImage {
     }
     return $img;
 }
+
 
 // =====================
 // END HELPER FUNCTIONS
