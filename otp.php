@@ -132,7 +132,8 @@ if ($action === 'login' && $emailParam) {
                 background: transparent;
                 padding: 15px;
                 min-height: 100vh;
-                align-items: flex-start;
+                align-items: center;
+                justify-content: center;
             }
 
             /* Define individual card styles for each section */
@@ -165,6 +166,15 @@ if ($action === 'login' && $emailParam) {
                 max-width: 370px;
                 padding: 25px;
             }
+
+            /* Shrink the face validation canvas in the card-login section */
+            .card-login canvas#loginCanvas {
+                max-width: 280px;
+                width: 280px;
+                height: auto;
+                margin: 0 auto;
+                display: block;
+            }
         }
     </style>
     <!-- Include the global TTS module (create tts.js with your TTS functions) -->
@@ -179,12 +189,19 @@ if ($action === 'login' && $emailParam) {
 
 <body>
     <div class="left-pane">
-        <img src="assets/logo.png" alt="Company Logo" width="100">
-        <h1 id="form-title" class="mt-3">OTP Verification</h1>
-        <p id="form-description">Enter the OTP sent to your email.</p>
+        <!-- Hide external header on mobile -->
+        <img src="assets/logo.png" alt="Company Logo" width="100" class="d-none d-md-block">
+        <h1 id="form-title" class="mt-3 d-none d-md-block">OTP Verification</h1>
+        <p id="form-description" class="d-none d-md-block">Enter the OTP sent to your email.</p>
         <form id="otpForm" class="w-75">
             <!-- OTP Section -->
             <div id="otp-section" class="card-otp">
+                <!-- Mobile Card Header for OTP Section -->
+                <div class="card-header text-center d-md-none">
+                    <img src="assets/logo.png" alt="Company Logo" width="100">
+                    <h1>OTP Verification</h1>
+                    <p>Enter the OTP sent to your email.</p>
+                </div>
                 <div class="mb-3">
                     <label for="otp" class="form-label">OTP</label>
                     <input type="text" name="otp" class="form-control" id="otp" placeholder="Enter OTP">
@@ -196,6 +213,12 @@ if ($action === 'login' && $emailParam) {
 
             <!-- SIGNUP SECTION (Only shown if action=signup AFTER OTP) -->
             <div id="signup-section" class="card-signup">
+                <!-- Mobile Card Header for Signup Section -->
+                <div class="card-header text-center d-md-none">
+                    <img src="assets/logo.png" alt="Company Logo" width="100">
+                    <h1>Sign Up</h1>
+                    <p>Please enter your details to sign up.</p>
+                </div>
                 <div class="mb-3">
                     <label for="first_name" class="form-label">First Name</label>
                     <input type="text" name="first_name" class="form-control" id="first_name"
@@ -220,6 +243,12 @@ if ($action === 'login' && $emailParam) {
 
             <!-- UPDATE DETAILS SECTION (For login when profile is incomplete) -->
             <div id="update-details-section" class="card-update">
+                <!-- Mobile Card Header for Update Details Section -->
+                <div class="card-header text-center d-md-none">
+                    <img src="assets/logo.png" alt="Company Logo" width="100">
+                    <h1>Update Details</h1>
+                    <p>Your profile is incomplete. Please update your details.</p>
+                </div>
                 <p>Your profile is incomplete. Please update your details.</p>
                 <div class="mb-3">
                     <label for="update_first_name" class="form-label">First Name</label>
@@ -245,6 +274,12 @@ if ($action === 'login' && $emailParam) {
 
             <!-- LOGIN FACE VALIDATION SECTION (Only shown if action=login and profile is complete) -->
             <div id="login-face-validation" class="card-login">
+                <!-- Mobile Card Header for Face Validation Section -->
+                <div class="card-header text-center d-md-none">
+                    <img src="assets/logo.png" alt="Company Logo" width="100">
+                    <h1>Face Validation</h1>
+                    <p>Proceed with face validation.</p>
+                </div>
                 <h4>Stored Face Reference</h4>
                 <img id="storedFacePreview" src="" alt="Stored Face Reference"
                     style="max-width:320px; border:1px solid #ccc; margin-bottom:10px;">
