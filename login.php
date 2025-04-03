@@ -47,11 +47,10 @@ $scriptNonce = bin2hex(random_bytes(16));
         text-align: center;
     }
 
-    /* Optional: limit form width and center it */
+    /* Optional: limit form width and center it (for desktop, login-card not styled) */
     .left-pane form {
         width: 100%;
         max-width: 400px;
-        /* you can adjust this as needed */
         margin: 0 auto;
     }
 
@@ -89,7 +88,6 @@ $scriptNonce = bin2hex(random_bytes(16));
         .left-pane {
             background: transparent;
             padding: 1rem;
-            /* slightly less padding on small screens */
         }
 
         /* Hide the right pane */
@@ -112,30 +110,32 @@ $scriptNonce = bin2hex(random_bytes(16));
 </head>
 
 <body>
+    <!-- Left pane: Wrap login content in a login-card -->
     <div class="left-pane">
-        <img src="assets/logo.png" alt="Company Logo" width="100">
-        <h1 class="mt-3">Login</h1>
-        <p>Enter your email or login via Virtual ID.</p>
+        <div class="login-card">
+            <img src="assets/logo.png" alt="Company Logo" width="100">
+            <h1 class="mt-3">Login</h1>
+            <p>Enter your email or login via Virtual ID.</p>
 
-        <!-- Email Login Form (fallback) -->
-        <!-- Removed "w-75" since we're controlling width in CSS -->
-        <form id="loginForm">
-            <!-- Removed CSRF token field -->
-            <div class="mb-3">
-                <label for="email" class="form-label">Email</label>
-                <input type="email" name="email" class="form-control" id="email" placeholder="Enter your email">
-            </div>
-            <button type="button" id="loginBtn" class="btn btn-success">Send OTP</button>
-            <p id="error" class="text-danger mt-3"></p>
-        </form>
+            <!-- Email Login Form (fallback) -->
+            <form id="loginForm">
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email</label>
+                    <input type="email" name="email" class="form-control" id="email" placeholder="Enter your email">
+                </div>
+                <button type="button" id="loginBtn" class="btn btn-success">Send OTP</button>
+                <p id="error" class="text-danger mt-3"></p>
+            </form>
 
-        <p class="mt-3">Or</p>
-        <!-- Virtual ID Login Button -->
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#virtualIdModal">
-            Login via Virtual ID
-        </button>
+            <p class="mt-3">Or</p>
+            <!-- Virtual ID Login Button -->
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#virtualIdModal">
+                Login via Virtual ID
+            </button>
+        </div>
     </div>
 
+    <!-- Right pane for desktop (hidden on mobile) -->
     <div class="right-pane"></div>
 
     <!-- Loading Screen -->
@@ -157,7 +157,6 @@ $scriptNonce = bin2hex(random_bytes(16));
                 <div class="modal-body">
                     <!-- The user uploads their Virtual ID image -->
                     <form id="virtualIdForm" enctype="multipart/form-data">
-                        <!-- Removed CSRF token field -->
                         <label for="virtualIdImage" class="form-label">Upload Virtual ID Image</label>
                         <input type="file" name="virtualIdImage" id="virtualIdImage" class="form-control"
                             accept="image/*">
@@ -182,9 +181,8 @@ $scriptNonce = bin2hex(random_bytes(16));
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <!-- Stored face reference (using face_image as in otp.php) -->
+                    <!-- Stored face reference -->
                     <h4>Stored Face Reference</h4>
-                    <!-- The stored face image is decrypted and loaded via the decryption endpoint -->
                     <img id="storedFacePreview" src="" alt="Stored Face Reference"
                         style="max-width:320px; border:1px solid #ccc; margin-bottom:10px; display:block;">
                     <!-- Live face capture -->
@@ -193,14 +191,11 @@ $scriptNonce = bin2hex(random_bytes(16));
                         style="border:1px solid #ccc;"></video>
                     <br />
                     <button type="button" class="btn btn-primary mt-2" id="validateFaceBtn">Validate Face</button>
-                    <!-- Hidden canvas for capturing user face -->
                     <canvas id="userFaceCanvas" style="display: none;"></canvas>
                     <p id="faceValidationResult" style="margin-top:10px; font-weight:bold;"></p>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        Cancel
-                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 </div>
             </div>
         </div>
@@ -218,9 +213,7 @@ $scriptNonce = bin2hex(random_bytes(16));
                     <!-- Response message will be inserted here -->
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        Close
-                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>
@@ -239,9 +232,7 @@ $scriptNonce = bin2hex(random_bytes(16));
                     please check your spam or junk folder.
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">
-                        OK
-                    </button>
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
                 </div>
             </div>
         </div>
@@ -274,21 +265,16 @@ $scriptNonce = bin2hex(random_bytes(16));
                         <video id="updateFaceVideoModal" width="320" height="240" autoplay muted
                             style="border:1px solid #ccc;"></video>
                         <br>
-                        <button type="button" id="updateCaptureFaceBtnModal" class="btn btn-custom mt-2">
-                            Capture Face
-                        </button>
+                        <button type="button" id="updateCaptureFaceBtnModal" class="btn btn-custom mt-2">Capture
+                            Face</button>
                         <canvas id="updateFaceCanvasModal" style="display:none;"></canvas>
                         <img id="updateCapturedFacePreviewModal" src="" alt="Captured Face"
                             style="display:none; max-width:320px; margin-top:10px; border:1px solid #ccc;">
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" id="updateDetailsBtnModal" class="btn btn-success">
-                        Update Details
-                    </button>
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        Cancel
-                    </button>
+                    <button type="button" id="updateDetailsBtnModal" class="btn btn-success">Update Details</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 </div>
             </div>
         </div>
@@ -349,7 +335,7 @@ $scriptNonce = bin2hex(random_bytes(16));
                 if (result.status) {
                     showModal('Success', result.message, `otp.php?action=login&email=${email}`);
                     const spamModal = new bootstrap.Modal(document.getElementById(
-                        'checkSpamModal'));
+                    'checkSpamModal'));
                     spamModal.show();
                 } else {
                     showModal('Error', result.message);
@@ -394,7 +380,7 @@ $scriptNonce = bin2hex(random_bytes(16));
                     if (!globalUserData.first_name || !globalUserData.last_name || !globalUserData
                         .face_image) {
                         showModal('Info',
-                            'Your profile is incomplete. Please update your details.');
+                        'Your profile is incomplete. Please update your details.');
                         showUpdateDetailsModal();
                     } else {
                         const vidModal = bootstrap.Modal.getInstance(document.getElementById(
@@ -624,7 +610,7 @@ $scriptNonce = bin2hex(random_bytes(16));
                         showModal('Success', 'Login successful!', 'index.php');
                     } else {
                         resultParagraph.innerText = 'Error finalizing login: ' + finalResult
-                            .message;
+                        .message;
                     }
                 } catch (error) {
                     hideLoading();
