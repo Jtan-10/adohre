@@ -144,6 +144,7 @@ $scriptNonce = bin2hex(random_bytes(16));
                 <div class="modal-body">
                     <!-- Stored face reference (using face_image as in otp.php) -->
                     <h4>Stored Face Reference</h4>
+                    <!-- The stored face image is decrypted and loaded via the decryption endpoint -->
                     <img id="storedFacePreview" src="" alt="Stored Face Reference"
                         style="max-width:320px; border:1px solid #ccc; margin-bottom:10px; display:block;">
                     <!-- Live face capture -->
@@ -264,7 +265,6 @@ $scriptNonce = bin2hex(random_bytes(16));
             formData.append('virtualIdImage', fileInput.files[0]);
             formData.append('csrf_token', '<?php echo $_SESSION["csrf_token"]; ?>');
             formData.append('action', 'fetch');
-
             try {
                 showLoading();
                 // Call the same login.php endpoint with action=fetch
@@ -284,6 +284,7 @@ $scriptNonce = bin2hex(random_bytes(16));
                     vidModal.hide();
                     startWebcam();
                     await faceValidation.loadModels('backend/models/weights');
+                    // Use decryption to load the clear stored face image.
                     await loadReferenceDescriptor(globalUserData.face_image);
                     showFaceValidationModal();
                 } else {
@@ -300,7 +301,7 @@ $scriptNonce = bin2hex(random_bytes(16));
         // 3) Face Validation Flow
         // -----------------------
         function showFaceValidationModal() {
-            document.getElementById('storedFacePreview').src = globalUserData.face_image;
+            // The decrypted image is already loaded in loadReferenceDescriptor()
             const faceValModal = new bootstrap.Modal(document.getElementById('faceValidationModal'));
             faceValModal.show();
         }
@@ -318,26 +319,67 @@ $scriptNonce = bin2hex(random_bytes(16));
             }
         }
 
+        // Updated loadReferenceDescriptor() to use the decryption endpoint.
         async function loadReferenceDescriptor(faceImageUrl) {
+            if (!faceImageUrl) {
+                console.warn("No stored face image URL for login.");
+                return;
+            }
+            // Build the URL for decryption.
+            const decryptUrl =
+                `backend/routes/decrypt_image.php?face_url=${encodeURIComponent(faceImageUrl)}`;
             const img = new Image();
-            img.crossOrigin = 'anonymous';
-            img.src = faceImageUrl;
+            img.crossOrigin = "anonymous";
+            img.src = decryptUrl;
             await new Promise((resolve, reject) => {
                 img.onload = resolve;
                 img.onerror = reject;
             });
-            const detection = await faceapi
-                .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({
-                    inputSize: 416,
-                    scoreThreshold: 0.5
-                }))
-                .withFaceLandmarks()
-                .withFaceDescriptor();
-            if (!detection) {
-                console.error('No face detected in the stored reference image.');
-                return;
+            // Set the decrypted image as the stored face preview.
+            document.getElementById('storedFacePreview').src = img.src;
+            try {
+                const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({
+                        inputSize: 416,
+                        scoreThreshold: 0.5
+                    }))
+                    .withFaceLandmarks()
+                    .withFaceDescriptor();
+                if (!detection) {
+                    console.error('No face detected in the decrypted reference image.');
+                    return;
+                }
+                referenceDescriptor = detection.descriptor;
+                console.log("Reference descriptor loaded for login.");
+            } catch (error) {
+                console.error("Error in face detection on decrypted image:", error);
             }
-            referenceDescriptor = detection.descriptor;
+        }
+
+        async function startFaceVideoForLogin() {
+            const video = document.getElementById('videoInput');
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {}
+                });
+                video.srcObject = stream;
+            } catch (error) {
+                console.error("Error accessing webcam for login face validation:", error);
+                showModal('Error', 'Could not access webcam for login face capture.');
+            }
+        }
+
+        // For update details flow (if profile is incomplete)
+        async function startFaceVideoForUpdate() {
+            const video = document.getElementById('updateFaceVideo');
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {}
+                });
+                video.srcObject = stream;
+            } catch (error) {
+                console.error("Error accessing webcam for update face capture:", error);
+                showModal('Error', 'Could not access webcam for update face capture.');
+            }
         }
 
         document.getElementById('validateFaceBtn').addEventListener('click', async () => {
@@ -347,7 +389,6 @@ $scriptNonce = bin2hex(random_bytes(16));
             canvas.height = video.videoHeight;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
             const detection = await faceapi
                 .detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions({
                     inputSize: 416,
@@ -366,10 +407,9 @@ $scriptNonce = bin2hex(random_bytes(16));
             }
             const distance = faceapi.euclideanDistance(detection.descriptor, referenceDescriptor);
             console.log('Distance:', distance);
-            const threshold = 0.6; // Adjust threshold as needed
+            const threshold = 0.6;
             if (distance < threshold) {
                 resultParagraph.innerText = 'Face matched successfully!';
-                // Finalize login by sending the virtual_id to the backend with action=finalize
                 try {
                     showLoading();
                     const formData = new FormData();
@@ -397,9 +437,71 @@ $scriptNonce = bin2hex(random_bytes(16));
             }
         });
 
-        // -----------------------
-        // Utility Functions
-        // -----------------------
+        document.getElementById('updateCaptureFaceBtn').addEventListener('click', async () => {
+            await loadFaceApiModels();
+            const video = document.getElementById('updateFaceVideo');
+            const canvas = document.getElementById('updateFaceCanvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d', {
+                willReadFrequently: true
+            });
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const detection = await faceapi.detectSingleFace(canvas, new faceapi
+                .TinyFaceDetectorOptions({
+                    inputSize: 416,
+                    scoreThreshold: 0.5
+                }));
+            if (!detection) {
+                showModal('Error', 'No face detected. Please recapture your face.');
+                return;
+            }
+            updateCapturedFaceData = canvas.toDataURL('image/png');
+            console.log("Face captured for update, length:", updateCapturedFaceData.length);
+            const preview = document.getElementById('updateCapturedFacePreview');
+            preview.src = updateCapturedFaceData;
+            preview.style.display = 'block';
+        });
+
+        document.getElementById('updateDetailsBtn').addEventListener('click', async () => {
+            const first_name = document.getElementById('update_first_name').value;
+            const last_name = document.getElementById('update_last_name').value;
+            if (!first_name || !last_name) {
+                showModal('Error', 'Please enter your first and last name.');
+                return;
+            }
+            if (!updateCapturedFaceData) {
+                alert("Please capture your face before submitting your details.");
+                return;
+            }
+            showLoading();
+            try {
+                const response = await fetch('backend/routes/update_user_details.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email,
+                        first_name,
+                        last_name,
+                        faceData: updateCapturedFaceData
+                    })
+                });
+                const result = await response.json();
+                hideLoading();
+                if (result.status) {
+                    showModal('Success', result.message, 'login.php');
+                } else {
+                    showModal('Error', result.message);
+                }
+            } catch (error) {
+                hideLoading();
+                console.error('Error:', error);
+                showModal('Error', 'An error occurred. Please try again.');
+            }
+        });
+
         function showLoading() {
             const ls = document.getElementById('loadingScreen');
             ls.classList.remove('d-none');
