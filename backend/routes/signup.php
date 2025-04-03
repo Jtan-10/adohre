@@ -1,4 +1,9 @@
 <?php
+// Load Composer autoloader and .env variables
+require_once __DIR__ . '/../../vendor/autoload.php';
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../..');
+$dotenv->load();
+
 // Ensure session is started
 if (session_status() === PHP_SESSION_NONE) {
     session_set_cookie_params([
@@ -98,7 +103,6 @@ function embedDataInPng($binaryData): GdImage {
     }
     return $img;
 }
-
 
 // =====================
 // END HELPER FUNCTIONS
@@ -233,12 +237,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $cipher = "AES-256-CBC";
             $ivlen = openssl_cipher_iv_length($cipher);
             $iv = openssl_random_pseudo_bytes($ivlen);
-            $encryptionKey = 'my-very-strong-encryption-key'; // Replace with a secure key in production.
+            // Retrieve the raw encryption key from the .env file.
+            $rawKey = getenv('ENCRYPTION_KEY');
+            // Derive a 32-byte key using SHA-256.
+            $encryptionKey = hash('sha256', $rawKey, true);
             $clearImageData = file_get_contents($tempFaceFile);
             $encryptedData = openssl_encrypt($clearImageData, $cipher, $encryptionKey, OPENSSL_RAW_DATA, $iv);
             // Prepend the IV for decryption.
             $encryptedImageData = $iv . $encryptedData;
-            
+
             // Embed the encrypted data into a valid PNG.
             // Here we create a PNG image from the binary data so that it displays as random static.
             $pngImage = embedDataInPng($encryptedImageData, 100);
