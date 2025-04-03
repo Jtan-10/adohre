@@ -111,7 +111,7 @@ if ($action === 'login' && $emailParam) {
         border: 1px solid #ccc;
     }
 
-    /* MOBILE MODE: Match the login page's style */
+    /* Mobile mode: make a white card that expands with content */
     @media (max-width: 768px) {
 
         /* Use the green background for the entire body */
@@ -126,16 +126,25 @@ if ($action === 'login' && $emailParam) {
             display: none;
         }
 
-        /* 
-               Make the left pane transparent, position it relative, 
-               and add a pseudo-element for the white “card”
+        /*
+              Left pane is transparent, but we position it relative
+              so we can use a pseudo-element to create the white card.
+              The min-height ensures the pane can grow with content.
             */
         .left-pane {
             position: relative;
             background: transparent;
             padding: 15px;
+            min-height: 100vh;
+            /* ensures it can expand with content */
+            align-items: flex-start;
+            /* content lines up at the top */
         }
 
+        /*
+              The pseudo-element covers the entire left pane's area,
+              letting it grow vertically as content expands.
+            */
         .left-pane::before {
             content: "";
             position: absolute;
@@ -144,18 +153,24 @@ if ($action === 'login' && $emailParam) {
             transform: translateX(-50%);
             width: 100%;
             max-width: 370px;
-            height: 100%;
+            min-height: 100%;
+            /* matches .left-pane's min-height */
             background-color: #ffffff;
-            padding: 15px;
             border-radius: 0.5rem;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             z-index: 0;
         }
 
-        /* Ensure all child elements appear above the pseudo-element */
+        /*
+              All direct children appear above the pseudo-element.
+              Also center them horizontally if you like:
+            */
         .left-pane>* {
             position: relative;
             z-index: 1;
+            width: 100%;
+            max-width: 370px;
+            margin: 0 auto;
         }
     }
     </style>
