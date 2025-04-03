@@ -111,21 +111,25 @@ if ($action === 'login' && $emailParam) {
         border: 1px solid #ccc;
     }
 
+    /* MOBILE MODE: Match the login page's style */
     @media (max-width: 768px) {
+
+        /* Use the green background for the entire body */
         body {
             flex-direction: column;
+            background: url('assets/green_bg.png') no-repeat center center/cover;
+            background-size: cover;
         }
 
-        .left-pane,
-        .right-pane {
-            flex: none;
-            width: 100%;
-        }
-
+        /* Hide the right pane on mobile */
         .right-pane {
             display: none;
         }
 
+        /* 
+               Make the left pane transparent, position it relative, 
+               and add a pseudo-element for the white “card”
+            */
         .left-pane {
             position: relative;
             background: transparent;
@@ -135,8 +139,8 @@ if ($action === 'login' && $emailParam) {
         .left-pane::before {
             content: "";
             position: absolute;
-            left: 50%;
             top: 0;
+            left: 50%;
             transform: translateX(-50%);
             width: 100%;
             max-width: 370px;
@@ -148,6 +152,7 @@ if ($action === 'login' && $emailParam) {
             z-index: 0;
         }
 
+        /* Ensure all child elements appear above the pseudo-element */
         .left-pane>* {
             position: relative;
             z-index: 1;
