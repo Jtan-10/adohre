@@ -61,7 +61,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($result->num_rows > 0) {
             $user = $result->fetch_assoc();
             if ($action === 'fetch') {
-                // In fetch mode, return user data without finalizing login
+                // In fetch mode, store user data in session as temporary user.
+                session_regenerate_id(true);
+                $_SESSION['temp_user'] = $user;
                 echo json_encode(['status' => true, 'message' => 'User data retrieved.', 'user' => $user]);
             } else { // Finalize login
                 session_regenerate_id(true);
@@ -102,6 +104,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 recordAuditLog($user['user_id'], 'Login via Virtual ID', 'User logged in using Virtual ID (via direct parameter)');
                 echo json_encode(['status' => true, 'message' => 'Login successful.', 'user' => $user]);
             } else {
+                // For non-finalize action, store as temporary user.
+                session_regenerate_id(true);
+                $_SESSION['temp_user'] = $user;
                 echo json_encode(['status' => true, 'message' => 'User data retrieved.', 'user' => $user]);
             }
         } else {
