@@ -201,6 +201,48 @@ $scriptNonce = bin2hex(random_bytes(16));
         </div>
     </div>
 
+    <!-- Update Details Modal -->
+    <div class="modal fade" id="updateDetailsModal" tabindex="-1" aria-labelledby="updateDetailsModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="updateDetailsModalLabel">Update Profile Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Input fields for user details -->
+                    <div class="mb-3">
+                        <label for="update_first_name_modal" class="form-label">First Name</label>
+                        <input type="text" class="form-control" id="update_first_name_modal"
+                            placeholder="Enter your first name">
+                    </div>
+                    <div class="mb-3">
+                        <label for="update_last_name_modal" class="form-label">Last Name</label>
+                        <input type="text" class="form-control" id="update_last_name_modal"
+                            placeholder="Enter your last name">
+                    </div>
+                    <!-- Face capture section -->
+                    <div id="updateFaceCaptureSectionModal" class="mb-3">
+                        <h4>Capture Your Face</h4>
+                        <video id="updateFaceVideoModal" width="320" height="240" autoplay muted
+                            style="border:1px solid #ccc;"></video>
+                        <br>
+                        <button type="button" id="updateCaptureFaceBtnModal" class="btn btn-custom mt-2">Capture
+                            Face</button>
+                        <canvas id="updateFaceCanvasModal" style="display:none;"></canvas>
+                        <img id="updateCapturedFacePreviewModal" src="" alt="Captured Face"
+                            style="display:none; max-width:320px; margin-top:10px; border:1px solid #ccc;">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" id="updateDetailsBtnModal" class="btn btn-success">Update Details</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous">
@@ -234,7 +276,7 @@ $scriptNonce = bin2hex(random_bytes(16));
                 if (result.status) {
                     showModal('Success', result.message, `otp.php?action=login&email=${email}`);
                     const spamModal = new bootstrap.Modal(document.getElementById(
-                    'checkSpamModal'));
+                        'checkSpamModal'));
                     spamModal.show();
                 } else {
                     showModal('Error', result.message);
@@ -278,15 +320,23 @@ $scriptNonce = bin2hex(random_bytes(16));
                     globalUserData = result.user;
                     // Save the extracted virtual ID returned from backend
                     globalVirtualId = result.user.virtual_id;
-                    // Hide the Virtual ID modal and proceed to face validation
-                    const vidModal = bootstrap.Modal.getInstance(document.getElementById(
-                        'virtualIdModal'));
-                    vidModal.hide();
-                    startWebcam();
-                    await faceValidation.loadModels('backend/models/weights');
-                    // Use decryption to load the clear stored face image.
-                    await loadReferenceDescriptor(globalUserData.face_image);
-                    showFaceValidationModal();
+                    // Check for incomplete profile
+                    if (!globalUserData.first_name || !globalUserData.last_name || !globalUserData
+                        .face_image) {
+                        showModal('Info',
+                            'Your profile is incomplete. Please update your details.');
+                        showUpdateDetailsModal();
+                    } else {
+                        // Hide the Virtual ID modal and proceed to face validation
+                        const vidModal = bootstrap.Modal.getInstance(document.getElementById(
+                            'virtualIdModal'));
+                        vidModal.hide();
+                        startWebcam();
+                        await faceValidation.loadModels('backend/models/weights');
+                        // Use decryption to load the clear stored face image.
+                        await loadReferenceDescriptor(globalUserData.face_image);
+                        showFaceValidationModal();
+                    }
                 } else {
                     showModal('Error', result.message);
                 }
@@ -382,13 +432,90 @@ $scriptNonce = bin2hex(random_bytes(16));
             }
         }
 
-        // New function: Handle profile incomplete scenario.
-        function handleIncompleteProfile() {
-            showModal('Info', 'Your profile is incomplete. Please update your details.');
-            document.getElementById('otp-section').style.display = 'none';
-            document.getElementById('update-details-section').style.display = 'block';
-            startFaceVideoForUpdate();
+        // New function to show the Update Details Modal and start webcam for face capture
+        function showUpdateDetailsModal() {
+            const updateModal = new bootstrap.Modal(document.getElementById('updateDetailsModal'));
+            updateModal.show();
+            startFaceVideoForUpdateModal();
         }
+
+        async function startFaceVideoForUpdateModal() {
+            const video = document.getElementById('updateFaceVideoModal');
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {}
+                });
+                video.srcObject = stream;
+            } catch (error) {
+                console.error("Error accessing webcam for update face capture:", error);
+                showModal('Error', 'Could not access webcam for updating face capture.');
+            }
+        }
+
+        let updateCapturedFaceDataModal = "";
+        document.getElementById('updateCaptureFaceBtnModal').addEventListener('click', async () => {
+            await faceValidation.loadModels('backend/models/weights');
+            const video = document.getElementById('updateFaceVideoModal');
+            const canvas = document.getElementById('updateFaceCanvasModal');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d', {
+                willReadFrequently: true
+            });
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const detection = await faceapi.detectSingleFace(canvas, new faceapi
+                .TinyFaceDetectorOptions({
+                    inputSize: 416,
+                    scoreThreshold: 0.5
+                }));
+            if (!detection) {
+                showModal('Error', 'No face detected. Please recapture your face.');
+                return;
+            }
+            updateCapturedFaceDataModal = canvas.toDataURL('image/png');
+            const preview = document.getElementById('updateCapturedFacePreviewModal');
+            preview.src = updateCapturedFaceDataModal;
+            preview.style.display = 'block';
+        });
+
+        document.getElementById('updateDetailsBtnModal').addEventListener('click', async () => {
+            const first_name = document.getElementById('update_first_name_modal').value;
+            const last_name = document.getElementById('update_last_name_modal').value;
+            if (!first_name || !last_name) {
+                showModal('Error', 'Please enter your first and last name.');
+                return;
+            }
+            if (!updateCapturedFaceDataModal) {
+                showModal('Error', 'Please capture your face before submitting your details.');
+                return;
+            }
+            showLoading();
+            try {
+                const response = await fetch('backend/routes/update_user_details.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: globalUserData.email,
+                        first_name,
+                        last_name,
+                        faceData: updateCapturedFaceDataModal
+                    })
+                });
+                const result = await response.json();
+                hideLoading();
+                if (result.status) {
+                    showModal('Success', result.message, 'login.php');
+                } else {
+                    showModal('Error', result.message);
+                }
+            } catch (error) {
+                hideLoading();
+                console.error('Error:', error);
+                showModal('Error', 'An error occurred. Please try again.');
+            }
+        });
 
         document.getElementById('validateFaceBtn').addEventListener('click', async () => {
             const video = document.getElementById('videoInput');
@@ -434,7 +561,7 @@ $scriptNonce = bin2hex(random_bytes(16));
                         showModal('Success', 'Login successful!', 'index.php');
                     } else {
                         resultParagraph.innerText = 'Error finalizing login: ' + finalResult
-                        .message;
+                            .message;
                     }
                 } catch (error) {
                     hideLoading();
