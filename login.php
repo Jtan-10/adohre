@@ -24,21 +24,38 @@ $scriptNonce = bin2hex(random_bytes(16));
     <script defer src="faceValidation.js"></script>
 
     <style>
+    /* Base layout: two panes side by side */
     body {
         display: flex;
         min-height: 100vh;
         margin: 0;
+        flex-direction: row;
+        /* default desktop layout */
     }
 
+    /* Left pane with form */
     .left-pane {
         flex: 1;
         display: flex;
-        justify-content: center;
-        align-items: center;
         flex-direction: column;
+        justify-content: center;
+        /* center vertically */
+        align-items: center;
+        /* center horizontally */
         background: #ffffff;
+        padding: 2rem;
+        text-align: center;
     }
 
+    /* Optional: limit form width and center it */
+    .left-pane form {
+        width: 100%;
+        max-width: 400px;
+        /* you can adjust this as needed */
+        margin: 0 auto;
+    }
+
+    /* Right pane with background image */
     .right-pane {
         flex: 1;
         background: url('assets/green_bg.png') no-repeat center center/cover;
@@ -58,18 +75,16 @@ $scriptNonce = bin2hex(random_bytes(16));
         display: none;
     }
 
+    /* Responsive adjustments for smaller screens */
     @media only screen and (max-width: 768px) {
         body {
             flex-direction: column;
+            /* stack top to bottom on mobile */
         }
 
-        .left-pane,
+        /* The right pane becomes a small banner at the bottom (or top, depending on order) */
         .right-pane {
-            flex: unset;
             width: 100%;
-        }
-
-        .right-pane {
             height: 200px;
         }
     }
@@ -81,8 +96,10 @@ $scriptNonce = bin2hex(random_bytes(16));
         <img src="assets/logo.png" alt="Company Logo" width="100">
         <h1 class="mt-3">Login</h1>
         <p>Enter your email or login via Virtual ID.</p>
+
         <!-- Email Login Form (fallback) -->
-        <form id="loginForm" class="w-75">
+        <!-- Removed "w-75" since we're controlling width in CSS -->
+        <form id="loginForm">
             <!-- Removed CSRF token field -->
             <div class="mb-3">
                 <label for="email" class="form-label">Email</label>
@@ -91,12 +108,14 @@ $scriptNonce = bin2hex(random_bytes(16));
             <button type="button" id="loginBtn" class="btn btn-success">Send OTP</button>
             <p id="error" class="text-danger mt-3"></p>
         </form>
+
         <p class="mt-3">Or</p>
         <!-- Virtual ID Login Button -->
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#virtualIdModal">
             Login via Virtual ID
         </button>
     </div>
+
     <div class="right-pane"></div>
 
     <!-- Loading Screen -->
@@ -159,7 +178,9 @@ $scriptNonce = bin2hex(random_bytes(16));
                     <p id="faceValidationResult" style="margin-top:10px; font-weight:bold;"></p>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Cancel
+                    </button>
                 </div>
             </div>
         </div>
@@ -177,7 +198,9 @@ $scriptNonce = bin2hex(random_bytes(16));
                     <!-- Response message will be inserted here -->
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Close
+                    </button>
                 </div>
             </div>
         </div>
@@ -196,7 +219,9 @@ $scriptNonce = bin2hex(random_bytes(16));
                     please check your spam or junk folder.
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">
+                        OK
+                    </button>
                 </div>
             </div>
         </div>
@@ -229,16 +254,21 @@ $scriptNonce = bin2hex(random_bytes(16));
                         <video id="updateFaceVideoModal" width="320" height="240" autoplay muted
                             style="border:1px solid #ccc;"></video>
                         <br>
-                        <button type="button" id="updateCaptureFaceBtnModal" class="btn btn-custom mt-2">Capture
-                            Face</button>
+                        <button type="button" id="updateCaptureFaceBtnModal" class="btn btn-custom mt-2">
+                            Capture Face
+                        </button>
                         <canvas id="updateFaceCanvasModal" style="display:none;"></canvas>
                         <img id="updateCapturedFacePreviewModal" src="" alt="Captured Face"
                             style="display:none; max-width:320px; margin-top:10px; border:1px solid #ccc;">
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" id="updateDetailsBtnModal" class="btn btn-success">Update Details</button>
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" id="updateDetailsBtnModal" class="btn btn-success">
+                        Update Details
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Cancel
+                    </button>
                 </div>
             </div>
         </div>
@@ -250,7 +280,7 @@ $scriptNonce = bin2hex(random_bytes(16));
     </script>
 
     <script nonce="<?php echo $scriptNonce; ?>">
-    // Note: The hideAllModals function is defined but not used in showModal so modals do not auto-close.
+    // The hideAllModals function is defined but not called by showModal, so other modals won't auto-close
     function hideAllModals() {
         document.querySelectorAll('.modal.show').forEach(modalEl => {
             let modalInstance = bootstrap.Modal.getInstance(modalEl);
@@ -260,7 +290,7 @@ $scriptNonce = bin2hex(random_bytes(16));
         });
     }
 
-    // Updated showModal function without auto-closing other modals.
+    // Basic showModal function
     function showModal(title, message, redirectUrl = null) {
         document.getElementById('responseModalLabel').textContent = title;
         document.getElementById('responseModalBody').textContent = message;
@@ -299,7 +329,7 @@ $scriptNonce = bin2hex(random_bytes(16));
                 if (result.status) {
                     showModal('Success', result.message, `otp.php?action=login&email=${email}`);
                     const spamModal = new bootstrap.Modal(document.getElementById(
-                    'checkSpamModal'));
+                        'checkSpamModal'));
                     spamModal.show();
                 } else {
                     showModal('Error', result.message);
@@ -344,7 +374,7 @@ $scriptNonce = bin2hex(random_bytes(16));
                     if (!globalUserData.first_name || !globalUserData.last_name || !globalUserData
                         .face_image) {
                         showModal('Info',
-                        'Your profile is incomplete. Please update your details.');
+                            'Your profile is incomplete. Please update your details.');
                         showUpdateDetailsModal();
                     } else {
                         const vidModal = bootstrap.Modal.getInstance(document.getElementById(
@@ -574,7 +604,7 @@ $scriptNonce = bin2hex(random_bytes(16));
                         showModal('Success', 'Login successful!', 'index.php');
                     } else {
                         resultParagraph.innerText = 'Error finalizing login: ' + finalResult
-                        .message;
+                            .message;
                     }
                 } catch (error) {
                     hideLoading();
