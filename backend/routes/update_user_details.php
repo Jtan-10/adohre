@@ -13,16 +13,33 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// Check for valid session: allow if either full login or temporary OTP-verified login exists.
+// Instead of immediately returning 401 if no session, allow email-based lookup.
 if (!isset($_SESSION['user_id']) && !isset($_SESSION['temp_user'])) {
-    http_response_code(401);
-    echo json_encode(['status' => false, 'message' => 'Unauthorized access.']);
-    exit;
+    // If an email is provided in the payload, try to fetch the user_id.
+    $input = file_get_contents("php://input");
+    $data = json_decode($input, true);
+    if (!empty($data['email'])) {
+        $stmt = $conn->prepare("SELECT user_id FROM users WHERE email = ?");
+        $stmt->bind_param("s", $data['email']);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($row = $result->fetch_assoc()) {
+            $user_id = $row['user_id'];
+        } else {
+            http_response_code(401);
+            echo json_encode(['status' => false, 'message' => 'Unauthorized access.']);
+            exit;
+        }
+        $stmt->close();
+    } else {
+        http_response_code(401);
+        echo json_encode(['status' => false, 'message' => 'Unauthorized access.']);
+        exit;
+    }
+} else {
+    // Use the authenticated user's ID from session.
+    $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : $_SESSION['temp_user']['user_id'];
 }
-
-// Use the authenticated user's ID from session.
-// If the user isn't fully logged in, use the temporary session.
-$user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : $_SESSION['temp_user']['user_id'];
 
 // (Optional) Fetch the user's email from the database using user_id.
 $stmt = $conn->prepare("SELECT email FROM users WHERE user_id = ?");
@@ -70,21 +87,21 @@ if (!empty($data['faceData'])) {
     if (strpos($faceData, 'base64,') !== false) {
         $faceData = explode('base64,', $faceData)[1];
     }
-    
+
     // Enforce a maximum size limit (adjust the limit as needed).
     if (strlen($faceData) > (5 * 1024 * 1024)) { // roughly 5MB limit on base64 string size
         http_response_code(400);
         echo json_encode(['status' => false, 'message' => 'Image size exceeds allowed limit.']);
         exit;
     }
-    
+
     $decodedFaceData = base64_decode($faceData);
     if ($decodedFaceData === false) {
         http_response_code(400);
         echo json_encode(['status' => false, 'message' => 'Failed to decode face image.']);
         exit;
     }
-    
+
     // Verify the MIME type of the image.
     $finfo = new finfo(FILEINFO_MIME_TYPE);
     $mimeType = $finfo->buffer($decodedFaceData);
@@ -93,7 +110,7 @@ if (!empty($data['faceData'])) {
         echo json_encode(['status' => false, 'message' => 'Invalid image format. Only PNG allowed.']);
         exit;
     }
-    
+
     // Generate a secure, unique file name for S3.
     $s3Key = 'uploads/faces/' . bin2hex(random_bytes(16)) . '.png';
 
@@ -155,4 +172,3 @@ if ($stmt->execute()) {
 $stmt->close();
 $conn->close();
 exit;
-?>
