@@ -23,9 +23,9 @@ header("Referrer-Policy: no-referrer");
 // Add secure session cookie settings.
 session_set_cookie_params([
     'lifetime' => 0,
-    'path' => '/',
-    'domain' => '',  // adjust if needed
-    'secure' => true,
+    'path'     => '/',
+    'domain'   => '',  // adjust if needed
+    'secure'   => true,
     'httponly' => true,
     'samesite' => 'Strict'
 ]);
@@ -68,21 +68,25 @@ if (isset($_SESSION['user_id'])) {
         flex-direction: row;
     }
 
+    /* Left pane: white background on desktop */
     .left-pane {
         flex: 1;
         display: flex;
+        flex-direction: column;
         justify-content: center;
         align-items: center;
-        flex-direction: column;
         background: #ffffff;
         padding: 2rem;
+        text-align: center;
     }
 
+    /* Right pane: green background image */
     .right-pane {
         flex: 1;
         background: url('assets/green_bg.png') no-repeat center center/cover;
     }
 
+    /* Form styling */
     .form-control {
         border-radius: 0.5rem;
     }
@@ -99,19 +103,27 @@ if (isset($_SESSION['user_id'])) {
 
     /* Mobile styles (max-width: 768px) */
     @media (max-width: 768px) {
+
+        /* Use the green background for the entire body */
         body {
             flex-direction: column;
             background: url('assets/green_bg.png') no-repeat center center/cover;
             background-size: cover;
         }
 
-        /* Make left pane transparent and use a pseudo-element for the white card */
+        /* Hide the right pane on mobile */
+        .right-pane {
+            display: none;
+        }
+
+        /* Make left pane transparent and position it relative */
         .left-pane {
             position: relative;
             background: transparent;
             padding: 1rem;
         }
 
+        /* Pseudo-element for the white "card" behind the content */
         .left-pane::before {
             content: "";
             position: absolute;
@@ -125,11 +137,13 @@ if (isset($_SESSION['user_id'])) {
             border-radius: 0.5rem;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             z-index: -1;
+            /* behind the form/logo text */
         }
 
-        /* Hide right pane on mobile */
-        .right-pane {
-            display: none;
+        /* Ensure the content is above the pseudo-element */
+        .left-pane * {
+            position: relative;
+            z-index: 1;
         }
     }
     </style>
@@ -160,6 +174,7 @@ if (isset($_SESSION['user_id'])) {
         </form>
     </div>
     <div class="right-pane"></div>
+
     <!-- Loading Screen -->
     <div id="loadingScreen"
         class="d-none position-fixed w-100 h-100 top-0 start-0 bg-white bg-opacity-75 d-flex justify-content-center align-items-center">
@@ -167,6 +182,7 @@ if (isset($_SESSION['user_id'])) {
             <span class="visually-hidden">Loading...</span>
         </div>
     </div>
+
     <!-- Response Modal -->
     <div class="modal fade" id="responseModal" tabindex="-1" aria-labelledby="responseModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -179,11 +195,14 @@ if (isset($_SESSION['user_id'])) {
                     <!-- Response message will be inserted here -->
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Close
+                    </button>
                 </div>
             </div>
         </div>
     </div>
+
     <!-- Check Spam Folder Modal -->
     <div class="modal fade" id="checkSpamModal" tabindex="-1" aria-labelledby="checkSpamModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -197,16 +216,20 @@ if (isset($_SESSION['user_id'])) {
                     please check your spam or junk folder.
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">
+                        OK
+                    </button>
                 </div>
             </div>
         </div>
     </div>
+
     <!-- Include Visually Impaired Modal -->
     <?php 
     define('IN_CAPSTONE', true);
     include 'visually_impaired_modal.php'; 
     ?>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous">
     </script>
