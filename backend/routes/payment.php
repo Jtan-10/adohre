@@ -128,7 +128,7 @@ if ($method === 'GET') {
                 exit();
             }
             $imageName = time() . '_' . basename($_FILES['image']['name']);
-            $s3Key = 'uploads/training_images/' . $imageName;
+            $s3Key = 'uploads/payments/' . $imageName;
             try {
                 $result = $s3->putObject([
                     'Bucket' => $bucketName,
