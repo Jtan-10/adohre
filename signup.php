@@ -133,7 +133,7 @@ if (isset($_SESSION['user_id'])) {
             width: 100%;
             max-width: 90%;
             background: #ffffff;
-            padding: 2rem;
+            padding: 12rem;
             border-radius: 0.5rem;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             z-index: -1;
