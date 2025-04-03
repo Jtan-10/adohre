@@ -77,15 +77,23 @@ $scriptNonce = bin2hex(random_bytes(16));
 
     /* Responsive adjustments for smaller screens */
     @media only screen and (max-width: 768px) {
+
+        /* Stack everything top to bottom on mobile */
         body {
             flex-direction: column;
-            /* stack top to bottom on mobile */
+            /* Use the green background for the entire body */
+            background: url('assets/green_bg.png') no-repeat center center/cover;
+            background-size: cover;
         }
 
-        /* The right pane becomes a small banner at the bottom (or top, depending on order) */
+        /* Hide the right pane entirely on mobile */
         .right-pane {
-            width: 100%;
-            height: 200px;
+            display: none;
+        }
+
+        /* Remove the white background from the left pane on mobile */
+        .left-pane {
+            background: transparent;
         }
     }
     </style>
