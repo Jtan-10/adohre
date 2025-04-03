@@ -1,9 +1,10 @@
 <?php
-// Start session and generate CSRF token if not exists
 session_start();
-if (empty($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
+// Removed CSRF token generation
+//$csrf_token = bin2hex(random_bytes(32));
+// Instead, unset any previously set token if desired
+// unset($_SESSION['csrf_token']);
+
 // Create a unique nonce for this page
 $scriptNonce = bin2hex(random_bytes(16));
 ?>
@@ -82,7 +83,7 @@ $scriptNonce = bin2hex(random_bytes(16));
         <p>Enter your email or login via Virtual ID.</p>
         <!-- Email Login Form (fallback) -->
         <form id="loginForm" class="w-75">
-            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+            <!-- Removed CSRF token field -->
             <div class="mb-3">
                 <label for="email" class="form-label">Email</label>
                 <input type="email" name="email" class="form-control" id="email" placeholder="Enter your email">
@@ -117,7 +118,7 @@ $scriptNonce = bin2hex(random_bytes(16));
                 <div class="modal-body">
                     <!-- The user uploads their Virtual ID image -->
                     <form id="virtualIdForm" enctype="multipart/form-data">
-                        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                        <!-- Removed CSRF token field -->
                         <label for="virtualIdImage" class="form-label">Upload Virtual ID Image</label>
                         <input type="file" name="virtualIdImage" id="virtualIdImage" class="form-control"
                             accept="image/*">
@@ -267,8 +268,8 @@ $scriptNonce = bin2hex(random_bytes(16));
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
-                            email,
-                            csrf_token: '<?php echo $_SESSION["csrf_token"]; ?>'
+                            email
+                            // Removed csrf_token property
                         })
                     });
                     const result = await response.json();
@@ -305,7 +306,6 @@ $scriptNonce = bin2hex(random_bytes(16));
                 // Create FormData with the uploaded file and set action to "fetch"
                 const formData = new FormData();
                 formData.append('virtualIdImage', fileInput.files[0]);
-                formData.append('csrf_token', '<?php echo $_SESSION["csrf_token"]; ?>');
                 formData.append('action', 'fetch');
                 try {
                     showLoading();
@@ -501,6 +501,7 @@ $scriptNonce = bin2hex(random_bytes(16));
                             first_name,
                             last_name,
                             faceData: updateCapturedFaceDataModal
+                            // Removed csrf_token property
                         })
                     });
                     const result = await response.json();
@@ -549,8 +550,8 @@ $scriptNonce = bin2hex(random_bytes(16));
                         showLoading();
                         const formData = new FormData();
                         formData.append('virtual_id', globalVirtualId);
-                        formData.append('csrf_token', '<?php echo $_SESSION["csrf_token"]; ?>');
                         formData.append('action', 'finalize');
+                        // Removed csrf_token from FormData
                         const response = await fetch('backend/routes/login.php', {
                             method: 'POST',
                             body: formData
