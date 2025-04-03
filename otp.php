@@ -145,35 +145,47 @@ if ($action === 'login' && $emailParam) {
                 border-radius: 0.5rem;
                 box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
                 margin: 10px auto;
+                width: 100%;
+                max-width: 600px;
+                /* increased from 420px to 600px */
             }
 
             .card-otp {
-                max-width: 370px;
                 padding: 20px;
             }
 
             .card-signup {
-                max-width: 370px;
                 padding: 40px;
             }
 
             .card-update {
-                max-width: 370px;
                 padding: 30px;
             }
 
             .card-login {
-                max-width: 370px;
                 padding: 25px;
             }
 
-            /* Shrink the face validation canvas in the card-login section */
-            .card-login canvas#loginCanvas {
-                max-width: 280px;
-                width: 280px;
-                height: auto;
-                margin: 0 auto;
+            /* Override inline dimensions for canvas and video within card sections */
+            .card-otp video,
+            .card-otp canvas,
+            .card-signup video,
+            .card-signup canvas,
+            .card-update video,
+            .card-update canvas,
+            .card-login video,
+            .card-login canvas {
+                width: 100% !important;
+                height: auto !important;
                 display: block;
+                margin: 0 auto;
+            }
+
+            /* Ensure update captured face preview image fits the card */
+            #updateCapturedFacePreview {
+                max-width: 100%;
+                width: auto;
+                height: auto;
             }
         }
     </style>

@@ -82,13 +82,11 @@ if (verifyOTP($email, $otp)) {
         echo json_encode(['status' => true, 'message' => 'OTP verified! Please complete face validation.']);
     } else {
         // Do not reveal details about whether the email exists
-        http_response_code(401);
         echo json_encode(['status' => false, 'message' => 'Invalid credentials.']);
     }
 } else {
     recordAuditLog(0, 'OTP verification failed', 'Failed OTP verification attempt for email: ' . $email);
     
-    http_response_code(401);
     echo json_encode(['status' => false, 'message' => 'Invalid OTP.']);
 }
 ?>
