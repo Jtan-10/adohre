@@ -185,8 +185,8 @@ if ($action === 'login' && $emailParam) {
         #updateCapturedFacePreview,
         #storedFacePreview {
             max-width: 100%;
-            width: auto;
-            height: auto;
+            width: 100% !important;
+            height: auto !important;
         }
     }
     </style>
