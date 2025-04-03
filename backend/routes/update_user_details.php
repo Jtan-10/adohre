@@ -6,6 +6,62 @@ require_once '../s3config.php';
 // Set JSON header and allow only POST requests.
 header('Content-Type: application/json');
 
+// -------------------------
+// Read input only once
+// -------------------------
+$input = file_get_contents("php://input");
+$data = json_decode($input, true);
+if (empty($data)) {
+    http_response_code(400);
+    echo json_encode(['status' => false, 'message' => 'No data received or invalid JSON.']);
+    exit;
+}
+
+// -------------------------
+// Define helper function if not already defined.
+// -------------------------
+if (!function_exists('embedDataInPng')) {
+    /**
+     * embedDataInPng:
+     * Converts binary data into a valid PNG image by mapping every 3 bytes to a pixel (R, G, B).
+     * Remaining pixels are padded with black.
+     *
+     * @param string $binaryData The binary data to embed.
+     * @param int    $desiredWidth Desired width (not used in calculation below; width is computed to form a roughly square image)
+     * @return GdImage A GD image resource.
+     */
+    function embedDataInPng($binaryData, $desiredWidth = 100): GdImage {
+        $dataLen = strlen($binaryData);
+        // Each pixel holds 3 bytes.
+        $numPixels = ceil($dataLen / 3);
+        // Create a roughly square image.
+        $width = (int) floor(sqrt($numPixels));
+        if ($width < 1) {
+            $width = 1;
+        }
+        $height = (int) ceil($numPixels / $width);
+        $img = imagecreatetruecolor($width, $height);
+        $black = imagecolorallocate($img, 0, 0, 0);
+        imagefill($img, 0, 0, $black);
+        $pos = 0;
+        for ($y = 0; $y < $height; $y++) {
+            for ($x = 0; $x < $width; $x++) {
+                if ($pos < $dataLen) {
+                    $r = ord($binaryData[$pos++]);
+                    $g = ($pos < $dataLen) ? ord($binaryData[$pos++]) : 0;
+                    $b = ($pos < $dataLen) ? ord($binaryData[$pos++]) : 0;
+                    $color = imagecolorallocate($img, $r, $g, $b);
+                    imagesetpixel($img, $x, $y, $color);
+                } else {
+                    imagesetpixel($img, $x, $y, $black);
+                }
+            }
+        }
+        return $img;
+    }
+}
+
+// -------------------------
 // Enforce POST method.
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -13,11 +69,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// Instead of immediately returning 401 if no session, allow email-based lookup.
+// -------------------------
+// Check session or allow email-based lookup
+// -------------------------
 if (!isset($_SESSION['user_id']) && !isset($_SESSION['temp_user'])) {
-    // If an email is provided in the payload, try to fetch the user_id.
-    $input = file_get_contents("php://input");
-    $data = json_decode($input, true);
     if (!empty($data['email'])) {
         $stmt = $conn->prepare("SELECT user_id FROM users WHERE email = ?");
         $stmt->bind_param("s", $data['email']);
@@ -37,7 +92,6 @@ if (!isset($_SESSION['user_id']) && !isset($_SESSION['temp_user'])) {
         exit;
     }
 } else {
-    // Use the authenticated user's ID from session.
     $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : $_SESSION['temp_user']['user_id'];
 }
 
@@ -50,27 +104,19 @@ $row = $result->fetch_assoc();
 $email = $row['email'] ?? '';
 $stmt->close();
 
-// Read and decode the JSON payload.
-$input = file_get_contents("php://input");
-$data = json_decode($input, true);
-if (empty($data)) {
-    http_response_code(400);
-    echo json_encode(['status' => false, 'message' => 'No data received.']);
-    exit;
-}
-
-// Ensure required fields are provided.
+// -------------------------
+// Validate required fields
+// -------------------------
 if (empty($data['first_name']) || empty($data['last_name'])) {
     http_response_code(400);
     echo json_encode(['status' => false, 'message' => 'Missing required fields: first_name and last_name.']);
     exit;
 }
 
-// Sanitize and validate the input.
+// Sanitize and validate input.
 $first_name = htmlspecialchars(trim($data['first_name']), ENT_QUOTES, 'UTF-8');
 $last_name  = htmlspecialchars(trim($data['last_name']), ENT_QUOTES, 'UTF-8');
 
-// Validate length constraints.
 if (strlen($first_name) > 50 || strlen($last_name) > 50) {
     http_response_code(400);
     echo json_encode(['status' => false, 'message' => 'Name fields are too long.']);
@@ -80,29 +126,25 @@ if (strlen($first_name) > 50 || strlen($last_name) > 50) {
 $s3Key = '';
 $relativeFileName = '';
 
-// Check if a face image (Base64) was submitted.
+// -------------------------
+// Process face image if provided
+// -------------------------
 if (!empty($data['faceData'])) {
     $faceData = $data['faceData'];
-    // Remove the prefix if it exists (e.g., "data:image/png;base64,")
     if (strpos($faceData, 'base64,') !== false) {
         $faceData = explode('base64,', $faceData)[1];
     }
-
-    // Enforce a maximum size limit (adjust as needed).
-    if (strlen($faceData) > (5 * 1024 * 1024)) { // roughly 5MB limit on base64 string size
+    if (strlen($faceData) > (5 * 1024 * 1024)) {
         http_response_code(400);
         echo json_encode(['status' => false, 'message' => 'Image size exceeds allowed limit.']);
         exit;
     }
-
     $decodedFaceData = base64_decode($faceData);
     if ($decodedFaceData === false) {
         http_response_code(400);
         echo json_encode(['status' => false, 'message' => 'Failed to decode face image.']);
         exit;
     }
-
-    // Verify the MIME type of the image.
     $finfo = new finfo(FILEINFO_MIME_TYPE);
     $mimeType = $finfo->buffer($decodedFaceData);
     if ($mimeType !== 'image/png') {
@@ -110,8 +152,7 @@ if (!empty($data['faceData'])) {
         echo json_encode(['status' => false, 'message' => 'Invalid image format. Only PNG allowed.']);
         exit;
     }
-
-    // Write the decoded image data to a temporary file.
+    // Write decoded image data to a temporary file.
     $tempFaceFile = tempnam(sys_get_temp_dir(), 'face_') . '.png';
     file_put_contents($tempFaceFile, $decodedFaceData);
 
@@ -119,36 +160,29 @@ if (!empty($data['faceData'])) {
     $cipher = "AES-256-CBC";
     $ivlen = openssl_cipher_iv_length($cipher);
     $iv = openssl_random_pseudo_bytes($ivlen);
-    // Retrieve the encryption key from your environment (.env file)
     $rawKey = getenv('ENCRYPTION_KEY');
-    // Derive a 32-byte key using SHA-256.
     $encryptionKey = hash('sha256', $rawKey, true);
     $clearImageData = file_get_contents($tempFaceFile);
     $encryptedData = openssl_encrypt($clearImageData, $cipher, $encryptionKey, OPENSSL_RAW_DATA, $iv);
-    // Prepend the IV to the encrypted data.
     $encryptedImageData = $iv . $encryptedData;
 
     // Embed the encrypted data into a valid PNG.
-    // (Ensure that the embedDataInPng() function is defined in this file or included.)
     $pngImage = embedDataInPng($encryptedImageData, 100);
     $finalEncryptedPngFile = tempnam(sys_get_temp_dir(), 'enc_png_') . '.png';
     imagepng($pngImage, $finalEncryptedPngFile);
     imagedestroy($pngImage);
     // ---- End Encryption & Embedding Step ----
 
-    // Generate a unique S3 key (using uniqid for consistency with signup.php).
+    // Generate a unique S3 key.
     $s3Key = 'uploads/faces/' . uniqid() . '.png';
-
     try {
-        // Upload the encrypted PNG file to S3.
         $result = $s3->putObject([
             'Bucket'      => $bucketName,
             'Key'         => $s3Key,
             'Body'        => fopen($finalEncryptedPngFile, 'rb'),
-            'ACL'         => 'public-read', // Adjust ACL as needed
+            'ACL'         => 'public-read',
             'ContentType' => 'image/png'
         ]);
-        // Map S3 URL to your internal relative path if necessary.
         $relativeFileName = str_replace(
             "https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/",
             "/s3proxy/",
@@ -160,13 +194,13 @@ if (!empty($data['faceData'])) {
         echo json_encode(['status' => false, 'message' => 'Failed to upload face image.']);
         exit;
     }
-
-    // Clean up temporary files.
     @unlink($tempFaceFile);
     @unlink($finalEncryptedPngFile);
 }
 
-// Prepare the update query securely using prepared statements.
+// -------------------------
+// Prepare and execute update query
+// -------------------------
 if (!empty($relativeFileName)) {
     $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ?, face_image = ? WHERE user_id = ?");
     if ($stmt === false) {
@@ -188,7 +222,6 @@ if (!empty($relativeFileName)) {
 }
 
 if ($stmt->execute()) {
-    // Audit log: record that the user updated their profile details.
     recordAuditLog($user_id, 'Profile Update', 'User updated profile details' . (!empty($relativeFileName) ? ' (face image updated)' : ''));
     http_response_code(200);
     echo json_encode(['status' => true, 'message' => 'Profile updated successfully!']);
@@ -201,3 +234,4 @@ if ($stmt->execute()) {
 $stmt->close();
 $conn->close();
 exit;
+?>
