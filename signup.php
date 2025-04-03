@@ -60,10 +60,12 @@ if (isset($_SESSION['user_id'])) {
     <title>Sign Up - Member Link</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style nonce="<?php echo $csp_nonce; ?>">
+    /* Desktop layout: two panes side by side */
     body {
         display: flex;
         min-height: 100vh;
         margin: 0;
+        flex-direction: row;
     }
 
     .left-pane {
@@ -73,6 +75,7 @@ if (isset($_SESSION['user_id'])) {
         align-items: center;
         flex-direction: column;
         background: #ffffff;
+        padding: 2rem;
     }
 
     .right-pane {
@@ -91,28 +94,42 @@ if (isset($_SESSION['user_id'])) {
 
     #loadingScreen {
         z-index: 1055;
-        /* Ensure it appears above everything else */
         display: none;
     }
 
-    /* Add media query for mobile responsiveness */
+    /* Mobile styles (max-width: 768px) */
     @media (max-width: 768px) {
         body {
             flex-direction: column;
-            /* Stack panes vertically */
-        }
-
-        .left-pane,
-        .right-pane {
-            flex: none;
-            width: 100%;
-            height: auto;
-        }
-
-        .right-pane {
-            min-height: 200px;
-            /* Ensure a visible area for the right pane */
+            background: url('assets/green_bg.png') no-repeat center center/cover;
             background-size: cover;
+        }
+
+        /* Make left pane transparent and use a pseudo-element for the white card */
+        .left-pane {
+            position: relative;
+            background: transparent;
+            padding: 1rem;
+        }
+
+        .left-pane::before {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            max-width: 90%;
+            background: #ffffff;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            z-index: -1;
+        }
+
+        /* Hide right pane on mobile */
+        .right-pane {
+            display: none;
         }
     }
     </style>
@@ -282,7 +299,7 @@ if (isset($_SESSION['user_id'])) {
             keyboard: false
         });
 
-        // When the modal is shown, read its content (text only) and then prompt "or say yes or no".
+        // When the modal is shown, read its content and then prompt "or say yes or no".
         visuallyImpairedModalElement.addEventListener('shown.bs.modal', function() {
             const modalText = document.querySelector('#visuallyImpairedModal .modal-body').innerText
                 .trim();
