@@ -382,6 +382,14 @@ $scriptNonce = bin2hex(random_bytes(16));
             }
         }
 
+        // New function: Handle profile incomplete scenario.
+        function handleIncompleteProfile() {
+            showModal('Info', 'Your profile is incomplete. Please update your details.');
+            document.getElementById('otp-section').style.display = 'none';
+            document.getElementById('update-details-section').style.display = 'block';
+            startFaceVideoForUpdate();
+        }
+
         document.getElementById('validateFaceBtn').addEventListener('click', async () => {
             const video = document.getElementById('videoInput');
             const canvas = document.getElementById('userFaceCanvas');
