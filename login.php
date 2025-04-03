@@ -75,25 +75,37 @@ $scriptNonce = bin2hex(random_bytes(16));
         display: none;
     }
 
-    /* Responsive adjustments for smaller screens */
+    /* Mobile styles (max-width: 768px) */
     @media only screen and (max-width: 768px) {
 
-        /* Stack everything top to bottom on mobile */
+        /* Use a green background for the entire body */
         body {
             flex-direction: column;
-            /* Use the green background for the entire body */
             background: url('assets/green_bg.png') no-repeat center center/cover;
             background-size: cover;
         }
 
-        /* Hide the right pane entirely on mobile */
+        /* Make the left pane transparent so the green background shows */
+        .left-pane {
+            background: transparent;
+            padding: 1rem;
+            /* slightly less padding on small screens */
+        }
+
+        /* Hide the right pane */
         .right-pane {
             display: none;
         }
 
-        /* Remove the white background from the left pane on mobile */
-        .left-pane {
-            background: transparent;
+        /* Style the login card with a white background, padding, and a subtle shadow */
+        .login-card {
+            background: #ffffff;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 90%;
+            margin: 0 auto;
         }
     }
     </style>
