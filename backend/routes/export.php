@@ -124,7 +124,7 @@ try {
         // Configure page and auto-break
         $pdf->SetAutoPageBreak(TRUE, PDF_MARGIN_BOTTOM);
 
-        // Add custom header
+        // Add custom header page
         $pdf->AddPage();
         $pdf->SetFont('helvetica', 'B', 12);
         $pdf->Cell(0, 0, 'ADOHRE System Report', 0, 1, 'C');
@@ -133,26 +133,51 @@ try {
         $pdf->Cell(0, 0, 'Generated on: ' . date('Y-m-d H:i:s') . ' | Exported by: ' . $userName . ' (' . $userRole . ')', 0, 1, 'L');
         $pdf->Ln(10);
 
-        // New Charts Overview Section
+        // ----------------------
+        // Charts Overview Section
+        // ----------------------
         $pdf->AddPage();
         $pdf->SetFont('helvetica', 'B', 12);
         $pdf->Cell(0, 0, 'Reports Charts Overview', 0, 1, 'C');
         $pdf->Ln(10);
-        // Define chart titles and image paths (ensure these image files exist or update the paths)
+
+        // Define chart keys and titles.
+        // We will check if a Base64 image was passed via POST for each chart.
         $charts = [
-            'User Statistics'       => '/opt/lampp/htdocs/capstone-php/admin/charts/userChart.png',
-            'Event Statistics'      => '/opt/lampp/htdocs/capstone-php/admin/charts/eventChart.png',
-            'Training Statistics'   => '/opt/lampp/htdocs/capstone-php/admin/charts/trainingChart.png',
-            'Revenue Statistics'    => '/opt/lampp/htdocs/capstone-php/admin/charts/revenueChart.png',
-            'Registrations Overview' => '/opt/lampp/htdocs/capstone-php/admin/charts/registrationsChart.png',
-            'New Users Trend'       => '/opt/lampp/htdocs/capstone-php/admin/charts/newUsersChart.png',
+            'User Statistics'       => 'userChart',
+            'Event Statistics'      => 'eventChart',
+            'Training Statistics'   => 'trainingChart',
+            'Revenue Statistics'    => 'revenueChart',
+            'Registrations Overview' => 'registrationsChart',
+            'New Users Trend'       => 'newUsersChart',
         ];
-        foreach ($charts as $title => $imgPath) {
+        foreach ($charts as $title => $chartKey) {
             $pdf->SetFont('helvetica', 'B', 12);
             $pdf->Cell(0, 0, $title, 0, 1, 'L');
             $pdf->Ln(5);
-            if (file_exists($imgPath)) {
-                $pdf->Image($imgPath, '', '', 100, 60, '', '', 'T', false, 300);
+
+            $chartImgData = '';
+            // Check if the chart image data is provided via POST (from reports.js)
+            if (isset($_POST[$chartKey]) && preg_match('/^data:image\/png;base64,/', $_POST[$chartKey])) {
+                // Remove the data URI scheme and decode
+                $chartImgData = base64_decode(str_replace('data:image/png;base64,', '', $_POST[$chartKey]));
+                // Use the '@' prefix to tell TCPDF to load image from string
+                $chartImage = '@' . $chartImgData;
+                $imgFormat = 'PNG';
+            } else {
+                // Fallback to file path
+                $fallbackPath = "/opt/lampp/htdocs/capstone-php/admin/charts/{$chartKey}.png";
+                if (file_exists($fallbackPath)) {
+                    $chartImage = $fallbackPath;
+                    $imgFormat = 'PNG';
+                } else {
+                    $chartImage = false;
+                }
+            }
+
+            if ($chartImage) {
+                // Adjust the width and height as needed (example: 100x60 mm)
+                $pdf->Image($chartImage, '', '', 100, 60, $imgFormat, '', 'T', false, 300);
             } else {
                 $pdf->SetFont('helvetica', '', 10);
                 $pdf->Cell(0, 0, 'Chart image not available.', 0, 1, 'L');
@@ -160,7 +185,9 @@ try {
             $pdf->Ln(10);
         }
 
-        // New page for detailed datasets
+        // ----------------------
+        // Detailed Datasets Section
+        // ----------------------
         $pdf->AddPage();
         $pdf->SetFont('helvetica', 'B', 12);
         $pdf->Cell(0, 0, 'Detailed Report', 0, 1, 'C');
@@ -272,3 +299,4 @@ try {
     echo json_encode(['status' => false, 'message' => 'An error occurred. Please try again later.']);
     exit;
 }
+?>

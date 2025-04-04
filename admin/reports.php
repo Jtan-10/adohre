@@ -292,8 +292,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                                     data.data.member_count
                                 ],
                                 backgroundColor: ['#36a2eb', '#4bc0c0', '#ff6384',
-                                    '#9966ff'
-                                ],
+                                    '#9966ff'],
                             }],
                         },
                     });
@@ -371,7 +370,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                         type: 'bar',
                         data: {
                             labels: ['Joined Events', 'Joined Trainings',
-                                'Membership Applications', ],
+                                'Membership Applications'],
                             datasets: [{
                                 label: 'Registrations',
                                 data: [
@@ -379,9 +378,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                                     data.data.joined_trainings,
                                     data.data.membership_applications,
                                 ],
-                                backgroundColor: ['#36a2eb', '#4bc0c0', '#ff6384',
-                                    '#9966ff'
-                                ],
+                                backgroundColor: ['#36a2eb', '#4bc0c0', '#ff6384'],
                             }],
                         },
                         options: {
@@ -406,6 +403,44 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                 }
             })
             .catch(err => console.error('Error fetching analytics data:', err));
+
+        // Export PDF button: Capture charts as images and submit to export.php via POST.
+        document.getElementById('exportPDF').addEventListener('click', function() {
+            // List of canvas IDs to capture
+            const canvasIds = ['userChart', 'eventChart', 'trainingChart', 'revenueChart',
+                'registrationsChart', 'newUsersChart'
+            ];
+            const images = {};
+            canvasIds.forEach(id => {
+                const canvas = document.getElementById(id);
+                if (canvas) {
+                    images[id] = canvas.toDataURL('image/png');
+                }
+            });
+            // Create a hidden form to send the images via POST
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '../backend/routes/export.php?format=pdf';
+
+            // Append each image as a hidden input
+            for (let id in images) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = id; // e.g. userChart, eventChart, etc.
+                input.value = images[id];
+                form.appendChild(input);
+            }
+            document.body.appendChild(form);
+            form.submit();
+        });
+
+        // Export CSV and Excel buttons (unchanged)
+        document.getElementById('exportCSV').addEventListener('click', () => {
+            window.open('../backend/routes/export.php?format=csv', '_blank');
+        });
+        document.getElementById('exportExcel').addEventListener('click', () => {
+            window.open('../backend/routes/export.php?format=excel', '_blank');
+        });
     });
     </script>
 </body>
