@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="card mb-3">
                             <div class="row g-0">
                                 <div class="col-md-4">
-                                    <img src="/backend/routes/decrypt_image.php?image_url=<?= urlencode($event['image'] ?? '/capstone-php/assets/default-image.jpg') ?>" class="card-img-top" alt="Event image">
+                                    <img src="../backend/routes/decrypt_image.php?image_url=<?= urlencode($event['image'] ?? '/capstone-php/assets/default-image.jpg') ?>" class="card-img-top" alt="Event image">
                                 </div>
                                 <div class="col-md-8">
                                     <div class="card-body">
