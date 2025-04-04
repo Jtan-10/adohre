@@ -22,7 +22,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style nonce="<?= $cspNonce ?>">
+    <style>
         body {
             background-color: #f5f6fa;
         }
@@ -224,7 +224,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     </div>
 
     <!-- Include external script -->
-    <script src="reports.js" nonce="<?= $cspNonce ?>"></script>
+    <script src="reports.js"></script>
 </body>
 
 </html>
