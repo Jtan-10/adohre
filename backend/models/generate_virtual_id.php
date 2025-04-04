@@ -14,7 +14,6 @@ use Endroid\QrCode\Writer\PngWriter;
 // ----------------------------------------------------------------
 // 1) Fetch user details from DB
 // ----------------------------------------------------------------
-// Fetch user details using validated input
 $user_id = filter_input(INPUT_GET, 'user_id', FILTER_VALIDATE_INT);
 if (!$user_id) {
     http_response_code(400);
@@ -37,7 +36,7 @@ $user = $result->fetch_assoc();
 $userFullName = trim($user['first_name'] . ' ' . $user['last_name']);
 
 // ----------------------------------------------------------------
-// 2) Generate the QR code (to replace the old barcode)
+// 2) Generate the QR code
 // ----------------------------------------------------------------
 try {
     $qrResult = Builder::create()
@@ -56,8 +55,7 @@ try {
 }
 
 // ----------------------------------------------------------------
-// 3) Load your template image (1495 x 841)
-//    Ensure your file is placed at the specified path.
+// 3) Load your template image
 // ----------------------------------------------------------------
 $templatePath = __DIR__ . '/../../assets/id_template.png';
 if (!file_exists($templatePath)) {
@@ -72,85 +70,96 @@ if (!$idCard) {
     // Log error: failed to load template image
     die("Internal Server Error");
 }
-$cardWidth  = imagesx($idCard);  // Expected: 1495
-$cardHeight = imagesy($idCard);  // Expected: 841
+$cardWidth  = imagesx($idCard);  // e.g. 1495
+$cardHeight = imagesy($idCard);  // e.g. 841
 
 // ----------------------------------------------------------------
-// 4) Load & crop the user's profile photo into a circle
-//    Adjust the coordinates to match the circular cutout on your template.
+// 4) Load & crop the user's profile photo into a circle (no distortion)
 // ----------------------------------------------------------------
+$profileImage = null;
+
+function loadLocalOrFallback($path) {
+    if (!file_exists($path)) {
+        // fallback
+        return imagecreatefromjpeg(__DIR__ . '/../../assets/default-profile.jpeg');
+    }
+    $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+    switch ($ext) {
+        case 'jpg':
+        case 'jpeg':
+            return @imagecreatefromjpeg($path);
+        case 'png':
+            return @imagecreatefrompng($path);
+        case 'gif':
+            return @imagecreatefromgif($path);
+        default:
+            return imagecreatefromjpeg(__DIR__ . '/../../assets/default-profile.jpeg');
+    }
+}
+
 if (!empty($user['profile_image']) && strpos($user['profile_image'], '/s3proxy/') === 0) {
-    // Use the correct protocol based on the current connection.
+    // Attempt to load from remote
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
     $remoteUrl = $protocol . $_SERVER['HTTP_HOST'] . $user['profile_image'];
-    
-    // Attempt to load the image data from the remote URL.
     $profileImageData = @file_get_contents($remoteUrl);
     if ($profileImageData !== false) {
         $profileImage = imagecreatefromstring($profileImageData);
     } else {
-        // Fallback to default image if remote load fails.
         $profileImage = imagecreatefromjpeg(__DIR__ . '/../../assets/default-profile.jpeg');
     }
 } else {
     $localPath = __DIR__ . '/../../' . ($user['profile_image'] ?? 'assets/default-profile.jpeg');
-    if (!file_exists($localPath)) {
-        $localPath = __DIR__ . '/../../assets/default-profile.jpeg';
-    }
-    $ext = strtolower(pathinfo($localPath, PATHINFO_EXTENSION));
-    switch ($ext) {
-        case 'jpg':
-        case 'jpeg':
-            $profileImage = @imagecreatefromjpeg($localPath);
-            break;
-        case 'png':
-            $profileImage = @imagecreatefrompng($localPath);
-            break;
-        case 'gif':
-            $profileImage = @imagecreatefromgif($localPath);
-            break;
-        default:
-            $profileImage = imagecreatefromjpeg(__DIR__ . '/../../assets/default-profile.jpeg');
-    }
+    $profileImage = loadLocalOrFallback($localPath);
 }
 
-
 if ($profileImage) {
-    // For a 1495x841 template, these values are examples.
-    // Adjust the circle size and position as needed.
-    $circleDiameter = 380;   // New circle diameter
-    $circleX = 1132;         // X-coordinate for the circular photo
-    $circleY = 205;          // Y-coordinate for the circular photo
+    // Step A: Crop the image to a square from center (to avoid distortion)
+    $originalWidth = imagesx($profileImage);
+    $originalHeight = imagesy($profileImage);
+    $squareSize = min($originalWidth, $originalHeight);
 
-    // Create a canvas to hold the resized photo with transparency
+    // Coordinates to center-crop
+    $srcX = ($originalWidth - $squareSize) / 2;
+    $srcY = ($originalHeight - $squareSize) / 2;
+
+    // Crop to square
+    $croppedSquare = imagecreatetruecolor($squareSize, $squareSize);
+    imagecopy($croppedSquare, $profileImage, 0, 0, $srcX, $srcY, $squareSize, $squareSize);
+    imagedestroy($profileImage);
+    $profileImage = $croppedSquare;
+
+    // Step B: Resize to the circle dimension
+    $circleDiameter = 380;   // diameter of the circle
+    $circleX = 1132;         // position on the template
+    $circleY = 205;
+
     $finalPhoto = imagecreatetruecolor($circleDiameter, $circleDiameter);
     imagealphablending($finalPhoto, false);
     imagesavealpha($finalPhoto, true);
     $transparent = imagecolorallocatealpha($finalPhoto, 0, 0, 0, 127);
     imagefilledrectangle($finalPhoto, 0, 0, $circleDiameter, $circleDiameter, $transparent);
 
-    // Resize the user's photo into the final canvas
+    // Resize the square-cropped image into the finalPhoto
     imagecopyresampled(
         $finalPhoto,
         $profileImage,
         0, 0,
         0, 0,
         $circleDiameter, $circleDiameter,
-        imagesx($profileImage),
-        imagesy($profileImage)
+        $squareSize, $squareSize
     );
     imagedestroy($profileImage);
 
-    // Create a circular mask
+    // Step C: Create a circular mask
     $mask = imagecreatetruecolor($circleDiameter, $circleDiameter);
     imagealphablending($mask, false);
     imagesavealpha($mask, true);
     $maskTransparent = imagecolorallocatealpha($mask, 0, 0, 0, 127);
     imagefilledrectangle($mask, 0, 0, $circleDiameter, $circleDiameter, $maskTransparent);
     $maskOpaque = imagecolorallocate($mask, 0, 0, 0);
-    imagefilledellipse($mask, $circleDiameter/2, $circleDiameter/2, $circleDiameter, $circleDiameter, $maskOpaque);
-    
-    // Apply the mask pixel by pixel
+    imagefilledellipse($mask, $circleDiameter / 2, $circleDiameter / 2, $circleDiameter, $circleDiameter, $maskOpaque);
+
+    // Step D: Apply the mask pixel by pixel
     for ($x = 0; $x < $circleDiameter; $x++) {
         for ($y = 0; $y < $circleDiameter; $y++) {
             $alpha = (imagecolorat($mask, $x, $y) >> 24) & 0xFF;
@@ -167,16 +176,14 @@ if ($profileImage) {
 }
 
 // ----------------------------------------------------------------
-// 5) Place the QR code (to replace the old barcode)
-//    Adjust these coordinates to match your template's design.
+// 5) Place the QR code
 // ----------------------------------------------------------------
 $qrImage = imagecreatefromstring($qrCodeData);
 if ($qrImage) {
     $qrFinalWidth  = 320;
     $qrFinalHeight = 320;
-    // For a larger template, the QR code might be placed lower.
     $qrDestX = 345;
-    $qrDestY = 520;  // Example position; adjust as necessary
+    $qrDestY = 520;
 
     imagecopyresampled(
         $idCard,
@@ -184,19 +191,16 @@ if ($qrImage) {
         $qrDestX, $qrDestY,
         0, 0,
         $qrFinalWidth, $qrFinalHeight,
-        imagesx($qrImage), imagesy($qrImage)
+        imagesx($qrImage),
+        imagesy($qrImage)
     );
     imagedestroy($qrImage);
 }
 
 // ----------------------------------------------------------------
-// 6) Overlay the dynamic user data without replacing the template’s labels.
-//     The left side contains the labels for Name, ID Card Number, and Email Address.
-//     The Role is placed below the profile image.
+// 6) Overlay the dynamic user data (with fallback for long text).
+//    We'll define a small helper function to reduce font size if text is too long.
 // ----------------------------------------------------------------
-
-// Use a bold font file (for example, arialbd.ttf)
-// Ensure you have this file in your /fonts/ folder
 $fontPath = __DIR__ . '/fonts/arialbd.ttf';
 if (!file_exists($fontPath)) {
     http_response_code(500);
@@ -206,36 +210,63 @@ if (!file_exists($fontPath)) {
 
 $textColor = imagecolorallocate($idCard, 0, 0, 0);
 $roleColor = imagecolorallocate($idCard, 255, 255, 255);
-$fontSize  = 30;
 
-// Coordinates for overlaying values next to the labels on the left
-$nameX  = 530;
-$nameY  = 325;
-$idNumX = 530;
-$idNumY = 400;
-$emailX = 530;
-$emailY = 475;
+// Because text can be too long, let's define a function to fit text in a max width:
+function imagettftextfit(&$image, $maxFontSize, $angle, $x, $y, $color, $font, $text, $maxWidth) {
+    $fontSize = $maxFontSize;
+    do {
+        $box = imagettfbbox($fontSize, $angle, $font, $text);
+        $textWidth = $box[2] - $box[0];
+        if ($textWidth <= $maxWidth) {
+            // Found a size that fits
+            imagettftext($image, $fontSize, $angle, $x, $y, $color, $font, $text);
+            return;
+        }
+        $fontSize--;
+    } while ($fontSize > 8); // Minimum font size
+    // If it doesn't fit even at size=8, we could just draw anyway or substring the text
+    imagettftext($image, 8, $angle, $x, $y, $color, $font, mb_substr($text, 0, 40) . '...');
+}
 
-// 1) Name (from DB)
-imagettftext($idCard, $fontSize, 0, $nameX, $nameY, $textColor, $fontPath, $userFullName);
+// Example coordinates for text:
+$nameX  = 530; $nameY  = 325;
+$idNumX = 530; $idNumY = 400;
+$emailX = 530; $emailY = 475;
 
-// 2) ID Card Number (from DB)
-imagettftext($idCard, $fontSize, 0, $idNumX, $idNumY, $textColor, $fontPath, $user['virtual_id']);
+// We'll set a max width for each line so text doesn't run off the card
+$maxTextWidth = 900; // adjust as needed
+$maxFontSize  = 30;  // starting font size
 
-// 3) Email Address (from DB)
-imagettftext($idCard, $fontSize, 0, $emailX, $emailY, $textColor, $fontPath, $user['email']);
+// 1) Name
+imagettftextfit($idCard, $maxFontSize, 0, $nameX, $nameY, $textColor, $fontPath, $userFullName, $maxTextWidth);
 
-// 4) Place the Role below the profile image.
-$roleX = 1250;                 // Adjust to center the role text under the image if needed
-$roleY = $circleY + $circleDiameter + 70; // 30px below the profile photo
-imagettftext($idCard, $fontSize, 0, $roleX, $roleY, $roleColor, $fontPath, ucfirst(strtolower($user['role'])));
+// 2) ID Card Number
+imagettftextfit($idCard, $maxFontSize, 0, $idNumX, $idNumY, $textColor, $fontPath, $user['virtual_id'], $maxTextWidth);
+
+// 3) Email Address
+imagettftextfit($idCard, $maxFontSize, 0, $emailX, $emailY, $textColor, $fontPath, $user['email'], $maxTextWidth);
+
+// 4) Role below the profile image
+$circleDiameter = 380; // same as above
+$circleY = 205;        // same as above
+$roleX = 1250;
+$roleY = $circleY + $circleDiameter + 70;
+imagettftextfit($idCard, $maxFontSize, 0, $roleX, $roleY, $roleColor, $fontPath, ucfirst(strtolower($user['role'])), 250);
 
 // ----------------------------------------------------------------
 // 7) Log the virtual ID generation event
+// ----------------------------------------------------------------
+function recordAuditLog($uid, $action, $details) {
+    // Implementation depends on your existing code
+    // e.g.:
+    // $sql = "INSERT INTO audit_logs (user_id, action, details) VALUES (?, ?, ?)";
+    // ...
+}
 recordAuditLog($user_id, "Generate Virtual ID", "Virtual ID card generated for user: " . $userFullName);
 
 // ----------------------------------------------------------------
 // 8) Output the final image as PNG
+// ----------------------------------------------------------------
 header("Content-Type: image/png");
 imagepng($idCard);
 imagedestroy($idCard);
