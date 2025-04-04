@@ -1,8 +1,9 @@
 document.addEventListener("DOMContentLoaded", function() {
   const newsList = document.getElementById('newsList');
+  const baseUrl = window.location.origin + '/capstone-php';
 
   // Fetch and render news
-  fetch('backend/routes/news_manager.php?action=fetch')
+  fetch(baseUrl + '/backend/routes/news_manager.php?action=fetch')
       .then(response => response.json())
       .then(data => {
           if (data.status) {
@@ -19,7 +20,7 @@ document.addEventListener("DOMContentLoaded", function() {
   function renderNews(news) {
       const html = news.map(article => `
         <div class="news-card">
-          <img src="${ article.image ? '/capstone-php/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(article.image) : 'assets/default-news.jpg' }" class="card-img-top" alt="${article.title}">
+          <img src="${ article.image ? baseUrl + '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(article.image) : 'assets/default-news.jpg' }" class="card-img-top" alt="${article.title}">
           <div class="news-card-body">
             <span class="category-badge">${article.category}</span>
             <div class="news-meta">
