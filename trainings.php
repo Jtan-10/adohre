@@ -5,8 +5,6 @@
 <head>
     <meta charset="UTF-8" />
     <!-- Updated security meta tag to allow YouTube and Google Docs frames -->
-
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Trainings - ADOHRE</title>
     <link rel="icon" href="assets/logo.png" type="image/jpg" />
@@ -218,6 +216,7 @@
                 <div class="modal-body">
                     <div class="row">
                         <div class="col-md-4">
+                            <!-- Updated modal image source to use decryption -->
                             <img id="trainingModalImage" src="assets/default-training.jpg" alt="Training Image"
                                 class="img-fluid rounded mb-3">
                         </div>
@@ -328,13 +327,13 @@
             const upcomingTrainings = trainings.filter(training => new Date(training.schedule) >= now);
             const pastTrainings = trainings.filter(training => new Date(training.schedule) < now);
 
-            // Build upcoming trainings HTML
+            // Build upcoming trainings HTML with decrypted image source
             const upcomingHtml = upcomingTrainings.map(training => `
             <div class="col-12">
               <div class="training-card card">
                 <div class="row g-0">
                   <div class="col-md-4">
-                    <img src="${training.image || 'assets/default-training.jpg'}" 
+                    <img src="${ training.image ? '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image) : 'assets/default-training.jpg' }" 
                          class="img-fluid training-image" 
                          alt="${training.title}">
                   </div>
@@ -375,7 +374,7 @@
               <div class="training-card card">
                 <div class="row g-0">
                   <div class="col-md-4">
-                    <img src="${training.image || 'assets/default-training.jpg'}" 
+                    <img src="${ training.image ? '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image) : 'assets/default-training.jpg' }" 
                          class="img-fluid training-image" 
                          alt="${training.title}">
                   </div>
@@ -464,7 +463,10 @@
             if (!training) return;
             // Populate modal details
             document.getElementById('trainingModalLabel').textContent = training.title;
-            document.getElementById('trainingModalImage').src = training.image || 'assets/default-training.jpg';
+            // Update modal image source to use decryption endpoint if available
+            document.getElementById('trainingModalImage').src = training.image ?
+                '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training
+                    .image) : 'assets/default-training.jpg';
             document.getElementById('trainingModalDescription').textContent = training.description;
             document.getElementById('trainingModalSchedule').textContent = new Date(training.schedule)
                 .toLocaleString();
@@ -483,7 +485,8 @@
             // For participants, fetch the assessment form link
             if (role !== 'trainer') {
                 fetch(
-                        `/capstone-php/backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${training.training_id}`)
+                        `/backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${training.training_id}`
+                    )
                     .then(response => response.json())
                     .then(data => {
                         const assessmentSection = document.getElementById('assessmentSection');
