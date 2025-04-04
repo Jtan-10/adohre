@@ -112,7 +112,6 @@ try {
         fputcsv($output, ['End of Report']);
         fclose($output);
         exit;
-
     } elseif ($format === 'pdf') {
         // PDF Export using TCPDF
         $pdf = new \TCPDF();
@@ -121,20 +120,52 @@ try {
         $pdf->SetTitle('ADOHRE Detailed Report');
         $pdf->SetSubject('System Report');
         $pdf->SetKeywords('report, PDF');
-        
+
         // Configure page and auto-break
         $pdf->SetAutoPageBreak(TRUE, PDF_MARGIN_BOTTOM);
-        
+
         // Add custom header
         $pdf->AddPage();
         $pdf->SetFont('helvetica', 'B', 12);
         $pdf->Cell(0, 0, 'ADOHRE System Report', 0, 1, 'C');
-        $pdf->Ln(5); // Add space after the title
+        $pdf->Ln(5);
         $pdf->SetFont('helvetica', '', 10);
-        // Combine "Generated on" and "Exported by" in one line
         $pdf->Cell(0, 0, 'Generated on: ' . date('Y-m-d H:i:s') . ' | Exported by: ' . $userName . ' (' . $userRole . ')', 0, 1, 'L');
-        $pdf->Ln(10); // Add more space after the header
-    
+        $pdf->Ln(10);
+
+        // New Charts Overview Section
+        $pdf->AddPage();
+        $pdf->SetFont('helvetica', 'B', 12);
+        $pdf->Cell(0, 0, 'Reports Charts Overview', 0, 1, 'C');
+        $pdf->Ln(10);
+        // Define chart titles and image paths (ensure these image files exist or update the paths)
+        $charts = [
+            'User Statistics'       => '/opt/lampp/htdocs/capstone-php/admin/charts/userChart.png',
+            'Event Statistics'      => '/opt/lampp/htdocs/capstone-php/admin/charts/eventChart.png',
+            'Training Statistics'   => '/opt/lampp/htdocs/capstone-php/admin/charts/trainingChart.png',
+            'Revenue Statistics'    => '/opt/lampp/htdocs/capstone-php/admin/charts/revenueChart.png',
+            'Registrations Overview' => '/opt/lampp/htdocs/capstone-php/admin/charts/registrationsChart.png',
+            'New Users Trend'       => '/opt/lampp/htdocs/capstone-php/admin/charts/newUsersChart.png',
+        ];
+        foreach ($charts as $title => $imgPath) {
+            $pdf->SetFont('helvetica', 'B', 12);
+            $pdf->Cell(0, 0, $title, 0, 1, 'L');
+            $pdf->Ln(5);
+            if (file_exists($imgPath)) {
+                $pdf->Image($imgPath, '', '', 100, 60, '', '', 'T', false, 300);
+            } else {
+                $pdf->SetFont('helvetica', '', 10);
+                $pdf->Cell(0, 0, 'Chart image not available.', 0, 1, 'L');
+            }
+            $pdf->Ln(10);
+        }
+
+        // New page for detailed datasets
+        $pdf->AddPage();
+        $pdf->SetFont('helvetica', 'B', 12);
+        $pdf->Cell(0, 0, 'Detailed Report', 0, 1, 'C');
+        $pdf->Ln(10);
+
         foreach ($datasets as $section => $rows) {
             $pdf->writeHTML("<h3>" . ucfirst($section) . "</h3>", true, false, true, false, 'C');
             if ($section === 'metrics') {
@@ -165,12 +196,11 @@ try {
                     $pdf->writeHTML($html, true, false, true, false, '');
                 }
             }
-            $pdf->Ln(10); // Add more space between sections
+            $pdf->Ln(10);
         }
-    
-        $pdf->Output('report.pdf', 'I'); // Send output to the browser
-        exit;
 
+        $pdf->Output('report.pdf', 'I');
+        exit;
     } elseif ($format === 'excel') {
         // Excel Export using PhpSpreadsheet
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
