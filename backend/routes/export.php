@@ -134,11 +134,17 @@ try {
         $pdf->SetFont('helvetica', '', 10);
         
         // Custom footer callback
-        $pdf->setFooterCallback(function($pdf) {
-            $pdf->SetY(-15);
-            $pdf->SetFont('helvetica', 'I', 8);
-            $pdf->Cell(0, 10, 'ADOHRE System Report - Page ' . $pdf->getAliasNumPage() . '/' . $pdf->getAliasNbPages(), 0, false, 'C');
-        });
+        // Create a custom class to override the Footer method
+        class CustomPDF extends \TCPDF {
+            public function Footer() {
+                $this->SetY(-15);
+                $this->SetFont('helvetica', 'I', 8);
+                $this->Cell(0, 10, 'ADOHRE System Report - Page ' . $this->getAliasNumPage() . '/' . $this->getAliasNbPages(), 0, false, 'C');
+            }
+        }
+
+        // Use the custom class
+        $pdf = new CustomPDF('P', 'mm', 'A4', true, 'UTF-8', false);
 
         // Add custom header page
         $pdf->AddPage();
@@ -525,9 +531,4 @@ try {
     exit;
 }
 
-// Helper function to record audit logs (assumed to exist elsewhere)
-function recordAuditLog($userId, $action, $details) {
-    // This is a placeholder function - implementation assumed to exist elsewhere
-    // For completeness, you might want to implement this if it doesn't exist
-}
 ?>
