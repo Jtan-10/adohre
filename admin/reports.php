@@ -234,20 +234,6 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 
     <!-- Include external script -->
     <script>
-    // Helper function to send error logs to the server
-    function logErrorToServer(message) {
-        fetch('../backend/routes/log_error.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                error: message,
-                timestamp: new Date().toISOString()
-            })
-        }).catch(err => console.error("Failed to log error to server:", err));
-    }
-
     // Sanitize function to escape HTML characters
     function sanitize(str) {
         return str.toString()
@@ -289,7 +275,6 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                                 console.log("DEBUG: Populated table " + tableId);
                             } catch (e) {
                                 console.error("Error populating table " + tableId + ":", e);
-                                logErrorToServer("Error populating table " + tableId + ": " + e.message);
                             }
                         }
                         populateTable('usersTable', data.data.users);
@@ -315,8 +300,6 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                                 }
                             } catch (e) {
                                 console.error("Error in getOrDestroyChart for canvas " + ctx.canvas.id, e);
-                                logErrorToServer("Error in getOrDestroyChart for canvas " + ctx.canvas.id +
-                                    ": " + e.message);
                             }
                         }
 
@@ -349,7 +332,6 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                             console.log("DEBUG: Rendered New Users Trend Chart.");
                         } catch (e) {
                             console.error("Error rendering New Users Trend Chart:", e);
-                            logErrorToServer("Error rendering New Users Trend Chart: " + e.message);
                         }
 
                         // User Chart (Doughnut)
@@ -376,7 +358,6 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                             console.log("DEBUG: Rendered User Chart.");
                         } catch (e) {
                             console.error("Error rendering User Chart:", e);
-                            logErrorToServer("Error rendering User Chart: " + e.message);
                         }
 
                         // Event Chart (Bar)
@@ -408,7 +389,6 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                             console.log("DEBUG: Rendered Event Chart.");
                         } catch (e) {
                             console.error("Error rendering Event Chart:", e);
-                            logErrorToServer("Error rendering Event Chart: " + e.message);
                         }
 
                         // Training Chart (Bar)
@@ -442,7 +422,6 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                             console.log("DEBUG: Rendered Training Chart.");
                         } catch (e) {
                             console.error("Error rendering Training Chart:", e);
-                            logErrorToServer("Error rendering Training Chart: " + e.message);
                         }
 
                         // Revenue Chart (Pie)
@@ -462,7 +441,6 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                             console.log("DEBUG: Rendered Revenue Chart.");
                         } catch (e) {
                             console.error("Error rendering Revenue Chart:", e);
-                            logErrorToServer("Error rendering Revenue Chart: " + e.message);
                         }
 
                         // Registrations Overview Chart (Bar)
@@ -505,21 +483,17 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                             console.log("DEBUG: Rendered Registrations Overview Chart.");
                         } catch (e) {
                             console.error("Error rendering Registrations Overview Chart:", e);
-                            logErrorToServer("Error rendering Registrations Overview Chart: " + e.message);
                         }
                     } else {
                         console.error("DEBUG: Analytics data fetch returned status false.");
                         alert('Failed to fetch analytics data.');
-                        logErrorToServer("Analytics data fetch returned status false.");
                     }
                 })
                 .catch(err => {
                     console.error('Error fetching analytics data:', err);
-                    logErrorToServer("Error fetching analytics data: " + err.message);
                 });
         } catch (e) {
             console.error("Unhandled error during DOMContentLoaded processing:", e);
-            logErrorToServer("Unhandled error during DOMContentLoaded processing: " + e.message);
         }
 
         // Set up export buttons
@@ -572,12 +546,9 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                             form.appendChild(input);
                         } catch (canvasErr) {
                             console.error(`Error capturing ${id}:`, canvasErr);
-                            logErrorToServer(
-                                `Error capturing canvas ${id}: ${canvasErr.message}`);
                         }
                     } else {
                         console.error(`Canvas with id ${id} not found.`);
-                        logErrorToServer(`Canvas with id ${id} not found during PDF export.`);
                     }
                 });
 
@@ -600,10 +571,9 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 
             } catch (e) {
                 console.error("Error during PDF export:", e);
-                logErrorToServer("Error during PDF export: " + e.message);
                 alert(
                     "There was an error preparing the PDF export. Please check the console for details."
-                    );
+                );
             }
         });
     });
