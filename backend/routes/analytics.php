@@ -102,6 +102,26 @@ try {
     $totalCertificatesResult = $conn->query($totalCertificatesQuery);
     $totalCertificates = $totalCertificatesResult->fetch_assoc()['total_certificates'];
 
+    // New Analytics: Total News
+    $totalNewsQuery = "SELECT COUNT(*) as total_news FROM news";
+    $totalNewsResult = $conn->query($totalNewsQuery);
+    $totalNews = $totalNewsResult->fetch_assoc()['total_news'];
+
+    // New Analytics: Total Payments (count of payment records)
+    $totalPaymentsQuery = "SELECT COUNT(*) as total_payments FROM payments";
+    $totalPaymentsResult = $conn->query($totalPaymentsQuery);
+    $totalPayments = $totalPaymentsResult->fetch_assoc()['total_payments'];
+
+    // New Analytics: Membership Applications
+    $membershipApplicationsQuery = "SELECT COUNT(*) as membership_applications FROM membership_applications";
+    $membershipApplicationsResult = $conn->query($membershipApplicationsQuery);
+    $membershipApplications = $membershipApplicationsResult->fetch_assoc()['membership_applications'];
+
+    // New Analytics: Training Registrations
+    $trainingRegistrationsQuery = "SELECT COUNT(*) as training_registrations FROM training_registrations";
+    $trainingRegistrationsResult = $conn->query($trainingRegistrationsQuery);
+    $trainingRegistrations = $trainingRegistrationsResult->fetch_assoc()['training_registrations'];
+
     // Response
     echo json_encode([
         'status' => true,
@@ -121,10 +141,15 @@ try {
             'member_count' => $memberCount,
             'joined_events' => $joinedEvents,
             'joined_trainings' => $joinedTrainings,
-            // New stats
+            // Existing new stats
             'total_chat_messages' => $totalChatMessages,
             'total_consultations' => $totalConsultations,
             'total_certificates' => $totalCertificates,
+            // Additional analytics
+            'total_news' => $totalNews,
+            'total_payments' => $totalPayments,
+            'membership_applications' => $membershipApplications,
+            'training_registrations' => $trainingRegistrations,
             'users' => $conn->query("SELECT first_name, last_name, email, role FROM users")->fetch_all(MYSQLI_ASSOC),
             'events' => $conn->query("SELECT title, date, location FROM events")->fetch_all(MYSQLI_ASSOC),
             'trainings' => $conn->query("SELECT title, schedule, capacity FROM trainings")->fetch_all(MYSQLI_ASSOC),

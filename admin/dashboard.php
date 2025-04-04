@@ -16,13 +16,12 @@ header("X-XSS-Protection: 1; mode=block");
 header("Referrer-Policy: no-referrer-when-downgrade");
 
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Admin Dashboard - ADOHRE</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
@@ -45,6 +44,16 @@ header("Referrer-Policy: no-referrer-when-downgrade");
     .card {
         border-radius: 10px;
         margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .card h4 {
+        margin-bottom: 15px;
+    }
+
+    .card h2 {
+        font-size: 2rem;
+        margin: 0;
     }
 
     @media (max-width: 768px) {
@@ -68,18 +77,16 @@ header("Referrer-Policy: no-referrer-when-downgrade");
                     <span>Welcome,
                         <?php echo htmlspecialchars($_SESSION['first_name']) . ' ' . htmlspecialchars($_SESSION['last_name']); ?></span>
                     <?php
-                    $imageSrc = '/assets/default-profile.jpeg'; // default local image
-                    if (isset($_SESSION['profile_image']) && !empty($_SESSION['profile_image'])) {
-                        $imageSrc = $_SESSION['profile_image'];
-                    }
-                    ?>
+          $imageSrc = '/assets/default-profile.jpeg'; // default local image
+          if (isset($_SESSION['profile_image']) && !empty($_SESSION['profile_image'])) {
+              $imageSrc = $_SESSION['profile_image'];
+          }
+          ?>
                     <img src="<?php echo $imageSrc; ?>" alt="Profile Image" class="rounded-circle" width="30">
-
-
                 </div>
             </div>
 
-            <!-- Dashboard Stats -->
+            <!-- Dashboard Stats - Row 1 -->
             <div class="row mb-4 g-3">
                 <div class="col-lg-3 col-md-4 col-sm-6">
                     <div class="card p-3 text-center">
@@ -130,6 +137,35 @@ header("Referrer-Policy: no-referrer-when-downgrade");
                     </div>
                 </div>
             </div>
+
+            <!-- Dashboard Stats - Row 2 (Additional Analytics) -->
+            <div class="row mb-4 g-3">
+                <div class="col-lg-3 col-md-4 col-sm-6">
+                    <div class="card p-3 text-center">
+                        <h4>Total News</h4>
+                        <h2 id="totalNews">...</h2>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-4 col-sm-6">
+                    <div class="card p-3 text-center">
+                        <h4>Total Payments</h4>
+                        <h2 id="totalPayments">...</h2>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-4 col-sm-6">
+                    <div class="card p-3 text-center">
+                        <h4>Membership Applications</h4>
+                        <h2 id="membershipApplications">...</h2>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-4 col-sm-6">
+                    <div class="card p-3 text-center">
+                        <h4>Training Registrations</h4>
+                        <h2 id="trainingRegistrations">...</h2>
+                    </div>
+                </div>
+                <!-- You can add more cards here if needed -->
+            </div>
         </div>
     </div>
 
@@ -139,19 +175,27 @@ header("Referrer-Policy: no-referrer-when-downgrade");
             .then(response => response.json())
             .then(data => {
                 if (data.status) {
+                    // Original stats
                     document.getElementById('totalUsers').innerText = data.data.total_users || 0;
                     document.getElementById('activeMembers').innerText = data.data.active_members || 0;
                     document.getElementById('totalAnnouncements').innerText = data.data
                         .total_announcements || 0;
                     document.getElementById('totalTrainings').innerText = data.data.total_trainings || 0;
                     document.getElementById('totalEvents').innerText = data.data.total_events || 0;
-                    // New stats assignments
                     document.getElementById('totalChatMessages').innerText = data.data
                         .total_chat_messages || 0;
                     document.getElementById('totalConsultations').innerText = data.data
                         .total_consultations || 0;
                     document.getElementById('totalCertificates').innerText = data.data.total_certificates ||
                         0;
+
+                    // Additional analytics (ensure your backend sends these keys)
+                    document.getElementById('totalNews').innerText = data.data.total_news || 0;
+                    document.getElementById('totalPayments').innerText = data.data.total_payments || 0;
+                    document.getElementById('membershipApplications').innerText = data.data
+                        .membership_applications || 0;
+                    document.getElementById('trainingRegistrations').innerText = data.data
+                        .training_registrations || 0;
                 } else {
                     alert('Failed to fetch analytics data.');
                 }
