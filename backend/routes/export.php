@@ -150,7 +150,6 @@ try {
         $pdf->Cell(0, 10, 'Reports Charts Overview', 0, 1, 'C');
         $pdf->Ln(5);
 
-        // Define chart keys and titles
         $charts = [
             'User Statistics'        => 'userChart',
             'Event Statistics'       => 'eventChart',
@@ -159,57 +158,57 @@ try {
             'Registrations Overview' => 'registrationsChart',
             'New Users Trend'        => 'newUsersChart',
         ];
-        
-        // Process each chart
-        foreach ($charts as $title => $chartKey) {
-        $pdf->SetFont('helvetica', 'B', 12);
-        $pdf->Cell(0, 8, $title, 0, 1, 'L');
 
-        if (isset($_POST[$chartKey]) && !empty($_POST[$chartKey])) {
-            $postedData = $_POST[$chartKey];
-            $debugInfo .= "$chartKey: " . strlen($postedData) . " bytes\n";
-            
-            if (preg_match('/^data:image\/png;base64,/', $postedData)) {
-                try {
-                    $base64Image = str_replace('data:image/png;base64,', '', $postedData);
-                    $imageData = base64_decode($base64Image);
-                    
-                    if ($imageData !== false) {
-                        // Create a temporary file to store the image
-                        $tempFile = tempnam(sys_get_temp_dir(), 'chart_');
-                        file_put_contents($tempFile, $imageData);
+        $currentY = $pdf->GetY();
+        $leftMargin = 15; // x coordinate
+
+        foreach ($charts as $title => $chartKey) {
+            $pdf->SetFont('helvetica', 'B', 12);
+            $pdf->Cell(0, 8, $title, 0, 1, 'L');
+
+            if (isset($_POST[$chartKey]) && !empty($_POST[$chartKey])) {
+                $postedData = $_POST[$chartKey];
+                $debugInfo .= "$chartKey: " . strlen($postedData) . " bytes\n";
+                
+                if (preg_match('/^data:image\/png;base64,/', $postedData)) {
+                    try {
+                        $base64Image = str_replace('data:image/png;base64,', '', $postedData);
+                        $imageData = base64_decode($base64Image);
                         
-                        // Log the temporary file size for debugging
-                        $fileSize = filesize($tempFile);
-                        error_log("DEBUG: Temporary file $tempFile size: " . $fileSize . " bytes");
-                        
-                        // Use explicit coordinates for placing the image
-                        $currentY = $pdf->GetY();
-                        // Place the image at X = 15, current Y; adjust width/height as needed
-                        $pdf->Image($tempFile, 15, $currentY, 160, 80, 'PNG', '', 'T', true, 300);
-                        // Update Y position to avoid overlap with following content
-                        $pdf->SetY($currentY + 85);
-                        
-                        unlink($tempFile);
-                        $debugInfo .= "  - Successfully processed image via temp file\n";
-                    } else {
-                        $pdf->Cell(0, 5, 'Failed to decode chart image.', 0, 1, 'L');
-                        $debugInfo .= "  - Failed to decode base64 image data\n";
+                        if ($imageData !== false) {
+                            // Create a temporary file to store the image
+                            $tempFile = tempnam(sys_get_temp_dir(), 'chart_');
+                            file_put_contents($tempFile, $imageData);
+                            $fileSize = filesize($tempFile);
+                            error_log("DEBUG: Temporary file $tempFile size: " . $fileSize . " bytes");
+
+                            // Place the image at (15, currentY) with width 160mm and height 80mm, using 96 DPI
+                            $pdf->Image($tempFile, $leftMargin, $currentY, 160, 80, 'PNG', '', '', false, 96);
+                            
+                            // Advance currentY by 90mm to leave some space below the image
+                            $currentY += 90;
+                            $pdf->SetY($currentY);
+                            
+                            unlink($tempFile);
+                            $debugInfo .= "  - Successfully processed image via temp file\n";
+                        } else {
+                            $pdf->Cell(0, 5, 'Failed to decode chart image.', 0, 1, 'L');
+                            $debugInfo .= "  - Failed to decode base64 image data\n";
+                        }
+                    } catch (Exception $e) {
+                        $pdf->Cell(0, 5, 'Error processing chart image.', 0, 1, 'L');
+                        $debugInfo .= "  - Exception: " . $e->getMessage() . "\n";
                     }
-                } catch (Exception $e) {
-                    $pdf->Cell(0, 5, 'Error processing chart image.', 0, 1, 'L');
-                    $debugInfo .= "  - Exception: " . $e->getMessage() . "\n";
+                } else {
+                    $pdf->Cell(0, 5, 'Invalid chart data format.', 0, 1, 'L');
+                    $debugInfo .= "  - Invalid data format (not base64 PNG)\n";
                 }
             } else {
-                $pdf->Cell(0, 5, 'Invalid chart data format.', 0, 1, 'L');
-                $debugInfo .= "  - Invalid data format (not base64 PNG)\n";
+                $debugInfo .= "$chartKey: No data received\n";
+                $pdf->Cell(0, 5, 'Chart data not available.', 0, 1, 'L');
             }
-        } else {
-            $debugInfo .= "$chartKey: No data received\n";
-            $pdf->Cell(0, 5, 'Chart data not available.', 0, 1, 'L');
-        }
-
-        $pdf->Ln(10); // Space after each chart section
+            
+            $pdf->Ln(5); // Add a little extra space after each chart section
         }
 
         
