@@ -183,8 +183,10 @@ try {
                             file_put_contents($tempFile, $imageData);
                             
                             // Add the image to the PDF
-                            $pdf->Image($tempFile, $pdf->GetX(), $pdf->GetY(), 160, 80, 'PNG', '', 'T', true, 300);
-                            
+                            $pdf->Image($tempFile, 15, $pdf->GetY(), 100, 60, 'PNG', '', '', false, 96);
+
+                            $fileSize = filesize($tempFile);
+                            error_log("DEBUG: Temporary file $tempFile size: " . $fileSize . " bytes");
                             // Remove the temporary file
                             unlink($tempFile);
                             $debugInfo .= "  - Successfully processed image via temp file\n";
