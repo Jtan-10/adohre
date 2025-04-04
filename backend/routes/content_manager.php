@@ -263,25 +263,43 @@ try {
         // ----------------------------
         $event_id = $_POST['id'];
         $userId = $_SESSION['user_id'];
-
-        // Optionally, delete the associated image from the server (if stored locally).
+    
+        // Retrieve the event record to check for an existing image.
         $stmt = $conn->prepare("SELECT image FROM events WHERE event_id = ?");
         $stmt->bind_param('i', $event_id);
         $stmt->execute();
         $result = $stmt->get_result();
         if ($result->num_rows > 0) {
             $event = $result->fetch_assoc();
-            if ($event['image'] && file_exists('../../' . $event['image'])) {
-                unlink('../../' . $event['image']);
+            if (!empty($event['image'])) {
+                // Check if the image is stored on S3 (assuming it starts with '/s3proxy/')
+                if (strpos($event['image'], '/s3proxy/') === 0) {
+                    // Remove the proxy prefix and decode the URL to obtain the original S3 key.
+                    $existingS3Key = urldecode(str_replace('/s3proxy/', '', $event['image']));
+                    try {
+                        $s3->deleteObject([
+                            'Bucket' => $bucketName,
+                            'Key'    => $existingS3Key
+                        ]);
+                    } catch (Aws\Exception\AwsException $e) {
+                        error_log("S3 deletion error: " . $e->getMessage());
+                    }
+                } else {
+                    // Otherwise, attempt to delete it locally.
+                    if (file_exists('../../' . $event['image'])) {
+                        unlink('../../' . $event['image']);
+                    }
+                }
             }
         }
         $stmt->close();
-
+    
+        // Now delete the event record from the database.
         $stmt = $conn->prepare("DELETE FROM events WHERE event_id = ?");
         $stmt->bind_param('i', $event_id);
         $stmt->execute();
-
-        // Audit log for event deletion
+    
+        // Audit log for event deletion.
         recordAuditLog($userId, "Delete Event", "Event ID $event_id deleted.");
         echo json_encode(['status' => true, 'message' => 'Event deleted successfully.']);
     } elseif ($action === 'get_event') {
@@ -469,6 +487,30 @@ try {
     } elseif ($action === 'delete_training') {
         ensureAuthenticated();
         $training_id = $_POST['id'];
+        
+        // Check if there is an existing image and delete it from S3
+        $stmtCheck = $conn->prepare("SELECT image FROM trainings WHERE training_id = ?");
+        $stmtCheck->bind_param("i", $training_id);
+        $stmtCheck->execute();
+        $resultCheck = $stmtCheck->get_result();
+        if ($resultCheck->num_rows > 0) {
+            $existingTraining = $resultCheck->fetch_assoc();
+            if (!empty($existingTraining['image'])) {
+                // Remove the proxy prefix and decode the URL to obtain the original S3 key
+                $existingS3Key = urldecode(str_replace('/s3proxy/', '', $existingTraining['image']));
+                try {
+                    $s3->deleteObject([
+                        'Bucket' => $bucketName,
+                        'Key'    => $existingS3Key
+                    ]);
+                } catch (Aws\Exception\AwsException $e) {
+                    error_log("S3 deletion error: " . $e->getMessage());
+                }
+            }
+        }
+        $stmtCheck->close();
+    
+        // Now delete the training record from the database.
         $stmt = $conn->prepare("DELETE FROM trainings WHERE training_id = ?");
         $stmt->bind_param('i', $training_id);
         $stmt->execute();

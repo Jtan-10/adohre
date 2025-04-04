@@ -249,7 +249,7 @@ function addNews() {
 }
 
 function updateNews() {
-    global $conn;
+    global $conn, $s3, $bucketName;
     if ($_SESSION['role'] !== 'admin') {
         http_response_code(403);
         echo json_encode(['status' => false, 'message' => 'Permission denied']);
@@ -258,11 +258,37 @@ function updateNews() {
     $image_path = handleImageUpload();
     $author_first = trim($_POST['author_first']);
     $author_last = trim($_POST['author_last']);
+    $news_id = $_POST['id'];
 
+    // If a new image is uploaded, delete the existing image from S3.
     if ($image_path !== null) {
-        $sql = "UPDATE news SET title=?, excerpt=?, content=?, category=?, image=?, author_first=?, author_last=? WHERE news_id=?";
+        $stmtCheck = $conn->prepare("SELECT image FROM news WHERE news_id = ?");
+        $stmtCheck->bind_param("i", $news_id);
+        $stmtCheck->execute();
+        $result = $stmtCheck->get_result();
+        if ($result->num_rows > 0) {
+            $row = $result->fetch_assoc();
+            if (!empty($row['image'])) {
+                // Remove the proxy prefix and decode the URL to get the S3 key.
+                $existingS3Key = urldecode(str_replace('/s3proxy/', '', $row['image']));
+                try {
+                    $s3->deleteObject([
+                        'Bucket' => $bucketName,
+                        'Key'    => $existingS3Key
+                    ]);
+                } catch (Aws\Exception\AwsException $e) {
+                    error_log("S3 deletion error: " . $e->getMessage());
+                }
+            }
+        }
+        $stmtCheck->close();
+    }
+
+    // Prepare the SQL query depending on whether a new image was uploaded.
+    if ($image_path !== null) {
+        $sql = "UPDATE news SET title = ?, excerpt = ?, content = ?, category = ?, image = ?, author_first = ?, author_last = ? WHERE news_id = ?";
     } else {
-        $sql = "UPDATE news SET title=?, excerpt=?, content=?, category=?, author_first=?, author_last=? WHERE news_id=?";
+        $sql = "UPDATE news SET title = ?, excerpt = ?, content = ?, category = ?, author_first = ?, author_last = ? WHERE news_id = ?";
     }
     $stmt = $conn->prepare($sql);
     if (!$stmt) {
@@ -274,7 +300,6 @@ function updateNews() {
     $excerpt  = $_POST['excerpt'];
     $content  = $_POST['content'];
     $category = $_POST['category'];
-    $news_id  = $_POST['id'];
     if ($image_path !== null) {
         $stmt->bind_param("sssssssi", $title, $excerpt, $content, $category, $image_path, $author_first, $author_last, $news_id);
     } else {
@@ -291,19 +316,49 @@ function updateNews() {
 }
 
 function deleteNews() {
-    global $conn;
+    global $conn, $s3, $bucketName;
     if ($_SESSION['role'] !== 'admin') {
         http_response_code(403);
         echo json_encode(['status' => false, 'message' => 'Permission denied']);
         return;
     }
-    $stmt = $conn->prepare("DELETE FROM news WHERE news_id=?");
+    
+    // Retrieve the news record to check for an existing image.
+    $stmt = $conn->prepare("SELECT image FROM news WHERE news_id = ?");
     if (!$stmt) {
         http_response_code(500);
         echo json_encode(['status' => false, 'message' => 'Database error: ' . $conn->error]);
         return;
     }
     $news_id = $_POST['id'];
+    $stmt->bind_param("i", $news_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    if ($result->num_rows > 0) {
+        $news = $result->fetch_assoc();
+        if (!empty($news['image'])) {
+            // Remove the proxy prefix and decode URL to obtain the original S3 key.
+            $existingS3Key = urldecode(str_replace('/s3proxy/', '', $news['image']));
+            try {
+                $s3->deleteObject([
+                    'Bucket' => $bucketName,
+                    'Key'    => $existingS3Key
+                ]);
+            } catch (Aws\Exception\AwsException $e) {
+                // Log error and continue deletion of the news record.
+                error_log("S3 deletion error: " . $e->getMessage());
+            }
+        }
+    }
+    $stmt->close();
+
+    // Now delete the news record from the database.
+    $stmt = $conn->prepare("DELETE FROM news WHERE news_id = ?");
+    if (!$stmt) {
+        http_response_code(500);
+        echo json_encode(['status' => false, 'message' => 'Database error: ' . $conn->error]);
+        return;
+    }
     $stmt->bind_param("i", $news_id);
     if ($stmt->execute()) {
         recordAuditLog($_SESSION['user_id'], 'Delete News', "News ID $news_id deleted.");
