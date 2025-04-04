@@ -38,7 +38,8 @@ if ($updateStmt) {
 }
 
 // Helper function to format view count
-function formatViews($views) {
+function formatViews($views)
+{
     if ($views >= 1000000000) {
         return number_format($views / 1000000000, 1) . 'B';
     } elseif ($views >= 1000000) {
@@ -93,30 +94,30 @@ $news = $newsData['news'][0];
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style nonce="<?php echo $style_nonce; ?>">
-    .news-detail-container {
-        max-width: 800px;
-        margin: 2rem auto;
-        padding: 1rem;
-    }
+        .news-detail-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 1rem;
+        }
 
-    .news-detail-img {
-        width: 100%;
-        height: auto;
-        object-fit: cover;
-        border-radius: 12px;
-        margin-bottom: 1.5rem;
-    }
+        .news-detail-img {
+            width: 100%;
+            height: auto;
+            object-fit: cover;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+        }
 
-    .news-meta {
-        color: #28a745;
-        font-size: 0.9rem;
-        margin-bottom: 1rem;
-    }
+        .news-meta {
+            color: #28a745;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
 
-    .news-content {
-        font-size: 1.1rem;
-        line-height: 1.6;
-    }
+        .news-content {
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
     </style>
 </head>
 
@@ -132,8 +133,8 @@ $news = $newsData['news'][0];
                 views</span>
         </div>
         <?php if (!empty($news['image'])): ?>
-        <img src="<?php echo htmlspecialchars($news['image']); ?>" alt="<?php echo htmlspecialchars($news['title']); ?>"
-            class="news-detail-img">
+            <img src="backend/routes/decrypt_image.php?image_url=<?php echo urlencode($news['image']); ?>"
+                alt="<?php echo htmlspecialchars($news['title']); ?>" class="news-detail-img">
         <?php endif; ?>
         <div class="news-content">
             <?php echo nl2br(htmlspecialchars($news['content'])); ?>
@@ -155,33 +156,33 @@ $news = $newsData['news'][0];
     <!-- Font Awesome JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <script nonce="<?php echo $style_nonce; ?>">
-    // Like button functionality
-    document.getElementById('like-button').addEventListener('click', function() {
-        this.disabled = true;
-        fetch('backend/routes/news_manager.php?action=like', {
-                method: 'POST',
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                },
-                body: 'news_id=<?php echo $news_id; ?>'
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status) {
-                    document.getElementById('like-count').textContent = data.like_count;
-                } else {
-                    alert('Error: ' + data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An unexpected error occurred. Please try again.');
-            })
-            .finally(() => {
-                document.getElementById('like-button').disabled = false;
-            });
-    });
+        // Like button functionality
+        document.getElementById('like-button').addEventListener('click', function() {
+            this.disabled = true;
+            fetch('backend/routes/news_manager.php?action=like', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: 'news_id=<?php echo $news_id; ?>'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status) {
+                        document.getElementById('like-count').textContent = data.like_count;
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An unexpected error occurred. Please try again.');
+                })
+                .finally(() => {
+                    document.getElementById('like-button').disabled = false;
+                });
+        });
     </script>
 </body>
 
