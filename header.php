@@ -30,6 +30,16 @@ $headerName = $_SESSION['header_name'] ?? 'ADOHRE';
 $headerLogo = $_SESSION['header_logo'] ?? 'assets/logo.png';
 ?>
 
+<style>
+/* Added profile-image styles */
+.profile-image {
+    width: 30px;
+    height: 30px;
+    object-fit: cover;
+    border-radius: 50%;
+}
+</style>
+
 <nav class="navbar navbar-expand-lg bg-success text-white">
     <div class="container">
         <a class="navbar-brand text-white" href="index.php">
@@ -59,7 +69,7 @@ $headerLogo = $_SESSION['header_logo'] ?? 'assets/logo.png';
                         data-bs-toggle="dropdown" aria-expanded="false">
                         <img id="profileImageNav"
                             src="<?= htmlspecialchars($_SESSION['profile_image'] ?? './assets/default-profile.jpeg', ENT_QUOTES, 'UTF-8') ?>"
-                            alt="Profile Image" class="rounded-circle" width="30" height="30">
+                            alt="Profile Image" class=" profile-image rounded-circle" width="30" height="30">
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
                         <li><a class="dropdown-item" href="profile.php">Profile</a></li>
