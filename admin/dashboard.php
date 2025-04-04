@@ -195,7 +195,7 @@ header("Referrer-Policy: no-referrer-when-downgrade");
                     document.getElementById('membershipApplications').innerText = data.data
                         .membership_applications || 0;
                     document.getElementById('trainingRegistrations').innerText = data.data
-                        .training_registrations || 0;
+                        .joined_trainings || 0;
                 } else {
                     alert('Failed to fetch analytics data.');
                 }
