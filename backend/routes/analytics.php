@@ -117,11 +117,6 @@ try {
     $membershipApplicationsResult = $conn->query($membershipApplicationsQuery);
     $membershipApplications = $membershipApplicationsResult->fetch_assoc()['membership_applications'];
 
-    // New Analytics: Training Registrations
-    $trainingRegistrationsQuery = "SELECT COUNT(*) as training_registrations FROM training_registrations";
-    $trainingRegistrationsResult = $conn->query($trainingRegistrationsQuery);
-    $trainingRegistrations = $trainingRegistrationsResult->fetch_assoc()['training_registrations'];
-
     // Response
     echo json_encode([
         'status' => true,
@@ -149,7 +144,6 @@ try {
             'total_news' => $totalNews,
             'total_payments' => $totalPayments,
             'membership_applications' => $membershipApplications,
-            'training_registrations' => $trainingRegistrations,
             'users' => $conn->query("SELECT first_name, last_name, email, role FROM users")->fetch_all(MYSQLI_ASSOC),
             'events' => $conn->query("SELECT title, date, location FROM events")->fetch_all(MYSQLI_ASSOC),
             'trainings' => $conn->query("SELECT title, schedule, capacity FROM trainings")->fetch_all(MYSQLI_ASSOC),
