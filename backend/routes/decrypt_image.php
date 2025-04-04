@@ -1,44 +1,49 @@
 <?php
 require_once __DIR__ . '/../../vendor/autoload.php';
 
-// Load environment (Dotenv) to get the encryption key
+// Load environment variables to get the encryption key.
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../..');
 $dotenv->load();
 
-header('Content-Type: image/png');  // We'll output the decrypted image as PNG
+header('Content-Type: image/png');  // We'll output the decrypted image as PNG.
 header('X-Content-Type-Options: nosniff');
 
 $cipher = "AES-256-CBC";
-// Derive a 32-byte key from your .env raw key
+// Derive a 32-byte key from the raw key stored in the .env file.
 $rawKey = getenv('ENCRYPTION_KEY');
 $encryptionKey = hash('sha256', $rawKey, true);
 
-if (!isset($_GET['face_url'])) {
+// Accept multiple possible parameter names: url, image_url, or face_url.
+$imageUrl = $_GET['url'] ?? $_GET['image_url'] ?? $_GET['face_url'] ?? null;
+if (!$imageUrl) {
     http_response_code(400);
-    echo "Missing face_url parameter";
+    echo "Missing image URL parameter";
     exit;
 }
-$faceUrl = $_GET['face_url'];
-// If the URL is relative, build an absolute URL.
-if (strpos($faceUrl, '/') === 0) {
-    $faceUrl = 'http://' . $_SERVER['HTTP_HOST'] . $faceUrl;
+
+// If the URL is relative (starts with '/'), build an absolute URL based on the current host.
+if (strpos($imageUrl, '/') === 0) {
+    $imageUrl = 'http://' . $_SERVER['HTTP_HOST'] . $imageUrl;
+} elseif (!preg_match('/^https?:\/\//', $imageUrl)) {
+    // If the URL doesn't start with http:// or https://, assume it is relative.
+    $imageUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/' . ltrim($imageUrl, '/');
 }
 
-// 1) Download the random-static PNG from S3 or your /s3proxy/ location.
-$noisePngData = file_get_contents($faceUrl);
-if (!$noisePngData) {
+// Download the encrypted PNG data.
+$encryptedPngData = file_get_contents($imageUrl);
+if (!$encryptedPngData) {
     http_response_code(404);
     echo "Could not retrieve the PNG file.";
     exit;
 }
 
-// 2) Create a temporary file for the downloaded PNG.
-$tempNoisePng = tempnam(sys_get_temp_dir(), 'noise_') . '.png';
-file_put_contents($tempNoisePng, $noisePngData);
+// Create a temporary file for the downloaded PNG.
+$tempPngFile = tempnam(sys_get_temp_dir(), 'enc_png_') . '.png';
+file_put_contents($tempPngFile, $encryptedPngData);
 
-// 3) Extract the embedded data from the PNG.
-$embeddedData = extractDataFromPng($tempNoisePng);
-@unlink($tempNoisePng); // Clean up temporary file.
+// Extract the embedded data from the PNG.
+$embeddedData = extractDataFromPng($tempPngFile);
+@unlink($tempPngFile); // Clean up the temporary file.
 
 if (!$embeddedData) {
     http_response_code(500);
@@ -46,17 +51,18 @@ if (!$embeddedData) {
     exit;
 }
 
-// --- Fix: Remove any trailing null bytes from the extracted data ---
+// Remove any trailing null bytes.
 $embeddedData = rtrim($embeddedData, "\0");
 
-$cipherIvLen = openssl_cipher_iv_length($cipher);
-if (strlen($embeddedData) < $cipherIvLen) {
+$ivLength = openssl_cipher_iv_length($cipher);
+if (strlen($embeddedData) < $ivLength) {
     http_response_code(500);
     echo "Invalid embedded data (too short).";
     exit;
 }
-$iv = substr($embeddedData, 0, $cipherIvLen);
-$ciphertext = substr($embeddedData, $cipherIvLen);
+
+$iv = substr($embeddedData, 0, $ivLength);
+$ciphertext = substr($embeddedData, $ivLength);
 
 $clearImageData = openssl_decrypt($ciphertext, $cipher, $encryptionKey, OPENSSL_RAW_DATA, $iv);
 if (!$clearImageData) {
@@ -65,16 +71,16 @@ if (!$clearImageData) {
     exit;
 }
 
-// 6) Output the clear image directly.
+// Output the clear image data directly.
 echo $clearImageData;
-exit;
+exit();
 
 /**
  * extractDataFromPng:
- * Reverse of embedDataInPng. Reads every pixel’s R, G, B, reconstructing the binary data.
+ * Reads every pixel’s R, G, B values from the given PNG file and reconstructs the binary data.
  * 
- * @param string $pngFilePath The path to the random-static PNG file.
- * @return string The raw binary data embedded, or empty string on error.
+ * @param string $pngFilePath The path to the PNG file.
+ * @return string The embedded binary data, or an empty string on error.
  */
 function extractDataFromPng(string $pngFilePath): string
 {
@@ -84,12 +90,11 @@ function extractDataFromPng(string $pngFilePath): string
     }
     $width = imagesx($img);
     $height = imagesy($img);
-
     $binaryData = '';
     for ($y = 0; $y < $height; $y++) {
         for ($x = 0; $x < $width; $x++) {
             $rgb = imagecolorat($img, $x, $y);
-            // Extract R, G, B values and append as binary.
+            // Extract R, G, B values and append them as binary.
             $r = ($rgb >> 16) & 0xFF;
             $g = ($rgb >> 8) & 0xFF;
             $b = $rgb & 0xFF;
