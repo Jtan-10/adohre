@@ -2,14 +2,12 @@
 define('APP_INIT', true); // Added to enable proper access.
 // Send the CSP header before any output.
 
-
-
 require_once 'admin_header.php';
 
 // Check if the user is logged in and is an admin
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-header("Location: ../login.php");
-exit;
+    header("Location: ../login.php");
+    exit;
 }
 ?>
 
@@ -25,23 +23,28 @@ exit;
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style nonce="<?= $cspNonce ?>">
-    body {
-        background-color: #f5f6fa;
-    }
+        body {
+            background-color: #f5f6fa;
+        }
 
-    .content {
-        padding: 20px;
-    }
+        .content {
+            padding: 20px;
+        }
 
-    .chart-container canvas {
-        max-width: 100%;
-        height: 300px;
-    }
+        .chart-container canvas {
+            max-width: 100%;
+            height: 300px;
+        }
 
-    .card {
-        border-radius: 10px;
-        margin-bottom: 20px;
-    }
+        .card {
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        /* Additional styling for new chart/table row */
+        .analytics-breakdown {
+            font-size: 0.9rem;
+        }
     </style>
 </head>
 
@@ -91,6 +94,44 @@ exit;
                     </div>
                 </div>
             </div>
+
+            <!-- New Breakdown Section -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card p-3">
+                        <h5>New Users Trend (Last 6 Months)</h5>
+                        <canvas id="newUsersChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-md-6 analytics-breakdown">
+                    <div class="card p-3">
+                        <h5>Additional Analytics</h5>
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Metric</th>
+                                    <th>Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Total Chat Messages</td>
+                                    <td id="totalChatMessagesTable">...</td>
+                                </tr>
+                                <tr>
+                                    <td>Total Consultations</td>
+                                    <td id="totalConsultationsTable">...</td>
+                                </tr>
+                                <tr>
+                                    <td>Total Certificates</td>
+                                    <td id="totalCertificatesTable">...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <!-- Summary Tables -->
             <div class="row mb-4">
                 <div class="col-md-6">
@@ -172,8 +213,62 @@ exit;
         </div>
     </div>
 
-    <!-- Include external script instead of inline script -->
+    <!-- Include external script -->
     <script src="reports.js" nonce="<?= $cspNonce ?>"></script>
+    <script nonce="<?= $cspNonce ?>">
+        // Extend the existing reports.js functionality with new chart and breakdown updates
+        document.addEventListener('DOMContentLoaded', function() {
+            fetch('../backend/routes/analytics.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status) {
+
+                        // Update existing dashboard stats (if needed)
+                        // ...existing assignments...
+
+                        // Additional table assignments
+                        document.getElementById('totalChatMessagesTable').innerText = data.data
+                            .total_chat_messages || 0;
+                        document.getElementById('totalConsultationsTable').innerText = data.data
+                            .total_consultations || 0;
+                        document.getElementById('totalCertificatesTable').innerText = data.data
+                            .total_certificates || 0;
+
+                        // Initialize New Users Trend Chart
+                        const newUsersCtx = document.getElementById('newUsersChart').getContext('2d');
+                        // Prepare labels and dataset from new_users array:
+                        const newUsersData = data.data.new_users || [];
+                        const labels = newUsersData.map(item => item.month);
+                        const counts = newUsersData.map(item => item.new_users);
+
+                        new Chart(newUsersCtx, {
+                            type: 'line',
+                            data: {
+                                labels: labels,
+                                datasets: [{
+                                    label: 'New Users',
+                                    data: counts,
+                                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                                    borderColor: 'rgba(54, 162, 235, 1)',
+                                    borderWidth: 1,
+                                    fill: true,
+                                }]
+                            },
+                            options: {
+                                scales: {
+                                    y: {
+                                        beginAtZero: true
+                                    }
+                                }
+                            }
+                        });
+                    } else {
+                        alert('Failed to fetch analytics data.');
+                    }
+                })
+                .catch(err => console.error('Error fetching analytics data:', err));
+        });
+    </script>
 </body>
 
 </html>

@@ -87,6 +87,21 @@ try {
     $joinedTrainingsResult = $conn->query($joinedTrainingsQuery);
     $joinedTrainings = $joinedTrainingsResult->fetch_assoc()['joined_trainings'];
 
+    // New Analytics: Total Chat Messages
+    $totalChatMessagesQuery = "SELECT COUNT(*) as total_chat_messages FROM chat_messages";
+    $totalChatMessagesResult = $conn->query($totalChatMessagesQuery);
+    $totalChatMessages = $totalChatMessagesResult->fetch_assoc()['total_chat_messages'];
+
+    // New Analytics: Total Consultations
+    $totalConsultationsQuery = "SELECT COUNT(*) as total_consultations FROM consultations";
+    $totalConsultationsResult = $conn->query($totalConsultationsQuery);
+    $totalConsultations = $totalConsultationsResult->fetch_assoc()['total_consultations'];
+
+    // New Analytics: Total Certificates
+    $totalCertificatesQuery = "SELECT COUNT(*) as total_certificates FROM certificates";
+    $totalCertificatesResult = $conn->query($totalCertificatesQuery);
+    $totalCertificates = $totalCertificatesResult->fetch_assoc()['total_certificates'];
+
     // Response
     echo json_encode([
         'status' => true,
@@ -106,13 +121,16 @@ try {
             'member_count' => $memberCount,
             'joined_events' => $joinedEvents,
             'joined_trainings' => $joinedTrainings,
+            // New stats
+            'total_chat_messages' => $totalChatMessages,
+            'total_consultations' => $totalConsultations,
+            'total_certificates' => $totalCertificates,
             'users' => $conn->query("SELECT first_name, last_name, email, role FROM users")->fetch_all(MYSQLI_ASSOC),
             'events' => $conn->query("SELECT title, date, location FROM events")->fetch_all(MYSQLI_ASSOC),
             'trainings' => $conn->query("SELECT title, schedule, capacity FROM trainings")->fetch_all(MYSQLI_ASSOC),
             'announcements' => $conn->query("SELECT text, created_at FROM announcements")->fetch_all(MYSQLI_ASSOC),
         ]
     ]);
-    
 } catch (Exception $e) {
     // Log the error details internally without exposing them publicly
     error_log($e->getMessage());
