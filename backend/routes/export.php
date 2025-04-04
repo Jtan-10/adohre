@@ -154,36 +154,49 @@ try {
             'Registrations Overview' => 'registrationsChart',
             'New Users Trend'        => 'newUsersChart',
         ];
+        
+        // Create a temporary directory to store chart images
+        $tempDir = sys_get_temp_dir();
+        $tempFiles = []; // Track temp files for cleanup later
+        
         foreach ($charts as $title => $chartKey) {
             $pdf->SetFont('helvetica', 'B', 12);
             $pdf->Cell(0, 0, $title, 0, 1, 'L');
             $pdf->Ln(5);
 
             $chartImage = false;
+            
             // Check if the chart image data is provided via POST (from reports.js)
             if (isset($_POST[$chartKey])) {
                 $postedData = $_POST[$chartKey];
+                
                 // Log the first 50 characters to verify MIME type and data
                 error_log("DEBUG: Data for {$chartKey} starts with: " . substr($postedData, 0, 50));
                 error_log("DEBUG: POST data length for {$chartKey} = " . strlen($postedData));
+                
                 if (preg_match('/^data:image\/png;base64,/', $postedData)) {
                     // Remove the data URI scheme and decode
                     $decodedData = base64_decode(str_replace('data:image/png;base64,', '', $postedData));
+                    
                     if ($decodedData !== false && strlen($decodedData) > 0) {
-                        // Optionally, write to a file for manual inspection:
-                        // file_put_contents('/path/to/debug_' . $chartKey . '.png', $decodedData);
-                        // Use the '@' prefix to tell TCPDF to load image from string
-                        $chartImage = '@' . $decodedData;
-                        $imgFormat = 'PNG';
+                        // Write to a temporary file
+                        $tempFile = tempnam($tempDir, 'chart_');
+                        if (file_put_contents($tempFile, $decodedData)) {
+                            $chartImage = $tempFile;
+                            $tempFiles[] = $tempFile; // Track for cleanup
+                            $imgFormat = 'PNG';
+                        } else {
+                            error_log("DEBUG: Failed to write image data to temporary file for {$chartKey}");
+                        }
                     } else {
-                        error_log("DEBUG: Decoded data for {$chartKey} is empty.");
+                        error_log("DEBUG: Decoded data for {$chartKey} is empty or invalid.");
                     }
                 } else {
                     error_log("DEBUG: Data for {$chartKey} did not match the expected format.");
                 }
             }
 
-            // Use fallback file if POST data is not available
+            // Use fallback file if POST data is not available or conversion failed
             if (!$chartImage) {
                 $fallbackPath = "/opt/lampp/htdocs/capstone-php/admin/charts/{$chartKey}.png";
                 if (file_exists($fallbackPath)) {
@@ -193,13 +206,21 @@ try {
             }
 
             if ($chartImage) {
-                // Adjust the width and height as needed (example: 100x60 mm)
-                $pdf->Image($chartImage, '', '', 100, 60, $imgFormat, '', 'T', false, 300);
+                try {
+                    // Adjust the width and height as needed (example: 100x60 mm)
+                    $pdf->Image($chartImage, $pdf->GetX(), $pdf->GetY(), 100, 60, $imgFormat, '', 'T', false, 300);
+                    $pdf->Ln(65); // Add space after the image
+                } catch (Exception $e) {
+                    error_log("ERROR: Failed to add image {$chartKey} to PDF: " . $e->getMessage());
+                    $pdf->SetFont('helvetica', '', 10);
+                    $pdf->Cell(0, 0, 'Chart image not available due to an error.', 0, 1, 'L');
+                    $pdf->Ln(10);
+                }
             } else {
                 $pdf->SetFont('helvetica', '', 10);
                 $pdf->Cell(0, 0, 'Chart image not available.', 0, 1, 'L');
+                $pdf->Ln(10);
             }
-            $pdf->Ln(10);
         }
 
         // ----------------------
@@ -243,7 +264,19 @@ try {
             $pdf->Ln(10);
         }
 
-        $pdf->Output('report.pdf', 'I');
+        // Output the PDF
+        $pdfOutput = $pdf->Output('report.pdf', 'S'); // Get PDF as string
+        
+        // Clean up temporary files
+        foreach ($tempFiles as $file) {
+            if (file_exists($file)) {
+                unlink($file);
+            }
+        }
+        
+        // Send the PDF to the browser
+        header('Content-Length: ' . strlen($pdfOutput));
+        echo $pdfOutput;
         exit;
     } elseif ($format === 'excel') {
         // Excel Export using PhpSpreadsheet
