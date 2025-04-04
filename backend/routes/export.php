@@ -160,7 +160,7 @@ try {
         ];
 
         $currentY = $pdf->GetY();
-        $leftMargin = 15; // x coordinate
+        $leftMargin = 15; // X coordinate
 
         foreach ($charts as $title => $chartKey) {
             $pdf->SetFont('helvetica', 'B', 12);
@@ -168,50 +168,51 @@ try {
 
             if (isset($_POST[$chartKey]) && !empty($_POST[$chartKey])) {
                 $postedData = $_POST[$chartKey];
-                $debugInfo .= "$chartKey: " . strlen($postedData) . " bytes\n";
-                
+                // Log first 50 characters for debugging
+                error_log("DEBUG: Data for {$chartKey} starts with: " . substr($postedData, 0, 50));
+                error_log("DEBUG: POST data length for {$chartKey} = " . strlen($postedData));
+
                 if (preg_match('/^data:image\/png;base64,/', $postedData)) {
                     try {
+                        // Remove the data URI prefix and decode
                         $base64Image = str_replace('data:image/png;base64,', '', $postedData);
                         $imageData = base64_decode($base64Image);
                         
-                        if ($imageData !== false) {
-                            // Create a temporary file to store the image
-                            $tempFile = tempnam(sys_get_temp_dir(), 'chart_');
-                            file_put_contents($tempFile, $imageData);
-                            $fileSize = filesize($tempFile);
-                            error_log("DEBUG: Temporary file $tempFile size: " . $fileSize . " bytes");
+                        if ($imageData !== false && strlen($imageData) > 0) {
+                            // IMPORTANT: Ensure that on the client side, your chart canvas has a solid background color (e.g., white)
+                            // to avoid transparency issues when rendering the PNG.
 
-                            // Place the image at (15, currentY) with width 160mm and height 80mm, using 96 DPI
-                            $pdf->Image($tempFile, $leftMargin, $currentY, 160, 80, 'PNG', '', '', false, 96);
+                            // Use the inline method to load the image directly into TCPDF
+                            $chartImage = '@' . $imageData;
                             
-                            // Advance currentY by 90mm to leave some space below the image
-                            $currentY += 90;
+                            // Use reduced dimensions: 120mm wide x 60mm high, and 96 DPI for a smaller rendered image
+                            $pdf->Image($chartImage, $leftMargin, $currentY, 120, 60, 'PNG', '', 'T', true, 96);
+                            
+                            // Update Y coordinate to leave space for the next image
+                            $currentY += 70;
                             $pdf->SetY($currentY);
                             
-                            unlink($tempFile);
-                            $debugInfo .= "  - Successfully processed image via temp file\n";
+                            error_log("DEBUG: Successfully processed $chartKey via inline method.");
                         } else {
                             $pdf->Cell(0, 5, 'Failed to decode chart image.', 0, 1, 'L');
-                            $debugInfo .= "  - Failed to decode base64 image data\n";
+                            error_log("DEBUG: Failed to decode base64 image data for $chartKey.");
                         }
                     } catch (Exception $e) {
                         $pdf->Cell(0, 5, 'Error processing chart image.', 0, 1, 'L');
-                        $debugInfo .= "  - Exception: " . $e->getMessage() . "\n";
+                        error_log("DEBUG: Exception processing $chartKey: " . $e->getMessage());
                     }
                 } else {
                     $pdf->Cell(0, 5, 'Invalid chart data format.', 0, 1, 'L');
-                    $debugInfo .= "  - Invalid data format (not base64 PNG)\n";
+                    error_log("DEBUG: Data for $chartKey did not match expected format.");
                 }
             } else {
-                $debugInfo .= "$chartKey: No data received\n";
                 $pdf->Cell(0, 5, 'Chart data not available.', 0, 1, 'L');
+                error_log("DEBUG: No data received for $chartKey.");
             }
             
-            $pdf->Ln(5); // Add a little extra space after each chart section
+            $pdf->Ln(5); // Space after each chart section
         }
 
-        
         // Log debug info
         error_log($debugInfo);
 

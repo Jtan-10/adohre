@@ -49,6 +49,11 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     .analytics-breakdown {
         font-size: 0.9rem;
     }
+
+    canvas {
+        background-color: #fff;
+        /* white background */
+    }
     </style>
 </head>
 
@@ -557,7 +562,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                             const imgData = canvas.toDataURL('image/png', 1.0);
                             console.log(
                                 `DEBUG: Captured image for ${id}, data length: ${imgData.length}`
-                                );
+                            );
 
                             // Create input for this chart
                             const input = document.createElement('input');
@@ -597,7 +602,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                 console.error("Error during PDF export:", e);
                 logErrorToServer("Error during PDF export: " + e.message);
                 alert(
-                    "There was an error preparing the PDF export. Please check the console for details.");
+                    "There was an error preparing the PDF export. Please check the console for details."
+                    );
             }
         });
     });
