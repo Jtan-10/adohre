@@ -195,8 +195,8 @@ try {
                 if ($resultCheck->num_rows > 0) {
                     $existingEvent = $resultCheck->fetch_assoc();
                     if (!empty($existingEvent['image'])) {
-                        // Remove the proxy prefix to get the S3 key.
-                        $existingS3Key = str_replace('/s3proxy/', '', $existingEvent['image']);
+                        // Remove the proxy prefix and then urldecode to match the S3 key
+                        $existingS3Key = urldecode(str_replace('/s3proxy/', '', $existingEvent['image']));
                         try {
                             $s3->deleteObject([
                                 'Bucket' => $bucketName,
@@ -421,7 +421,7 @@ try {
                 if ($resultCheck->num_rows > 0) {
                     $existingTraining = $resultCheck->fetch_assoc();
                     if (!empty($existingTraining['image'])) {
-                        $existingS3Key = str_replace('/s3proxy/', '', $existingTraining['image']);
+                        $existingS3Key = urldecode(str_replace('/s3proxy/', '', $existingTraining['image']));
                         try {
                             $s3->deleteObject([
                                 'Bucket' => $bucketName,
