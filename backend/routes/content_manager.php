@@ -12,6 +12,51 @@ header('X-XSS-Protection: 1; mode=block');
 require_once __DIR__ . '/../db/db_connect.php';
 require_once __DIR__ . '/../s3config.php'; // adjust path as needed
 
+// -------------------------
+// Helper function to embed binary data into a valid PNG.
+// (Copied from update_user_details.php)
+// -------------------------
+if (!function_exists('embedDataInPng')) {
+    /**
+     * embedDataInPng:
+     * Converts binary data into a valid PNG image by mapping every 3 bytes to a pixel (R, G, B).
+     * Remaining pixels are padded with black.
+     *
+     * @param string $binaryData The binary data to embed.
+     * @param int    $desiredWidth Desired width (used to compute a roughly square image)
+     * @return GdImage A GD image resource.
+     */
+    function embedDataInPng($binaryData, $desiredWidth = 100): GdImage {
+        $dataLen = strlen($binaryData);
+        // Each pixel holds 3 bytes.
+        $numPixels = ceil($dataLen / 3);
+        // Create a roughly square image.
+        $width = (int) floor(sqrt($numPixels));
+        if ($width < 1) {
+            $width = 1;
+        }
+        $height = (int) ceil($numPixels / $width);
+        $img = imagecreatetruecolor($width, $height);
+        $black = imagecolorallocate($img, 0, 0, 0);
+        imagefill($img, 0, 0, $black);
+        $pos = 0;
+        for ($y = 0; $y < $height; $y++) {
+            for ($x = 0; $x < $width; $x++) {
+                if ($pos < $dataLen) {
+                    $r = ord($binaryData[$pos++]);
+                    $g = ($pos < $dataLen) ? ord($binaryData[$pos++]) : 0;
+                    $b = ($pos < $dataLen) ? ord($binaryData[$pos++]) : 0;
+                    $color = imagecolorallocate($img, $r, $g, $b);
+                    imagesetpixel($img, $x, $y, $color);
+                } else {
+                    imagesetpixel($img, $x, $y, $black);
+                }
+            }
+        }
+        return $img;
+    }
+}
+
 // Authentication helper for modifying actions
 function ensureAuthenticated()
 {
@@ -31,38 +76,36 @@ try {
         // ----------------------------
 
         // -- EVENTS --
-// Get the current user ID
-$user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 0;
+        // Get the current user ID
+        $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 0;
 
-// Updated query to add a "joined" flag.
-// If a matching registration is found for the current user, joined will be 1; otherwise, 0.
-$eventsQuery = "
-    SELECT e.*,
-           IF(er.registration_id IS NOT NULL, 1, 0) AS joined
-    FROM events e
-    LEFT JOIN event_registrations er 
-         ON e.event_id = er.event_id AND er.user_id = ?
-    ORDER BY e.date DESC
-";
+        // Updated query to add a "joined" flag.
+        // If a matching registration is found for the current user, joined will be 1; otherwise, 0.
+        $eventsQuery = "
+            SELECT e.*,
+                   IF(er.registration_id IS NOT NULL, 1, 0) AS joined
+            FROM events e
+            LEFT JOIN event_registrations er 
+                 ON e.event_id = er.event_id AND er.user_id = ?
+            ORDER BY e.date DESC
+        ";
 
-// Use a prepared statement to bind the user id
-$stmt = $conn->prepare($eventsQuery);
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$eventsResult = $stmt->get_result();
-$events = [];
-while ($row = $eventsResult->fetch_assoc()) {
-    // Convert the joined flag to boolean for easier use on the front end
-    $row['joined'] = (bool)$row['joined'];
-    // Set a default image if none provided (update path as needed)
-    $row['image'] = $row['image'] ?: '../assets/default-image.jpg';
-    $events[] = $row;
-}
-$stmt->close();
-
+        // Use a prepared statement to bind the user id
+        $stmt = $conn->prepare($eventsQuery);
+        $stmt->bind_param("i", $user_id);
+        $stmt->execute();
+        $eventsResult = $stmt->get_result();
+        $events = [];
+        while ($row = $eventsResult->fetch_assoc()) {
+            // Convert the joined flag to boolean for easier use on the front end
+            $row['joined'] = (bool)$row['joined'];
+            // Set a default image if none provided (update path as needed)
+            $row['image'] = $row['image'] ?: '../assets/default-image.jpg';
+            $events[] = $row;
+        }
+        $stmt->close();
 
         // -- ANNOUNCEMENTS --
-        // Updated query to retrieve title from announcements table
         $announcementsQuery = "SELECT announcement_id, title, text, created_at FROM announcements ORDER BY created_at DESC";
         $announcementsResult = $conn->query($announcementsQuery);
         $announcements = $announcementsResult->fetch_all(MYSQLI_ASSOC);
@@ -107,7 +150,7 @@ $stmt->close();
         $event_id = $_POST['id'] ?? null;
         $userId = $_SESSION['user_id'];
 
-        // Image handling
+        // Image handling with encryption and S3 replacement
         $relativeImagePath = null;
         if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
             // Check file size (max 5MB)
@@ -126,14 +169,57 @@ $stmt->close();
             $imageName = time() . '_' . basename($_FILES['image']['name']);
             $s3Key = 'uploads/event_images/' . $imageName;
 
+            // -------------------------
+            // ENCRYPTION & EMBEDDING STEP
+            // -------------------------
+            $clearImageData = file_get_contents($_FILES['image']['tmp_name']);
+            $cipher = "AES-256-CBC";
+            $ivlen = openssl_cipher_iv_length($cipher);
+            $iv = openssl_random_pseudo_bytes($ivlen);
+            $rawKey = getenv('ENCRYPTION_KEY');
+            $encryptionKey = hash('sha256', $rawKey, true);
+            $encryptedData = openssl_encrypt($clearImageData, $cipher, $encryptionKey, OPENSSL_RAW_DATA, $iv);
+            $encryptedImageData = $iv . $encryptedData;
+            $pngImage = embedDataInPng($encryptedImageData, 100);
+            $finalEncryptedPngFile = tempnam(sys_get_temp_dir(), 'enc_png_') . '.png';
+            imagepng($pngImage, $finalEncryptedPngFile);
+            imagedestroy($pngImage);
+            // -------------------------
+            
+            // If updating an event, check if an existing image exists and delete it from S3.
+            if ($action === 'update_event') {
+                $stmtCheck = $conn->prepare("SELECT image FROM events WHERE event_id = ?");
+                $stmtCheck->bind_param("i", $event_id);
+                $stmtCheck->execute();
+                $resultCheck = $stmtCheck->get_result();
+                if ($resultCheck->num_rows > 0) {
+                    $existingEvent = $resultCheck->fetch_assoc();
+                    if (!empty($existingEvent['image'])) {
+                        // Remove the proxy prefix to get the S3 key.
+                        $existingS3Key = str_replace('/s3proxy/', '', $existingEvent['image']);
+                        try {
+                            $s3->deleteObject([
+                                'Bucket' => $bucketName,
+                                'Key'    => $existingS3Key
+                            ]);
+                        } catch (Aws\Exception\AwsException $e) {
+                            error_log("S3 deletion error: " . $e->getMessage());
+                        }
+                    }
+                }
+                $stmtCheck->close();
+            }
+
+            // Upload the encrypted PNG to S3.
             try {
-                // Upload to S3
                 $result = $s3->putObject([
-                    'Bucket' => $bucketName,
-                    'Key'    => $s3Key,
-                    'Body'   => fopen($_FILES['image']['tmp_name'], 'rb'),
-                    'ACL'    => 'public-read',
-                    'ContentType' => $_FILES['image']['type']
+                    'Bucket'      => $bucketName,
+                    'Key'         => $s3Key,
+                    'Body'        => fopen($finalEncryptedPngFile, 'rb'),
+                    'ACL'         => 'public-read',
+                    // Even though the original file might have a different type,
+                    // after encryption the file is a PNG.
+                    'ContentType' => 'image/png'
                 ]);
 
                 $relativeImagePath = str_replace(
@@ -146,6 +232,7 @@ $stmt->close();
                 echo json_encode(['status' => false, 'message' => 'Failed to upload image to S3.']);
                 exit();
             }
+            @unlink($finalEncryptedPngFile);
         }
 
         if ($action === 'add_event') {
@@ -159,7 +246,7 @@ $stmt->close();
 
             echo json_encode(['status' => true, 'message' => 'Event added successfully.']);
         } elseif ($action === 'update_event') {
-            // Update existing event
+            // Update existing event; if no new image provided, the old image remains.
             $stmt = $conn->prepare(
                 "UPDATE events SET title = ?, description = ?, date = ?, location = ?, image = IFNULL(?, image) WHERE event_id = ?"
             );
@@ -179,7 +266,7 @@ $stmt->close();
         $event_id = $_POST['id'];
         $userId = $_SESSION['user_id'];
 
-        // Optionally, delete the associated image from the server
+        // Optionally, delete the associated image from the server (if stored locally).
         $stmt = $conn->prepare("SELECT image FROM events WHERE event_id = ?");
         $stmt->bind_param('i', $event_id);
         $stmt->execute();
@@ -221,29 +308,24 @@ $stmt->close();
         // ----------------------------
         // ADD OR UPDATE ANNOUNCEMENT
         // ----------------------------
-        // Retrieve title and text from POST data
         $title = htmlspecialchars($_POST['title'], ENT_QUOTES, 'UTF-8');
         $text  = htmlspecialchars($_POST['text'], ENT_QUOTES, 'UTF-8');
         $announcement_id = $_POST['id'] ?? null;
         $userId = $_SESSION['user_id'];
 
         if ($action === 'add_announcement') {
-            // Insert new announcement with title and text
             $stmt = $conn->prepare("INSERT INTO announcements (title, text) VALUES (?, ?)");
             $stmt->bind_param('ss', $title, $text);
             $stmt->execute();
 
-            // Audit log for announcement addition
             recordAuditLog($userId, "Add Announcement", "Announcement added: " . substr($text, 0, 50));
 
             echo json_encode(['status' => true, 'message' => 'Announcement added successfully.']);
         } elseif ($action === 'update_announcement') {
-            // Update existing announcement with new title and text
             $stmt = $conn->prepare("UPDATE announcements SET title = ?, text = ? WHERE announcement_id = ?");
             $stmt->bind_param('ssi', $title, $text, $announcement_id);
             $stmt->execute();
 
-            // Audit log for announcement update
             recordAuditLog($userId, "Update Announcement", "Announcement ID $announcement_id updated.");
 
             echo json_encode(['status' => true, 'message' => 'Announcement updated successfully.']);
@@ -260,7 +342,6 @@ $stmt->close();
         $stmt->bind_param('i', $announcement_id);
         $stmt->execute();
 
-        // Audit log for announcement deletion
         recordAuditLog($userId, "Delete Announcement", "Announcement ID $announcement_id deleted.");
 
         echo json_encode(['status' => true, 'message' => 'Announcement deleted successfully.']);
@@ -270,7 +351,6 @@ $stmt->close();
         // ----------------------------
         $announcement_id = $_GET['id'];
 
-        // Updated query to retrieve title, text, and created_at
         $stmt = $conn->prepare("SELECT announcement_id, title, text, created_at FROM announcements WHERE announcement_id = ?");
         $stmt->bind_param('i', $announcement_id);
         $stmt->execute();
@@ -315,14 +395,54 @@ $stmt->close();
             $imageName = time() . '_' . basename($_FILES['image']['name']);
             $s3Key = 'uploads/training_images/' . $imageName;
 
+            // -------------------------
+            // ENCRYPTION & EMBEDDING STEP for training image
+            // -------------------------
+            $clearImageData = file_get_contents($_FILES['image']['tmp_name']);
+            $cipher = "AES-256-CBC";
+            $ivlen = openssl_cipher_iv_length($cipher);
+            $iv = openssl_random_pseudo_bytes($ivlen);
+            $rawKey = getenv('ENCRYPTION_KEY');
+            $encryptionKey = hash('sha256', $rawKey, true);
+            $encryptedData = openssl_encrypt($clearImageData, $cipher, $encryptionKey, OPENSSL_RAW_DATA, $iv);
+            $encryptedImageData = $iv . $encryptedData;
+            $pngImage = embedDataInPng($encryptedImageData, 100);
+            $finalEncryptedPngFile = tempnam(sys_get_temp_dir(), 'enc_png_') . '.png';
+            imagepng($pngImage, $finalEncryptedPngFile);
+            imagedestroy($pngImage);
+            // -------------------------
+
+            // If updating training, check for an existing image and delete it from S3.
+            if ($action === 'update_training') {
+                $stmtCheck = $conn->prepare("SELECT image FROM trainings WHERE training_id = ?");
+                $stmtCheck->bind_param("i", $training_id);
+                $stmtCheck->execute();
+                $resultCheck = $stmtCheck->get_result();
+                if ($resultCheck->num_rows > 0) {
+                    $existingTraining = $resultCheck->fetch_assoc();
+                    if (!empty($existingTraining['image'])) {
+                        $existingS3Key = str_replace('/s3proxy/', '', $existingTraining['image']);
+                        try {
+                            $s3->deleteObject([
+                                'Bucket' => $bucketName,
+                                'Key'    => $existingS3Key
+                            ]);
+                        } catch (Aws\Exception\AwsException $e) {
+                            error_log("S3 deletion error: " . $e->getMessage());
+                        }
+                    }
+                }
+                $stmtCheck->close();
+            }
+
+            // Upload the encrypted training image to S3.
             try {
-                // Upload to S3
                 $result = $s3->putObject([
-                    'Bucket' => $bucketName,
-                    'Key'    => $s3Key,
-                    'Body'   => fopen($_FILES['image']['tmp_name'], 'rb'),
-                    'ACL'    => 'public-read',
-                    'ContentType' => $_FILES['image']['type']
+                    'Bucket'      => $bucketName,
+                    'Key'         => $s3Key,
+                    'Body'        => fopen($finalEncryptedPngFile, 'rb'),
+                    'ACL'         => 'public-read',
+                    'ContentType' => 'image/png'
                 ]);
 
                 $relativeImagePath = str_replace(
@@ -335,6 +455,7 @@ $stmt->close();
                 echo json_encode(['status' => false, 'message' => 'Failed to upload image to S3.']);
                 exit();
             }
+            @unlink($finalEncryptedPngFile);
         }
 
         if ($action === 'add_training') {
@@ -343,7 +464,6 @@ $stmt->close();
             $stmt->bind_param('sssisssi', $title, $description, $schedule, $capacity, $relativeImagePath, $modality, $modality_details, $trainer_id);
             $stmt->execute();
 
-            // Audit log for training addition
             recordAuditLog($trainer_id, "Add Training", "Training '$title' added.");
 
             echo json_encode(['status' => true, 'message' => 'Training added successfully.']);
@@ -352,7 +472,6 @@ $stmt->close();
             $stmt->bind_param('sssisssi', $title, $description, $schedule, $capacity, $relativeImagePath, $modality, $modality_details, $training_id);
             $stmt->execute();
 
-            // Audit log for training update
             recordAuditLog($_SESSION['user_id'], "Update Training", "Training ID $training_id updated with title '$title'.");
 
             echo json_encode(['status' => true, 'message' => 'Training updated successfully.']);
@@ -365,7 +484,6 @@ $stmt->close();
         $stmt->bind_param('i', $training_id);
         $stmt->execute();
 
-        // Audit log for training deletion
         recordAuditLog($_SESSION['user_id'], "Delete Training", "Training ID $training_id deleted.");
 
         echo json_encode(['status' => true, 'message' => 'Training deleted successfully.']);
