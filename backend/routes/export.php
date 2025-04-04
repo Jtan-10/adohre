@@ -206,10 +206,11 @@ try {
         $maxCols = 2; // two charts per row
 
         foreach ($charts as $title => $chartKey) {
+            // Calculate X and Y positions for the chart
             $x = $marginLeft + ($col * ($chartWidth + $colSpacing));
             $y = $marginTop + ($row * ($chartHeight + $rowSpacing));
 
-            // If chart would overflow the page, add new page
+            // Check for page overflow and add a new page if needed
             if ($y + $chartHeight > $pdf->getPageHeight() - 20) {
                 $pdf->AddPage();
                 $marginTop = 20; // reset top margin on new page
@@ -217,30 +218,27 @@ try {
                 $row = 0;
             }
 
-            // Title
+            // Chart title
             $pdf->SetXY($x, $y);
             $pdf->SetFont('helvetica', 'B', 11);
             $pdf->Cell($chartWidth, 7, $title, 0, 2, 'L');
             $y += 8; // space after title
 
-            // Place the chart if we have it
+            // Place the chart if data is available
             if (isset($_POST[$chartKey]) && !empty($_POST[$chartKey])) {
                 $postedData = $_POST[$chartKey];
+
                 if (preg_match('/^data:image\/png;base64,/', $postedData)) {
                     try {
+                        // Remove the data URI prefix and decode
                         $base64Image = str_replace('data:image/png;base64,', '', $postedData);
                         $imageData   = base64_decode($base64Image);
-
+                        
                         if ($imageData !== false && strlen($imageData) > 0) {
-                            // Create a temp file
-                            $tempFile = tempnam(sys_get_temp_dir(), 'chart_');
-                            file_put_contents($tempFile, $imageData);
-
-                            // Draw the chart image
-                            // Note: removed "-10" so we use the full chartHeight
-                            $pdf->Image($tempFile, $x, $y, $chartWidth, $chartHeight, 'PNG', '', 'T', true, 300);
-
-                            unlink($tempFile); // cleanup
+                            // Use the inline method to load the image directly into TCPDF
+                            $chartImage = '@' . $imageData;
+                            // Render the image using inline data at 96 DPI (adjust DPI if needed)
+                            $pdf->Image($chartImage, $x, $y, $chartWidth, $chartHeight, 'PNG', '', 'T', true, 96);
                         } else {
                             $pdf->SetXY($x, $y);
                             $pdf->SetFont('helvetica', '', 9);
@@ -250,7 +248,6 @@ try {
                         $pdf->SetXY($x, $y);
                         $pdf->SetFont('helvetica', '', 9);
                         $pdf->Cell($chartWidth, 5, 'Error processing chart', 0, 1, 'L');
-                        error_log("Chart processing error: " . $e->getMessage());
                     }
                 } else {
                     $pdf->SetXY($x, $y);
@@ -258,14 +255,14 @@ try {
                     $pdf->Cell($chartWidth, 5, 'Invalid image format', 0, 1, 'L');
                 }
             } else {
-                // No chart data
+                // If no data is available, show a placeholder box
                 $pdf->SetXY($x, $y);
                 $pdf->SetDrawColor(200, 200, 200);
                 $pdf->SetFillColor(245, 245, 245);
                 $pdf->Cell($chartWidth, $chartHeight, 'Chart data not available', 1, 0, 'C', true);
             }
 
-            // Move to next column or row
+            // Move to next column or wrap to next row
             $col++;
             if ($col >= $maxCols) {
                 $col = 0;
