@@ -175,7 +175,7 @@ try {
         $pdf->Cell(0, 8, 'Please handle with appropriate care', 0, 1, 'C');
 
         // ---------------------------------------------------
-        // 4) Charts Overview Section
+        // 4) Charts Overview Section (Improved Formatting)
         // ---------------------------------------------------
         $pdf->AddPage();
         $pdf->SetFont('helvetica', 'B', 16);
@@ -193,38 +193,45 @@ try {
             'New Users Trend'        => 'newUsersChart',
         ];
 
-        // Layout settings for a 2x3 grid
-        $chartWidth  = 80;  // chart display width (mm)
-        $chartHeight = 70;  // chart display height (mm)
-        $colSpacing  = 10;
-        $rowSpacing  = 15;
-        $marginLeft  = 15;
-        $marginTop   = $pdf->GetY() + 5;
+        // Layout settings for a 2×3 grid
+        $chartWidth     = 80;  // chart display width (mm)
+        $chartHeight    = 70;  // chart display height (mm)
+        $headingHeight  = 8;   // approximate height for chart title
+        $blockHeight    = $headingHeight + $chartHeight; // total vertical space for each "title + chart"
+        $colSpacing     = 10;
+        $rowSpacing     = 15;
+        $marginLeft     = 15;
+        $marginTop      = $pdf->GetY() + 5;
 
         $col = 0;
         $row = 0;
         $maxCols = 2; // two charts per row
 
         foreach ($charts as $title => $chartKey) {
-            // Calculate X and Y positions for the chart
+            // Calculate X and Y positions for this chart block
             $x = $marginLeft + ($col * ($chartWidth + $colSpacing));
-            $y = $marginTop + ($row * ($chartHeight + $rowSpacing));
+            $y = $marginTop + ($row * ($blockHeight + $rowSpacing));
 
-            // Check for page overflow and add a new page if needed
-            if ($y + $chartHeight > $pdf->getPageHeight() - 20) {
+            // Check if the entire block (title + chart) will overflow the page
+            // If so, start a new page and reset row/column counters
+            if (($y + $blockHeight) > ($pdf->getPageHeight() - 20)) {
                 $pdf->AddPage();
-                $marginTop = 20; // reset top margin on new page
-                $y = $marginTop;
+                // You can adjust the top margin for new pages as needed
+                $marginTop = 20;
                 $row = 0;
+                $col = 0;
+                // Recompute x, y after resetting row/col
+                $x = $marginLeft;
+                $y = $marginTop;
             }
 
-            // Chart title
+            // Print the chart title
             $pdf->SetXY($x, $y);
             $pdf->SetFont('helvetica', 'B', 11);
-            $pdf->Cell($chartWidth, 7, $title, 0, 2, 'L');
-            $y += 8; // space after title
+            $pdf->Cell($chartWidth, $headingHeight, $title, 0, 2, 'L');
 
-            // Place the chart if data is available
+            // Print the chart image (or placeholder) at y + headingHeight
+            $chartY = $y + $headingHeight;
             if (isset($_POST[$chartKey]) && !empty($_POST[$chartKey])) {
                 $postedData = $_POST[$chartKey];
 
@@ -233,36 +240,37 @@ try {
                         // Remove the data URI prefix and decode
                         $base64Image = str_replace('data:image/png;base64,', '', $postedData);
                         $imageData   = base64_decode($base64Image);
-                        
+
                         if ($imageData !== false && strlen($imageData) > 0) {
-                            // Use the inline method to load the image directly into TCPDF
+                            // Inline method: prefix with '@' so TCPDF can render directly
                             $chartImage = '@' . $imageData;
-                            // Render the image using inline data at 96 DPI (adjust DPI if needed)
-                            $pdf->Image($chartImage, $x, $y, $chartWidth, $chartHeight, 'PNG', '', 'T', true, 96);
+                            // Render the image using inline data
+                            //  - Adjust the DPI (last parameter) if needed
+                            $pdf->Image($chartImage, $x, $chartY, $chartWidth, $chartHeight, 'PNG', '', 'T', true, 96);
                         } else {
-                            $pdf->SetXY($x, $y);
+                            $pdf->SetXY($x, $chartY);
                             $pdf->SetFont('helvetica', '', 9);
                             $pdf->Cell($chartWidth, 5, 'Image decoding failed', 0, 1, 'L');
                         }
                     } catch (Exception $e) {
-                        $pdf->SetXY($x, $y);
+                        $pdf->SetXY($x, $chartY);
                         $pdf->SetFont('helvetica', '', 9);
                         $pdf->Cell($chartWidth, 5, 'Error processing chart', 0, 1, 'L');
                     }
                 } else {
-                    $pdf->SetXY($x, $y);
+                    $pdf->SetXY($x, $chartY);
                     $pdf->SetFont('helvetica', '', 9);
                     $pdf->Cell($chartWidth, 5, 'Invalid image format', 0, 1, 'L');
                 }
             } else {
                 // If no data is available, show a placeholder box
-                $pdf->SetXY($x, $y);
+                $pdf->SetXY($x, $chartY);
                 $pdf->SetDrawColor(200, 200, 200);
                 $pdf->SetFillColor(245, 245, 245);
                 $pdf->Cell($chartWidth, $chartHeight, 'Chart data not available', 1, 0, 'C', true);
             }
 
-            // Move to next column or wrap to next row
+            // Move to the next column, or wrap to the next row if needed
             $col++;
             if ($col >= $maxCols) {
                 $col = 0;
