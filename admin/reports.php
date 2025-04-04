@@ -370,9 +370,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                     new Chart(registrationsCtx, {
                         type: 'bar',
                         data: {
-                            labels: ['Joined Events', 'Joined Trainings', 'Membership Applications',
-                                'Training Registrations'
-                            ],
+                            labels: ['Joined Events', 'Joined Trainings',
+                                'Membership Applications', ],
                             datasets: [{
                                 label: 'Registrations',
                                 data: [
