@@ -542,39 +542,62 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                     'registrationsChart',
                     'newUsersChart'
                 ];
-                const images = {};
-                canvasIds.forEach(id => {
-                    const canvas = document.getElementById(id);
-                    if (canvas) {
-                        images[id] = canvas.toDataURL('image/png');
-                        console.log("DEBUG: Captured image for canvas " + id);
-                    } else {
-                        console.error("Canvas with id " + id + " not found.");
-                        logErrorToServer("Canvas with id " + id +
-                            " not found during PDF export.");
-                    }
-                });
-                // Create a hidden form to POST the chart images to export.php
+
                 const form = document.createElement('form');
                 form.method = 'POST';
                 form.action = '../backend/routes/export.php?format=pdf';
                 form.target = '_blank'; // This will open the PDF in a new tab
 
-                // Append each chart image as a hidden input field
-                for (let id in images) {
-                    const input = document.createElement('input');
-                    input.type = 'hidden';
-                    input.name = id; // e.g. "userChart", "eventChart", etc.
-                    input.value = images[id];
-                    form.appendChild(input);
-                }
+                // Process each canvas and add to form
+                canvasIds.forEach(id => {
+                    const canvas = document.getElementById(id);
+                    if (canvas) {
+                        try {
+                            // Get image data with maximum quality
+                            const imgData = canvas.toDataURL('image/png', 1.0);
+                            console.log(
+                                `DEBUG: Captured image for ${id}, data length: ${imgData.length}`
+                                );
+
+                            // Create input for this chart
+                            const input = document.createElement('input');
+                            input.type = 'hidden';
+                            input.name = id;
+                            input.value = imgData;
+                            form.appendChild(input);
+                        } catch (canvasErr) {
+                            console.error(`Error capturing ${id}:`, canvasErr);
+                            logErrorToServer(
+                                `Error capturing canvas ${id}: ${canvasErr.message}`);
+                        }
+                    } else {
+                        console.error(`Canvas with id ${id} not found.`);
+                        logErrorToServer(`Canvas with id ${id} not found during PDF export.`);
+                    }
+                });
+
+                // Add a timestamp to prevent caching issues
+                const timestampInput = document.createElement('input');
+                timestampInput.type = 'hidden';
+                timestampInput.name = 'timestamp';
+                timestampInput.value = Date.now();
+                form.appendChild(timestampInput);
+
                 // Append form to the body and submit it
                 document.body.appendChild(form);
+                console.log("DEBUG: Submitting PDF export form with chart data.");
                 form.submit();
-                console.log("DEBUG: Submitted PDF export form.");
+
+                // Remove the form after submission
+                setTimeout(() => {
+                    document.body.removeChild(form);
+                }, 1000);
+
             } catch (e) {
                 console.error("Error during PDF export:", e);
                 logErrorToServer("Error during PDF export: " + e.message);
+                alert(
+                    "There was an error preparing the PDF export. Please check the console for details.");
             }
         });
     });

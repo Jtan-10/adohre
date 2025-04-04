@@ -116,6 +116,9 @@ try {
         header("Pragma: no-cache");
         header('Content-Type: application/pdf');
 
+        // Debug info capture
+        $debugInfo = "Chart data processing for PDF export:\n";
+        
         // PDF Export using TCPDF
         $pdf = new \TCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
         $pdf->SetCreator(PDF_CREATOR);
@@ -157,9 +160,7 @@ try {
             'New Users Trend'        => 'newUsersChart',
         ];
         
-        // Debug information
-        $debugInfo = "Chart data received:\n";
-        
+        // Process each chart
         foreach ($charts as $title => $chartKey) {
             $pdf->SetFont('helvetica', 'B', 12);
             $pdf->Cell(0, 8, $title, 0, 1, 'L');
@@ -169,41 +170,41 @@ try {
                 $postedData = $_POST[$chartKey];
                 $debugInfo .= "$chartKey: " . strlen($postedData) . " bytes\n";
                 
-                // Alternative approach: embed images directly in HTML
+                // Handle base64 encoded image data
                 if (preg_match('/^data:image\/png;base64,/', $postedData)) {
-                    // Keep the image smaller for PDF
-                    $imgWidth = 160; // mm
-                    $imgHeight = 80; // mm
-                    
                     try {
-                        // New approach: Use HTML with embedded base64 images
-                        $html = '<div style="text-align:center;"><img src="' . $postedData . '" style="width:' . $imgWidth . 'mm; height:auto;"></div>';
-                        $pdf->writeHTML($html, true, false, true, false, '');
+                        // Extract the base64 encoded image data
+                        $base64Image = str_replace('data:image/png;base64,', '', $postedData);
+                        $imageData = base64_decode($base64Image);
+                        
+                        if ($imageData !== false) {
+                            // Create a temporary file to store the image
+                            $tempFile = tempnam(sys_get_temp_dir(), 'chart_');
+                            file_put_contents($tempFile, $imageData);
+                            
+                            // Add the image to the PDF
+                            $pdf->Image($tempFile, $pdf->GetX(), $pdf->GetY(), 160, 80, 'PNG', '', 'T', true, 300);
+                            
+                            // Remove the temporary file
+                            unlink($tempFile);
+                            $debugInfo .= "  - Successfully processed image via temp file\n";
+                        } else {
+                            $pdf->Cell(0, 5, 'Failed to decode chart image.', 0, 1, 'L');
+                            $debugInfo .= "  - Failed to decode base64 image data\n";
+                        }
                     } catch (Exception $e) {
-                        error_log("ERROR with HTML approach: " . $e->getMessage());
-                        $pdf->Cell(0, 5, 'Chart image processing error. Please check logs.', 0, 1, 'L');
+                        $pdf->Cell(0, 5, 'Error processing chart image.', 0, 1, 'L');
+                        $debugInfo .= "  - Exception: " . $e->getMessage() . "\n";
                     }
                 } else {
-                    $pdf->Cell(0, 5, 'Chart data format is invalid.', 0, 1, 'L');
-                    error_log("ERROR: Invalid chart data format for $chartKey");
+                    $pdf->Cell(0, 5, 'Invalid chart data format.', 0, 1, 'L');
+                    $debugInfo .= "  - Invalid data format (not base64 PNG)\n";
                 }
             } else {
                 $debugInfo .= "$chartKey: No data received\n";
-                
-                // Try fallback to file
-                $fallbackPath = "/opt/lampp/htdocs/capstone-php/admin/charts/{$chartKey}.png";
-                if (file_exists($fallbackPath)) {
-                    try {
-                        $pdf->Image($fallbackPath, $pdf->GetX(), $pdf->GetY(), 160, 80, 'PNG', '', 'T', true, 300);
-                    } catch (Exception $e) {
-                        error_log("ERROR with fallback image: " . $e->getMessage());
-                        $pdf->Cell(0, 5, 'Fallback chart image error.', 0, 1, 'L');
-                    }
-                } else {
-                    $pdf->Cell(0, 5, 'Chart image not available.', 0, 1, 'L');
-                }
+                $pdf->Cell(0, 5, 'Chart data not available.', 0, 1, 'L');
             }
-            
+
             $pdf->Ln(10); // Space after each chart section
         }
         
