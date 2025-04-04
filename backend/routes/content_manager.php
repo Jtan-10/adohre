@@ -14,7 +14,6 @@ require_once __DIR__ . '/../s3config.php'; // adjust path as needed
 
 // -------------------------
 // Helper function to embed binary data into a valid PNG.
-// (Copied from update_user_details.php)
 // -------------------------
 if (!function_exists('embedDataInPng')) {
     /**
@@ -143,10 +142,11 @@ try {
         // ----------------------------
         // ADD OR UPDATE EVENT
         // ----------------------------
-        $title = htmlspecialchars($_POST['title'], ENT_QUOTES, 'UTF-8');
-        $description = htmlspecialchars($_POST['description'], ENT_QUOTES, 'UTF-8');
+        // Store raw text rather than HTML-escaped text.
+        $title = $_POST['title'];
+        $description = $_POST['description'];
         $date = $_POST['date'];
-        $location = htmlspecialchars($_POST['location'], ENT_QUOTES, 'UTF-8');
+        $location = $_POST['location'];
         $event_id = $_POST['id'] ?? null;
         $userId = $_SESSION['user_id'];
 
@@ -243,7 +243,6 @@ try {
 
             // Audit log for event addition
             recordAuditLog($userId, "Add Event", "Event '$title' added.");
-
             echo json_encode(['status' => true, 'message' => 'Event added successfully.']);
         } elseif ($action === 'update_event') {
             // Update existing event; if no new image provided, the old image remains.
@@ -255,7 +254,6 @@ try {
 
             // Audit log for event update
             recordAuditLog($userId, "Update Event", "Event ID $event_id updated with title '$title'.");
-
             echo json_encode(['status' => true, 'message' => 'Event updated successfully.']);
         }
     } elseif ($action === 'delete_event') {
@@ -285,7 +283,6 @@ try {
 
         // Audit log for event deletion
         recordAuditLog($userId, "Delete Event", "Event ID $event_id deleted.");
-
         echo json_encode(['status' => true, 'message' => 'Event deleted successfully.']);
     } elseif ($action === 'get_event') {
         // ----------------------------
@@ -319,7 +316,6 @@ try {
             $stmt->execute();
 
             recordAuditLog($userId, "Add Announcement", "Announcement added: " . substr($text, 0, 50));
-
             echo json_encode(['status' => true, 'message' => 'Announcement added successfully.']);
         } elseif ($action === 'update_announcement') {
             $stmt = $conn->prepare("UPDATE announcements SET title = ?, text = ? WHERE announcement_id = ?");
@@ -327,7 +323,6 @@ try {
             $stmt->execute();
 
             recordAuditLog($userId, "Update Announcement", "Announcement ID $announcement_id updated.");
-
             echo json_encode(['status' => true, 'message' => 'Announcement updated successfully.']);
         }
     } elseif ($action === 'delete_announcement') {
@@ -343,14 +338,12 @@ try {
         $stmt->execute();
 
         recordAuditLog($userId, "Delete Announcement", "Announcement ID $announcement_id deleted.");
-
         echo json_encode(['status' => true, 'message' => 'Announcement deleted successfully.']);
     } elseif ($action === 'get_announcement') {
         // ----------------------------
         // GET SINGLE ANNOUNCEMENT
         // ----------------------------
         $announcement_id = $_GET['id'];
-
         $stmt = $conn->prepare("SELECT announcement_id, title, text, created_at FROM announcements WHERE announcement_id = ?");
         $stmt->bind_param('i', $announcement_id);
         $stmt->execute();
@@ -367,20 +360,19 @@ try {
         // ----------------------------
         // ADD OR UPDATE TRAINING
         // ----------------------------
-        $title = htmlspecialchars($_POST['title'], ENT_QUOTES, 'UTF-8');
-        $description = htmlspecialchars($_POST['description'], ENT_QUOTES, 'UTF-8');
+        // Store raw text for trainings.
+        $title = $_POST['title'];
+        $description = $_POST['description'];
         $schedule = $_POST['schedule'];
         $capacity = intval($_POST['capacity']);
         $training_id = $_POST['id'] ?? null;
-        // New fields for modality and modality details
-        $modality = htmlspecialchars($_POST['modality'] ?? '', ENT_QUOTES, 'UTF-8');
-        $modality_details = htmlspecialchars($_POST['modality_details'] ?? '', ENT_QUOTES, 'UTF-8');
+        $modality = $_POST['modality'] ?? '';
+        $modality_details = $_POST['modality_details'] ?? '';
         $userId = $_SESSION['user_id'];
 
         $relativeImagePath = null;
 
         if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-            // Check file size (max 5MB)
             if ($_FILES['image']['size'] > 5242880) {
                 echo json_encode(['status' => false, 'message' => 'File too large. Maximum size is 5MB.']);
                 exit();
@@ -391,7 +383,6 @@ try {
                 exit();
             }
 
-            // Generate a unique name for the file in S3
             $imageName = time() . '_' . basename($_FILES['image']['name']);
             $s3Key = 'uploads/training_images/' . $imageName;
 
@@ -465,7 +456,6 @@ try {
             $stmt->execute();
 
             recordAuditLog($trainer_id, "Add Training", "Training '$title' added.");
-
             echo json_encode(['status' => true, 'message' => 'Training added successfully.']);
         } elseif ($action === 'update_training') {
             $stmt = $conn->prepare("UPDATE trainings SET title = ?, description = ?, schedule = ?, capacity = ?, image = IFNULL(?, image), modality = ?, modality_details = ? WHERE training_id = ?");
@@ -473,7 +463,6 @@ try {
             $stmt->execute();
 
             recordAuditLog($_SESSION['user_id'], "Update Training", "Training ID $training_id updated with title '$title'.");
-
             echo json_encode(['status' => true, 'message' => 'Training updated successfully.']);
             exit();
         }
@@ -485,7 +474,6 @@ try {
         $stmt->execute();
 
         recordAuditLog($_SESSION['user_id'], "Delete Training", "Training ID $training_id deleted.");
-
         echo json_encode(['status' => true, 'message' => 'Training deleted successfully.']);
     } elseif ($action === 'get_training') {
         $training_id = $_GET['id'];
