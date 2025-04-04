@@ -2,7 +2,6 @@
 require_once '../db/db_connect.php';
 require_once '../../vendor/autoload.php'; // For PDF and Excel libraries like TCPDF and PhpSpreadsheet
 session_start();
-header('Content-Type: application/json');
 
 // Determine export format
 $format = $_GET['format'] ?? 'csv';
@@ -77,7 +76,6 @@ try {
     recordAuditLog($userId, "Export Report", "User exported report in " . strtoupper($format) . " format.");
 
     if ($format === 'csv') {
-        // CSV Export
         header('Content-Type: text/csv');
         header('Content-Disposition: attachment; filename="report.csv"');
         $output = fopen('php://output', 'w');
@@ -145,34 +143,45 @@ try {
         // Define chart keys and titles.
         // We will check if a Base64 image was passed via POST for each chart.
         $charts = [
-            'User Statistics'       => 'userChart',
-            'Event Statistics'      => 'eventChart',
-            'Training Statistics'   => 'trainingChart',
-            'Revenue Statistics'    => 'revenueChart',
+            'User Statistics'        => 'userChart',
+            'Event Statistics'       => 'eventChart',
+            'Training Statistics'    => 'trainingChart',
+            'Revenue Statistics'     => 'revenueChart',
             'Registrations Overview' => 'registrationsChart',
-            'New Users Trend'       => 'newUsersChart',
+            'New Users Trend'        => 'newUsersChart',
         ];
         foreach ($charts as $title => $chartKey) {
             $pdf->SetFont('helvetica', 'B', 12);
             $pdf->Cell(0, 0, $title, 0, 1, 'L');
             $pdf->Ln(5);
 
-            $chartImgData = '';
+            $chartImage = false;
             // Check if the chart image data is provided via POST (from reports.js)
-            if (isset($_POST[$chartKey]) && preg_match('/^data:image\/png;base64,/', $_POST[$chartKey])) {
-                // Remove the data URI scheme and decode
-                $chartImgData = base64_decode(str_replace('data:image/png;base64,', '', $_POST[$chartKey]));
-                // Use the '@' prefix to tell TCPDF to load image from string
-                $chartImage = '@' . $chartImgData;
-                $imgFormat = 'PNG';
-            } else {
-                // Fallback to file path
+            if (isset($_POST[$chartKey])) {
+                $postedData = $_POST[$chartKey];
+                // Log the length of the posted data for debugging (remove later)
+                error_log("DEBUG: POST data length for {$chartKey} = " . strlen($postedData));
+                if (preg_match('/^data:image\/png;base64,/', $postedData)) {
+                    // Remove the data URI scheme and decode
+                    $decodedData = base64_decode(str_replace('data:image/png;base64,', '', $postedData));
+                    if ($decodedData !== false && strlen($decodedData) > 0) {
+                        // Use the '@' prefix to tell TCPDF to load image from string
+                        $chartImage = '@' . $decodedData;
+                        $imgFormat = 'PNG';
+                    } else {
+                        error_log("DEBUG: Decoded data for {$chartKey} is empty.");
+                    }
+                } else {
+                    error_log("DEBUG: Data for {$chartKey} did not match the expected format.");
+                }
+            }
+
+            // Use fallback file if POST data is not available
+            if (!$chartImage) {
                 $fallbackPath = "/opt/lampp/htdocs/capstone-php/admin/charts/{$chartKey}.png";
                 if (file_exists($fallbackPath)) {
                     $chartImage = $fallbackPath;
                     $imgFormat = 'PNG';
-                } else {
-                    $chartImage = false;
                 }
             }
 
@@ -296,7 +305,7 @@ try {
     }
 } catch (Exception $e) {
     // Log the actual error message internally if needed
-    // error_log($e->getMessage());
+    error_log("ERROR: " . $e->getMessage());
     echo json_encode(['status' => false, 'message' => 'An error occurred. Please try again later.']);
     exit;
 }
