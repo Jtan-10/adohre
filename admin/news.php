@@ -22,43 +22,43 @@ if (!isset($_SESSION['csrf_token'])) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
     <style>
-        .form-section {
-            margin: 20px 0;
-            padding: 15px;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            background: #f9f9f9;
-        }
+    .form-section {
+        margin: 20px 0;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        background: #f9f9f9;
+    }
 
-        .content-item {
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            padding: 15px;
-            margin-bottom: 15px;
-            background: #fff;
-        }
+    .content-item {
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 15px;
+        margin-bottom: 15px;
+        background: #fff;
+    }
 
-        .news-image {
-            max-height: 150px;
-            object-fit: cover;
-            margin-bottom: 10px;
-        }
+    .news-image {
+        max-height: 150px;
+        object-fit: cover;
+        margin-bottom: 10px;
+    }
 
-        .category-badge {
-            background-color: #28a745;
-            color: white;
-            padding: 5px 10px;
-            border-radius: 15px;
-            font-size: 0.8rem;
-            margin-bottom: 10px;
-            display: inline-block;
-        }
+    .category-badge {
+        background-color: #28a745;
+        color: white;
+        padding: 5px 10px;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        margin-bottom: 10px;
+        display: inline-block;
+    }
 
-        .meta-info {
-            font-size: 0.9rem;
-            color: #666;
-            margin-bottom: 10px;
-        }
+    .meta-info {
+        font-size: 0.9rem;
+        color: #666;
+        margin-bottom: 10px;
+    }
     </style>
 </head>
 
@@ -119,74 +119,74 @@ if (!isset($_SESSION['csrf_token'])) {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Updated inline script with nonce attribute -->
     <script nonce="<?php echo $cspNonce; ?>">
-        // escapeHTML function to sanitize output
-        function escapeHTML(text) {
-            return text.replace(/[&<>"']/g, m => ({
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;',
-                "'": '&#039;'
-            })[m]);
-        }
+    // escapeHTML function to sanitize output
+    function escapeHTML(text) {
+        return text.replace(/[&<>"']/g, m => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        })[m]);
+    }
 
-        document.addEventListener('DOMContentLoaded', function() {
-            fetchNews();
+    document.addEventListener('DOMContentLoaded', function() {
+        fetchNews();
 
-            document.getElementById('newsForm').addEventListener('submit', function(e) {
-                e.preventDefault();
-                const formData = new FormData(this);
-                const newsId = document.getElementById('newsId').value;
-                const action = newsId ? 'update' : 'add';
-                formData.append('action', action);
-                // Append CSRF token if not already included
-                if (!formData.get('csrf_token')) {
-                    formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
-                }
+        document.getElementById('newsForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const newsId = document.getElementById('newsId').value;
+            const action = newsId ? 'update' : 'add';
+            formData.append('action', action);
+            // Append CSRF token if not already included
+            if (!formData.get('csrf_token')) {
+                formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+            }
 
-                fetch('../backend/routes/news_manager.php', {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.text())
-                    .then(text => {
-                        try {
-                            if (text.trim() === '') {
-                                throw new Error('Empty response from server');
-                            }
-                            const data = JSON.parse(text);
-                            if (data.status) {
-                                alert(data.message);
-                                this.reset();
-                                document.getElementById('newsId').value = '';
-                                fetchNews();
-                            } else {
-                                alert('Error: ' + data.message);
-                            }
-                        } catch (err) {
-                            console.error("Parse error:", err);
-                            console.error("Raw text:", text);
-                            alert('Server error. Check console for details.');
+            fetch('../backend/routes/news_manager.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.text())
+                .then(text => {
+                    try {
+                        if (text.trim() === '') {
+                            throw new Error('Empty response from server');
                         }
-                    })
-                    .catch(err => {
-                        console.error("Fetch error:", err);
-                        alert('Failed to save the article. Check console for details.');
-                    });
-            });
-
-            function fetchNews() {
-                fetch('../backend/routes/news_manager.php?action=fetch')
-                    .then(response => response.json())
-                    .then(data => {
+                        const data = JSON.parse(text);
                         if (data.status) {
-                            let html = '';
-                            data.news.forEach(article => {
-                                html += `
+                            alert(data.message);
+                            this.reset();
+                            document.getElementById('newsId').value = '';
+                            fetchNews();
+                        } else {
+                            alert('Error: ' + data.message);
+                        }
+                    } catch (err) {
+                        console.error("Parse error:", err);
+                        console.error("Raw text:", text);
+                        alert('Server error. Check console for details.');
+                    }
+                })
+                .catch(err => {
+                    console.error("Fetch error:", err);
+                    alert('Failed to save the article. Check console for details.');
+                });
+        });
+
+        function fetchNews() {
+            fetch('../backend/routes/news_manager.php?action=fetch')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status) {
+                        let html = '';
+                        data.news.forEach(article => {
+                            html += `
                       <div class="content-item">
                         <div class="row">
                           <div class="col-md-3">
-                            <img src="${ article.image ? escapeHTML(article.image) : 'assets/default-news.jpg' }" 
+                            <img src="${ article.image ? '../backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(article.image) : 'assets/default-news.jpg' }" 
                                  alt="${ escapeHTML(article.title) }" 
                                  class="img-fluid news-image">
                           </div>
@@ -207,74 +207,74 @@ if (!isset($_SESSION['csrf_token'])) {
                           </div>
                         </div>
                       </div>`;
-                            });
-                            document.getElementById('newsList').innerHTML = html || '<p>No articles found.</p>';
+                        });
+                        document.getElementById('newsList').innerHTML = html || '<p>No articles found.</p>';
 
-                            // Attach event listeners for edit and delete buttons
-                            document.querySelectorAll('.edit-news').forEach(btn => {
-                                btn.addEventListener('click', function() {
-                                    editNews(this.getAttribute('data-id'));
-                                });
+                        // Attach event listeners for edit and delete buttons
+                        document.querySelectorAll('.edit-news').forEach(btn => {
+                            btn.addEventListener('click', function() {
+                                editNews(this.getAttribute('data-id'));
                             });
-                            document.querySelectorAll('.delete-news').forEach(btn => {
-                                btn.addEventListener('click', function() {
-                                    deleteNews(this.getAttribute('data-id'));
-                                });
+                        });
+                        document.querySelectorAll('.delete-news').forEach(btn => {
+                            btn.addEventListener('click', function() {
+                                deleteNews(this.getAttribute('data-id'));
                             });
-                        }
+                        });
+                    }
+                })
+                .catch(err => console.error(err));
+        }
+
+        function editNews(id) {
+            fetch(`../backend/routes/news_manager.php?action=fetch&id=${id}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status && data.news.length > 0) {
+                        const article = data.news[0];
+                        document.getElementById('newsId').value = article.news_id;
+                        document.getElementById('newsTitle').value = article.title;
+                        document.getElementById('newsExcerpt').value = article.excerpt;
+                        document.getElementById('newsContent').value = article.content;
+                        document.getElementById('newsCategory').value = article.category;
+                        const names = article.author.split(' ');
+                        document.getElementById('newsAuthorFirst').value = names[0] || '';
+                        document.getElementById('newsAuthorLast').value = names.slice(1).join(' ') || '';
+                    } else {
+                        alert('Error fetching article details.');
+                    }
+                })
+                .catch(err => console.error(err));
+        }
+
+        function deleteNews(id) {
+            if (confirm('Are you sure you want to delete this article?')) {
+                const formData = new FormData();
+                formData.append('action', 'delete');
+                formData.append('id', id);
+                // Append CSRF token for deletion
+                formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+
+                fetch('../backend/routes/news_manager.php', {
+                        method: 'POST',
+                        body: formData
                     })
-                    .catch(err => console.error(err));
-            }
-
-            function editNews(id) {
-                fetch(`../backend/routes/news_manager.php?action=fetch&id=${id}`)
                     .then(response => response.json())
                     .then(data => {
-                        if (data.status && data.news.length > 0) {
-                            const article = data.news[0];
-                            document.getElementById('newsId').value = article.news_id;
-                            document.getElementById('newsTitle').value = article.title;
-                            document.getElementById('newsExcerpt').value = article.excerpt;
-                            document.getElementById('newsContent').value = article.content;
-                            document.getElementById('newsCategory').value = article.category;
-                            const names = article.author.split(' ');
-                            document.getElementById('newsAuthorFirst').value = names[0] || '';
-                            document.getElementById('newsAuthorLast').value = names.slice(1).join(' ') || '';
+                        if (data.status) {
+                            alert(data.message);
+                            fetchNews();
                         } else {
-                            alert('Error fetching article details.');
+                            alert('Error: ' + data.message);
                         }
                     })
-                    .catch(err => console.error(err));
+                    .catch(err => {
+                        console.error(err);
+                        alert('Failed to delete the article.');
+                    });
             }
-
-            function deleteNews(id) {
-                if (confirm('Are you sure you want to delete this article?')) {
-                    const formData = new FormData();
-                    formData.append('action', 'delete');
-                    formData.append('id', id);
-                    // Append CSRF token for deletion
-                    formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
-
-                    fetch('../backend/routes/news_manager.php', {
-                            method: 'POST',
-                            body: formData
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.status) {
-                                alert(data.message);
-                                fetchNews();
-                            } else {
-                                alert('Error: ' + data.message);
-                            }
-                        })
-                        .catch(err => {
-                            console.error(err);
-                            alert('Failed to delete the article.');
-                        });
-                }
-            }
-        });
+        }
+    });
     </script>
 </body>
 
