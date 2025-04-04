@@ -28,30 +28,30 @@ header("Referrer-Policy: no-referrer-when-downgrade");
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <style>
-        body {
-            background-color: #f5f6fa;
-            margin: 0;
-            padding: 0;
-            overflow-x: hidden;
-        }
+    body {
+        background-color: #f5f6fa;
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden;
+    }
 
-        .content {
-            flex-grow: 1;
-            padding: 20px;
-            margin-right: 0;
-            transition: margin-left 0.3s ease-in-out;
-        }
+    .content {
+        flex-grow: 1;
+        padding: 20px;
+        margin-right: 0;
+        transition: margin-left 0.3s ease-in-out;
+    }
 
+    .card {
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+
+    @media (max-width: 768px) {
         .card {
-            border-radius: 10px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
-
-        @media (max-width: 768px) {
-            .card {
-                margin-bottom: 15px;
-            }
-        }
+    }
     </style>
 </head>
 
@@ -111,10 +111,6 @@ header("Referrer-Policy: no-referrer-when-downgrade");
                         <h2 id="totalEvents">...</h2>
                     </div>
                 </div>
-            </div>
-
-            <!-- Additional Dashboard Stats -->
-            <div class="row mb-4 g-3">
                 <div class="col-lg-3 col-md-4 col-sm-6">
                     <div class="card p-3 text-center">
                         <h4>Total Chat Messages</h4>
@@ -138,26 +134,30 @@ header("Referrer-Policy: no-referrer-when-downgrade");
     </div>
 
     <script nonce="<?= $cspNonce ?>">
-        document.addEventListener('DOMContentLoaded', function() {
-            fetch('../backend/routes/analytics.php')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status) {
-                        document.getElementById('totalUsers').innerText = data.data.total_users || 0;
-                        document.getElementById('activeMembers').innerText = data.data.active_members || 0;
-                        document.getElementById('totalAnnouncements').innerText = data.data.total_announcements || 0;
-                        document.getElementById('totalTrainings').innerText = data.data.total_trainings || 0;
-                        document.getElementById('totalEvents').innerText = data.data.total_events || 0;
-                        // New stats assignments
-                        document.getElementById('totalChatMessages').innerText = data.data.total_chat_messages || 0;
-                        document.getElementById('totalConsultations').innerText = data.data.total_consultations || 0;
-                        document.getElementById('totalCertificates').innerText = data.data.total_certificates || 0;
-                    } else {
-                        alert('Failed to fetch analytics data.');
-                    }
-                })
-                .catch(err => console.error('Error fetching analytics data:', err));
-        });
+    document.addEventListener('DOMContentLoaded', function() {
+        fetch('../backend/routes/analytics.php')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status) {
+                    document.getElementById('totalUsers').innerText = data.data.total_users || 0;
+                    document.getElementById('activeMembers').innerText = data.data.active_members || 0;
+                    document.getElementById('totalAnnouncements').innerText = data.data
+                        .total_announcements || 0;
+                    document.getElementById('totalTrainings').innerText = data.data.total_trainings || 0;
+                    document.getElementById('totalEvents').innerText = data.data.total_events || 0;
+                    // New stats assignments
+                    document.getElementById('totalChatMessages').innerText = data.data
+                        .total_chat_messages || 0;
+                    document.getElementById('totalConsultations').innerText = data.data
+                        .total_consultations || 0;
+                    document.getElementById('totalCertificates').innerText = data.data.total_certificates ||
+                        0;
+                } else {
+                    alert('Failed to fetch analytics data.');
+                }
+            })
+            .catch(err => console.error('Error fetching analytics data:', err));
+    });
     </script>
 </body>
 
