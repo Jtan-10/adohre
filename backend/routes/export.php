@@ -193,82 +193,88 @@ try {
             'New Users Trend'        => 'newUsersChart',
         ];
 
-        // Define margins and positions
-        $marginLeft = 15;
-        $pageWidth  = $pdf->getPageWidth();
-        $usableWidth = $pageWidth - 2 * $marginLeft;
+        // Layout settings for a 2×3 grid
+        $chartWidth     = 130;  // chart display width (mm)
+        $chartHeight    = 100;  // chart display height (mm)
+        $headingHeight  = 8;   // approximate height for chart title
+        $blockHeight    = $headingHeight + $chartHeight; // total vertical space for each "title + chart"
+        $colSpacing     = 10;
+        $rowSpacing     = 15;
+        $marginLeft     = 35;
+        $marginTop      = $pdf->GetY() + 5;
 
-        // Define positions for the top and bottom chart on each page
-        $topY    = 20;  // Y coordinate for the top chart block
-        $bottomY = ($pdf->getPageHeight() / 2) + 10;  // Y coordinate for the bottom chart block
+        $col = 0;
+        $row = 0;
+        $maxCols = 1; // two charts per row
 
-        // Define chart dimensions
-        $chartTitleHeight = 8;  // Height reserved for the chart title
-        $chartHeight = 80;      // Height of the chart image
-        $chartWidth  = $usableWidth;  // Full width within margins
+        foreach ($charts as $title => $chartKey) {
+            // Calculate X and Y positions for this chart block
+            $x = $marginLeft + ($col * ($chartWidth + $colSpacing));
+            $y = $marginTop + ($row * ($blockHeight + $rowSpacing));
 
-        // Split the charts into groups of two
-        $chartGroups = array_chunk($charts, 2, true);
-
-        foreach ($chartGroups as $group) {
-            $pdf->AddPage();
-
-            // Loop through the two charts in the group
-            $i = 0;
-            foreach ($group as $title => $chartKey) {
-                // Set Y coordinate: top chart (i==0) or bottom chart (i==1)
-                $currentY = ($i === 0) ? $topY : $bottomY;
-                
-                // Set X coordinate (left margin)
+            // Check if the entire block (title + chart) will overflow the page
+            // If so, start a new page and reset row/column counters
+            if (($y + $blockHeight) > ($pdf->getPageHeight() - 20)) {
+                $pdf->AddPage();
+                // You can adjust the top margin for new pages as needed
+                $marginTop = 20;
+                $row = 0;
+                $col = 0;
+                // Recompute x, y after resetting row/col
                 $x = $marginLeft;
-                
-                // Print the chart title
-                $pdf->SetXY($x, $currentY);
-                $pdf->SetFont('helvetica', 'B', 14);
-                $pdf->Cell(0, $chartTitleHeight, $title, 0, 1, 'L');
-                
-                // Move Y down to print the chart image
-                $imageY = $currentY + $chartTitleHeight;
-                
-                // Place the chart if data is available
-                if (isset($_POST[$chartKey]) && !empty($_POST[$chartKey])) {
-                    $postedData = $_POST[$chartKey];
-                    
-                    if (preg_match('/^data:image\/png;base64,/', $postedData)) {
-                        try {
-                            // Remove the data URI prefix and decode the image data
-                            $base64Image = str_replace('data:image/png;base64,', '', $postedData);
-                            $imageData   = base64_decode($base64Image);
-                            
-                            if ($imageData !== false && strlen($imageData) > 0) {
-                                // Use the inline method: prefix the data with '@' so TCPDF renders it directly
-                                $chartImage = '@' . $imageData;
-                                // Render the image at high quality (300 DPI)
-                                $pdf->Image($chartImage, $x, $imageY, $chartWidth, $chartHeight, 'PNG', '', 'T', true, 300);
-                            } else {
-                                $pdf->SetXY($x, $imageY);
-                                $pdf->SetFont('helvetica', '', 10);
-                                $pdf->Cell(0, 8, 'Image decoding failed', 0, 1, 'L');
-                            }
-                        } catch (Exception $e) {
-                            $pdf->SetXY($x, $imageY);
-                            $pdf->SetFont('helvetica', '', 10);
-                            $pdf->Cell(0, 8, 'Error processing chart', 0, 1, 'L');
+                $y = $marginTop;
+            }
+
+            // Print the chart title
+            $pdf->SetXY($x, $y);
+            $pdf->SetFont('helvetica', 'B', 11);
+            $pdf->Cell($chartWidth, $headingHeight, $title, 0, 2, 'L');
+
+            // Print the chart image (or placeholder) at y + headingHeight
+            $chartY = $y + $headingHeight;
+            if (isset($_POST[$chartKey]) && !empty($_POST[$chartKey])) {
+                $postedData = $_POST[$chartKey];
+
+                if (preg_match('/^data:image\/png;base64,/', $postedData)) {
+                    try {
+                        // Remove the data URI prefix and decode
+                        $base64Image = str_replace('data:image/png;base64,', '', $postedData);
+                        $imageData   = base64_decode($base64Image);
+
+                        if ($imageData !== false && strlen($imageData) > 0) {
+                            // Inline method: prefix with '@' so TCPDF can render directly
+                            $chartImage = '@' . $imageData;
+                            // Render the image using inline data
+                            //  - Adjust the DPI (last parameter) if needed
+                            $pdf->Image($chartImage, $x, $chartY, $chartWidth, $chartHeight, 'PNG', '', 'T', true, 300);
+                        } else {
+                            $pdf->SetXY($x, $chartY);
+                            $pdf->SetFont('helvetica', '', 9);
+                            $pdf->Cell($chartWidth, 5, 'Image decoding failed', 0, 1, 'L');
                         }
-                    } else {
-                        $pdf->SetXY($x, $imageY);
-                        $pdf->SetFont('helvetica', '', 10);
-                        $pdf->Cell(0, 8, 'Invalid image format', 0, 1, 'L');
+                    } catch (Exception $e) {
+                        $pdf->SetXY($x, $chartY);
+                        $pdf->SetFont('helvetica', '', 9);
+                        $pdf->Cell($chartWidth, 5, 'Error processing chart', 0, 1, 'L');
                     }
                 } else {
-                    // If no chart data is available, display a placeholder box
-                    $pdf->SetXY($x, $imageY);
-                    $pdf->SetDrawColor(200, 200, 200);
-                    $pdf->SetFillColor(245, 245, 245);
-                    $pdf->Cell($chartWidth, $chartHeight, 'Chart data not available', 1, 0, 'C', true);
+                    $pdf->SetXY($x, $chartY);
+                    $pdf->SetFont('helvetica', '', 9);
+                    $pdf->Cell($chartWidth, 5, 'Invalid image format', 0, 1, 'L');
                 }
-                
-                $i++;
+            } else {
+                // If no data is available, show a placeholder box
+                $pdf->SetXY($x, $chartY);
+                $pdf->SetDrawColor(200, 200, 200);
+                $pdf->SetFillColor(245, 245, 245);
+                $pdf->Cell($chartWidth, $chartHeight, 'Chart data not available', 1, 0, 'C', true);
+            }
+
+            // Move to the next column, or wrap to the next row if needed
+            $col++;
+            if ($col >= $maxCols) {
+                $col = 0;
+                $row++;
             }
         }
 
