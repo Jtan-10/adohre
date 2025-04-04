@@ -113,6 +113,7 @@ try {
         fclose($output);
         exit;
     } elseif ($format === 'pdf') {
+        header('Content-Type: application/pdf');
         // PDF Export using TCPDF
         $pdf = new \TCPDF();
         $pdf->SetCreator(PDF_CREATOR);

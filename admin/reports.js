@@ -68,6 +68,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = '../backend/routes/export.php?format=pdf';
+        form.target = '_blank'; // This will open the PDF in a new tab
 
         // Append each chart image as a hidden input field
         for (let id in images) {
