@@ -116,8 +116,28 @@ try {
         header("Pragma: no-cache");
         header('Content-Type: application/pdf');
 
-        // PDF Export using TCPDF
-        $pdf = new \TCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
+        // ----------------------------------------------------------------------
+        // 1) Define a custom TCPDF class for a custom footer (or header if needed)
+        // ----------------------------------------------------------------------
+        class CustomPDF extends \TCPDF {
+            public function Footer() {
+                $this->SetY(-15);
+                $this->SetFont('helvetica', 'I', 8);
+                $this->Cell(
+                    0,
+                    10,
+                    'ADOHRE System Report - Page '.$this->getAliasNumPage().'/'.$this->getAliasNbPages(),
+                    0,
+                    false,
+                    'C'
+                );
+            }
+        }
+
+        // ---------------------------------------------------
+        // 2) Instantiate ONLY the CustomPDF object one time
+        // ---------------------------------------------------
+        $pdf = new CustomPDF('P', 'mm', 'A4', true, 'UTF-8', false);
         $pdf->SetCreator(PDF_CREATOR);
         $pdf->SetAuthor($userName);
         $pdf->SetTitle('ADOHRE Detailed Report');
@@ -126,58 +146,44 @@ try {
 
         // Set document information and styling
         $pdf->SetMargins(15, 15, 15);
-        $pdf->SetAutoPageBreak(TRUE, 15);
+        $pdf->SetAutoPageBreak(true, 15);
         $pdf->SetPrintHeader(false);
         $pdf->SetPrintFooter(true);
-        
+
         // Set default font
         $pdf->SetFont('helvetica', '', 10);
-        
-        // Custom footer callback
-        // Create a custom class to override the Footer method
-        class CustomPDF extends \TCPDF {
-            public function Footer() {
-                $this->SetY(-15);
-                $this->SetFont('helvetica', 'I', 8);
-                $this->Cell(0, 10, 'ADOHRE System Report - Page ' . $this->getAliasNumPage() . '/' . $this->getAliasNbPages(), 0, false, 'C');
-            }
-        }
 
-        // Use the custom class
-        $pdf = new CustomPDF('P', 'mm', 'A4', true, 'UTF-8', false);
-
-        // Add custom header page
+        // ---------------------------------------------------
+        // 3) First page: Title Page
+        // ---------------------------------------------------
         $pdf->AddPage();
-        
-        // Title page styling
         $pdf->SetFont('helvetica', 'B', 20);
         $pdf->Cell(0, 15, 'ADOHRE System Report', 0, 1, 'C');
-        
-        // Add company logo placeholder if available
-        // $pdf->Image('path/to/logo.png', 15, 25, 50, 0, 'PNG', '', 'T', false, 300, 'C');
-        
+
         $pdf->SetFont('helvetica', 'B', 12);
         $pdf->Cell(0, 10, 'Comprehensive System Analytics', 0, 1, 'C');
-        
-        $pdf->SetY(100); // Set position for report info
+
+        // Position for some info
+        $pdf->SetY(100);
         $pdf->SetFont('helvetica', '', 11);
         $pdf->Cell(0, 8, 'Generated on: ' . date('Y-m-d H:i:s'), 0, 1, 'C');
         $pdf->Cell(0, 8, 'Exported by: ' . $userName . ' (' . $userRole . ')', 0, 1, 'C');
-        
+
         $pdf->SetY(150);
         $pdf->SetFont('helvetica', 'I', 10);
         $pdf->Cell(0, 8, 'This report contains confidential information', 0, 1, 'C');
         $pdf->Cell(0, 8, 'Please handle with appropriate care', 0, 1, 'C');
 
-        // ----------------------
-        // Charts Overview Section - IMPROVED FORMATTING
-        // ----------------------
+        // ---------------------------------------------------
+        // 4) Charts Overview Section
+        // ---------------------------------------------------
         $pdf->AddPage();
         $pdf->SetFont('helvetica', 'B', 16);
         $pdf->SetFillColor(240, 240, 240);
         $pdf->Cell(0, 10, 'Reports Charts Overview', 0, 1, 'C', true);
         $pdf->Ln(5);
 
+        // Charts to display (map them to your $_POST data keys)
         $charts = [
             'User Statistics'        => 'userChart',
             'Event Statistics'       => 'eventChart',
@@ -187,57 +193,54 @@ try {
             'New Users Trend'        => 'newUsersChart',
         ];
 
-        // Create a 2x3 grid layout for charts
-        $chartWidth = 80;  // Width in mm
-        $chartHeight = 70; // Height in mm
-        $colSpacing = 10;  // Horizontal spacing between charts
-        $rowSpacing = 15;  // Vertical spacing between charts
-        $marginLeft = 15;  // Left margin for the chart grid
-        $marginTop = $pdf->GetY() + 5; // Top margin from current position
+        // Layout settings for a 2x3 grid
+        $chartWidth  = 80;  // chart display width (mm)
+        $chartHeight = 70;  // chart display height (mm)
+        $colSpacing  = 10;
+        $rowSpacing  = 15;
+        $marginLeft  = 15;
+        $marginTop   = $pdf->GetY() + 5;
 
         $col = 0;
         $row = 0;
-        $maxCols = 2; // Two charts per row
+        $maxCols = 2; // two charts per row
 
         foreach ($charts as $title => $chartKey) {
-            // Calculate position for this chart
             $x = $marginLeft + ($col * ($chartWidth + $colSpacing));
             $y = $marginTop + ($row * ($chartHeight + $rowSpacing));
-            
-            // If we're going to overflow the page, add a new page
+
+            // If chart would overflow the page, add new page
             if ($y + $chartHeight > $pdf->getPageHeight() - 20) {
                 $pdf->AddPage();
-                $marginTop = 20; // Reset top margin on new page
+                $marginTop = 20; // reset top margin on new page
                 $y = $marginTop;
                 $row = 0;
             }
-            
-            // Position for the chart title
+
+            // Title
             $pdf->SetXY($x, $y);
             $pdf->SetFont('helvetica', 'B', 11);
             $pdf->Cell($chartWidth, 7, $title, 0, 2, 'L');
-            $y += 8; // Space after title
-            
-            // Process chart image
+            $y += 8; // space after title
+
+            // Place the chart if we have it
             if (isset($_POST[$chartKey]) && !empty($_POST[$chartKey])) {
                 $postedData = $_POST[$chartKey];
-                
                 if (preg_match('/^data:image\/png;base64,/', $postedData)) {
                     try {
-                        // Remove the data URI prefix and decode
                         $base64Image = str_replace('data:image/png;base64,', '', $postedData);
-                        $imageData = base64_decode($base64Image);
-                        
+                        $imageData   = base64_decode($base64Image);
+
                         if ($imageData !== false && strlen($imageData) > 0) {
-                            // Create a temporary file for the image
+                            // Create a temp file
                             $tempFile = tempnam(sys_get_temp_dir(), 'chart_');
                             file_put_contents($tempFile, $imageData);
-                            
-                            // Add image with proper size and positioning
-                            $pdf->Image($tempFile, $x, $y, $chartWidth, $chartHeight - 10, 'PNG', '', 'T', true, 300);
-                            
-                            // Clean up temp file
-                            unlink($tempFile);
+
+                            // Draw the chart image
+                            // Note: removed "-10" so we use the full chartHeight
+                            $pdf->Image($tempFile, $x, $y, $chartWidth, $chartHeight, 'PNG', '', 'T', true, 300);
+
+                            unlink($tempFile); // cleanup
                         } else {
                             $pdf->SetXY($x, $y);
                             $pdf->SetFont('helvetica', '', 9);
@@ -255,13 +258,13 @@ try {
                     $pdf->Cell($chartWidth, 5, 'Invalid image format', 0, 1, 'L');
                 }
             } else {
-                // No chart data available
+                // No chart data
                 $pdf->SetXY($x, $y);
                 $pdf->SetDrawColor(200, 200, 200);
                 $pdf->SetFillColor(245, 245, 245);
-                $pdf->Cell($chartWidth, $chartHeight - 10, 'Chart data not available', 1, 0, 'C', true);
+                $pdf->Cell($chartWidth, $chartHeight, 'Chart data not available', 1, 0, 'C', true);
             }
-            
+
             // Move to next column or row
             $col++;
             if ($col >= $maxCols) {
