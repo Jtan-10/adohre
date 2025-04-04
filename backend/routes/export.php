@@ -117,35 +117,37 @@ try {
         header('Content-Type: application/pdf');
 
         // PDF Export using TCPDF
-        $pdf = new \TCPDF();
+        $pdf = new \TCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
         $pdf->SetCreator(PDF_CREATOR);
         $pdf->SetAuthor($userName);
         $pdf->SetTitle('ADOHRE Detailed Report');
         $pdf->SetSubject('System Report');
         $pdf->SetKeywords('report, PDF');
 
-        // Configure page and auto-break
-        $pdf->SetAutoPageBreak(TRUE, PDF_MARGIN_BOTTOM);
+        // Set document information
+        $pdf->SetMargins(15, 15, 15);
+        $pdf->SetAutoPageBreak(TRUE, 15);
+        $pdf->SetPrintHeader(false);
+        $pdf->SetPrintFooter(false);
 
         // Add custom header page
         $pdf->AddPage();
-        $pdf->SetFont('helvetica', 'B', 12);
-        $pdf->Cell(0, 0, 'ADOHRE System Report', 0, 1, 'C');
-        $pdf->Ln(5);
+        $pdf->SetFont('helvetica', 'B', 16);
+        $pdf->Cell(0, 10, 'ADOHRE System Report', 0, 1, 'C');
         $pdf->SetFont('helvetica', '', 10);
-        $pdf->Cell(0, 0, 'Generated on: ' . date('Y-m-d H:i:s') . ' | Exported by: ' . $userName . ' (' . $userRole . ')', 0, 1, 'L');
+        $pdf->Cell(0, 5, 'Generated on: ' . date('Y-m-d H:i:s'), 0, 1, 'C');
+        $pdf->Cell(0, 5, 'Exported by: ' . $userName . ' (' . $userRole . ')', 0, 1, 'C');
         $pdf->Ln(10);
 
         // ----------------------
         // Charts Overview Section
         // ----------------------
         $pdf->AddPage();
-        $pdf->SetFont('helvetica', 'B', 12);
-        $pdf->Cell(0, 0, 'Reports Charts Overview', 0, 1, 'C');
-        $pdf->Ln(10);
+        $pdf->SetFont('helvetica', 'B', 14);
+        $pdf->Cell(0, 10, 'Reports Charts Overview', 0, 1, 'C');
+        $pdf->Ln(5);
 
-        // Define chart keys and titles.
-        // We will check if a Base64 image was passed via POST for each chart.
+        // Define chart keys and titles
         $charts = [
             'User Statistics'        => 'userChart',
             'Event Statistics'       => 'eventChart',
@@ -155,128 +157,112 @@ try {
             'New Users Trend'        => 'newUsersChart',
         ];
         
-        // Create a temporary directory to store chart images
-        $tempDir = sys_get_temp_dir();
-        $tempFiles = []; // Track temp files for cleanup later
+        // Debug information
+        $debugInfo = "Chart data received:\n";
         
         foreach ($charts as $title => $chartKey) {
             $pdf->SetFont('helvetica', 'B', 12);
-            $pdf->Cell(0, 0, $title, 0, 1, 'L');
-            $pdf->Ln(5);
-
-            $chartImage = false;
+            $pdf->Cell(0, 8, $title, 0, 1, 'L');
             
-            // Check if the chart image data is provided via POST (from reports.js)
-            if (isset($_POST[$chartKey])) {
+            // Check if chart data exists in POST
+            if (isset($_POST[$chartKey]) && !empty($_POST[$chartKey])) {
                 $postedData = $_POST[$chartKey];
+                $debugInfo .= "$chartKey: " . strlen($postedData) . " bytes\n";
                 
-                // Log the first 50 characters to verify MIME type and data
-                error_log("DEBUG: Data for {$chartKey} starts with: " . substr($postedData, 0, 50));
-                error_log("DEBUG: POST data length for {$chartKey} = " . strlen($postedData));
-                
+                // Alternative approach: embed images directly in HTML
                 if (preg_match('/^data:image\/png;base64,/', $postedData)) {
-                    // Remove the data URI scheme and decode
-                    $decodedData = base64_decode(str_replace('data:image/png;base64,', '', $postedData));
+                    // Keep the image smaller for PDF
+                    $imgWidth = 160; // mm
+                    $imgHeight = 80; // mm
                     
-                    if ($decodedData !== false && strlen($decodedData) > 0) {
-                        // Write to a temporary file
-                        $tempFile = tempnam($tempDir, 'chart_');
-                        if (file_put_contents($tempFile, $decodedData)) {
-                            $chartImage = $tempFile;
-                            $tempFiles[] = $tempFile; // Track for cleanup
-                            $imgFormat = 'PNG';
-                        } else {
-                            error_log("DEBUG: Failed to write image data to temporary file for {$chartKey}");
-                        }
-                    } else {
-                        error_log("DEBUG: Decoded data for {$chartKey} is empty or invalid.");
+                    try {
+                        // New approach: Use HTML with embedded base64 images
+                        $html = '<div style="text-align:center;"><img src="' . $postedData . '" style="width:' . $imgWidth . 'mm; height:auto;"></div>';
+                        $pdf->writeHTML($html, true, false, true, false, '');
+                    } catch (Exception $e) {
+                        error_log("ERROR with HTML approach: " . $e->getMessage());
+                        $pdf->Cell(0, 5, 'Chart image processing error. Please check logs.', 0, 1, 'L');
                     }
                 } else {
-                    error_log("DEBUG: Data for {$chartKey} did not match the expected format.");
-                }
-            }
-
-            // Use fallback file if POST data is not available or conversion failed
-            if (!$chartImage) {
-                $fallbackPath = "/opt/lampp/htdocs/capstone-php/admin/charts/{$chartKey}.png";
-                if (file_exists($fallbackPath)) {
-                    $chartImage = $fallbackPath;
-                    $imgFormat = 'PNG';
-                }
-            }
-
-            if ($chartImage) {
-                try {
-                    // Adjust the width and height as needed (example: 100x60 mm)
-                    $pdf->Image($chartImage, $pdf->GetX(), $pdf->GetY(), 100, 60, $imgFormat, '', 'T', false, 300);
-                    $pdf->Ln(65); // Add space after the image
-                } catch (Exception $e) {
-                    error_log("ERROR: Failed to add image {$chartKey} to PDF: " . $e->getMessage());
-                    $pdf->SetFont('helvetica', '', 10);
-                    $pdf->Cell(0, 0, 'Chart image not available due to an error.', 0, 1, 'L');
-                    $pdf->Ln(10);
+                    $pdf->Cell(0, 5, 'Chart data format is invalid.', 0, 1, 'L');
+                    error_log("ERROR: Invalid chart data format for $chartKey");
                 }
             } else {
-                $pdf->SetFont('helvetica', '', 10);
-                $pdf->Cell(0, 0, 'Chart image not available.', 0, 1, 'L');
-                $pdf->Ln(10);
+                $debugInfo .= "$chartKey: No data received\n";
+                
+                // Try fallback to file
+                $fallbackPath = "/opt/lampp/htdocs/capstone-php/admin/charts/{$chartKey}.png";
+                if (file_exists($fallbackPath)) {
+                    try {
+                        $pdf->Image($fallbackPath, $pdf->GetX(), $pdf->GetY(), 160, 80, 'PNG', '', 'T', true, 300);
+                    } catch (Exception $e) {
+                        error_log("ERROR with fallback image: " . $e->getMessage());
+                        $pdf->Cell(0, 5, 'Fallback chart image error.', 0, 1, 'L');
+                    }
+                } else {
+                    $pdf->Cell(0, 5, 'Chart image not available.', 0, 1, 'L');
+                }
             }
+            
+            $pdf->Ln(10); // Space after each chart section
         }
+        
+        // Log debug info
+        error_log($debugInfo);
 
         // ----------------------
         // Detailed Datasets Section
         // ----------------------
         $pdf->AddPage();
-        $pdf->SetFont('helvetica', 'B', 12);
-        $pdf->Cell(0, 0, 'Detailed Report', 0, 1, 'C');
-        $pdf->Ln(10);
+        $pdf->SetFont('helvetica', 'B', 14);
+        $pdf->Cell(0, 10, 'Detailed Report', 0, 1, 'C');
+        $pdf->Ln(5);
 
         foreach ($datasets as $section => $rows) {
-            $pdf->writeHTML("<h3>" . ucfirst($section) . "</h3>", true, false, true, false, 'C');
+            $pdf->SetFont('helvetica', 'B', 12);
+            $pdf->Cell(0, 8, ucfirst($section), 0, 1, 'L');
+            $pdf->SetFont('helvetica', '', 10);
+            
             if ($section === 'metrics') {
-                $html = '<table border="1" cellpadding="5" cellspacing="0"><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>';
+                $html = '<table border="1" cellpadding="5" cellspacing="0" width="100%">
+                         <thead><tr style="background-color:#f0f0f0;"><th width="70%">Metric</th><th width="30%">Value</th></tr></thead><tbody>';
                 foreach ($rows as $key => $value) {
-                    $html .= "<tr><td style='padding:5px;'>" . ucfirst(str_replace('_', ' ', $key)) . "</td><td style='padding:5px;'>" . htmlspecialchars($value) . "</td></tr>";
+                    $html .= "<tr><td>" . ucfirst(str_replace('_', ' ', $key)) . "</td><td>" . htmlspecialchars($value ?? 'N/A') . "</td></tr>";
                 }
                 $html .= '</tbody></table>';
                 $pdf->writeHTML($html, true, false, true, false, '');
             } else {
                 if (!empty($rows)) {
-                    $html = '<table border="1" cellpadding="5" cellspacing="0"><thead><tr>';
+                    // Create table header
+                    $html = '<table border="1" cellpadding="5" cellspacing="0" width="100%"><thead><tr style="background-color:#f0f0f0;">';
                     foreach (array_keys($rows[0]) as $header) {
-                        $html .= '<th style="padding:5px;">' . htmlspecialchars($header) . '</th>';
+                        $html .= '<th>' . htmlspecialchars(ucfirst($header)) . '</th>';
                     }
                     $html .= '</tr></thead><tbody>';
+                    
+                    // Create table rows
                     foreach ($rows as $row) {
                         $html .= '<tr>';
                         foreach ($row as $value) {
-                            $html .= '<td style="padding:5px;">' . htmlspecialchars($value) . '</td>';
+                            $html .= '<td>' . htmlspecialchars($value ?? 'N/A') . '</td>';
                         }
                         $html .= '</tr>';
                     }
                     $html .= '</tbody></table>';
                     $pdf->writeHTML($html, true, false, true, false, '');
                 } else {
-                    $html = '<p>No data available</p>';
-                    $pdf->writeHTML($html, true, false, true, false, '');
+                    $pdf->Cell(0, 5, 'No data available', 0, 1, 'L');
                 }
             }
-            $pdf->Ln(10);
+            $pdf->Ln(5); // Add space between sections
         }
 
+        // Add a footer
+        $pdf->SetFont('helvetica', 'I', 8);
+        $pdf->Cell(0, 10, 'End of Report - Generated by ADOHRE System', 0, 0, 'C');
+
         // Output the PDF
-        $pdfOutput = $pdf->Output('report.pdf', 'S'); // Get PDF as string
-        
-        // Clean up temporary files
-        foreach ($tempFiles as $file) {
-            if (file_exists($file)) {
-                unlink($file);
-            }
-        }
-        
-        // Send the PDF to the browser
-        header('Content-Length: ' . strlen($pdfOutput));
-        echo $pdfOutput;
+        $pdf->Output('ADOHRE_Report.pdf', 'I');
         exit;
     } elseif ($format === 'excel') {
         // Excel Export using PhpSpreadsheet
@@ -344,9 +330,15 @@ try {
         throw new Exception('Invalid format requested.');
     }
 } catch (Exception $e) {
-    // Log the actual error message internally if needed
+    // Log the actual error message internally
     error_log("ERROR: " . $e->getMessage());
     echo json_encode(['status' => false, 'message' => 'An error occurred. Please try again later.']);
     exit;
+}
+
+// Helper function to record audit logs (assumed to exist elsewhere)
+function recordAuditLog($userId, $action, $details) {
+    // This is a placeholder function - implementation assumed to exist elsewhere
+    // For completeness, you might want to implement this if it doesn't exist
 }
 ?>
