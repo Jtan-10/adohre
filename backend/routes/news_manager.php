@@ -22,7 +22,119 @@ use Aws\Exception\AwsException;
 
 header('Content-Type: application/json');
 
-// Replace action assignment with sanitized input
+/**
+ * embedDataInPng:
+ * Converts binary data into a valid PNG image by mapping every 3 bytes to a pixel (R, G, B).
+ * Remaining pixels are padded with black.
+ *
+ * @param string $binaryData The binary data to embed.
+ * @param int    $desiredWidth Desired width (used to compute a roughly square image)
+ * @return GdImage A GD image resource.
+ */
+if (!function_exists('embedDataInPng')) {
+    function embedDataInPng($binaryData, $desiredWidth = 100) {
+        $dataLen = strlen($binaryData);
+        // Each pixel holds 3 bytes.
+        $numPixels = ceil($dataLen / 3);
+        // Create a roughly square image.
+        $width = (int) floor(sqrt($numPixels));
+        if ($width < 1) {
+            $width = 1;
+        }
+        $height = (int) ceil($numPixels / $width);
+        $img = imagecreatetruecolor($width, $height);
+        $black = imagecolorallocate($img, 0, 0, 0);
+        imagefill($img, 0, 0, $black);
+        $pos = 0;
+        for ($y = 0; $y < $height; $y++) {
+            for ($x = 0; $x < $width; $x++) {
+                if ($pos < $dataLen) {
+                    $r = ord($binaryData[$pos++]);
+                    $g = ($pos < $dataLen) ? ord($binaryData[$pos++]) : 0;
+                    $b = ($pos < $dataLen) ? ord($binaryData[$pos++]) : 0;
+                    $color = imagecolorallocate($img, $r, $g, $b);
+                    imagesetpixel($img, $x, $y, $color);
+                } else {
+                    imagesetpixel($img, $x, $y, $black);
+                }
+            }
+        }
+        return $img;
+    }
+}
+
+/**
+ * handleImageUpload:
+ * Handles image file uploads for news. This version encrypts the image before uploading.
+ *
+ * @return string|null The S3 image URL (with /s3proxy/ prefix) or null if no file was uploaded.
+ */
+function handleImageUpload() {
+    global $s3, $bucketName; // Ensure these are available from s3config.php
+
+    if (!isset($_FILES['image']) || $_FILES['image']['error'] === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+
+    $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
+    $max_file_size = 2 * 1024 * 1024; // 2 MB
+
+    if (!in_array($_FILES['image']['type'], $allowed_types)) {
+        echo json_encode(['status' => false, 'message' => 'Invalid file type for news image.']);
+        exit();
+    }
+
+    if ($_FILES['image']['size'] > $max_file_size) {
+        echo json_encode(['status' => false, 'message' => 'News image exceeds 2 MB limit.']);
+        exit();
+    }
+
+    // Read the clear image data
+    $clearImageData = file_get_contents($_FILES['image']['tmp_name']);
+
+    // Set up encryption parameters
+    $cipher = "AES-256-CBC";
+    $ivlen = openssl_cipher_iv_length($cipher);
+    $iv = openssl_random_pseudo_bytes($ivlen);
+    $rawKey = getenv('ENCRYPTION_KEY');
+    $encryptionKey = hash('sha256', $rawKey, true);
+
+    // Encrypt the image data (raw output) and prepend the IV
+    $encryptedData = openssl_encrypt($clearImageData, $cipher, $encryptionKey, OPENSSL_RAW_DATA, $iv);
+    $encryptedImageData = $iv . $encryptedData;
+
+    // Embed the encrypted data into a PNG image
+    $pngImage = embedDataInPng($encryptedImageData, 100);
+    $finalEncryptedPngFile = tempnam(sys_get_temp_dir(), 'enc_png_') . '.png';
+    imagepng($pngImage, $finalEncryptedPngFile);
+    imagedestroy($pngImage);
+
+    // Generate a unique file name for S3
+    $file_name = uniqid() . '_' . time() . '_' . basename($_FILES['image']['name']);
+    $s3_key = 'uploads/news_images/' . $file_name;
+
+    try {
+        $result = $s3->putObject([
+            'Bucket'      => $bucketName,
+            'Key'         => $s3_key,
+            'Body'        => fopen($finalEncryptedPngFile, 'rb'),
+            'ACL'         => 'public-read',
+            'ContentType' => 'image/png'
+        ]);
+
+        @unlink($finalEncryptedPngFile);
+
+        return str_replace(
+            "https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/",
+            "/s3proxy/",
+            $result['ObjectURL']
+        );
+    } catch (AwsException $e) {
+        echo json_encode(['status' => false, 'message' => 'Error uploading news image: ' . $e->getMessage()]);
+        exit();
+    }
+}
+
 $action = filter_input(INPUT_POST, 'action', FILTER_SANITIZE_STRING)
     ?: filter_input(INPUT_GET, 'action', FILTER_SANITIZE_STRING);
 
@@ -49,48 +161,6 @@ switch ($action) {
         http_response_code(400);
         echo json_encode(['status' => false, 'message' => 'Invalid action: ' . $action]);
         break;
-}
-
-function handleImageUpload() {
-    global $s3, $bucketName; // Ensure these are available from s3config.php
-
-    if (!isset($_FILES['image']) || $_FILES['image']['error'] === UPLOAD_ERR_NO_FILE) {
-        return null;
-    }
-
-    $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
-    $max_file_size = 2 * 1024 * 1024; // 2 MB
-
-    if (!in_array($_FILES['image']['type'], $allowed_types)) {
-        echo json_encode(['status' => false, 'message' => 'Invalid file type for news image.']);
-        exit();
-    }
-
-    if ($_FILES['image']['size'] > $max_file_size) {
-        echo json_encode(['status' => false, 'message' => 'News image exceeds 2 MB limit.']);
-        exit();
-    }
-
-    $file_name = uniqid() . '_' . time() . '_' . basename($_FILES['image']['name']);
-    $s3_key = 'uploads/news_images/' . $file_name;
-
-    try {
-        $result = $s3->putObject([
-            'Bucket' => $bucketName,
-            'Key'    => $s3_key,
-            'Body'   => fopen($_FILES['image']['tmp_name'], 'rb'),
-            'ACL'    => 'public-read'
-        ]);
-
-        return str_replace(
-            "https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/",
-            "/s3proxy/",
-            $result['ObjectURL']
-        );
-    } catch (AwsException $e) {
-        echo json_encode(['status' => false, 'message' => 'Error uploading news image: ' . $e->getMessage()]);
-        exit();
-    }
 }
 
 function fetchNews() {
