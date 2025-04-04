@@ -111,7 +111,11 @@ try {
         fclose($output);
         exit;
     } elseif ($format === 'pdf') {
+        // Set no-cache headers for the PDF output
+        header("Cache-Control: no-cache, must-revalidate");
+        header("Pragma: no-cache");
         header('Content-Type: application/pdf');
+
         // PDF Export using TCPDF
         $pdf = new \TCPDF();
         $pdf->SetCreator(PDF_CREATOR);
@@ -159,12 +163,15 @@ try {
             // Check if the chart image data is provided via POST (from reports.js)
             if (isset($_POST[$chartKey])) {
                 $postedData = $_POST[$chartKey];
-                // Log the length of the posted data for debugging (remove later)
+                // Log the first 50 characters to verify MIME type and data
+                error_log("DEBUG: Data for {$chartKey} starts with: " . substr($postedData, 0, 50));
                 error_log("DEBUG: POST data length for {$chartKey} = " . strlen($postedData));
                 if (preg_match('/^data:image\/png;base64,/', $postedData)) {
                     // Remove the data URI scheme and decode
                     $decodedData = base64_decode(str_replace('data:image/png;base64,', '', $postedData));
                     if ($decodedData !== false && strlen($decodedData) > 0) {
+                        // Optionally, write to a file for manual inspection:
+                        // file_put_contents('/path/to/debug_' . $chartKey . '.png', $decodedData);
                         // Use the '@' prefix to tell TCPDF to load image from string
                         $chartImage = '@' . $decodedData;
                         $imgFormat = 'PNG';
