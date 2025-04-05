@@ -369,21 +369,16 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
                 if (memberArrow) memberArrow.innerHTML = '&darr;';
             });
 
-            // For extra insurance, add a click handler to the toggle link
+            // Replace your existing click handler for memberServicesLink with this code
             if (memberServicesLink) {
                 memberServicesLink.addEventListener('click', function(e) {
-                    // Prevent default only if we're manually handling the collapse
-                    // e.preventDefault();
+                    // Stop any other event handling that might interfere
+                    e.preventDefault();
 
-                    // Check if the submenu is already open
-                    const isOpen = memberServicesSubmenu.classList.contains('show');
-
-                    // Log the state for debugging
-                    console.log("Member Services submenu is currently:", isOpen ? "open" :
-                    "closed");
-
-                    // Let Bootstrap handle the actual collapse toggle
-                    // Bootstrap will fire the show.bs.collapse or hide.bs.collapse events
+                    // Create a Bootstrap 5 Collapse instance and toggle it
+                    const bsCollapse = new bootstrap.Collapse(memberServicesSubmenu, {
+                        toggle: true
+                    });
                 });
             }
         }
