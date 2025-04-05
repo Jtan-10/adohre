@@ -7,6 +7,10 @@ $scriptNonce = bin2hex(random_bytes(16));
 
 $current_page = basename($_SERVER['PHP_SELF']);
 $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'appointments.php' || $current_page == 'medical_assistance.php');
+
+// Optional: If you already know the logged-in user’s face_image URL, you can store it in a variable.
+// For example, if you store the face image in $_SESSION['face_image']:
+$userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : null;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -16,6 +20,7 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
     <title>Sidebar</title>
     <!-- Include Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
     <style>
     /* Modern Sidebar Styles */
     #sidebar {
@@ -105,6 +110,7 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
 </head>
 
 <body>
+    <!-- Sidebar Navigation -->
     <div id="sidebar">
         <ul class="components">
             <li <?php if ($current_page == 'index.php') echo 'class="active"'; ?>><a href="index.php">Home</a></li>
@@ -112,15 +118,20 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
             <li <?php if ($current_page == 'news.php') echo 'class="active"'; ?>><a href="news.php">News</a></li>
             <li <?php if ($current_page == 'membership_form.php') echo 'class="active"'; ?>><a
                     href="membership_form.php">Member Application</a></li>
+
             <?php if (isset($_SESSION['user_id'])): ?>
             <li>
+                <!-- The "Virtual ID" link triggers the face validation modal -->
                 <a href="#" id="virtualIdLink" data-user-id="<?php echo $_SESSION['user_id']; ?>">Virtual ID</a>
             </li>
             <?php endif; ?>
+
             <li <?php if ($current_page == 'health.php') echo 'class="active"'; ?>>
-                <a data-bs-toggle="offcanvas" href="#offcanvasHealth" role="button"
-                    aria-controls="offcanvasHealth">Health Tips</a>
+                <a data-bs-toggle="offcanvas" href="#offcanvasHealth" role="button" aria-controls="offcanvasHealth">
+                    Health Tips
+                </a>
             </li>
+
             <?php if (isset($_SESSION['user_id']) && (isset($_SESSION['role']) && $_SESSION['role'] !== 'user')): ?>
             <li <?php if ($current_page == 'member_services.php' || $submenuActive) echo 'class="active"'; ?>>
                 <a data-bs-toggle="collapse" href="#memberServicesSubmenu" role="button"
@@ -130,19 +141,26 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
                         id="memberServicesArrow"><?php echo $submenuActive ? '&uarr;' : '&darr;'; ?></span>
                 </a>
                 <ul class="submenu collapse <?php echo $submenuActive ? 'show' : ''; ?>" id="memberServicesSubmenu">
-                    <li <?php if ($current_page == 'consultation.php') echo 'class="active"'; ?>><a
-                            href="consultation.php">Chat Assistance</a></li>
-                    <li <?php if ($current_page == 'appointments.php') echo 'class="active"'; ?>><a
-                            href="appointments.php">Appointments</a></li>
-                    <li <?php if ($current_page == 'medical_assistance.php') echo 'class="active"'; ?>><a
-                            href="medical_assistance.php">Medical Assistance</a></li>
+                    <li <?php if ($current_page == 'consultation.php') echo 'class="active"'; ?>>
+                        <a href="consultation.php">Chat Assistance</a>
+                    </li>
+                    <li <?php if ($current_page == 'appointments.php') echo 'class="active"'; ?>>
+                        <a href="appointments.php">Appointments</a>
+                    </li>
+                    <li <?php if ($current_page == 'medical_assistance.php') echo 'class="active"'; ?>>
+                        <a href="medical_assistance.php">Medical Assistance</a>
+                    </li>
                 </ul>
             </li>
-            <li <?php if ($current_page == 'events.php') echo 'class="active"'; ?>><a href="events.php">Events</a></li>
+            <li <?php if ($current_page == 'events.php') echo 'class="active"'; ?>>
+                <a href="events.php">Events</a>
+            </li>
             <?php endif; ?>
+
             <?php if (isset($_SESSION['user_id'])): ?>
-            <li <?php if ($current_page == 'trainings.php') echo 'class="active"'; ?>><a
-                    href="trainings.php">Trainings</a></li>
+            <li <?php if ($current_page == 'trainings.php') echo 'class="active"'; ?>>
+                <a href="trainings.php">Trainings</a>
+            </li>
             <?php endif; ?>
         </ul>
     </div>
@@ -158,7 +176,7 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
         </div>
     </div>
 
-    <!-- PDF Password Modal -->
+    <!-- PDF Password Modal (if needed) -->
     <div class="modal fade" id="pdfPasswordModal" tabindex="-1" aria-labelledby="pdfPasswordModalLabel"
         aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -180,21 +198,33 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
     <!-- Face Validation Modal -->
     <div class="modal fade" id="faceValidationModal" tabindex="-1" aria-labelledby="faceValidationModalLabel"
         aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 600px;">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="faceValidationModalLabel">Face Validation</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <!-- Full-width video for face capture -->
-                    <video id="videoInput" width="100%" autoplay muted style="border:1px solid #ccc;"></video>
+                    <!-- Show stored face reference -->
+                    <div class="mb-3">
+                        <h5>Stored Face Reference</h5>
+                        <img id="storedFacePreview" src="" alt="Stored Face Reference"
+                            style="width:100%; max-width:320px; border:1px solid #ccc; display:block;">
+                    </div>
+                    <!-- Live face capture -->
+                    <div class="mb-3">
+                        <h5>Capture Your Face</h5>
+                        <video id="videoInput" width="320" height="240" autoplay muted
+                            style="border:1px solid #ccc;"></video>
+                    </div>
+                    <!-- Validate Face button + hidden canvas for capture -->
+                    <button type="button" class="btn btn-primary" id="validateFaceBtn">Validate Face</button>
                     <canvas id="userFaceCanvas" style="display:none;"></canvas>
-                    <p id="faceValidationResult"></p>
+
+                    <p id="faceValidationResult" class="mt-3" style="font-weight:bold;"></p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="button" id="validateFaceBtn" class="btn btn-primary">Validate Face</button>
                 </div>
             </div>
         </div>
@@ -221,12 +251,12 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
     <!-- Toggle Button for Sidebar -->
     <button id="sidebarCollapse">&gt;</button>
 
-    <!-- Include Bootstrap JS -->
+    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Load face-api.js from an allowed source -->
     <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 
-    <!-- Inline Face Validation Module (faceValidation.js) -->
+    <!-- Inline Face Validation Module (like faceValidation.js) -->
     <script nonce="<?php echo $scriptNonce; ?>" defer>
     (function(global) {
         "use strict";
@@ -294,10 +324,10 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
 
     <!-- Main Sidebar and Face Validation Logic -->
     <script nonce="<?php echo $scriptNonce; ?>" defer>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', async function() {
+        // SIDEBAR TOGGLE
         const sidebar = document.getElementById('sidebar');
         const toggleBtn = document.getElementById('sidebarCollapse');
-
         if (sidebar && toggleBtn) {
             function updateTogglePosition() {
                 if (sidebar.classList.contains('collapsed')) {
@@ -308,6 +338,7 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
                     toggleBtn.innerHTML = '&lt;';
                 }
             }
+            // Always open sidebar by default
             localStorage.setItem('sidebarState', 'expanded');
             sidebar.classList.remove('collapsed');
             updateTogglePosition();
@@ -320,9 +351,9 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
             });
         }
 
+        // SUBMENU ARROWS
         const memberSubmenu = document.getElementById('memberServicesSubmenu');
         const memberArrow = document.getElementById('memberServicesArrow');
-
         if (memberSubmenu && memberArrow) {
             memberSubmenu.addEventListener('shown.bs.collapse', function() {
                 memberArrow.innerHTML = '&uarr;';
@@ -332,16 +363,77 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
             });
         }
 
+        // FACE VALIDATION
         const virtualIdLink = document.getElementById('virtualIdLink');
-        if (virtualIdLink) {
-            virtualIdLink.addEventListener('click', async function(e) {
-                e.preventDefault();
-                const faceValidationModalEl = document.getElementById('faceValidationModal');
-                if (!faceValidationModalEl) {
-                    console.error("Face validation modal element not found!");
+        const faceValidationModalEl = document.getElementById('faceValidationModal');
+        const storedFacePreview = document.getElementById('storedFacePreview');
+        const videoInput = document.getElementById('videoInput');
+        const validateFaceBtn = document.getElementById('validateFaceBtn');
+        const faceValidationResult = document.getElementById('faceValidationResult');
+        const userFaceCanvas = document.getElementById('userFaceCanvas');
+
+        // This will store the reference descriptor from the user's stored face
+        let referenceDescriptor = null;
+
+        // OPTIONAL: If you already have the user’s face image URL in $userFaceImageUrl from PHP:
+        // If you store it in a data attribute, you can do this in the HTML:
+        // <div id="faceValidationModal" data-face-url="<?php echo $userFaceImageUrl; ?>"></div>
+        // For now, let's read it directly from a JS variable:
+        const userFaceImageUrl = "<?php echo $userFaceImageUrl; ?>";
+
+        // 1) Preload face-api models
+        await faceValidation.loadModels('backend/models/weights');
+
+        // 2) If we have a stored face URL, load it and compute descriptor
+        async function loadReferenceDescriptor() {
+            if (!userFaceImageUrl) {
+                console.warn("No stored face image URL for this user.");
+                return;
+            }
+            // Example: if you need to decrypt or serve the image, adapt this:
+            // e.g., `backend/routes/decrypt_image.php?face_url=...`
+            // For now, assume the userFaceImageUrl is a direct link or a decrypt endpoint:
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.src = userFaceImageUrl;
+            storedFacePreview.src = userFaceImageUrl; // show in UI
+
+            // Wait until the image loads
+            await new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = reject;
+            });
+
+            // Detect face with descriptor
+            try {
+                const detection = await faceapi
+                    .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({
+                        inputSize: 416,
+                        scoreThreshold: 0.5
+                    }))
+                    .withFaceLandmarks()
+                    .withFaceDescriptor();
+                if (!detection) {
+                    console.error('No face detected in the reference image.');
                     return;
                 }
-                const videoInput = document.getElementById('videoInput');
+                referenceDescriptor = detection.descriptor;
+                console.log("Reference descriptor loaded.");
+            } catch (error) {
+                console.error("Error detecting face in reference image:", error);
+            }
+        }
+
+        // Actually load the stored reference
+        if (userFaceImageUrl) {
+            await loadReferenceDescriptor();
+        }
+
+        // 3) Show face validation modal on "Virtual ID" click
+        if (virtualIdLink && faceValidationModalEl) {
+            virtualIdLink.addEventListener('click', async function(e) {
+                e.preventDefault();
+                // Start the webcam
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({
                         video: {}
@@ -349,57 +441,65 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
                     videoInput.srcObject = stream;
                 } catch (error) {
                     console.error("Webcam access error:", error);
-                    alert('Unable to access webcam for face validation. Please check permissions.');
+                    alert(
+                        'Unable to access webcam for face validation. Please check permissions.'
+                        );
+                    return;
                 }
+                // Show the modal
                 const faceValidationModal = new bootstrap.Modal(faceValidationModalEl);
                 faceValidationModal.show();
             });
         }
 
-        const validateFaceBtn = document.getElementById('validateFaceBtn');
+        // 4) Validate Face button
         if (validateFaceBtn) {
             validateFaceBtn.addEventListener('click', async function() {
-                const video = document.getElementById('videoInput');
-                const canvas = document.getElementById('userFaceCanvas');
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                faceValidationResult.innerText = '';
+                // Capture the video frame to canvas
+                userFaceCanvas.width = videoInput.videoWidth;
+                userFaceCanvas.height = videoInput.videoHeight;
+                const ctx = userFaceCanvas.getContext('2d');
+                ctx.drawImage(videoInput, 0, 0, userFaceCanvas.width, userFaceCanvas.height);
 
-                // Use the faceValidation module to detect the face
+                // Detect face with descriptor
                 const detection = await faceapi
-                    .detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions({
+                    .detectSingleFace(userFaceCanvas, new faceapi.TinyFaceDetectorOptions({
                         inputSize: 416,
                         scoreThreshold: 0.5
                     }))
                     .withFaceLandmarks()
                     .withFaceDescriptor();
-                const resultParagraph = document.getElementById('faceValidationResult');
                 if (!detection) {
-                    resultParagraph.innerText = 'No face detected. Please try again.';
+                    faceValidationResult.innerText = 'No face detected. Please try again.';
                     return;
                 }
-                if (typeof referenceDescriptor === 'undefined') {
-                    resultParagraph.innerText =
-                        'Reference face not available. Please contact support.';
+                if (!referenceDescriptor) {
+                    faceValidationResult.innerText =
+                        'No stored reference face found. Please contact support.';
                     return;
                 }
+                // Compare descriptors
                 const distance = faceapi.euclideanDistance(detection.descriptor,
                     referenceDescriptor);
                 console.log('Distance:', distance);
+
+                // For typical use, a threshold of ~0.6 is used
                 const threshold = 0.6;
                 if (distance < threshold) {
-                    resultParagraph.innerText = 'Face matched successfully!';
-                    const stream = video.srcObject;
+                    faceValidationResult.innerText = 'Face matched successfully!';
+                    // Stop the webcam stream
+                    const stream = videoInput.srcObject;
                     if (stream) {
                         stream.getTracks().forEach(track => track.stop());
                     }
+                    // Example: Generate PDF password or do something else
                     const pdfPassword = Math.random().toString(36).slice(-8);
                     const userId = virtualIdLink.getAttribute('data-user-id');
-                    window.location.href =
-                        `backend/models/generate_virtual_id.php?user_id=${userId}&pdf_password=${pdfPassword}`;
+                    // Optionally redirect or show a success modal
+                    // window.location.href = `backend/models/generate_virtual_id.php?user_id=${userId}&pdf_password=${pdfPassword}`;
                 } else {
-                    resultParagraph.innerText = 'Face did not match. Please try again.';
+                    faceValidationResult.innerText = 'Face did not match. Please try again.';
                 }
             });
         }
