@@ -13,8 +13,6 @@ if (!isset($_SESSION['initiated'])) {
 // Add security headers
 header("X-Frame-Options: SAMEORIGIN");
 header("X-Content-Type-Options: nosniff");
-
-
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -62,7 +60,6 @@ header("X-Content-Type-Options: nosniff");
     </style>
 </head>
 
-
 <body>
     <div class="toast-container" id="toastContainer"></div>
     <header>
@@ -90,6 +87,10 @@ header("X-Content-Type-Options: nosniff");
         const userId = <?php echo json_encode($_SESSION['user_id']); ?>;
         // Global function to show payment details in a modal
         window.viewPaymentDetails = function(payment) {
+            // Update receipt image: pass the stored image URL through the decryption endpoint
+            const receiptHTML = payment.image ?
+                `<img src="backend/routes/decrypt_image.php?image_url=${encodeURIComponent(payment.image)}" alt="Receipt" style="max-width: 100%;">` :
+                'N/A';
             const detailsHTML = `
       <p><strong>Payment ID:</strong> ${payment.payment_id}</p>
       <p><strong>Type:</strong> ${payment.payment_type}</p>
@@ -99,13 +100,12 @@ header("X-Content-Type-Options: nosniff");
       <p><strong>Payment Date:</strong> ${payment.payment_date ? payment.payment_date : 'N/A'}</p>
       <p><strong>Reference Number:</strong> ${payment.reference_number ? payment.reference_number : 'N/A'}</p>
       <p><strong>Mode of Payment:</strong> ${payment.mode_of_payment ? payment.mode_of_payment : 'N/A'}</p>
-      <p><strong>Receipt:</strong> ${payment.image ? `<img src="${payment.image}" alt="Receipt" style="max-width: 100%;">` : 'N/A'}</p>
+      <p><strong>Receipt:</strong> ${receiptHTML}</p>
     `;
             document.getElementById('paymentDetailsBody').innerHTML = detailsHTML;
             const modal = new bootstrap.Modal(document.getElementById('paymentDetailsModal'));
             modal.show();
         };
-
 
         // Function to open the Pay Fee modal
         window.openPayFeeModal = function(paymentId) {
@@ -116,9 +116,7 @@ header("X-Content-Type-Options: nosniff");
 
         // Function to fetch payments based on status
         function fetchPayments() {
-            // For this example, we assume the backend uses the get_pending_payments action.
-            // If you want to filter by different statuses, adjust the URL accordingly.
-            // Here, we'll use the get_payments action and pass status (e.g., "New", "Pending", "Completed").
+            // For this example, we assume the backend uses the get_payments action and pass status.
             const status = document.getElementById('paymentStatusFilter').value;
             fetch(`backend/routes/payment.php?action=get_payments&user_id=${userId}&status=${status}`)
                 .then(response => response.json())
@@ -195,7 +193,6 @@ header("X-Content-Type-Options: nosniff");
                 });
         });
 
-
         // Example toast function (if not defined elsewhere)
         function showToast(message, type) {
             const toastContainer = document.getElementById('toastContainer');
@@ -210,8 +207,6 @@ header("X-Content-Type-Options: nosniff");
             const toast = new bootstrap.Toast(toastContainer.firstElementChild);
             toast.show();
         }
-
-
 
         // Fetch the current profile data
         fetch(`backend/routes/user.php?user_id=${userId}`)
@@ -229,7 +224,7 @@ header("X-Content-Type-Options: nosniff");
 
                     const baseUrl = window.location.origin + '/capstone-php';
                     document.getElementById('profileImage').src = user.profile_image ?
-                        `${baseUrl}/backend/routes/decrypt_image.php?image_url=${encodeURIComponent(user.profile_image)}` :
+                        `${baseUrl}/backend/routes/decrypt_image.php?image_url=${encodeURIComponent(user.profile_image)}&t=${new Date().getTime()}` :
                         'assets/default-profile.jpeg';
 
                     document.getElementById('virtualId').value = user.virtual_id || 'Not assigned';
@@ -312,10 +307,8 @@ header("X-Content-Type-Options: nosniff");
         });
 
         // Fetch the joined events when the "Events" tab is clicked
-        // Check if the Events tab element exists (it will only be in the DOM if the condition in profile_tabs.php is met)
         const eventsTabEl = document.getElementById('events-tab');
         if (eventsTabEl) {
-            // Use the Bootstrap "shown.bs.tab" event to trigger when the tab becomes active
             eventsTabEl.addEventListener('shown.bs.tab', function() {
                 fetch(`backend/routes/event_registration.php?action=get_joined_events`)
                     .then(response => response.json())
@@ -358,7 +351,6 @@ header("X-Content-Type-Options: nosniff");
             });
         }
 
-
         document.getElementById('trainings-tab').addEventListener('click', function() {
             fetch(`backend/routes/training_registration.php?action=get_joined_trainings`)
                 .then(response => response.json())
@@ -395,10 +387,9 @@ header("X-Content-Type-Options: nosniff");
                         `<p>An error occurred while fetching trainings. Please try again later.</p>`;
                 });
         });
-
-
     });
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 
 </html>
