@@ -4,6 +4,38 @@ require_once '../db/db_connect.php';
 require_once '../s3config.php';
 require_once '../controllers/authController.php';
 
+if (!function_exists('embedDataInPng')) {
+    // Helper function to embed binary data into a valid PNG.
+    function embedDataInPng($binaryData, $desiredWidth = 100): GdImage
+    {
+        $dataLen = strlen($binaryData);
+        $numPixels = ceil($dataLen / 3);
+        $width = (int) floor(sqrt($numPixels));
+        if ($width < 1) {
+            $width = 1;
+        }
+        $height = (int) ceil($numPixels / $width);
+        $img = imagecreatetruecolor($width, $height);
+        $black = imagecolorallocate($img, 0, 0, 0);
+        imagefill($img, 0, 0, $black);
+        $pos = 0;
+        for ($y = 0; $y < $height; $y++) {
+            for ($x = 0; $x < $width; $x++) {
+                if ($pos < $dataLen) {
+                    $r = ord($binaryData[$pos++]);
+                    $g = ($pos < $dataLen) ? ord($binaryData[$pos++]) : 0;
+                    $b = ($pos < $dataLen) ? ord($binaryData[$pos++]) : 0;
+                    $color = imagecolorallocate($img, $r, $g, $b);
+                    imagesetpixel($img, $x, $y, $color);
+                } else {
+                    imagesetpixel($img, $x, $y, $black);
+                }
+            }
+        }
+        return $img;
+    }
+}
+
 header('Content-Type: application/json');
 header("X-Content-Type-Options: nosniff");
 header("X-Frame-Options: SAMEORIGIN");
@@ -39,7 +71,7 @@ try {
 
             // Count filtered records.
             $filteredRecordsQuery = "SELECT COUNT(*) as total FROM users WHERE first_name LIKE ? OR last_name LIKE ? OR email LIKE ?";
-            $searchTerm = "%".$conn->real_escape_string($searchValue)."%";
+            $searchTerm = "%" . $conn->real_escape_string($searchValue) . "%";
             $stmt = $conn->prepare($filteredRecordsQuery);
             $stmt->bind_param('sss', $searchTerm, $searchTerm, $searchTerm);
             $stmt->execute();
@@ -136,40 +168,39 @@ try {
             }
             exit();
         }
-    } 
-    elseif ($method === 'POST') {
+    } elseif ($method === 'POST') {
         if (isset($_POST['action']) && $_POST['action'] === 'create_user') {
             // Validate inputs
             $first_name = trim($_POST['first_name'] ?? '');
             $last_name  = trim($_POST['last_name'] ?? '');
             $email      = trim($_POST['email'] ?? '');
             $role       = trim($_POST['role'] ?? '');
-        
+
             if (!$first_name || !$last_name || !$email || !$role) {
                 http_response_code(400);
                 echo json_encode(['status' => false, 'message' => 'All fields are required.']);
                 exit();
             }
-        
+
             if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 http_response_code(400);
                 echo json_encode(['status' => false, 'message' => 'Invalid email format.']);
                 exit();
             }
-        
+
             // Include the controller that contains generateVirtualId()
             // Generate a unique virtual ID using the helper function.
             $virtual_id = generateVirtualId(16);
-        
+
             // Insert new user record into the database including the virtual_id
             $stmt = $conn->prepare('INSERT INTO users (first_name, last_name, email, role, virtual_id) VALUES (?, ?, ?, ?, ?)');
             $stmt->bind_param('sssss', $first_name, $last_name, $email, $role, $virtual_id);
-        
+
             if ($stmt->execute()) {
                 // Get the newly inserted user's ID
                 $newUserId = $conn->insert_id;
                 $stmt->close();
-        
+
                 // If the new user is a member, add a record to the members table
                 if ($role === 'member') {
                     $initialStatus = 'inactive'; // Change to "active" if needed
@@ -178,7 +209,7 @@ try {
                     $stmtMember->execute();
                     $stmtMember->close();
                 }
-        
+
                 // Record an audit log for the creation event.
                 recordAuditLog($auth_user_id, 'Admin Create User', "Admin created new user: $first_name $last_name, email: $email, role: $role, virtual_id: $virtual_id");
                 echo json_encode(['status' => true, 'message' => 'User created successfully.']);
@@ -188,7 +219,7 @@ try {
                 echo json_encode(['status' => false, 'message' => 'Error creating user.']);
             }
             exit();
-        }        
+        }
         // --- Profile update for logged-in user ---
         // If a file upload is included, process the profile image.
         if (!empty($_FILES['profile_image']['name'])) {
@@ -216,6 +247,44 @@ try {
                 exit();
             }
 
+            // Delete previous S3 image if exists.
+            $stmt = $conn->prepare("SELECT profile_image FROM users WHERE user_id = ?");
+            $stmt->bind_param("i", $auth_user_id);
+            $stmt->execute();
+            $resultImg = $stmt->get_result();
+            if ($resultImg->num_rows > 0) {
+                $userRow = $resultImg->fetch_assoc();
+                if (!empty($userRow['profile_image']) && strpos($userRow['profile_image'], '/s3proxy/') === 0) {
+                    $existingS3Key = urldecode(str_replace('/s3proxy/', '', $userRow['profile_image']));
+                    try {
+                        $s3->deleteObject([
+                            'Bucket' => $bucketName,
+                            'Key'    => $existingS3Key
+                        ]);
+                    } catch (Aws\Exception\AwsException $e) {
+                        error_log("S3 deletion error: " . $e->getMessage());
+                    }
+                }
+            }
+            $stmt->close();
+
+            // -------------------------
+            // ENCRYPTION & EMBEDDING STEP for profile image
+            // -------------------------
+            $clearImageData = file_get_contents($_FILES['profile_image']['tmp_name']);
+            $cipher = "AES-256-CBC";
+            $ivlen = openssl_cipher_iv_length($cipher);
+            $iv = openssl_random_pseudo_bytes($ivlen);
+            $rawKey = getenv('ENCRYPTION_KEY');
+            $encryptionKey = hash('sha256', $rawKey, true);
+            $encryptedData = openssl_encrypt($clearImageData, $cipher, $encryptionKey, OPENSSL_RAW_DATA, $iv);
+            $encryptedImageData = $iv . $encryptedData;
+            $pngImage = embedDataInPng($encryptedImageData, 100);
+            $finalEncryptedPngFile = tempnam(sys_get_temp_dir(), 'enc_png_') . '.png';
+            imagepng($pngImage, $finalEncryptedPngFile);
+            imagedestroy($pngImage);
+            // -------------------------
+
             // Generate a secure unique file name.
             $ext = pathinfo($_FILES['profile_image']['name'], PATHINFO_EXTENSION);
             $file_name = $auth_user_id . '_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
@@ -225,7 +294,7 @@ try {
                 $result = $s3->putObject([
                     'Bucket'      => $bucketName,
                     'Key'         => $s3Key,
-                    'Body'        => fopen($_FILES['profile_image']['tmp_name'], 'rb'),
+                    'Body'        => fopen($finalEncryptedPngFile, 'rb'),
                     'ACL'         => 'public-read',
                     'ContentType' => $mimeType
                 ]);
@@ -248,13 +317,13 @@ try {
 
                 // Audit log for profile image update.
                 recordAuditLog($auth_user_id, 'Profile Image Update', 'User updated profile image.');
-
             } catch (Aws\Exception\AwsException $e) {
                 error_log('S3 upload error: ' . $e->getMessage());
                 http_response_code(500);
                 echo json_encode(['status' => false, 'message' => 'Error uploading profile image.']);
                 exit();
             }
+            @unlink($finalEncryptedPngFile);
 
             // If only updating the profile image, exit now.
             if (isset($_POST['update_profile_image']) && $_POST['update_profile_image'] === 'true') {
@@ -296,11 +365,10 @@ try {
             http_response_code(500);
             echo json_encode(['status' => false, 'message' => 'Error updating profile.']);
         }
-    } 
-    elseif ($method === 'PUT') {
+    } elseif ($method === 'PUT') {
         // Decode the JSON payload at the very start
         $data = json_decode(file_get_contents("php://input"), true);
-    
+
         // Check if the request is to regenerate the virtual ID (allow any user to do so)
         if (isset($data['regenerate_virtual_id']) && filter_var($data['regenerate_virtual_id'], FILTER_VALIDATE_BOOLEAN)) {
             $new_virtual_id = generateVirtualId(16);
@@ -320,32 +388,32 @@ try {
                 exit();
             }
         }
-        
+
         // --- Admin updating other users ---
         if ($auth_user_role !== 'admin') {
             http_response_code(403);
             echo json_encode(['status' => false, 'message' => 'Forbidden']);
             exit();
         }
-    
+
         $user_id    = intval($data['user_id'] ?? 0);
         $first_name = trim($data['first_name'] ?? '');
         $last_name  = trim($data['last_name'] ?? '');
         $email      = trim($data['email'] ?? '');
         $role       = trim($data['role'] ?? '');
-    
+
         if (!$user_id || !$first_name || !$last_name || !$email || !$role) {
             http_response_code(400);
             echo json_encode(['status' => false, 'message' => 'All fields are required.']);
             exit();
         }
-    
+
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             http_response_code(400);
             echo json_encode(['status' => false, 'message' => 'Invalid email format.']);
             exit();
         }
-    
+
         // --- New check: Prevent non-super-admins from editing other admins or super admins ---
         $stmt_check = $conn->prepare("SELECT role FROM users WHERE user_id = ?");
         $stmt_check->bind_param("i", $user_id);
@@ -354,25 +422,26 @@ try {
         if ($result_check->num_rows === 1) {
             $target_user = $result_check->fetch_assoc();
             if (($target_user['role'] === 'admin')
-                && $user_id !== $auth_user_id) {
+                && $user_id !== $auth_user_id
+            ) {
                 http_response_code(403);
                 echo json_encode(['status' => false, 'message' => 'You are not allowed to edit another admin.']);
                 exit();
             }
         }
         $stmt_check->close();
-    
+
         // Sanitize inputs.
         $first_name = htmlspecialchars($first_name, ENT_QUOTES, 'UTF-8');
         $last_name  = htmlspecialchars($last_name, ENT_QUOTES, 'UTF-8');
         $role       = htmlspecialchars($role, ENT_QUOTES, 'UTF-8');
-    
+
         $stmt = $conn->prepare('UPDATE users SET first_name = ?, last_name = ?, email = ?, role = ? WHERE user_id = ?');
         $stmt->bind_param('ssssi', $first_name, $last_name, $email, $role, $user_id);
         if ($stmt->execute()) {
             $stmt->close();
             recordAuditLog($auth_user_id, 'Admin User Update', "Admin updated user {$user_id}: {$first_name} {$last_name}, email: {$email}, role: {$role}.");
-            
+
             // After updating the user, if the new role is 'member',
             // ensure a corresponding record exists in the members table.
             if ($role === 'member') {
@@ -390,36 +459,35 @@ try {
                 }
                 $stmt_member->close();
             }
-            
+
             echo json_encode(['status' => true, 'message' => 'User updated successfully.']);
         } else {
             error_log('DB update error: ' . $stmt->error);
             http_response_code(500);
             echo json_encode(['status' => false, 'message' => 'Error updating user.']);
         }
-    } 
-    elseif ($method === 'DELETE') {
+    } elseif ($method === 'DELETE') {
         // --- Admin deleting a user ---
         if ($auth_user_role !== 'admin') {
             http_response_code(403);
             echo json_encode(['status' => false, 'message' => 'Forbidden']);
             exit();
         }
-    
+
         $data = json_decode(file_get_contents("php://input"), true);
         if (!$data) {
             http_response_code(400);
             echo json_encode(['status' => false, 'message' => 'Invalid input.']);
             exit();
         }
-    
+
         $user_id = intval($data['user_id'] ?? 0);
         if (!$user_id) {
             http_response_code(400);
             echo json_encode(['status' => false, 'message' => 'User ID is required.']);
             exit();
         }
-    
+
         // --- New check: Prevent non-super-admins from deleting other admins or super admins ---
         $stmt_check = $conn->prepare("SELECT role FROM users WHERE user_id = ?");
         $stmt_check->bind_param("i", $user_id);
@@ -428,14 +496,15 @@ try {
         if ($result_check->num_rows === 1) {
             $target_user = $result_check->fetch_assoc();
             if (($target_user['role'] === 'admin')
-                && $user_id !== $auth_user_id) {
+                && $user_id !== $auth_user_id
+            ) {
                 http_response_code(403);
                 echo json_encode(['status' => false, 'message' => 'You are not allowed to delete another admin.']);
                 exit();
             }
         }
         $stmt_check->close();
-    
+
         $stmt = $conn->prepare('DELETE FROM users WHERE user_id = ?');
         $stmt->bind_param('i', $user_id);
         if ($stmt->execute()) {
@@ -447,9 +516,7 @@ try {
             http_response_code(500);
             echo json_encode(['status' => false, 'message' => 'Error deleting user.']);
         }
-    }
-    
-    else {
+    } else {
         http_response_code(405);
         echo json_encode(['status' => false, 'message' => 'Method not allowed.']);
     }
@@ -461,4 +528,3 @@ try {
 
 $conn->close();
 exit();
-?>
