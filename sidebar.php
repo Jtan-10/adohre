@@ -35,8 +35,9 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
         z-index: 1000;
         /* Center navigation vertically and horizontally */
         display: flex;
-        justify-content: center;
+        flex-direction: column;
         align-items: center;
+        /* Using column layout helps the submenu expand properly */
     }
 
     /* When collapsed, slide completely off-screen */
@@ -50,6 +51,7 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
         margin: 0;
         padding: 0;
         text-align: center;
+        width: 100%;
     }
 
     #sidebar ul li {
@@ -73,13 +75,23 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
         border-radius: 4px;
     }
 
+    /* Submenu styling */
     #sidebar ul li ul.submenu {
         list-style: none;
         margin: 0;
         padding: 0;
         text-align: center;
+        /* Remove any fixed display so that Bootstrap's collapse can control it */
     }
 
+    /* Override collapse behavior for submenu */
+    #sidebar ul li ul.submenu.collapse {
+        display: none;
+    }
+
+    #sidebar ul li ul.submenu.collapse.show {
+        display: block;
+    }
 
     #sidebar ul li ul.submenu li {
         margin: 5px 0;
