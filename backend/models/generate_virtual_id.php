@@ -121,15 +121,19 @@ if ($profileImage) {
     // Step A: Crop the image to a square from center (to avoid distortion)
     $originalWidth = imagesx($profileImage);
     $originalHeight = imagesy($profileImage);
+    error_log("DEBUG: Original profile image dimensions: " . $originalWidth . "x" . $originalHeight);
     $squareSize = min($originalWidth, $originalHeight);
+    error_log("DEBUG: Calculated square size: " . $squareSize);
 
     // Coordinates to center-crop
     $srcX = ($originalWidth - $squareSize) / 2;
     $srcY = ($originalHeight - $squareSize) / 2;
+    error_log("DEBUG: Center crop coordinates: srcX=" . $srcX . ", srcY=" . $srcY);
 
     // Crop to square
     $croppedSquare = imagecreatetruecolor($squareSize, $squareSize);
     imagecopy($croppedSquare, $profileImage, 0, 0, $srcX, $srcY, $squareSize, $squareSize);
+    error_log("DEBUG: Cropped image to square.");
     imagedestroy($profileImage);
     $profileImage = $croppedSquare;
 
@@ -137,6 +141,7 @@ if ($profileImage) {
     $circleDiameter = 380;   // diameter of the circle
     $circleX = 1132;         // position on the template
     $circleY = 205;
+    error_log("DEBUG: Resizing image to circle dimensions: " . $circleDiameter . "x" . $circleDiameter);
 
     $finalPhoto = imagecreatetruecolor($circleDiameter, $circleDiameter);
     imagealphablending($finalPhoto, false);
@@ -157,6 +162,7 @@ if ($profileImage) {
         $squareSize,
         $squareSize
     );
+    error_log("DEBUG: Resampled image into circular dimensions.");
     imagedestroy($profileImage);
 
     // Step C: Create a circular mask
@@ -167,6 +173,7 @@ if ($profileImage) {
     imagefilledrectangle($mask, 0, 0, $circleDiameter, $circleDiameter, $maskTransparent);
     $maskOpaque = imagecolorallocate($mask, 0, 0, 0);
     imagefilledellipse($mask, $circleDiameter / 2, $circleDiameter / 2, $circleDiameter, $circleDiameter, $maskOpaque);
+    error_log("DEBUG: Created circular mask for profile image.");
 
     // Step D: Apply the mask pixel by pixel
     for ($x = 0; $x < $circleDiameter; $x++) {
@@ -177,10 +184,12 @@ if ($profileImage) {
             }
         }
     }
+    error_log("DEBUG: Applied circular mask to profile image.");
     imagedestroy($mask);
 
     // Place the circular photo onto the template
     imagecopy($idCard, $finalPhoto, $circleX, $circleY, 0, 0, $circleDiameter, $circleDiameter);
+    error_log("DEBUG: Placed circular photo onto template at x=" . $circleX . ", y=" . $circleY);
     imagedestroy($finalPhoto);
     // Debug: Circular profile image processed and placed on template
     error_log("DEBUG: Processed and placed circular profile image onto template.");
