@@ -346,10 +346,15 @@ $pdf->SetCreator('Member Link');
 $pdf->SetTitle('Virtual ID');
 $pdf->setPrintHeader(false);
 $pdf->setPrintFooter(false);
-$pdf->AddPage();
 
-// Add the temporary image (cover full page width).
-$pdf->Image($tempFile, '', '', 0, 0, '', '', '', false, 300);
+// NEW: Remove margins and set page size to match id card dimensions
+$pdf->SetMargins(0, 0, 0);
+$pdfWidth = ($cardWidth * 25.4) / 300;    // converting pixels to mm assuming 300 DPI
+$pdfHeight = ($cardHeight * 25.4) / 300;
+$pdf->AddPage('', array($pdfWidth, $pdfHeight));
+
+// Add the temporary image covering the entire page.
+$pdf->Image($tempFile, 0, 0, $pdfWidth, $pdfHeight, '', '', '', false, 300);
 
 // Apply PDF password if provided via GET parameter.
 $pdf_password = isset($_GET['pdf_password']) ? $_GET['pdf_password'] : '';
