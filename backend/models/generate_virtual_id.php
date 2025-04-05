@@ -15,7 +15,8 @@ use Endroid\QrCode\Writer\PngWriter;
  * Scale down an image if either dimension exceeds $maxDim.
  * Returns the new image resource.
  */
-function scaleDownIfTooLarge($sourceImg, $maxDim = 2000) {
+function scaleDownIfTooLarge($sourceImg, $maxDim = 2000)
+{
     $originalWidth  = imagesx($sourceImg);
     $originalHeight = imagesy($sourceImg);
 
@@ -38,10 +39,14 @@ function scaleDownIfTooLarge($sourceImg, $maxDim = 2000) {
     imagecopyresampled(
         $scaledImg,
         $sourceImg,
-        0, 0,
-        0, 0,
-        $newWidth, $newHeight,
-        $originalWidth, $originalHeight
+        0,
+        0,
+        0,
+        0,
+        $newWidth,
+        $newHeight,
+        $originalWidth,
+        $originalHeight
     );
 
     return $scaledImg;
@@ -324,10 +329,37 @@ recordAuditLog($user_id, "Generate Virtual ID", "Virtual ID card generated for u
 // Debug: Audit log recorded
 
 // ----------------------------------------------------------------
-// 8) Output the final image as PNG
+// 8) Output the final image as PNG --> Now create a PDF with password protection
 // ----------------------------------------------------------------
-// Debug: Final image being sent as PNG
-header("Content-Type: image/png");
-imagepng($idCard);
+
+// Save the generated ID card image (stored in $idCard) as a temporary PNG.
+$tempFile = tempnam(sys_get_temp_dir(), 'idcard') . '.png';
+imagepng($idCard, $tempFile);
 imagedestroy($idCard);
-?>
+
+// Require TCPDF (assuming it is installed via Composer in vendor folder)
+require_once('../../vendor/tecnickcom/tcpdf/tcpdf.php');
+
+// Create new PDF document.
+$pdf = new TCPDF();
+$pdf->SetCreator('Member Link');
+$pdf->SetTitle('Virtual ID');
+$pdf->setPrintHeader(false);
+$pdf->setPrintFooter(false);
+$pdf->AddPage();
+
+// Add the temporary image (cover full page width).
+$pdf->Image($tempFile, '', '', 0, 0, '', '', '', false, 300);
+
+// Apply PDF password if provided via GET parameter.
+$pdf_password = isset($_GET['pdf_password']) ? $_GET['pdf_password'] : '';
+if ($pdf_password) {
+    // Set user password (to open pdf); no owner password specified.
+    $pdf->SetProtection(array('print', 'copy'), $pdf_password, null, 0, null);
+}
+
+// Remove the temporary image file.
+unlink($tempFile);
+
+// Force PDF download.
+$pdf->Output('virtual_id.pdf', 'D');
