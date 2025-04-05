@@ -24,6 +24,47 @@ if (!isset($_SESSION['user_id'])) {
 
 $method = $_SERVER['REQUEST_METHOD'];
 
+/**
+ * Helper function to embed binary data into a valid PNG.
+ * Converts binary data into a valid PNG image by mapping every 3 bytes to a pixel (R, G, B).
+ * Remaining pixels are padded with black.
+ *
+ * @param string $binaryData The binary data to embed.
+ * @param int    $desiredWidth Desired width (used to compute a roughly square image)
+ * @return GdImage A GD image resource.
+ */
+if (!function_exists('embedDataInPng')) {
+    function embedDataInPng($binaryData, $desiredWidth = 100) {
+        $dataLen = strlen($binaryData);
+        // Each pixel holds 3 bytes.
+        $numPixels = ceil($dataLen / 3);
+        // Create a roughly square image.
+        $width = (int) floor(sqrt($numPixels));
+        if ($width < 1) {
+            $width = 1;
+        }
+        $height = (int) ceil($numPixels / $width);
+        $img = imagecreatetruecolor($width, $height);
+        $black = imagecolorallocate($img, 0, 0, 0);
+        imagefill($img, 0, 0, $black);
+        $pos = 0;
+        for ($y = 0; $y < $height; $y++) {
+            for ($x = 0; $x < $width; $x++) {
+                if ($pos < $dataLen) {
+                    $r = ord($binaryData[$pos++]);
+                    $g = ($pos < $dataLen) ? ord($binaryData[$pos++]) : 0;
+                    $b = ($pos < $dataLen) ? ord($binaryData[$pos++]) : 0;
+                    $color = imagecolorallocate($img, $r, $g, $b);
+                    imagesetpixel($img, $x, $y, $color);
+                } else {
+                    imagesetpixel($img, $x, $y, $black);
+                }
+            }
+        }
+        return $img;
+    }
+}
+
 if ($method === 'GET') {
     // Default action is to get all payments
     $action = isset($_GET['action']) ? $_GET['action'] : 'get_all_payments';
@@ -119,7 +160,7 @@ if ($method === 'GET') {
             exit();
         }
 
-        // Process image upload via S3 if provided
+        // Process image upload via S3 with encryption if provided
         $relativeImagePath = null;
         if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
             $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
@@ -129,14 +170,54 @@ if ($method === 'GET') {
             }
             $imageName = time() . '_' . basename($_FILES['image']['name']);
             $s3Key = 'uploads/payments/' . $imageName;
+
+            // Encrypt and embed the image into a PNG.
+            $clearImageData = file_get_contents($_FILES['image']['tmp_name']);
+            $cipher = "AES-256-CBC";
+            $ivlen = openssl_cipher_iv_length($cipher);
+            $iv = openssl_random_pseudo_bytes($ivlen);
+            $rawKey = getenv('ENCRYPTION_KEY');
+            $encryptionKey = hash('sha256', $rawKey, true);
+            $encryptedData = openssl_encrypt($clearImageData, $cipher, $encryptionKey, OPENSSL_RAW_DATA, $iv);
+            $encryptedImageData = $iv . $encryptedData;
+            
+            $pngImage = embedDataInPng($encryptedImageData, 100);
+            $encryptedTempPath = tempnam(sys_get_temp_dir(), 'enc_pay_') . '.png';
+            imagepng($pngImage, $encryptedTempPath);
+            imagedestroy($pngImage);
+            
+            // Before uploading the new image, delete any previously stored image for this payment.
+            $stmtOld = $conn->prepare("SELECT image FROM payments WHERE payment_id = ?");
+            if ($stmtOld) {
+                $stmtOld->bind_param("i", $payment_id);
+                $stmtOld->execute();
+                $resultOld = $stmtOld->get_result();
+                if ($resultOld && $rowOld = $resultOld->fetch_assoc()) {
+                    $oldImage = $rowOld['image'];
+                    if (!empty($oldImage) && strpos($oldImage, '/s3proxy/') === 0) {
+                        $oldS3Key = urldecode(str_replace('/s3proxy/', '', $oldImage));
+                        try {
+                            $s3->deleteObject([
+                                'Bucket' => $bucketName,
+                                'Key'    => $oldS3Key
+                            ]);
+                        } catch (Aws\Exception\AwsException $e) {
+                            error_log("Failed to delete old image from S3: " . $e->getMessage());
+                        }
+                    }
+                }
+                $stmtOld->close();
+            }
+
             try {
                 $result = $s3->putObject([
                     'Bucket' => $bucketName,
                     'Key'    => $s3Key,
-                    'Body'   => fopen($_FILES['image']['tmp_name'], 'rb'),
+                    'Body'   => fopen($encryptedTempPath, 'rb'),
                     'ACL'    => 'public-read',
-                    'ContentType' => $_FILES['image']['type']
+                    'ContentType' => 'image/png'
                 ]);
+                @unlink($encryptedTempPath);
                 $relativeImagePath = str_replace(
                     "https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/",
                     "/s3proxy/",
@@ -179,7 +260,7 @@ if ($method === 'GET') {
             // Log the email sending attempt
             error_log("Sending payment update email to: " . $details['email'] . " at " . date('Y-m-d H:i:s'));
 
-            // Rate limiting for email sending: allow maximum 5 emails per recipient within a 1-hour window.
+            // Rate limiting for email sending: allow maximum 10 emails per recipient within a 1-hour window.
             if (session_status() === PHP_SESSION_NONE) {
                 session_start();
             }
@@ -270,6 +351,7 @@ if ($method === 'GET') {
             exit();
         }
     } else {
+        // New Payment Push branch
         // Required input from admin: user_id, payment_type, amount.
         $user_id      = isset($_POST['user_id']) ? trim($_POST['user_id']) : '';
         $payment_type = isset($_POST['payment_type']) ? trim($_POST['payment_type']) : '';
@@ -287,16 +369,46 @@ if ($method === 'GET') {
         $image = null;
 
         if (isset($_FILES['image']) && $_FILES['image']['error'] == 0) {
-            $target_dir = "../uploads/payments/";
-            if (!is_dir($target_dir)) {
-                mkdir($target_dir, 0777, true);
+            $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+            if (!in_array($_FILES['image']['type'], $allowedTypes)) {
+                echo json_encode(['status' => false, 'message' => 'Invalid file type. Only JPG, PNG, and GIF allowed.']);
+                exit();
             }
-            $fileName    = time() . "_" . basename($_FILES['image']['name']);
-            $target_file = $target_dir . $fileName;
-            if (move_uploaded_file($_FILES['image']['tmp_name'], $target_file)) {
-                $image = $target_file;
-            } else {
-                echo json_encode(['status' => false, 'message' => 'Failed to upload image.']);
+            $imageName = time() . '_' . basename($_FILES['image']['name']);
+            $s3Key = 'uploads/payments/' . $imageName;
+            
+            // Encrypt and embed the image into a PNG.
+            $clearImageData = file_get_contents($_FILES['image']['tmp_name']);
+            $cipher = "AES-256-CBC";
+            $ivlen = openssl_cipher_iv_length($cipher);
+            $iv = openssl_random_pseudo_bytes($ivlen);
+            $rawKey = getenv('ENCRYPTION_KEY');
+            $encryptionKey = hash('sha256', $rawKey, true);
+            $encryptedData = openssl_encrypt($clearImageData, $cipher, $encryptionKey, OPENSSL_RAW_DATA, $iv);
+            $encryptedImageData = $iv . $encryptedData;
+            
+            $pngImage = embedDataInPng($encryptedImageData, 100);
+            $encryptedTempPath = tempnam(sys_get_temp_dir(), 'enc_pay_') . '.png';
+            imagepng($pngImage, $encryptedTempPath);
+            imagedestroy($pngImage);
+            
+            try {
+                $result = $s3->putObject([
+                    'Bucket' => $bucketName,
+                    'Key' => $s3Key,
+                    'Body' => fopen($encryptedTempPath, 'rb'),
+                    'ACL' => 'public-read',
+                    'ContentType' => 'image/png'
+                ]);
+                @unlink($encryptedTempPath);
+                $image = str_replace(
+                    "https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/",
+                    "/s3proxy/",
+                    $result['ObjectURL']
+                );
+            } catch (Aws\Exception\AwsException $e) {
+                error_log("Failed to upload image to S3: " . $e->getMessage());
+                echo json_encode(['status' => false, 'message' => 'Internal server error']);
                 exit();
             }
         }
