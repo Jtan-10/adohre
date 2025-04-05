@@ -61,6 +61,8 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
         margin: 0;
         padding: 0;
         width: 100%;
+        text-align: center;
+        /* Center the list items */
     }
 
     #sidebar ul li {
@@ -77,6 +79,8 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
         transition: all 0.3s ease;
         border-radius: 4px;
         position: relative;
+        text-align: center;
+        /* Center the text in links */
     }
 
     /* Hover and active state */
@@ -88,7 +92,10 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
 
     /* Active state with left border indicator */
     #sidebar ul li.active>a {
-        border-left: 4px solid #fff;
+        border-left: none;
+        /* Remove the left border */
+        border-bottom: 2px solid #fff;
+        /* Add a bottom border instead */
     }
 
     /* Submenu styling - improved */
@@ -132,12 +139,18 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
         box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
     }
 
-    /* Arrow indicator for dropdown */
+    /* For dropdown arrows, adjust their position */
     .dropdown-toggle::after {
-        position: absolute;
-        right: 15px;
-        top: 50%;
-        transform: translateY(-50%);
+        position: relative;
+        /* Change from absolute to relative */
+        right: auto;
+        /* Remove the right positioning */
+        margin-left: 10px;
+        /* Add some space between text and arrow */
+        top: auto;
+        /* Remove the top positioning */
+        transform: none;
+        /* Remove the transform */
     }
 
     /* Improved responsive behavior */
@@ -157,7 +170,6 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
     <!-- Sidebar Navigation -->
     <div id="sidebar">
         <div class="sidebar-header">
-            <h3>Dashboard</h3>
         </div>
         <ul class="components">
             <li <?php if ($current_page == 'index.php') echo 'class="active"'; ?>><a href="index.php">Home</a></li>
@@ -472,7 +484,7 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
                     console.error("Webcam access error:", error);
                     alert(
                         'Unable to access webcam for face validation. Please check permissions.'
-                        );
+                    );
                     return;
                 }
                 const faceValidationModal = new bootstrap.Modal(faceValidationModalEl);
