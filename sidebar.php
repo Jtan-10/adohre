@@ -21,7 +21,7 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <style>
-    /* Modern Sidebar Styles */
+    /* Modern Sidebar Styles - Improved */
     #sidebar {
         position: fixed;
         top: 0;
@@ -30,12 +30,12 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
         width: 250px;
         background-color: #198754;
         color: #fff;
-        transition: transform 0.3s ease;
+        transition: all 0.3s ease;
         z-index: 1000;
         display: flex;
         flex-direction: column;
-        align-items: center;
-        justify-content: center;
+        padding: 20px 0;
+        box-shadow: 3px 0 10px rgba(0, 0, 0, 0.1);
     }
 
     /* When collapsed, slide completely off-screen */
@@ -43,67 +43,112 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
         transform: translateX(-100%);
     }
 
-    /* Remove default list styles and center links */
+    /* Site title/logo area */
+    .sidebar-header {
+        text-align: center;
+        padding: 10px 15px;
+        margin-bottom: 20px;
+    }
+
+    .sidebar-header h3 {
+        margin: 0;
+        font-size: 1.4em;
+    }
+
+    /* Remove default list styles and improve links */
     #sidebar ul.components {
         list-style: none;
         margin: 0;
         padding: 0;
-        text-align: center;
         width: 100%;
     }
 
     #sidebar ul li {
-        margin: 10px 0;
+        margin: 5px 10px;
     }
 
-    /* Sidebar links: centered text, no underline */
+    /* Sidebar links: improved styling */
     #sidebar ul li a {
         display: block;
-        padding: 10px;
+        padding: 10px 15px;
         font-size: 1.1em;
         color: #fff;
         text-decoration: none;
-        transition: background 0.3s ease;
+        transition: all 0.3s ease;
+        border-radius: 4px;
+        position: relative;
     }
 
     /* Hover and active state */
     #sidebar ul li a:hover,
     #sidebar ul li.active>a {
-        background: #157347;
-        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.15);
+        color: #fff;
     }
 
-    /* Submenu styling */
+    /* Active state with left border indicator */
+    #sidebar ul li.active>a {
+        border-left: 4px solid #fff;
+    }
+
+    /* Submenu styling - improved */
     #sidebar ul li ul.submenu {
         list-style: none;
-        margin: 0;
-        padding: 0;
-        text-align: center;
+        padding-left: 15px;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease;
+    }
+
+    #sidebar ul li ul.submenu.show {
+        max-height: 300px;
+        /* Adjust as needed */
     }
 
     #sidebar ul li ul.submenu li {
-        margin: 5px 0;
+        margin: 2px 0;
     }
 
     #sidebar ul li ul.submenu li a {
-        padding: 8px;
-        font-size: 1em;
+        padding: 8px 10px;
+        font-size: 0.95em;
+        opacity: 0.9;
     }
 
-    /* Toggle Button styling */
+    /* Toggle Button styling - improved */
     #sidebarCollapse {
         position: fixed;
         top: 50%;
         transform: translateY(-50%);
         background: #198754;
         border: none;
-        border-radius: 0 50% 50% 0;
-        padding: 10px;
+        border-radius: 0 4px 4px 0;
+        padding: 10px 12px;
         cursor: pointer;
         z-index: 1001;
         color: #fff;
         font-size: 1.2em;
         transition: left 0.3s ease;
+        box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Arrow indicator for dropdown */
+    .dropdown-toggle::after {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+
+    /* Improved responsive behavior */
+    @media (max-width: 768px) {
+        #sidebar {
+            width: 200px;
+        }
+
+        #sidebarCollapse.expanded {
+            left: 200px;
+        }
     }
     </style>
 </head>
@@ -111,6 +156,9 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
 <body>
     <!-- Sidebar Navigation -->
     <div id="sidebar">
+        <div class="sidebar-header">
+            <h3>Dashboard</h3>
+        </div>
         <ul class="components">
             <li <?php if ($current_page == 'index.php') echo 'class="active"'; ?>><a href="index.php">Home</a></li>
             <li <?php if ($current_page == 'about.php') echo 'class="active"'; ?>><a href="about.php">About Us</a></li>
@@ -133,14 +181,12 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
 
             <?php if (isset($_SESSION['user_id']) && (isset($_SESSION['role']) && $_SESSION['role'] !== 'user')): ?>
             <li <?php if ($current_page == 'member_services.php' || $submenuActive) echo 'class="active"'; ?>>
-                <!-- Member Services toggler with initial open state based on $submenuActive -->
-                <a href="#memberServicesSubmenu" data-bs-toggle="collapse" role="button"
-                    aria-expanded="<?php echo $submenuActive ? 'true' : 'false'; ?>"
-                    aria-controls="memberServicesSubmenu">
-                    Member Services <span
+                <!-- Member Services toggler with proper collapse functionality -->
+                <a href="#" class="dropdown-toggle" id="memberServicesToggle">
+                    Member Services <span class="float-end"
                         id="memberServicesArrow"><?php echo $submenuActive ? '&uarr;' : '&darr;'; ?></span>
                 </a>
-                <ul class="collapse submenu <?php echo $submenuActive ? 'show' : ''; ?>" id="memberServicesSubmenu">
+                <ul class="submenu <?php echo $submenuActive ? 'show' : ''; ?>" id="memberServicesSubmenu">
                     <li <?php if ($current_page == 'consultation.php') echo 'class="active"'; ?>>
                         <a href="consultation.php">Chat Assistance</a>
                     </li>
@@ -316,13 +362,21 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
                 if (sidebar.classList.contains('collapsed')) {
                     toggleBtn.style.left = '0';
                     toggleBtn.innerHTML = '&gt;';
+                    toggleBtn.classList.remove('expanded');
                 } else {
                     toggleBtn.style.left = '250px';
                     toggleBtn.innerHTML = '&lt;';
+                    toggleBtn.classList.add('expanded');
                 }
             }
-            localStorage.setItem('sidebarState', 'expanded');
-            sidebar.classList.remove('collapsed');
+
+            // Get saved state or default to expanded
+            const savedState = localStorage.getItem('sidebarState') || 'expanded';
+            if (savedState === 'collapsed') {
+                sidebar.classList.add('collapsed');
+            } else {
+                sidebar.classList.remove('collapsed');
+            }
             updateTogglePosition();
 
             toggleBtn.addEventListener('click', function() {
@@ -333,15 +387,22 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
             });
         }
 
-        // Update the arrow icon on submenu toggle
+        // SUBMENU TOGGLE - Fixed implementation
+        const memberServicesToggle = document.getElementById('memberServicesToggle');
         const memberServicesSubmenu = document.getElementById('memberServicesSubmenu');
         const memberServicesArrow = document.getElementById('memberServicesArrow');
-        if (memberServicesSubmenu && memberServicesArrow) {
-            memberServicesSubmenu.addEventListener('show.bs.collapse', () => {
-                memberServicesArrow.innerHTML = '&uarr;';
-            });
-            memberServicesSubmenu.addEventListener('hide.bs.collapse', () => {
-                memberServicesArrow.innerHTML = '&darr;';
+
+        if (memberServicesToggle && memberServicesSubmenu && memberServicesArrow) {
+            memberServicesToggle.addEventListener('click', function(e) {
+                e.preventDefault();
+                memberServicesSubmenu.classList.toggle('show');
+
+                // Update arrow direction
+                if (memberServicesSubmenu.classList.contains('show')) {
+                    memberServicesArrow.innerHTML = '&uarr;';
+                } else {
+                    memberServicesArrow.innerHTML = '&darr;';
+                }
             });
         }
 
@@ -410,7 +471,8 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
                 } catch (error) {
                     console.error("Webcam access error:", error);
                     alert(
-                        'Unable to access webcam for face validation. Please check permissions.');
+                        'Unable to access webcam for face validation. Please check permissions.'
+                        );
                     return;
                 }
                 const faceValidationModal = new bootstrap.Modal(faceValidationModalEl);
