@@ -448,7 +448,8 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
                 } catch (error) {
                     console.error("Webcam access error:", error);
                     alert(
-                        'Unable to access webcam for face validation. Please check permissions.');
+                        'Unable to access webcam for face validation. Please check permissions.'
+                        );
                     return;
                 }
                 const faceValidationModal = new bootstrap.Modal(faceValidationModalEl);
@@ -489,11 +490,28 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
                     if (stream) {
                         stream.getTracks().forEach(track => track.stop());
                     }
-                    // Generate a PDF password and build download URL
-                    const pdfPassword = Math.random().toString(36).slice(-8);
+                    // Automatically close the Face Validation modal
+                    const faceValidationModal = bootstrap.Modal.getInstance(
+                        faceValidationModalEl);
+                    if (faceValidationModal) {
+                        faceValidationModal.hide();
+                    }
+                    // Generate a stronger, random 12-character password
+                    function generatePassword(length = 12) {
+                        const charset =
+                            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+";
+                        let retVal = "";
+                        const randomValues = new Uint32Array(length);
+                        window.crypto.getRandomValues(randomValues);
+                        for (let i = 0; i < length; i++) {
+                            retVal += charset[randomValues[i] % charset.length];
+                        }
+                        return retVal;
+                    }
+                    const pdfPassword = generatePassword();
                     const userId = virtualIdLink.getAttribute('data-user-id');
                     const downloadUrl =
-                        `backend/models/generate_virtual_id.php?user_id=${userId}&pdf_password=${pdfPassword}`;
+                        `backend/models/generate_virtual_id.php?user_id=${userId}&pdf_password=${encodeURIComponent(pdfPassword)}`;
 
                     // Set the generated PDF password in the PDF Password Modal
                     document.getElementById('pdfPasswordText').textContent =
@@ -515,6 +533,7 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
                 }
             });
         }
+
         // Stop the camera when the Face Validation modal is closed.
         if (faceValidationModalEl) {
             faceValidationModalEl.addEventListener('hidden.bs.modal', () => {
