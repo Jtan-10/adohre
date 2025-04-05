@@ -9,7 +9,6 @@ $current_page = basename($_SERVER['PHP_SELF']);
 $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'appointments.php' || $current_page == 'medical_assistance.php');
 
 // Optional: If you already know the logged-in user's face_image URL, you can store it in a variable.
-// For example, if you store the face image in $_SESSION['face_image']:
 $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : null;
 ?>
 <!DOCTYPE html>
@@ -37,7 +36,6 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        /* added to center sidebar items vertically */
     }
 
     /* When collapsed, slide completely off-screen */
@@ -81,7 +79,6 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
         margin: 0;
         padding: 0;
         text-align: center;
-        /* Removed CSS that was overriding Bootstrap's collapse */
     }
 
     #sidebar ul li ul.submenu li {
@@ -136,7 +133,7 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
 
             <?php if (isset($_SESSION['user_id']) && (isset($_SESSION['role']) && $_SESSION['role'] !== 'user')): ?>
             <li <?php if ($current_page == 'member_services.php' || $submenuActive) echo 'class="active"'; ?>>
-                <!-- Simplified Member Services toggler -->
+                <!-- Simplified Member Services toggler using Bootstrap's data attributes -->
                 <a href="#memberServicesSubmenu" data-bs-toggle="collapse" role="button"
                     aria-expanded="<?php echo $submenuActive ? 'true' : 'false'; ?>"
                     aria-controls="memberServicesSubmenu">
@@ -259,15 +256,10 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
     <!-- Load face-api.js from an allowed source -->
     <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 
-    <!-- Inline Face Validation Module (like faceValidation.js) -->
+    <!-- Inline Face Validation Module -->
     <script nonce="<?php echo $scriptNonce; ?>" defer>
     (function(global) {
         "use strict";
-        /**
-         * Loads the face-api.js models from the specified URL.
-         * @param {string} modelUrl - The URL or path to the models folder.
-         * @returns {Promise} Resolves when all models are loaded.
-         */
         async function loadModels(modelUrl = 'backend/models/weights') {
             if (typeof modelUrl !== 'string') {
                 throw new Error("Invalid modelUrl");
@@ -281,12 +273,6 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
             }
         }
 
-        /**
-         * Detects a single face in a given canvas element.
-         * @param {HTMLCanvasElement} canvas - The canvas containing the face image.
-         * @param {object} [options] - Optional detection options.
-         * @returns {Promise<object|null>} Returns detection result with landmarks and descriptor or null if no face is found.
-         */
         async function detectFaceFromCanvas(canvas, options = new faceapi.TinyFaceDetectorOptions()) {
             if (!(canvas instanceof HTMLCanvasElement)) {
                 throw new Error("Invalid canvas element");
@@ -303,12 +289,6 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
             }
         }
 
-        /**
-         * Compares two face descriptors using Euclidean distance.
-         * @param {Float32Array} descriptor1 - The first face descriptor.
-         * @param {Float32Array} descriptor2 - The second face descriptor.
-         * @returns {number} The Euclidean distance between the descriptors.
-         */
         function compareFaces(descriptor1, descriptor2) {
             if (!(descriptor1 instanceof Float32Array) || !(descriptor2 instanceof Float32Array)) {
                 throw new Error("Invalid descriptor(s)");
@@ -341,7 +321,6 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
                     toggleBtn.innerHTML = '&lt;';
                 }
             }
-            // Always open sidebar by default
             localStorage.setItem('sidebarState', 'expanded');
             sidebar.classList.remove('collapsed');
             updateTogglePosition();
@@ -354,35 +333,6 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
             });
         }
 
-        // SUBMENU TOGGLE - Updated for Bootstrap 5
-        const memberServicesLink = document.querySelector('a[href="#memberServicesSubmenu"]');
-        const memberServicesSubmenu = document.getElementById('memberServicesSubmenu');
-        const memberArrow = document.getElementById('memberServicesArrow');
-
-        if (memberServicesSubmenu && memberArrow) {
-            // Use Bootstrap's collapse events directly on the submenu
-            memberServicesSubmenu.addEventListener('show.bs.collapse', function() {
-                if (memberArrow) memberArrow.innerHTML = '&uarr;';
-            });
-
-            memberServicesSubmenu.addEventListener('hide.bs.collapse', function() {
-                if (memberArrow) memberArrow.innerHTML = '&darr;';
-            });
-
-            // Replace your existing click handler for memberServicesLink with this code
-            if (memberServicesLink) {
-                memberServicesLink.addEventListener('click', function(e) {
-                    // Stop any other event handling that might interfere
-                    e.preventDefault();
-
-                    // Create a Bootstrap 5 Collapse instance and toggle it
-                    const bsCollapse = new bootstrap.Collapse(memberServicesSubmenu, {
-                        toggle: true
-                    });
-                });
-            }
-        }
-
         // FACE VALIDATION
         const virtualIdLink = document.getElementById('virtualIdLink');
         const faceValidationModalEl = document.getElementById('faceValidationModal');
@@ -392,40 +342,28 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
         const faceValidationResult = document.getElementById('faceValidationResult');
         const userFaceCanvas = document.getElementById('userFaceCanvas');
 
-        // This will store the reference descriptor from the user's stored face
         let referenceDescriptor = null;
-
-        // OPTIONAL: If you already have the user's face image URL in $userFaceImageUrl from PHP:
-        // If you store it in a data attribute, you can do this in the HTML:
-        // <div id="faceValidationModal" data-face-url="<?php echo $userFaceImageUrl; ?>"></div>
-        // For now, let's read it directly from a JS variable:
         const userFaceImageUrl = "<?php echo $userFaceImageUrl; ?>";
 
-        // 1) Preload face-api models
         await faceValidation.loadModels('backend/models/weights');
 
-        // 2) If we have a stored face URL, load it and compute descriptor
         async function loadReferenceDescriptor() {
             if (!userFaceImageUrl) {
                 console.warn("No stored face image URL for this user.");
                 return;
             }
-            // Use the decrypt endpoint to retrieve the image
             const decryptUrl =
                 `backend/routes/decrypt_image.php?face_url=${encodeURIComponent(userFaceImageUrl)}`;
             const img = new Image();
             img.crossOrigin = "anonymous";
             img.src = decryptUrl;
-            // Display the decrypted image in the stored face preview
             storedFacePreview.src = decryptUrl;
 
-            // Wait until the image loads
             await new Promise((resolve, reject) => {
                 img.onload = resolve;
                 img.onerror = reject;
             });
 
-            // Detect face with descriptor from the decrypted image
             try {
                 const detection = await faceapi
                     .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({
@@ -445,17 +383,13 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
             }
         }
 
-
-        // Actually load the stored reference
         if (userFaceImageUrl) {
             await loadReferenceDescriptor();
         }
 
-        // 3) Show face validation modal on "Virtual ID" click
         if (virtualIdLink && faceValidationModalEl) {
             virtualIdLink.addEventListener('click', async function(e) {
                 e.preventDefault();
-                // Start the webcam
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({
                         video: {}
@@ -464,27 +398,22 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
                 } catch (error) {
                     console.error("Webcam access error:", error);
                     alert(
-                        'Unable to access webcam for face validation. Please check permissions.'
-                    );
+                        'Unable to access webcam for face validation. Please check permissions.');
                     return;
                 }
-                // Show the modal
                 const faceValidationModal = new bootstrap.Modal(faceValidationModalEl);
                 faceValidationModal.show();
             });
         }
 
-        // 4) Validate Face button
         if (validateFaceBtn) {
             validateFaceBtn.addEventListener('click', async function() {
                 faceValidationResult.innerText = '';
-                // Capture the video frame to canvas
                 userFaceCanvas.width = videoInput.videoWidth;
                 userFaceCanvas.height = videoInput.videoHeight;
                 const ctx = userFaceCanvas.getContext('2d');
                 ctx.drawImage(videoInput, 0, 0, userFaceCanvas.width, userFaceCanvas.height);
 
-                // Detect face with descriptor
                 const detection = await faceapi
                     .detectSingleFace(userFaceCanvas, new faceapi.TinyFaceDetectorOptions({
                         inputSize: 416,
@@ -501,21 +430,17 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
                         'No stored reference face found. Please contact support.';
                     return;
                 }
-                // Compare descriptors
                 const distance = faceapi.euclideanDistance(detection.descriptor,
                     referenceDescriptor);
                 console.log('Distance:', distance);
 
-                // For typical use, a threshold of ~0.6 is used
                 const threshold = 0.6;
                 if (distance < threshold) {
                     faceValidationResult.innerText = 'Face matched successfully!';
-                    // Stop the webcam stream
                     const stream = videoInput.srcObject;
                     if (stream) {
                         stream.getTracks().forEach(track => track.stop());
                     }
-                    // Example: Generate PDF password or do something else
                     const pdfPassword = Math.random().toString(36).slice(-8);
                     const userId = virtualIdLink.getAttribute('data-user-id');
                     // Optionally redirect or show a success modal
