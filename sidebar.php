@@ -6,7 +6,7 @@ if (session_status() === PHP_SESSION_NONE) {
 $scriptNonce = bin2hex(random_bytes(16));
 
 $current_page = basename($_SERVER['PHP_SELF']);
-$submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'appointments.php' || $current_page == 'medical_assistance.php');
+$submenuActive = ($current_page == 'consultation.php' || $current_page == 'appointments.php' || $current_page == 'medical_assistance.php');
 
 // Optional: If you already know the logged-in user's face_image URL, you can store it in a variable.
 $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : null;
@@ -466,7 +466,8 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
                 } catch (error) {
                     console.error("Webcam access error:", error);
                     alert(
-                        'Unable to access webcam for face validation. Please check permissions.');
+                        'Unable to access webcam for face validation. Please check permissions.'
+                        );
                     return;
                 }
                 const faceValidationModal = new bootstrap.Modal(faceValidationModalEl);
