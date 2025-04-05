@@ -163,11 +163,10 @@ $action = filter_input(INPUT_GET, 'action', FILTER_SANITIZE_STRING) ?? '';
 switch ($action) {
 
     case 'update_header_settings':
-        $headerName    = trim($_POST['header_name'] ?? '');
-        $message       = "";
-        $headerLogoUrl = null;  // Will store the new S3 URL if a logo is uploaded.
-
-        // 1) Update header name if provided.
+        $headerName = trim($_POST['header_name'] ?? '');
+        $message = "";
+        $headerLogoUrl = null;
+    
         if (!empty($headerName)) {
             $stmt = $conn->prepare("
                 INSERT INTO settings (`key`, value) 
@@ -184,62 +183,55 @@ switch ($action) {
                     $message .= "Failed to update header name. ";
                 }
                 $stmt->close();
-            } else {
-                error_log("Prepare failed for header name update: " . $conn->error);
             }
         }
-
-        // 2) Process header logo upload if provided.
+    
         if (isset($_FILES['header_logo']) && $_FILES['header_logo']['error'] === UPLOAD_ERR_OK) {
             $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
-            $fileType     = mime_content_type($_FILES['header_logo']['tmp_name']);
-
+            $fileType = mime_content_type($_FILES['header_logo']['tmp_name']);
+    
             if (!in_array($fileType, $allowedTypes)) {
                 $message .= "Invalid logo file type. ";
-                error_log("Invalid logo file type: " . $fileType);
             } else {
-                // Generate a unique S3 key.
-                $ext   = pathinfo($_FILES['header_logo']['name'], PATHINFO_EXTENSION);
-                $s3Key = 'uploads/settings/header_logo_' . time() . '.' . $ext;
-
-                // -------------------------------
-                // STEGANOGRAPHY ENCRYPTION STEP for Header Logo
-                // -------------------------------
-                // Define secret data (for example, header logo, user ID and timestamp)
-                $secretData = "HeaderLogo;UserID:" . $_SESSION['user_id'] . ";Timestamp:" . time();
-                // Create a temporary file for the encrypted image.
-                $encryptedTempPath = tempnam(sys_get_temp_dir(), 'encrypted_') . '.png';
+                $ext = pathinfo($_FILES['header_logo']['name'], PATHINFO_EXTENSION);
+                $s3Key = 'uploads/settings/header_logo_' . time() . '.png';
+    
+                // Encrypt and embed the image into a PNG
+                $clearImageData = file_get_contents($_FILES['header_logo']['tmp_name']);
+    
+                // Encryption setup
+                $cipher = "AES-256-CBC";
+                $ivlen = openssl_cipher_iv_length($cipher);
+                $iv = openssl_random_pseudo_bytes($ivlen);
+                $rawKey = getenv('ENCRYPTION_KEY'); // Same method as your existing code
+                $encryptionKey = hash('sha256', $rawKey, true);
+    
+                // Encrypt the image
+                $encryptedData = openssl_encrypt($clearImageData, $cipher, $encryptionKey, OPENSSL_RAW_DATA, $iv);
+                $encryptedImageData = $iv . $encryptedData;
+    
+                // Use your existing embedDataInPng function
+                $pngImage = embedDataInPng($encryptedImageData, 100);
+                $encryptedTempPath = tempnam(sys_get_temp_dir(), 'enc_logo_') . '.png';
+                imagepng($pngImage, $encryptedTempPath);
+                imagedestroy($pngImage);
+    
                 try {
-                    steganographyEncryptImage($_FILES['header_logo']['tmp_name'], $secretData, $encryptedTempPath);
-                } catch (Exception $e) {
-                    error_log("Steganography encryption error: " . $e->getMessage());
-                    $message .= "Error processing logo image. ";
-                }
-                // Use the encrypted image for upload.
-                $uploadSource = $encryptedTempPath;
-                // -------------------------------
-
-                try {
-                    // Upload the file to S3 with public-read ACL.
                     $result = $s3->putObject([
-                        'Bucket'      => $bucketName,
-                        'Key'         => $s3Key,
-                        'Body'        => fopen($uploadSource, 'rb'),
-                        'ACL'         => 'public-read',
-                        'ContentType' => $fileType
+                        'Bucket' => $bucketName,
+                        'Key' => $s3Key,
+                        'Body' => fopen($encryptedTempPath, 'rb'),
+                        'ACL' => 'public-read',
+                        'ContentType' => 'image/png'
                     ]);
-
-                    // Remove the temporary encrypted file.
                     @unlink($encryptedTempPath);
-
-                    // Convert the full S3 URL to a local proxy URL if desired.
+    
                     $headerLogoUrl = str_replace(
                         "https://{$bucketName}.s3." . $_ENV['AWS_REGION'] . ".amazonaws.com/",
                         "/s3proxy/",
                         $result['ObjectURL']
                     );
-
-                    // Save the logo URL in the database.
+    
                     $stmt = $conn->prepare("
                         INSERT INTO settings (`key`, value) 
                         VALUES ('header_logo', ?) 
@@ -251,12 +243,10 @@ switch ($action) {
                             $message .= "Header logo updated. ";
                             $_SESSION['header_logo'] = $headerLogoUrl;
                         } else {
-                            error_log("Failed to update header logo in DB: " . $stmt->error);
+                            error_log("Failed to update header logo: " . $stmt->error);
                             $message .= "Failed to update header logo. ";
                         }
                         $stmt->close();
-                    } else {
-                        error_log("Prepare failed for header logo update: " . $conn->error);
                     }
                 } catch (Exception $e) {
                     error_log("S3 upload error: " . $e->getMessage());
@@ -264,17 +254,16 @@ switch ($action) {
                 }
             }
         }
-
-        // 3) Record the action using the audit log helper function.
+    
         recordAuditLog($_SESSION['user_id'], 'Update Header Settings', $message);
-
+    
         echo json_encode([
-            'status'      => true,
-            'message'     => $message,
+            'status' => true,
+            'message' => $message,
             'header_name' => $headerName,
             'header_logo' => $headerLogoUrl
         ]);
-        break;
+        break;    
 
     case 'backup_database':
         // Remove any previously set Content-Type header so we can output file data.
