@@ -227,8 +227,11 @@ header("X-Content-Type-Options: nosniff");
                         user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase() :
                         '';
 
-                    document.getElementById('profileImage').src = user.profile_image ||
+                    const baseUrl = window.location.origin + '/capstone-php';
+                    document.getElementById('profileImage').src = user.profile_image ?
+                        `${baseUrl}/backend/routes/decrypt_image.php?image_url=${encodeURIComponent(user.profile_image)}` :
                         'assets/default-profile.jpeg';
+
                     document.getElementById('virtualId').value = user.virtual_id || 'Not assigned';
 
                     // Update View Virtual ID link
@@ -264,14 +267,16 @@ header("X-Content-Type-Options: nosniff");
                         showToast(data.message, 'success');
                         // Update the profile image on the page
                         if (data.profile_image) {
-                            document.getElementById('profileImage').src = data.profile_image;
-                            // Also update the profile image in the header
+                            const baseUrl = window.location.origin + '/capstone-php';
+                            document.getElementById('profileImage').src =
+                                `${baseUrl}/backend/routes/decrypt_image.php?image_url=${encodeURIComponent(data.profile_image)}&t=${new Date().getTime()}`; // cache-busting
                             const profileImageNav = document.getElementById('profileImageNav');
                             if (profileImageNav) {
                                 profileImageNav.src =
-                                    `${data.profile_image}?t=${new Date().getTime()}`; // Cache-busting
+                                    `${baseUrl}/backend/routes/decrypt_image.php?image_url=${encodeURIComponent(data.profile_image)}&t=${new Date().getTime()}`;
                             }
                         }
+
                     } else {
                         showToast(data.message, 'danger');
                     }

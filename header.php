@@ -67,9 +67,11 @@ $headerLogo = $_SESSION['header_logo'] ?? 'assets/logo.png';
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle text-white" href="#" id="navbarDropdown" role="button"
                         data-bs-toggle="dropdown" aria-expanded="false">
-                        <img id="profileImageNav"
-                            src="<?= htmlspecialchars($_SESSION['profile_image'] ?? './assets/default-profile.jpeg', ENT_QUOTES, 'UTF-8') ?>"
-                            alt="Profile Image" class=" profile-image-header rounded-circle" width="30" height="30">
+                        <img id="profileImageNav" src="<?= isset($_SESSION['profile_image']) 
+        ? '/capstone-php/backend/routes/decrypt_image.php?image_url=' . urlencode($_SESSION['profile_image']) 
+        : './assets/default-profile.jpeg' ?>" alt="Profile Image" class="profile-image-header rounded-circle"
+                            width="30" height="30">
+
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
                         <li><a class="dropdown-item" href="profile.php">Profile</a></li>

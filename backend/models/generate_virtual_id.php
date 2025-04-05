@@ -98,10 +98,9 @@ function loadLocalOrFallback($path) {
 }
 
 if (!empty($user['profile_image']) && strpos($user['profile_image'], '/s3proxy/') === 0) {
-    // Attempt to load from remote
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
-    $remoteUrl = $protocol . $_SERVER['HTTP_HOST'] . $user['profile_image'];
-    $profileImageData = @file_get_contents($remoteUrl);
+    $encryptedImageUrl = $protocol . $_SERVER['HTTP_HOST'] . '/capstone-php/backend/routes/decrypt_image.php?image_url=' . urlencode($user['profile_image']);
+    $profileImageData = @file_get_contents($encryptedImageUrl);
     if ($profileImageData !== false) {
         $profileImage = imagecreatefromstring($profileImageData);
     } else {

@@ -77,10 +77,10 @@ header("Referrer-Policy: no-referrer-when-downgrade");
                     <span>Welcome,
                         <?php echo htmlspecialchars($_SESSION['first_name']) . ' ' . htmlspecialchars($_SESSION['last_name']); ?></span>
                     <?php
-          $imageSrc = '/assets/default-profile.jpeg'; // default local image
+          $imageSrc = '/capstone-php/assets/default-profile.jpeg'; // Default image
           if (isset($_SESSION['profile_image']) && !empty($_SESSION['profile_image'])) {
-              $imageSrc = $_SESSION['profile_image'];
-          }
+              $imageSrc = '/capstone-php/backend/routes/decrypt_image.php?image_url=' . urlencode($_SESSION['profile_image']);
+          }          
           ?>
                     <img src="<?php echo $imageSrc; ?>" alt="Profile Image" class="rounded-circle" width="30">
                 </div>
