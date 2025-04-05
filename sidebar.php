@@ -36,7 +36,8 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
         /* Center navigation vertically and horizontally */
         display: flex;
         justify-content: center;
-        align-items: center;
+        align-items: flex-start;
+        /* or remove align-items altogether */
     }
 
     /* When collapsed, slide completely off-screen */
