@@ -337,34 +337,42 @@ $tempFile = tempnam(sys_get_temp_dir(), 'idcard') . '.png';
 imagepng($idCard, $tempFile);
 imagedestroy($idCard);
 
-// Require TCPDF (assuming it is installed via Composer in vendor folder)
+// Require TCPDF (assuming installed via Composer)
 require_once('../../vendor/tecnickcom/tcpdf/tcpdf.php');
 
-// Create new PDF document.
-$pdf = new TCPDF();
+// Create new PDF document
+$pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
 $pdf->SetCreator('Member Link');
 $pdf->SetTitle('Virtual ID');
+
+// Turn off default headers/footers
 $pdf->setPrintHeader(false);
 $pdf->setPrintFooter(false);
 
-// NEW: Remove margins and set page size to match id card dimensions
+// IMPORTANT: Remove margins and disable auto page break
 $pdf->SetMargins(0, 0, 0);
-$pdfWidth = ($cardWidth * 25.4) / 300;    // converting pixels to mm assuming 300 DPI
-$pdfHeight = ($cardHeight * 25.4) / 300;
-$pdf->AddPage('L', array($pdfWidth, $pdfHeight));  // changed to landscape
+$pdf->SetAutoPageBreak(false, 0);
 
-// Add the temporary image covering the entire page.
+// Convert your $cardWidth/$cardHeight (in pixels) to mm, assuming ~300 DPI:
+$pdfWidth  = ($cardWidth  * 25.4) / 300;  // in mm
+$pdfHeight = ($cardHeight * 25.4) / 300;  // in mm
+
+// Add a single page with custom size
+// Use 'L' if the card is landscape, 'P' if portrait
+$pdf->AddPage('L', array($pdfWidth, $pdfHeight));
+
+// Place the image at (0,0) and make it fill the page
 $pdf->Image($tempFile, 0, 0, $pdfWidth, $pdfHeight, '', '', '', false, 300);
 
-// Apply PDF password if provided via GET parameter.
+// Apply PDF password if provided via GET parameter
 $pdf_password = isset($_GET['pdf_password']) ? $_GET['pdf_password'] : '';
 if ($pdf_password) {
-    // Set user password (to open pdf); no owner password specified.
+    // Set user password to open PDF; no owner password
     $pdf->SetProtection(array('print', 'copy'), $pdf_password, null, 0, null);
 }
 
-// Remove the temporary image file.
+// Remove the temporary image file
 unlink($tempFile);
 
-// Force PDF download.
+// Force PDF download
 $pdf->Output('virtual_id.pdf', 'D');
