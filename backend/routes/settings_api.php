@@ -31,9 +31,48 @@ require_once __DIR__ . '/../db/db_connect.php';
 require_once __DIR__ . '/../s3config.php';
 
 // -----------------------------
-// (Steganography 
+// embedDataInPng helper function
 // -----------------------------
-
+if (!function_exists('embedDataInPng')) {
+    /**
+     * embedDataInPng:
+     * Converts binary data into a valid PNG image by mapping every 3 bytes to a pixel (R, G, B).
+     * Remaining pixels are padded with black.
+     *
+     * @param string $binaryData The binary data to embed.
+     * @param int    $desiredWidth Desired width (used to compute a roughly square image)
+     * @return GdImage A GD image resource.
+     */
+    function embedDataInPng($binaryData, $desiredWidth = 100) {
+        $dataLen = strlen($binaryData);
+        // Each pixel holds 3 bytes.
+        $numPixels = ceil($dataLen / 3);
+        // Create a roughly square image.
+        $width = (int) floor(sqrt($numPixels));
+        if ($width < 1) {
+            $width = 1;
+        }
+        $height = (int) ceil($numPixels / $width);
+        $img = imagecreatetruecolor($width, $height);
+        $black = imagecolorallocate($img, 0, 0, 0);
+        imagefill($img, 0, 0, $black);
+        $pos = 0;
+        for ($y = 0; $y < $height; $y++) {
+            for ($x = 0; $x < $width; $x++) {
+                if ($pos < $dataLen) {
+                    $r = ord($binaryData[$pos++]);
+                    $g = ($pos < $dataLen) ? ord($binaryData[$pos++]) : 0;
+                    $b = ($pos < $dataLen) ? ord($binaryData[$pos++]) : 0;
+                    $color = imagecolorallocate($img, $r, $g, $b);
+                    imagesetpixel($img, $x, $y, $color);
+                } else {
+                    imagesetpixel($img, $x, $y, $black);
+                }
+            }
+        }
+        return $img;
+    }
+}
 
 // Sanitize the "action" parameter.
 $action = filter_input(INPUT_GET, 'action', FILTER_SANITIZE_STRING) ?? '';
