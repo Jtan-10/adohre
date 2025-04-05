@@ -53,9 +53,7 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
     .sidebar-header {
         text-align: center;
         padding: 0;
-        /* remove padding so it doesn't push items down */
         margin-bottom: 0;
-        /* remove margin */
     }
 
     /* Remove default list styles and let flex layout handle spacing */
@@ -63,21 +61,17 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
         list-style: none;
         margin: 0;
         padding: 0;
-
-        /* Use flex so each li stacks and centers */
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         gap: 1rem;
-        /* spacing between items */
     }
 
     /* Remove or reduce margin on li */
     #sidebar ul li {
         margin: 0;
         width: 100%;
-        /* so hover backgrounds fill the width */
     }
 
     /* Center link text horizontally; use padding for clickable area */
@@ -144,7 +138,6 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
 
     #sidebarCollapse.expanded {
         left: 250px;
-        /* match the sidebar width */
     }
 
     /* Responsive adjustments */
@@ -187,29 +180,23 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
 
             <?php if (isset($_SESSION['user_id']) && (isset($_SESSION['role']) && $_SESSION['role'] !== 'user')): ?>
             <li <?php if ($current_page == 'member_services.php' || $submenuActive) echo 'class="active"'; ?>>
-                <!-- Member Services toggler without arrow -->
+                <!-- Member Services toggler -->
                 <a href="#" class="dropdown-toggle" id="memberServicesToggle">Member Services</a>
                 <ul class="submenu <?php echo $submenuActive ? 'show' : ''; ?>" id="memberServicesSubmenu">
-                    <li <?php if ($current_page == 'consultation.php') echo 'class="active"'; ?>>
-                        <a href="consultation.php">Chat Assistance</a>
-                    </li>
-                    <li <?php if ($current_page == 'appointments.php') echo 'class="active"'; ?>>
-                        <a href="appointments.php">Appointments</a>
-                    </li>
-                    <li <?php if ($current_page == 'medical_assistance.php') echo 'class="active"'; ?>>
-                        <a href="medical_assistance.php">Medical Assistance</a>
-                    </li>
+                    <li <?php if ($current_page == 'consultation.php') echo 'class="active"'; ?>><a
+                            href="consultation.php">Chat Assistance</a></li>
+                    <li <?php if ($current_page == 'appointments.php') echo 'class="active"'; ?>><a
+                            href="appointments.php">Appointments</a></li>
+                    <li <?php if ($current_page == 'medical_assistance.php') echo 'class="active"'; ?>><a
+                            href="medical_assistance.php">Medical Assistance</a></li>
                 </ul>
             </li>
-            <li <?php if ($current_page == 'events.php') echo 'class="active"'; ?>>
-                <a href="events.php">Events</a>
-            </li>
+            <li <?php if ($current_page == 'events.php') echo 'class="active"'; ?>><a href="events.php">Events</a></li>
             <?php endif; ?>
 
             <?php if (isset($_SESSION['user_id'])): ?>
-            <li <?php if ($current_page == 'trainings.php') echo 'class="active"'; ?>>
-                <a href="trainings.php">Trainings</a>
-            </li>
+            <li <?php if ($current_page == 'trainings.php') echo 'class="active"'; ?>><a
+                    href="trainings.php">Trainings</a></li>
             <?php endif; ?>
         </ul>
     </div>
@@ -271,7 +258,6 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
                     <!-- Validate Face button + hidden canvas for capture -->
                     <button type="button" class="btn btn-primary" id="validateFaceBtn">Validate Face</button>
                     <canvas id="userFaceCanvas" style="display:none;"></canvas>
-
                     <p id="faceValidationResult" class="mt-3" style="font-weight:bold;"></p>
                 </div>
                 <div class="modal-footer">
@@ -392,10 +378,9 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
             });
         }
 
-        // SUBMENU TOGGLE - Fixed implementation without arrow update
+        // SUBMENU TOGGLE
         const memberServicesToggle = document.getElementById('memberServicesToggle');
         const memberServicesSubmenu = document.getElementById('memberServicesSubmenu');
-
         if (memberServicesToggle && memberServicesSubmenu) {
             memberServicesToggle.addEventListener('click', function(e) {
                 e.preventDefault();
@@ -468,8 +453,7 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
                 } catch (error) {
                     console.error("Webcam access error:", error);
                     alert(
-                        'Unable to access webcam for face validation. Please check permissions.'
-                    );
+                        'Unable to access webcam for face validation. Please check permissions.');
                     return;
                 }
                 const faceValidationModal = new bootstrap.Modal(faceValidationModalEl);
