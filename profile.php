@@ -362,7 +362,7 @@ header("X-Content-Type-Options: nosniff");
                     <div class="card mb-3">
                         <div class="row g-0">
                             <div class="col-md-4">
-                                <img src="${training.image || 'assets/default-training.jpg'}" class="img-fluid rounded-start" alt="${training.title}">
+                                <img src="${training.image} || 'assets/default-training.jpg'}" class="img-fluid rounded-start" alt="${training.title}">
                             </div>
                             <div class="col-md-8">
                                 <div class="card-body">
@@ -378,7 +378,7 @@ header("X-Content-Type-Options: nosniff");
                             '<p>No joined trainings yet.</p>';
                     } else {
                         joinedTrainingsList.innerHTML =
-                            `<p>${data.message || 'Failed to load trainings.'}</p>`;
+                            `<p>${data.message} || 'Failed to load trainings.'}</p>`;
                     }
                 })
                 .catch(err => {
