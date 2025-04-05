@@ -257,7 +257,9 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
                     <!-- Show stored face reference -->
                     <div class="mb-3">
                         <h5>Stored Face Reference</h5>
-                        <img id="storedFacePreview" src="" alt="Stored Face Reference"
+                        <img id="storedFacePreview"
+                            src="<?php echo $userFaceImageUrl ? 'backend/routes/decrypt_image.php?face_url=' . urlencode($userFaceImageUrl) : ''; ?>"
+                            alt="Stored Face Reference"
                             style="width:100%; max-width:320px; border:1px solid #ccc; display:block;">
                     </div>
                     <!-- Live face capture -->
@@ -467,7 +469,7 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
                     console.error("Webcam access error:", error);
                     alert(
                         'Unable to access webcam for face validation. Please check permissions.'
-                        );
+                    );
                     return;
                 }
                 const faceValidationModal = new bootstrap.Modal(faceValidationModalEl);
