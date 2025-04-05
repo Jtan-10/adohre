@@ -38,12 +38,10 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
         box-shadow: 3px 0 10px rgba(0, 0, 0, 0.1);
     }
 
-    /* When collapsed, slide completely off-screen */
     #sidebar.collapsed {
         transform: translateX(-100%);
     }
 
-    /* Site title/logo area */
     .sidebar-header {
         text-align: center;
         padding: 10px 15px;
@@ -55,71 +53,68 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
         font-size: 1.4em;
     }
 
-    /* Remove default list styles and improve links */
     #sidebar ul.components {
         list-style: none;
         margin: 0;
         padding: 0;
         width: 100%;
         text-align: center;
-        /* Center the list items */
     }
 
+    /* Slightly reduce the li margins */
     #sidebar ul li {
         margin: 5px 10px;
     }
 
-    /* Sidebar links: improved styling */
+    /* Use flexbox to vertically center and keep arrow on right */
     #sidebar ul li a {
-        display: block;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
         padding: 10px 15px;
         font-size: 1.1em;
         color: #fff;
         text-decoration: none;
         transition: all 0.3s ease;
         border-radius: 4px;
-        position: relative;
-        text-align: center;
-        /* Center the text in links */
     }
 
-    /* Hover and active state */
-    #sidebar ul li a:hover,
-    #sidebar ul li.active>a {
+    /* Hover state: subtle overlay */
+    #sidebar ul li a:hover {
         background: rgba(255, 255, 255, 0.15);
         color: #fff;
     }
 
-    /* Active state with left border indicator */
+    /* Active state: remove white line, make background darker */
     #sidebar ul li.active>a {
-        border-left: none;
-        /* Remove the left border */
-        border-bottom: 2px solid #fff;
-        /* Add a bottom border instead */
+        background: rgba(0, 0, 0, 0.2);
+        color: #fff;
+        border: none;
+        /* remove the white border */
     }
 
-    /* Submenu styling - improved */
+    /* Submenu styling */
     #sidebar ul li ul.submenu {
         list-style: none;
-        padding-left: 15px;
+        padding-left: 0;
         max-height: 0;
         overflow: hidden;
         transition: max-height 0.3s ease;
+        margin: 0;
     }
 
     #sidebar ul li ul.submenu.show {
         max-height: 300px;
-        /* Adjust as needed */
+        /* or however tall you need */
     }
 
     #sidebar ul li ul.submenu li {
         margin: 2px 0;
     }
 
+    /* Smaller font inside submenu */
     #sidebar ul li ul.submenu li a {
-        padding: 8px 10px;
         font-size: 0.95em;
-        opacity: 0.9;
     }
 
     /* Toggle Button styling - improved */
@@ -139,18 +134,9 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
         box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
     }
 
-    /* For dropdown arrows, adjust their position */
-    .dropdown-toggle::after {
-        position: relative;
-        /* Change from absolute to relative */
-        right: auto;
-        /* Remove the right positioning */
-        margin-left: 10px;
-        /* Add some space between text and arrow */
-        top: auto;
-        /* Remove the top positioning */
-        transform: none;
-        /* Remove the transform */
+    #sidebarCollapse.expanded {
+        left: 250px;
+        /* match the sidebar width */
     }
 
     /* Improved responsive behavior */
