@@ -42,17 +42,16 @@ if ($stmt) {
     }
     $stmt->close();
 }
-$conn->close(); // Close the connection after finishing all queries
 ?>
 
 <style>
-    /* Added profile-image styles */
-    .profile-image-header {
-        width: 30px;
-        height: 30px;
-        object-fit: cover;
-        border-radius: 50%;
-    }
+/* Added profile-image styles */
+.profile-image-header {
+    width: 30px;
+    height: 30px;
+    object-fit: cover;
+    border-radius: 50%;
+}
 </style>
 
 <nav class="navbar navbar-expand-lg bg-success text-white">
@@ -73,34 +72,34 @@ $conn->close(); // Close the connection after finishing all queries
                 <li class="nav-item"><a class="nav-link text-white" href="about.php">About Us</a></li>
                 <li class="nav-item"><a class="nav-link text-white" href="news.php">News</a></li>
                 <?php if ($isLoggedIn && (isset($_SESSION['role']) && $_SESSION['role'] !== 'user')): ?>
-                    <li class="nav-item"><a class="nav-link text-white" href="events.php">Events</a></li>
+                <li class="nav-item"><a class="nav-link text-white" href="events.php">Events</a></li>
                 <?php endif; ?>
                 <?php if (isset($_SESSION['user_id'])): ?>
-                    <li class="nav-item"><a class="nav-link text-white" href="trainings.php">Trainings</a></li>
+                <li class="nav-item"><a class="nav-link text-white" href="trainings.php">Trainings</a></li>
                 <?php endif; ?>
                 <?php if ($isLoggedIn): ?>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle text-white" href="#" id="navbarDropdown" role="button"
-                            data-bs-toggle="dropdown" aria-expanded="false">
-                            <img id="profileImageNav" src="<?= isset($_SESSION['profile_image'])
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle text-white" href="#" id="navbarDropdown" role="button"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                        <img id="profileImageNav" src="<?= isset($_SESSION['profile_image'])
                                                                 ? '/capstone-php/backend/routes/decrypt_image.php?image_url=' . urlencode($_SESSION['profile_image'])
                                                                 : './assets/default-profile.jpeg' ?>"
-                                alt="Profile Image" class="profile-image-header rounded-circle" width="30" height="30">
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
-                            <li><a class="dropdown-item" href="profile.php">Profile</a></li>
-                            <?php if ($_SESSION['role'] === 'admin'): ?>
-                                <li><a class="dropdown-item" href="admin/dashboard.php">Admin Dashboard</a></li>
-                            <?php endif; ?>
-                            <?php if ($_SESSION['role'] === 'trainer'): ?>
-                                <li><a class="dropdown-item" href="admin/trainer/dashboard.php">Trainer Dashboard</a></li>
-                            <?php endif; ?>
-                            <li><a class="dropdown-item" href="logout.php">Logout</a></li>
-                        </ul>
-                    </li>
+                            alt="Profile Image" class="profile-image-header rounded-circle" width="30" height="30">
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                        <li><a class="dropdown-item" href="profile.php">Profile</a></li>
+                        <?php if ($_SESSION['role'] === 'admin'): ?>
+                        <li><a class="dropdown-item" href="admin/dashboard.php">Admin Dashboard</a></li>
+                        <?php endif; ?>
+                        <?php if ($_SESSION['role'] === 'trainer'): ?>
+                        <li><a class="dropdown-item" href="admin/trainer/dashboard.php">Trainer Dashboard</a></li>
+                        <?php endif; ?>
+                        <li><a class="dropdown-item" href="logout.php">Logout</a></li>
+                    </ul>
+                </li>
                 <?php else: ?>
-                    <li class="nav-item mt-1"><a href="login.php" class="btn btn-light btn-sm">Login</a></li>
-                    <li class="nav-item mt-1"><a href="signup.php" class="btn btn-light btn-sm">Sign Up</a></li>
+                <li class="nav-item mt-1"><a href="login.php" class="btn btn-light btn-sm">Login</a></li>
+                <li class="nav-item mt-1"><a href="signup.php" class="btn btn-light btn-sm">Sign Up</a></li>
                 <?php endif; ?>
             </ul>
         </div>

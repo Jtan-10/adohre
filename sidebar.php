@@ -5,7 +5,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // Check if $conn exists and is alive. If not, re-establish the connection.
 if (!isset($conn) || !$conn->ping()) {
-    require_once 'backend/db/db_connect.php';
+    require 'backend/db/db_connect.php';
 }
 
 // If the face image is not already in session and user is logged in, retrieve it from the database.
@@ -448,7 +448,8 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
                 } catch (error) {
                     console.error("Webcam access error:", error);
                     alert(
-                        'Unable to access webcam for face validation. Please check permissions.');
+                        'Unable to access webcam for face validation. Please check permissions.'
+                        );
                     return;
                 }
                 const faceValidationModal = new bootstrap.Modal(faceValidationModalEl);
