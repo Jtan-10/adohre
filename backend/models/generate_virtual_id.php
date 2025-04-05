@@ -233,7 +233,7 @@ $idNumX = 530; $idNumY = 400;
 $emailX = 530; $emailY = 475;
 
 // We'll set a max width for each line so text doesn't run off the card
-$maxTextWidth = 900; // adjust as needed
+$maxTextWidth = 563; // adjust as needed
 $maxFontSize  = 30;  // starting font size
 
 // 1) Name
