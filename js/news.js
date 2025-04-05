@@ -1,14 +1,20 @@
 document.addEventListener("DOMContentLoaded", function() {
   const newsList = document.getElementById('newsList');
   const baseUrl = window.location.origin + '/capstone-php';
+  console.log("Base URL:", baseUrl);
 
   // Fetch and render news
   fetch(baseUrl + '/backend/routes/news_manager.php?action=fetch')
-      .then(response => response.json())
+      .then(response => {
+          console.log("Fetch response status:", response.status);
+          return response.json();
+      })
       .then(data => {
+          console.log("Fetched news data:", data);
           if (data.status) {
               renderNews(data.news);
           } else {
+              console.error("Data status is false. Message:", data.message);
               showError('Failed to load news');
           }
       })
@@ -17,21 +23,20 @@ document.addEventListener("DOMContentLoaded", function() {
           showError('Failed to load news');
       });
 
-      function renderNews(news) {
-        const html = news.map(article => {
-            // Debug the image URL being generated
-            console.log("Original image URL:", article.image);
-            
-            let imageUrl;
-            if (article.image) {
-                // Use the same URL pattern as the working news-detail.php
-                imageUrl = baseUrl + '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(article.image);
-                console.log("Generated image URL:", imageUrl);
-            } else {
-                imageUrl = 'assets/default-news.jpg';
-            }
-            
-            return `
+  function renderNews(news) {
+      console.log("Rendering news, total articles:", news.length);
+      const html = news.map(article => {
+          console.log("Article ID:", article.news_id, "Original image URL:", article.image);
+          let imageUrl;
+          if (article.image) {
+              // Build the decrypted image URL
+              imageUrl = baseUrl + '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(article.image);
+              console.log("Generated decrypted image URL for article ID", article.news_id, ":", imageUrl);
+          } else {
+              imageUrl = 'assets/default-news.jpg';
+              console.log("No image for article ID", article.news_id, "- using default image:", imageUrl);
+          }
+          return `
             <div class="news-card">
               <img src="${imageUrl}" class="card-img-top" alt="${article.title}">
               <div class="news-card-body">
@@ -51,11 +56,13 @@ document.addEventListener("DOMContentLoaded", function() {
               </div>
             </div>
           `;
-        }).join('');
-        newsList.innerHTML = html || '<p class="text-center text-muted">No news articles available</p>';
-    }
+      }).join('');
+      console.log("Generated HTML for news articles:", html);
+      newsList.innerHTML = html || '<p class="text-center text-muted">No news articles available</p>';
+  }
 
   function showError(message) {
+      console.error("Error:", message);
       newsList.innerHTML = `
         <div class="col-12 text-center text-danger">
           <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
