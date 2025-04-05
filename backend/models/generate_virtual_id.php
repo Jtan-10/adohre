@@ -11,6 +11,42 @@ use Endroid\QrCode\Encoding\Encoding;
 use Endroid\QrCode\ErrorCorrectionLevel;
 use Endroid\QrCode\Writer\PngWriter;
 
+/**
+ * Scale down an image if either dimension exceeds $maxDim.
+ * Returns the new image resource.
+ */
+function scaleDownIfTooLarge($sourceImg, $maxDim = 2000) {
+    $originalWidth  = imagesx($sourceImg);
+    $originalHeight = imagesy($sourceImg);
+
+    // If both dimensions are within the limit, return the original
+    if ($originalWidth <= $maxDim && $originalHeight <= $maxDim) {
+        return $sourceImg;
+    }
+
+    // Calculate new dimensions preserving aspect ratio
+    $ratio = min($maxDim / $originalWidth, $maxDim / $originalHeight);
+    $newWidth  = (int)($originalWidth  * $ratio);
+    $newHeight = (int)($originalHeight * $ratio);
+
+    $scaledImg = imagecreatetruecolor($newWidth, $newHeight);
+
+    // Preserve transparency for PNG images
+    imagealphablending($scaledImg, false);
+    imagesavealpha($scaledImg, true);
+
+    imagecopyresampled(
+        $scaledImg,
+        $sourceImg,
+        0, 0,
+        0, 0,
+        $newWidth, $newHeight,
+        $originalWidth, $originalHeight
+    );
+
+    return $scaledImg;
+}
+
 // ----------------------------------------------------------------
 // 1) Fetch user details from DB
 // ----------------------------------------------------------------
@@ -115,6 +151,11 @@ if (!empty($user['profile_image']) && strpos($user['profile_image'], '/s3proxy/'
 } else {
     $localPath = __DIR__ . '/../../' . ($user['profile_image'] ?? 'assets/default-profile.jpeg');
     $profileImage = loadLocalOrFallback($localPath);
+}
+
+// NEW: Scale down the profile image if it's too large
+if ($profileImage) {
+    $profileImage = scaleDownIfTooLarge($profileImage, 2000);
 }
 
 if ($profileImage) {
@@ -307,3 +348,4 @@ error_log("DEBUG: Final image being sent as PNG.");
 header("Content-Type: image/png");
 imagepng($idCard);
 imagedestroy($idCard);
+?>
