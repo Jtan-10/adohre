@@ -136,14 +136,14 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
 
             <?php if (isset($_SESSION['user_id']) && (isset($_SESSION['role']) && $_SESSION['role'] !== 'user')): ?>
             <li <?php if ($current_page == 'member_services.php' || $submenuActive) echo 'class="active"'; ?>>
-                <!-- Updated Member Services dropdown toggler with data-bs-target -->
-                <a data-bs-toggle="collapse" data-bs-target="#memberServicesSubmenu" href="#" role="button"
+                <!-- Simplified Member Services toggler -->
+                <a href="#memberServicesSubmenu" data-bs-toggle="collapse" role="button"
                     aria-expanded="<?php echo $submenuActive ? 'true' : 'false'; ?>"
-                    aria-controls="memberServicesSubmenu" id="toggleMemberServices">
+                    aria-controls="memberServicesSubmenu">
                     Member Services <span
                         id="memberServicesArrow"><?php echo $submenuActive ? '&uarr;' : '&darr;'; ?></span>
                 </a>
-                <ul class="submenu collapse <?php echo $submenuActive ? 'show' : ''; ?>" id="memberServicesSubmenu">
+                <ul class="collapse submenu <?php echo $submenuActive ? 'show' : ''; ?>" id="memberServicesSubmenu">
                     <li <?php if ($current_page == 'consultation.php') echo 'class="active"'; ?>>
                         <a href="consultation.php">Chat Assistance</a>
                     </li>
@@ -354,16 +354,38 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
             });
         }
 
-        // SUBMENU ARROWS - Updated to use Bootstrap 5 event syntax
-        const memberSubmenu = document.getElementById('memberServicesSubmenu');
+        // SUBMENU TOGGLE - Updated for Bootstrap 5
+        const memberServicesLink = document.querySelector('a[href="#memberServicesSubmenu"]');
+        const memberServicesSubmenu = document.getElementById('memberServicesSubmenu');
         const memberArrow = document.getElementById('memberServicesArrow');
-        if (memberSubmenu && memberArrow) {
-            memberSubmenu.addEventListener('show.bs.collapse', function() {
-                memberArrow.innerHTML = '&uarr;';
+
+        if (memberServicesSubmenu && memberArrow) {
+            // Use Bootstrap's collapse events directly on the submenu
+            memberServicesSubmenu.addEventListener('show.bs.collapse', function() {
+                if (memberArrow) memberArrow.innerHTML = '&uarr;';
             });
-            memberSubmenu.addEventListener('hide.bs.collapse', function() {
-                memberArrow.innerHTML = '&darr;';
+
+            memberServicesSubmenu.addEventListener('hide.bs.collapse', function() {
+                if (memberArrow) memberArrow.innerHTML = '&darr;';
             });
+
+            // For extra insurance, add a click handler to the toggle link
+            if (memberServicesLink) {
+                memberServicesLink.addEventListener('click', function(e) {
+                    // Prevent default only if we're manually handling the collapse
+                    // e.preventDefault();
+
+                    // Check if the submenu is already open
+                    const isOpen = memberServicesSubmenu.classList.contains('show');
+
+                    // Log the state for debugging
+                    console.log("Member Services submenu is currently:", isOpen ? "open" :
+                    "closed");
+
+                    // Let Bootstrap handle the actual collapse toggle
+                    // Bootstrap will fire the show.bs.collapse or hide.bs.collapse events
+                });
+            }
         }
 
         // FACE VALIDATION
