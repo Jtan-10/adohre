@@ -390,13 +390,14 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
                 console.warn("No stored face image URL for this user.");
                 return;
             }
-            // Example: if you need to decrypt or serve the image, adapt this:
-            // e.g., `backend/routes/decrypt_image.php?face_url=...`
-            // For now, assume the userFaceImageUrl is a direct link or a decrypt endpoint:
+            // Use the decrypt endpoint to retrieve the image
+            const decryptUrl =
+                `backend/routes/decrypt_image.php?face_url=${encodeURIComponent(userFaceImageUrl)}`;
             const img = new Image();
             img.crossOrigin = "anonymous";
-            img.src = userFaceImageUrl;
-            storedFacePreview.src = userFaceImageUrl; // show in UI
+            img.src = decryptUrl;
+            // Display the decrypted image in the stored face preview
+            storedFacePreview.src = decryptUrl;
 
             // Wait until the image loads
             await new Promise((resolve, reject) => {
@@ -404,7 +405,7 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
                 img.onerror = reject;
             });
 
-            // Detect face with descriptor
+            // Detect face with descriptor from the decrypted image
             try {
                 const detection = await faceapi
                     .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({
@@ -423,6 +424,7 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
                 console.error("Error detecting face in reference image:", error);
             }
         }
+
 
         // Actually load the stored reference
         if (userFaceImageUrl) {
@@ -443,7 +445,7 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
                     console.error("Webcam access error:", error);
                     alert(
                         'Unable to access webcam for face validation. Please check permissions.'
-                        );
+                    );
                     return;
                 }
                 // Show the modal
