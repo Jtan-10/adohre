@@ -2,20 +2,35 @@
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+
+// If the face image is not already in session and user is logged in, retrieve it from the database.
+if (!isset($_SESSION['face_image']) && isset($_SESSION['user_id'])) {
+    require_once 'backend/db/db_connect.php';
+    $userId = $_SESSION['user_id'];
+    $stmt = $conn->prepare("SELECT face_image FROM users WHERE user_id = ?");
+    if ($stmt) {
+        $stmt->bind_param("i", $userId);
+        $stmt->execute();
+        $stmt->bind_result($face_image);
+        if ($stmt->fetch()) {
+            // Store the retrieved face image (URL or filename) in the session
+            $_SESSION['face_image'] = $face_image;
+        }
+        $stmt->close();
+    } else {
+        error_log("Database prepare error: " . $conn->error);
+    }
+}
+
+// Now assign the session variable to a local variable.
+$userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : null;
+
 // Generate a unique nonce for inline scripts
 $scriptNonce = bin2hex(random_bytes(16));
 
+// Get the current page name and determine submenu active state.
 $current_page = basename($_SERVER['PHP_SELF']);
 $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appointments.php' || $current_page == 'medical_assistance.php');
-
-if (isset($_SESSION['face_image']) && !empty($_SESSION['face_image'])) {
-    echo "Face image is set: " . htmlspecialchars($_SESSION['face_image']);
-} else {
-    echo "Face image is NOT set or is empty.";
-}
-
-// Optional: If you already know the logged-in user's face_image URL, you can store it in a variable.
-$userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : null;
 ?>
 <!DOCTYPE html>
 <html lang="en">
