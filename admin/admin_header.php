@@ -31,8 +31,6 @@ $headerLogo = $_SESSION['header_logo'] ?? '/capstone-php/assets/logo.png';
 ?>
 <!-- Content Security Policy Meta Tag -->
 
-
-
 <nav class="navbar navbar-expand-lg bg-success text-white">
     <div class="container-fluid d-flex align-items-center">
         <?php if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'trainer'): ?>
@@ -44,7 +42,7 @@ $headerLogo = $_SESSION['header_logo'] ?? '/capstone-php/assets/logo.png';
         <?php endif; ?>
 
         <a class="navbar-brand d-flex align-items-center text-white" href="/capstone-php/admin/dashboard.php">
-            <img src="<?= htmlspecialchars($headerLogo, ENT_QUOTES) ?>"
+            <img src="/capstone-php/backend/routes/decrypt_image.php?image_url=<?= urlencode($headerLogo) ?>"
                 alt="<?= htmlspecialchars($headerName, ENT_QUOTES) ?> Logo" width="30" height="28"
                 class="d-inline-block align-text-top">
             <span class="ms-2"><?= htmlspecialchars($headerName, ENT_QUOTES) ?></span>
@@ -56,10 +54,9 @@ $headerLogo = $_SESSION['header_logo'] ?? '/capstone-php/assets/logo.png';
                 <a class="nav-link dropdown-toggle text-white" href="#" id="navbarDropdown" role="button"
                     data-bs-toggle="dropdown" aria-expanded="false">
                     <img id="profileImageNav" src="<?php echo isset($_SESSION['profile_image'])
-    ? '/capstone-php/backend/routes/decrypt_image.php?image_url=' . urlencode($_SESSION['profile_image'])
-    : '/capstone-php/assets/default-profile.jpeg'; ?>" alt="Profile Image" class="rounded-circle" width="30"
+        ? '/capstone-php/backend/routes/decrypt_image.php?image_url=' . urlencode($_SESSION['profile_image'])
+        : '/capstone-php/assets/default-profile.jpeg'; ?>" alt="Profile Image" class="rounded-circle" width="30"
                         height="30">
-
                 </a>
                 <ul class="dropdown-menu dropdown-menu-end position-absolute" aria-labelledby="navbarDropdown">
                     <li><a class="dropdown-item" href="/capstone-php/index.php">Home</a></li>

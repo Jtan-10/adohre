@@ -43,7 +43,7 @@ $headerLogo = $_SESSION['header_logo'] ?? 'assets/logo.png';
 <nav class="navbar navbar-expand-lg bg-success text-white">
     <div class="container">
         <a class="navbar-brand text-white" href="index.php">
-            <img src="<?= htmlspecialchars($headerLogo, ENT_QUOTES, 'UTF-8') ?>"
+            <img src="/capstone-php/backend/routes/decrypt_image.php?image_url=<?= urlencode($headerLogo) ?>"
                 alt="<?= htmlspecialchars($headerName, ENT_QUOTES, 'UTF-8') ?> Logo" width="30" height="28"
                 class="d-inline-block align-text-top">
             <?= htmlspecialchars($headerName, ENT_QUOTES, 'UTF-8') ?>
@@ -71,7 +71,6 @@ $headerLogo = $_SESSION['header_logo'] ?? 'assets/logo.png';
         ? '/capstone-php/backend/routes/decrypt_image.php?image_url=' . urlencode($_SESSION['profile_image']) 
         : './assets/default-profile.jpeg' ?>" alt="Profile Image" class="profile-image-header rounded-circle"
                             width="30" height="30">
-
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
                         <li><a class="dropdown-item" href="profile.php">Profile</a></li>
