@@ -21,7 +21,7 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <style>
-    /* Modern Sidebar Styles - Improved */
+    /* Modern Sidebar Styles - Centered */
     #sidebar {
         position: fixed;
         top: 0;
@@ -32,92 +32,102 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
         color: #fff;
         transition: all 0.3s ease;
         z-index: 1000;
+
+        /* Flexbox to center items vertically and horizontally */
         display: flex;
         flex-direction: column;
-        padding: 20px 0;
+        align-items: center;
+        justify-content: center;
+
+        /* Remove or reduce default padding so items can truly center */
+        padding: 0;
         box-shadow: 3px 0 10px rgba(0, 0, 0, 0.1);
     }
 
+    /* When collapsed, slide completely off-screen */
     #sidebar.collapsed {
         transform: translateX(-100%);
     }
 
+    /* Optional header area (can remove if not needed) */
     .sidebar-header {
         text-align: center;
-        padding: 10px 15px;
-        margin-bottom: 20px;
+        padding: 0;
+        /* remove padding so it doesn't push items down */
+        margin-bottom: 0;
+        /* remove margin */
     }
 
-    .sidebar-header h3 {
-        margin: 0;
-        font-size: 1.4em;
-    }
-
+    /* Remove default list styles and let flex layout handle spacing */
     #sidebar ul.components {
         list-style: none;
         margin: 0;
         padding: 0;
-        width: 100%;
-        text-align: center;
-    }
 
-    /* Slightly reduce the li margins */
-    #sidebar ul li {
-        margin: 5px 10px;
-    }
-
-    /* Use flexbox to vertically center and keep arrow on right */
-    #sidebar ul li a {
+        /* Use flex so each li stacks and centers */
         display: flex;
+        flex-direction: column;
         align-items: center;
-        justify-content: space-between;
-        padding: 10px 15px;
+        /* horizontally center links */
+        justify-content: center;
+        /* if you want them spaced, keep or remove as needed */
+        gap: 1rem;
+        /* spacing between items */
+    }
+
+    /* Remove or reduce margin on li */
+    #sidebar ul li {
+        margin: 0;
+        width: 100%;
+        /* so hover backgrounds fill the width */
+    }
+
+    /* Center link text horizontally; use padding for clickable area */
+    #sidebar ul li a {
+        display: block;
+        width: 100%;
+        padding: 10px;
         font-size: 1.1em;
         color: #fff;
         text-decoration: none;
-        transition: all 0.3s ease;
+        text-align: center;
         border-radius: 4px;
+        transition: background 0.3s ease;
     }
 
-    /* Hover state: subtle overlay */
+    /* Hover and active states */
     #sidebar ul li a:hover {
         background: rgba(255, 255, 255, 0.15);
-        color: #fff;
     }
 
-    /* Active state: remove white line, make background darker */
     #sidebar ul li.active>a {
         background: rgba(0, 0, 0, 0.2);
         color: #fff;
-        border: none;
-        /* remove the white border */
     }
 
-    /* Submenu styling */
+    /* Submenu styling - can remain the same or simplified */
     #sidebar ul li ul.submenu {
         list-style: none;
-        padding-left: 0;
+        margin: 0;
+        padding: 0;
         max-height: 0;
         overflow: hidden;
         transition: max-height 0.3s ease;
-        margin: 0;
     }
 
     #sidebar ul li ul.submenu.show {
         max-height: 300px;
-        /* or however tall you need */
     }
 
     #sidebar ul li ul.submenu li {
-        margin: 2px 0;
+        margin: 0;
     }
 
-    /* Smaller font inside submenu */
     #sidebar ul li ul.submenu li a {
         font-size: 0.95em;
     }
 
-    /* Toggle Button styling - improved */
+    /* Toggle Button styling - place it near middle of screen */
     #sidebarCollapse {
         position: fixed;
         top: 50%;
@@ -139,7 +149,7 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
         /* match the sidebar width */
     }
 
-    /* Improved responsive behavior */
+    /* Responsive adjustments */
     @media (max-width: 768px) {
         #sidebar {
             width: 200px;
