@@ -6,7 +6,9 @@ if (session_status() === PHP_SESSION_NONE) {
 $scriptNonce = bin2hex(random_bytes(16));
 
 $current_page = basename($_SERVER['PHP_SELF']);
-// $submenuActive variable is no longer used for submenu markup in Option A.
+$submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'appointments.php' || $current_page == 'medical_assistance.php');
+
+// Optional: If you already know the logged-in user's face_image URL, you can store it in a variable.
 $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : null;
 ?>
 <!DOCTYPE html>
@@ -130,13 +132,15 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
             </li>
 
             <?php if (isset($_SESSION['user_id']) && (isset($_SESSION['role']) && $_SESSION['role'] !== 'user')): ?>
-            <li <?php if ($current_page == 'member_services.php') echo 'class="active"'; ?>>
-                <!-- Member Services toggler: No forced open state -->
+            <li <?php if ($current_page == 'member_services.php' || $submenuActive) echo 'class="active"'; ?>>
+                <!-- Member Services toggler with initial open state based on $submenuActive -->
                 <a href="#memberServicesSubmenu" data-bs-toggle="collapse" role="button"
+                    aria-expanded="<?php echo $submenuActive ? 'true' : 'false'; ?>"
                     aria-controls="memberServicesSubmenu">
-                    Member Services <span id="memberServicesArrow">&darr;</span>
+                    Member Services <span
+                        id="memberServicesArrow"><?php echo $submenuActive ? '&uarr;' : '&darr;'; ?></span>
                 </a>
-                <ul class="collapse submenu" id="memberServicesSubmenu">
+                <ul class="collapse submenu <?php echo $submenuActive ? 'show' : ''; ?>" id="memberServicesSubmenu">
                     <li <?php if ($current_page == 'consultation.php') echo 'class="active"'; ?>>
                         <a href="consultation.php">Chat Assistance</a>
                     </li>
@@ -329,6 +333,18 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
             });
         }
 
+        // Update the arrow icon on submenu toggle
+        const memberServicesSubmenu = document.getElementById('memberServicesSubmenu');
+        const memberServicesArrow = document.getElementById('memberServicesArrow');
+        if (memberServicesSubmenu && memberServicesArrow) {
+            memberServicesSubmenu.addEventListener('show.bs.collapse', () => {
+                memberServicesArrow.innerHTML = '&uarr;';
+            });
+            memberServicesSubmenu.addEventListener('hide.bs.collapse', () => {
+                memberServicesArrow.innerHTML = '&darr;';
+            });
+        }
+
         // FACE VALIDATION
         const virtualIdLink = document.getElementById('virtualIdLink');
         const faceValidationModalEl = document.getElementById('faceValidationModal');
@@ -394,8 +410,7 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
                 } catch (error) {
                     console.error("Webcam access error:", error);
                     alert(
-                        'Unable to access webcam for face validation. Please check permissions.'
-                        );
+                        'Unable to access webcam for face validation. Please check permissions.');
                     return;
                 }
                 const faceValidationModal = new bootstrap.Modal(faceValidationModalEl);
