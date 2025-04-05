@@ -57,17 +57,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error("Face validation modal element not found!");
                 return;
             }
-            // Start webcam for face validation
             const videoInput = document.getElementById('videoInput');
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
                 videoInput.srcObject = stream;
             } catch (error) {
-                console.error("Unable to access webcam:", error);
-                alert('Unable to access webcam for face validation.');
-                return;
+                console.error("Webcam access error:", error);
+                alert('Unable to access webcam for face validation. Please check permissions.');
+                // Optionally, you can still show the modal so users see an error message.
             }
-            // Show the face validation modal
             const faceValidationModal = new bootstrap.Modal(faceValidationModalEl);
             faceValidationModal.show();
         });
