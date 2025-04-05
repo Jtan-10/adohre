@@ -354,7 +354,12 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
                     toggleBtn.innerHTML = '&gt;';
                     toggleBtn.classList.remove('expanded');
                 } else {
-                    toggleBtn.style.left = '250px';
+                    // Adjust the left position based on viewport width
+                    if (window.innerWidth < 768) {
+                        toggleBtn.style.left = '200px';
+                    } else {
+                        toggleBtn.style.left = '250px';
+                    }
                     toggleBtn.innerHTML = '&lt;';
                     toggleBtn.classList.add('expanded');
                 }
@@ -452,7 +457,8 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
                 } catch (error) {
                     console.error("Webcam access error:", error);
                     alert(
-                        'Unable to access webcam for face validation. Please check permissions.');
+                        'Unable to access webcam for face validation. Please check permissions.'
+                        );
                     return;
                 }
                 const faceValidationModal = new bootstrap.Modal(faceValidationModalEl);
