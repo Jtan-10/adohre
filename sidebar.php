@@ -3,14 +3,27 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// Temporarily enable error reporting (remove for production)
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+
 // If the face image is not already in session and user is logged in, retrieve it from the database.
 if (!isset($_SESSION['face_image']) && isset($_SESSION['user_id'])) {
     require_once 'backend/db/db_connect.php';
+    
+    // Check if $conn exists
+    if (!isset($conn)) {
+        error_log("Database connection (\$conn) is not set.");
+        die("Database connection error.");
+    }
+    
     $userId = $_SESSION['user_id'];
     $stmt = $conn->prepare("SELECT face_image FROM users WHERE user_id = ?");
     if ($stmt) {
         $stmt->bind_param("i", $userId);
-        $stmt->execute();
+        if (!$stmt->execute()) {
+            error_log("Statement execution failed: " . $stmt->error);
+        }
         $stmt->bind_result($face_image);
         if ($stmt->fetch()) {
             // Store the retrieved face image (URL or filename) in the session
