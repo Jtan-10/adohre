@@ -73,14 +73,13 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
         border-radius: 4px;
     }
 
-    /* Submenu styling */
     #sidebar ul li ul.submenu {
         list-style: none;
         margin: 0;
         padding: 0;
         text-align: center;
-        display: none;
     }
+
 
     #sidebar ul li ul.submenu li {
         margin: 5px 0;
