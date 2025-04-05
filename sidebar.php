@@ -2,6 +2,9 @@
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+// Generate a unique nonce for inline scripts
+$scriptNonce = bin2hex(random_bytes(16));
+
 $current_page = basename($_SERVER['PHP_SELF']);
 $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'appointments.php' || $current_page == 'medical_assistance.php');
 ?>
@@ -11,8 +14,8 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
 <head>
     <meta charset="UTF-8">
     <title>Sidebar</title>
-    <!-- Include Bootstrap CSS if not already included -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Include Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
     /* Modern Sidebar Styles */
     #sidebar {
@@ -155,7 +158,7 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
         </div>
     </div>
 
-    <!-- PDF Password Modal (if needed for PDF generation) -->
+    <!-- PDF Password Modal -->
     <div class="modal fade" id="pdfPasswordModal" tabindex="-1" aria-labelledby="pdfPasswordModalLabel"
         aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -174,7 +177,7 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
         </div>
     </div>
 
-    <!-- Updated Face Validation Modal -->
+    <!-- Face Validation Modal -->
     <div class="modal fade" id="faceValidationModal" tabindex="-1" aria-labelledby="faceValidationModalLabel"
         aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -184,7 +187,7 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <!-- Simplified modal with full-width video -->
+                    <!-- Full-width video for face capture -->
                     <video id="videoInput" width="100%" autoplay muted style="border:1px solid #ccc;"></video>
                     <canvas id="userFaceCanvas" style="display:none;"></canvas>
                     <p id="faceValidationResult"></p>
@@ -197,7 +200,7 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
         </div>
     </div>
 
-    <!-- (Optional) Response Modal for Notifications -->
+    <!-- Response Modal for Notifications -->
     <div class="modal fade" id="responseModal" tabindex="-1" aria-labelledby="responseModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -218,18 +221,84 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
     <!-- Toggle Button for Sidebar -->
     <button id="sidebarCollapse">&gt;</button>
 
-    <!-- Include Bootstrap JS and dependencies if not already included -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Include face-api.js if it's not already included -->
-    <script src="https://unpkg.com/face-api.js"></script>
-    <script>
+    <!-- Include Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Load face-api.js from an allowed source -->
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+
+    <!-- Inline Face Validation Module (faceValidation.js) -->
+    <script nonce="<?php echo $scriptNonce; ?>" defer>
+    (function(global) {
+        "use strict";
+        /**
+         * Loads the face-api.js models from the specified URL.
+         * @param {string} modelUrl - The URL or path to the models folder.
+         * @returns {Promise} Resolves when all models are loaded.
+         */
+        async function loadModels(modelUrl = 'backend/models/weights') {
+            if (typeof modelUrl !== 'string') {
+                throw new Error("Invalid modelUrl");
+            }
+            try {
+                await faceapi.nets.tinyFaceDetector.loadFromUri(modelUrl);
+                await faceapi.nets.faceLandmark68Net.loadFromUri(modelUrl);
+                await faceapi.nets.faceRecognitionNet.loadFromUri(modelUrl);
+            } catch (error) {
+                console.error("FaceValidation: Model load failed", error);
+            }
+        }
+
+        /**
+         * Detects a single face in a given canvas element.
+         * @param {HTMLCanvasElement} canvas - The canvas containing the face image.
+         * @param {object} [options] - Optional detection options.
+         * @returns {Promise<object|null>} Returns detection result with landmarks and descriptor or null if no face is found.
+         */
+        async function detectFaceFromCanvas(canvas, options = new faceapi.TinyFaceDetectorOptions()) {
+            if (!(canvas instanceof HTMLCanvasElement)) {
+                throw new Error("Invalid canvas element");
+            }
+            try {
+                const detection = await faceapi
+                    .detectSingleFace(canvas, options)
+                    .withFaceLandmarks()
+                    .withFaceDescriptor();
+                return detection;
+            } catch (error) {
+                console.error("FaceValidation: Face detection failed", error);
+                return null;
+            }
+        }
+
+        /**
+         * Compares two face descriptors using Euclidean distance.
+         * @param {Float32Array} descriptor1 - The first face descriptor.
+         * @param {Float32Array} descriptor2 - The second face descriptor.
+         * @returns {number} The Euclidean distance between the descriptors.
+         */
+        function compareFaces(descriptor1, descriptor2) {
+            if (!(descriptor1 instanceof Float32Array) || !(descriptor2 instanceof Float32Array)) {
+                throw new Error("Invalid descriptor(s)");
+            }
+            return faceapi.euclideanDistance(descriptor1, descriptor2);
+        }
+
+        const api = Object.freeze({
+            loadModels: loadModels,
+            detectFace: detectFaceFromCanvas,
+            compareFaces: compareFaces
+        });
+        global.faceValidation = api;
+    })(window);
+    </script>
+
+    <!-- Main Sidebar and Face Validation Logic -->
+    <script nonce="<?php echo $scriptNonce; ?>" defer>
     document.addEventListener('DOMContentLoaded', function() {
         const sidebar = document.getElementById('sidebar');
         const toggleBtn = document.getElementById('sidebarCollapse');
 
-        // Only run sidebar logic if both sidebar and toggle button exist
         if (sidebar && toggleBtn) {
-            // Function to update the toggle button's left position based on sidebar state
             function updateTogglePosition() {
                 if (sidebar.classList.contains('collapsed')) {
                     toggleBtn.style.left = '0';
@@ -239,13 +308,10 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
                     toggleBtn.innerHTML = '&lt;';
                 }
             }
-
-            // Always open sidebar by default
             localStorage.setItem('sidebarState', 'expanded');
             sidebar.classList.remove('collapsed');
             updateTogglePosition();
 
-            // Toggle sidebar on button click
             toggleBtn.addEventListener('click', function() {
                 sidebar.classList.toggle('collapsed');
                 updateTogglePosition();
@@ -254,7 +320,6 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
             });
         }
 
-        // Toggle submenu for Member Services
         const memberToggle = document.getElementById('toggleMemberServices');
         const memberSubmenu = document.getElementById('memberServicesSubmenu');
         const memberArrow = document.getElementById('memberServicesArrow');
@@ -271,7 +336,6 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
             });
         }
 
-        // Virtual ID click handler: show the face validation modal
         const virtualIdLink = document.getElementById('virtualIdLink');
         if (virtualIdLink) {
             virtualIdLink.addEventListener('click', async function(e) {
@@ -296,7 +360,6 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
             });
         }
 
-        // Face validation and PDF generation logic after clicking Validate Face
         const validateFaceBtn = document.getElementById('validateFaceBtn');
         if (validateFaceBtn) {
             validateFaceBtn.addEventListener('click', async function() {
@@ -307,7 +370,7 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-                // Detect face with landmarks and descriptor
+                // Use the faceValidation module to detect the face
                 const detection = await faceapi
                     .detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions({
                         inputSize: 416,
@@ -315,13 +378,11 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
                     }))
                     .withFaceLandmarks()
                     .withFaceDescriptor();
-
                 const resultParagraph = document.getElementById('faceValidationResult');
                 if (!detection) {
                     resultParagraph.innerText = 'No face detected. Please try again.';
                     return;
                 }
-                // Ensure that a stored reference descriptor is available.
                 if (typeof referenceDescriptor === 'undefined') {
                     resultParagraph.innerText =
                         'Reference face not available. Please contact support.';
@@ -333,15 +394,12 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
                 const threshold = 0.6;
                 if (distance < threshold) {
                     resultParagraph.innerText = 'Face matched successfully!';
-                    // Stop the webcam stream
                     const stream = video.srcObject;
                     if (stream) {
                         stream.getTracks().forEach(track => track.stop());
                     }
-                    // Generate a random 8-character PDF password
                     const pdfPassword = Math.random().toString(36).slice(-8);
                     const userId = virtualIdLink.getAttribute('data-user-id');
-                    // Redirect to generate_virtual_id.php with the user_id and pdf_password parameters
                     window.location.href =
                         `backend/models/generate_virtual_id.php?user_id=${userId}&pdf_password=${pdfPassword}`;
                 } else {
