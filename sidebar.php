@@ -68,9 +68,7 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
         display: flex;
         flex-direction: column;
         align-items: center;
-        /* horizontally center links */
         justify-content: center;
-        /* if you want them spaced, keep or remove as needed */
         gap: 1rem;
         /* spacing between items */
     }
@@ -105,7 +103,7 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
         color: #fff;
     }
 
-    /* Submenu styling - can remain the same or simplified */
+    /* Submenu styling */
     #sidebar ul li ul.submenu {
         list-style: none;
         margin: 0;
@@ -189,11 +187,8 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
 
             <?php if (isset($_SESSION['user_id']) && (isset($_SESSION['role']) && $_SESSION['role'] !== 'user')): ?>
             <li <?php if ($current_page == 'member_services.php' || $submenuActive) echo 'class="active"'; ?>>
-                <!-- Member Services toggler with proper collapse functionality -->
-                <a href="#" class="dropdown-toggle" id="memberServicesToggle">
-                    Member Services <span class="float-end"
-                        id="memberServicesArrow"><?php echo $submenuActive ? '&uarr;' : '&darr;'; ?></span>
-                </a>
+                <!-- Member Services toggler without arrow -->
+                <a href="#" class="dropdown-toggle" id="memberServicesToggle">Member Services</a>
                 <ul class="submenu <?php echo $submenuActive ? 'show' : ''; ?>" id="memberServicesSubmenu">
                     <li <?php if ($current_page == 'consultation.php') echo 'class="active"'; ?>>
                         <a href="consultation.php">Chat Assistance</a>
@@ -395,22 +390,14 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
             });
         }
 
-        // SUBMENU TOGGLE - Fixed implementation
+        // SUBMENU TOGGLE - Fixed implementation without arrow update
         const memberServicesToggle = document.getElementById('memberServicesToggle');
         const memberServicesSubmenu = document.getElementById('memberServicesSubmenu');
-        const memberServicesArrow = document.getElementById('memberServicesArrow');
 
-        if (memberServicesToggle && memberServicesSubmenu && memberServicesArrow) {
+        if (memberServicesToggle && memberServicesSubmenu) {
             memberServicesToggle.addEventListener('click', function(e) {
                 e.preventDefault();
                 memberServicesSubmenu.classList.toggle('show');
-
-                // Update arrow direction
-                if (memberServicesSubmenu.classList.contains('show')) {
-                    memberServicesArrow.innerHTML = '&uarr;';
-                } else {
-                    memberServicesArrow.innerHTML = '&darr;';
-                }
             });
         }
 
@@ -479,8 +466,7 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
                 } catch (error) {
                     console.error("Webcam access error:", error);
                     alert(
-                        'Unable to access webcam for face validation. Please check permissions.'
-                    );
+                        'Unable to access webcam for face validation. Please check permissions.');
                     return;
                 }
                 const faceValidationModal = new bootstrap.Modal(faceValidationModalEl);
