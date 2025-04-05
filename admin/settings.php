@@ -85,8 +85,10 @@ if ($result) {
                     <label for="header_logo" class="form-label">Header Logo</label>
                     <input type="file" class="form-control" id="header_logo" name="header_logo" accept="image/*">
                     <?php if ($currentHeaderLogo): ?>
-                    <p>Current Logo: <img src="<?= htmlspecialchars($currentHeaderLogo) ?>" alt="Header Logo"
-                            style="max-height: 50px;"></p>
+                    <p>Current Logo:
+                        <img src="../backend/routes/decrypt_image.php?image_url=<?= urlencode($currentHeaderLogo) ?>"
+                            alt="Header Logo" style="max-height: 50px;">
+                    </p>
                     <?php endif; ?>
                 </div>
                 <button type="submit" class="btn btn-primary">Update Header Settings</button>
