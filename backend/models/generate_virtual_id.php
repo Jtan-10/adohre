@@ -1,7 +1,7 @@
 <?php
 // Production settings: disable error display
-ini_set('display_errors', 0);
-error_reporting(0);
+ini_set('display_errors', 1);
+error_reporting(1);
 
 require_once '../db/db_connect.php';
 require '../../vendor/autoload.php'; // Include the QR Code library
@@ -34,6 +34,7 @@ if ($result->num_rows === 0) {
 }
 $user = $result->fetch_assoc();
 $userFullName = trim($user['first_name'] . ' ' . $user['last_name']);
+error_log("DEBUG: Fetched user details for: " . $userFullName);
 
 // ----------------------------------------------------------------
 // 2) Generate the QR code
@@ -48,9 +49,12 @@ try {
         ->margin(0)
         ->build();
     $qrCodeData = $qrResult->getString();
+    // Debug: QR code generated successfully
+    error_log("DEBUG: Generated QR code for virtual ID: " . $user['virtual_id']);
 } catch (Exception $e) {
     http_response_code(500);
     // Log error: $e->getMessage()
+    error_log("DEBUG: QR code generation error: " . $e->getMessage());
     die("Internal Server Error");
 }
 
@@ -72,13 +76,15 @@ if (!$idCard) {
 }
 $cardWidth  = imagesx($idCard);  // e.g. 1495
 $cardHeight = imagesy($idCard);  // e.g. 841
+error_log("DEBUG: Loaded template image from: " . $templatePath);
 
 // ----------------------------------------------------------------
 // 4) Load & crop the user's profile photo into a circle (no distortion)
 // ----------------------------------------------------------------
 $profileImage = null;
 
-function loadLocalOrFallback($path) {
+function loadLocalOrFallback($path)
+{
     if (!file_exists($path)) {
         // fallback
         return imagecreatefromjpeg(__DIR__ . '/../../assets/default-profile.jpeg');
@@ -142,10 +148,14 @@ if ($profileImage) {
     imagecopyresampled(
         $finalPhoto,
         $profileImage,
-        0, 0,
-        0, 0,
-        $circleDiameter, $circleDiameter,
-        $squareSize, $squareSize
+        0,
+        0,
+        0,
+        0,
+        $circleDiameter,
+        $circleDiameter,
+        $squareSize,
+        $squareSize
     );
     imagedestroy($profileImage);
 
@@ -172,6 +182,8 @@ if ($profileImage) {
     // Place the circular photo onto the template
     imagecopy($idCard, $finalPhoto, $circleX, $circleY, 0, 0, $circleDiameter, $circleDiameter);
     imagedestroy($finalPhoto);
+    // Debug: Circular profile image processed and placed on template
+    error_log("DEBUG: Processed and placed circular profile image onto template.");
 }
 
 // ----------------------------------------------------------------
@@ -187,13 +199,18 @@ if ($qrImage) {
     imagecopyresampled(
         $idCard,
         $qrImage,
-        $qrDestX, $qrDestY,
-        0, 0,
-        $qrFinalWidth, $qrFinalHeight,
+        $qrDestX,
+        $qrDestY,
+        0,
+        0,
+        $qrFinalWidth,
+        $qrFinalHeight,
         imagesx($qrImage),
         imagesy($qrImage)
     );
     imagedestroy($qrImage);
+    // Debug: QR code placed on template
+    error_log("DEBUG: Placed QR code onto ID card template.");
 }
 
 // ----------------------------------------------------------------
@@ -211,7 +228,8 @@ $textColor = imagecolorallocate($idCard, 0, 0, 0);
 $roleColor = imagecolorallocate($idCard, 255, 255, 255);
 
 // Because text can be too long, let's define a function to fit text in a max width:
-function imagettftextfit(&$image, $maxFontSize, $angle, $x, $y, $color, $font, $text, $maxWidth) {
+function imagettftextfit(&$image, $maxFontSize, $angle, $x, $y, $color, $font, $text, $maxWidth)
+{
     $fontSize = $maxFontSize;
     do {
         $box = imagettfbbox($fontSize, $angle, $font, $text);
@@ -228,9 +246,12 @@ function imagettftextfit(&$image, $maxFontSize, $angle, $x, $y, $color, $font, $
 }
 
 // Example coordinates for text:
-$nameX  = 530; $nameY  = 325;
-$idNumX = 530; $idNumY = 400;
-$emailX = 530; $emailY = 475;
+$nameX  = 530;
+$nameY  = 325;
+$idNumX = 530;
+$idNumY = 400;
+$emailX = 530;
+$emailY = 475;
 
 // We'll set a max width for each line so text doesn't run off the card
 $maxTextWidth = 563; // adjust as needed
@@ -252,21 +273,28 @@ $roleX = 1250;
 $roleY = $circleY + $circleDiameter + 70;
 imagettftextfit($idCard, $maxFontSize, 0, $roleX, $roleY, $roleColor, $fontPath, ucfirst(strtolower($user['role'])), 250);
 
+// Debug: Dynamic text overlaid on the ID card
+error_log("DEBUG: Overlaid dynamic text on ID card for user: " . $userFullName);
+
 // ----------------------------------------------------------------
 // 7) Log the virtual ID generation event
 // ----------------------------------------------------------------
-function recordAuditLog($uid, $action, $details) {
+function recordAuditLog($uid, $action, $details)
+{
     // Implementation depends on your existing code
     // e.g.:
     // $sql = "INSERT INTO audit_logs (user_id, action, details) VALUES (?, ?, ?)";
     // ...
 }
 recordAuditLog($user_id, "Generate Virtual ID", "Virtual ID card generated for user: " . $userFullName);
+// Debug: Audit log recorded
+error_log("DEBUG: Audit log recorded for user ID: " . $user_id);
 
 // ----------------------------------------------------------------
 // 8) Output the final image as PNG
 // ----------------------------------------------------------------
+// Debug: Final image being sent as PNG
+error_log("DEBUG: Final image being sent as PNG.");
 header("Content-Type: image/png");
 imagepng($idCard);
 imagedestroy($idCard);
-?>
