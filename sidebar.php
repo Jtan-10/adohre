@@ -17,90 +17,90 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
     <!-- Include Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        /* Modern Sidebar Styles */
-        #sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 100%;
-            width: 250px;
-            background-color: #198754;
-            color: #fff;
-            transition: transform 0.3s ease;
-            z-index: 1000;
-            /* Center navigation vertically and horizontally */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
+    /* Modern Sidebar Styles */
+    #sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 250px;
+        background-color: #198754;
+        color: #fff;
+        transition: transform 0.3s ease;
+        z-index: 1000;
+        /* Center navigation vertically and horizontally */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
 
-        /* When collapsed, slide completely off-screen */
-        #sidebar.collapsed {
-            transform: translateX(-100%);
-        }
+    /* When collapsed, slide completely off-screen */
+    #sidebar.collapsed {
+        transform: translateX(-100%);
+    }
 
-        /* Remove default list styles and center links */
-        #sidebar ul.components {
-            list-style: none;
-            margin: 0;
-            padding: 0;
-            text-align: center;
-        }
+    /* Remove default list styles and center links */
+    #sidebar ul.components {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        text-align: center;
+    }
 
-        #sidebar ul li {
-            margin: 10px 0;
-        }
+    #sidebar ul li {
+        margin: 10px 0;
+    }
 
-        /* Sidebar links: centered text, no underline */
-        #sidebar ul li a {
-            display: block;
-            padding: 10px;
-            font-size: 1.1em;
-            color: #fff;
-            text-decoration: none;
-            transition: background 0.3s ease;
-        }
+    /* Sidebar links: centered text, no underline */
+    #sidebar ul li a {
+        display: block;
+        padding: 10px;
+        font-size: 1.1em;
+        color: #fff;
+        text-decoration: none;
+        transition: background 0.3s ease;
+    }
 
-        /* Hover and active state */
-        #sidebar ul li a:hover,
-        #sidebar ul li.active>a {
-            background: #157347;
-            border-radius: 4px;
-        }
+    /* Hover and active state */
+    #sidebar ul li a:hover,
+    #sidebar ul li.active>a {
+        background: #157347;
+        border-radius: 4px;
+    }
 
-        /* Submenu styling */
-        #sidebar ul li ul.submenu {
-            list-style: none;
-            margin: 0;
-            padding: 0;
-            text-align: center;
-            display: none;
-        }
+    /* Submenu styling */
+    #sidebar ul li ul.submenu {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        text-align: center;
+        display: none;
+    }
 
-        #sidebar ul li ul.submenu li {
-            margin: 5px 0;
-        }
+    #sidebar ul li ul.submenu li {
+        margin: 5px 0;
+    }
 
-        #sidebar ul li ul.submenu li a {
-            padding: 8px;
-            font-size: 1em;
-        }
+    #sidebar ul li ul.submenu li a {
+        padding: 8px;
+        font-size: 1em;
+    }
 
-        /* Toggle Button styling */
-        #sidebarCollapse {
-            position: fixed;
-            top: 50%;
-            transform: translateY(-50%);
-            background: #198754;
-            border: none;
-            border-radius: 0 50% 50% 0;
-            padding: 10px;
-            cursor: pointer;
-            z-index: 1001;
-            color: #fff;
-            font-size: 1.2em;
-            transition: left 0.3s ease;
-        }
+    /* Toggle Button styling */
+    #sidebarCollapse {
+        position: fixed;
+        top: 50%;
+        transform: translateY(-50%);
+        background: #198754;
+        border: none;
+        border-radius: 0 50% 50% 0;
+        padding: 10px;
+        cursor: pointer;
+        z-index: 1001;
+        color: #fff;
+        font-size: 1.2em;
+        transition: left 0.3s ease;
+    }
     </style>
 </head>
 
@@ -113,36 +113,36 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
             <li <?php if ($current_page == 'membership_form.php') echo 'class="active"'; ?>><a
                     href="membership_form.php">Member Application</a></li>
             <?php if (isset($_SESSION['user_id'])): ?>
-                <li>
-                    <a href="#" id="virtualIdLink" data-user-id="<?php echo $_SESSION['user_id']; ?>">Virtual ID</a>
-                </li>
+            <li>
+                <a href="#" id="virtualIdLink" data-user-id="<?php echo $_SESSION['user_id']; ?>">Virtual ID</a>
+            </li>
             <?php endif; ?>
             <li <?php if ($current_page == 'health.php') echo 'class="active"'; ?>>
                 <a data-bs-toggle="offcanvas" href="#offcanvasHealth" role="button"
                     aria-controls="offcanvasHealth">Health Tips</a>
             </li>
             <?php if (isset($_SESSION['user_id']) && (isset($_SESSION['role']) && $_SESSION['role'] !== 'user')): ?>
-                <li <?php if ($current_page == 'member_services.php' || $submenuActive) echo 'class="active"'; ?>>
-                    <a data-bs-toggle="collapse" href="#memberServicesSubmenu" role="button"
-                        aria-expanded="<?php echo $submenuActive ? 'true' : 'false'; ?>"
-                        aria-controls="memberServicesSubmenu" id="toggleMemberServices">
-                        Member Services <span
-                            id="memberServicesArrow"><?php echo $submenuActive ? '&uarr;' : '&darr;'; ?></span>
-                    </a>
-                    <ul class="submenu collapse <?php echo $submenuActive ? 'show' : ''; ?>" id="memberServicesSubmenu">
-                        <li <?php if ($current_page == 'consultation.php') echo 'class="active"'; ?>><a
-                                href="consultation.php">Chat Assistance</a></li>
-                        <li <?php if ($current_page == 'appointments.php') echo 'class="active"'; ?>><a
-                                href="appointments.php">Appointments</a></li>
-                        <li <?php if ($current_page == 'medical_assistance.php') echo 'class="active"'; ?>><a
-                                href="medical_assistance.php">Medical Assistance</a></li>
-                    </ul>
-                </li>
-                <li <?php if ($current_page == 'events.php') echo 'class="active"'; ?>><a href="events.php">Events</a></li>
+            <li <?php if ($current_page == 'member_services.php' || $submenuActive) echo 'class="active"'; ?>>
+                <a data-bs-toggle="collapse" href="#memberServicesSubmenu" role="button"
+                    aria-expanded="<?php echo $submenuActive ? 'true' : 'false'; ?>"
+                    aria-controls="memberServicesSubmenu" id="toggleMemberServices">
+                    Member Services <span
+                        id="memberServicesArrow"><?php echo $submenuActive ? '&uarr;' : '&darr;'; ?></span>
+                </a>
+                <ul class="submenu collapse <?php echo $submenuActive ? 'show' : ''; ?>" id="memberServicesSubmenu">
+                    <li <?php if ($current_page == 'consultation.php') echo 'class="active"'; ?>><a
+                            href="consultation.php">Chat Assistance</a></li>
+                    <li <?php if ($current_page == 'appointments.php') echo 'class="active"'; ?>><a
+                            href="appointments.php">Appointments</a></li>
+                    <li <?php if ($current_page == 'medical_assistance.php') echo 'class="active"'; ?>><a
+                            href="medical_assistance.php">Medical Assistance</a></li>
+                </ul>
+            </li>
+            <li <?php if ($current_page == 'events.php') echo 'class="active"'; ?>><a href="events.php">Events</a></li>
             <?php endif; ?>
             <?php if (isset($_SESSION['user_id'])): ?>
-                <li <?php if ($current_page == 'trainings.php') echo 'class="active"'; ?>><a
-                        href="trainings.php">Trainings</a></li>
+            <li <?php if ($current_page == 'trainings.php') echo 'class="active"'; ?>><a
+                    href="trainings.php">Trainings</a></li>
             <?php endif; ?>
         </ul>
     </div>
@@ -228,182 +228,182 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
 
     <!-- Inline Face Validation Module (faceValidation.js) -->
     <script nonce="<?php echo $scriptNonce; ?>" defer>
-        (function(global) {
-            "use strict";
-            /**
-             * Loads the face-api.js models from the specified URL.
-             * @param {string} modelUrl - The URL or path to the models folder.
-             * @returns {Promise} Resolves when all models are loaded.
-             */
-            async function loadModels(modelUrl = 'backend/models/weights') {
-                if (typeof modelUrl !== 'string') {
-                    throw new Error("Invalid modelUrl");
-                }
-                try {
-                    await faceapi.nets.tinyFaceDetector.loadFromUri(modelUrl);
-                    await faceapi.nets.faceLandmark68Net.loadFromUri(modelUrl);
-                    await faceapi.nets.faceRecognitionNet.loadFromUri(modelUrl);
-                } catch (error) {
-                    console.error("FaceValidation: Model load failed", error);
-                }
+    (function(global) {
+        "use strict";
+        /**
+         * Loads the face-api.js models from the specified URL.
+         * @param {string} modelUrl - The URL or path to the models folder.
+         * @returns {Promise} Resolves when all models are loaded.
+         */
+        async function loadModels(modelUrl = 'backend/models/weights') {
+            if (typeof modelUrl !== 'string') {
+                throw new Error("Invalid modelUrl");
             }
-
-            /**
-             * Detects a single face in a given canvas element.
-             * @param {HTMLCanvasElement} canvas - The canvas containing the face image.
-             * @param {object} [options] - Optional detection options.
-             * @returns {Promise<object|null>} Returns detection result with landmarks and descriptor or null if no face is found.
-             */
-            async function detectFaceFromCanvas(canvas, options = new faceapi.TinyFaceDetectorOptions()) {
-                if (!(canvas instanceof HTMLCanvasElement)) {
-                    throw new Error("Invalid canvas element");
-                }
-                try {
-                    const detection = await faceapi
-                        .detectSingleFace(canvas, options)
-                        .withFaceLandmarks()
-                        .withFaceDescriptor();
-                    return detection;
-                } catch (error) {
-                    console.error("FaceValidation: Face detection failed", error);
-                    return null;
-                }
+            try {
+                await faceapi.nets.tinyFaceDetector.loadFromUri(modelUrl);
+                await faceapi.nets.faceLandmark68Net.loadFromUri(modelUrl);
+                await faceapi.nets.faceRecognitionNet.loadFromUri(modelUrl);
+            } catch (error) {
+                console.error("FaceValidation: Model load failed", error);
             }
+        }
 
-            /**
-             * Compares two face descriptors using Euclidean distance.
-             * @param {Float32Array} descriptor1 - The first face descriptor.
-             * @param {Float32Array} descriptor2 - The second face descriptor.
-             * @returns {number} The Euclidean distance between the descriptors.
-             */
-            function compareFaces(descriptor1, descriptor2) {
-                if (!(descriptor1 instanceof Float32Array) || !(descriptor2 instanceof Float32Array)) {
-                    throw new Error("Invalid descriptor(s)");
-                }
-                return faceapi.euclideanDistance(descriptor1, descriptor2);
+        /**
+         * Detects a single face in a given canvas element.
+         * @param {HTMLCanvasElement} canvas - The canvas containing the face image.
+         * @param {object} [options] - Optional detection options.
+         * @returns {Promise<object|null>} Returns detection result with landmarks and descriptor or null if no face is found.
+         */
+        async function detectFaceFromCanvas(canvas, options = new faceapi.TinyFaceDetectorOptions()) {
+            if (!(canvas instanceof HTMLCanvasElement)) {
+                throw new Error("Invalid canvas element");
             }
+            try {
+                const detection = await faceapi
+                    .detectSingleFace(canvas, options)
+                    .withFaceLandmarks()
+                    .withFaceDescriptor();
+                return detection;
+            } catch (error) {
+                console.error("FaceValidation: Face detection failed", error);
+                return null;
+            }
+        }
 
-            const api = Object.freeze({
-                loadModels: loadModels,
-                detectFace: detectFaceFromCanvas,
-                compareFaces: compareFaces
-            });
-            global.faceValidation = api;
-        })(window);
+        /**
+         * Compares two face descriptors using Euclidean distance.
+         * @param {Float32Array} descriptor1 - The first face descriptor.
+         * @param {Float32Array} descriptor2 - The second face descriptor.
+         * @returns {number} The Euclidean distance between the descriptors.
+         */
+        function compareFaces(descriptor1, descriptor2) {
+            if (!(descriptor1 instanceof Float32Array) || !(descriptor2 instanceof Float32Array)) {
+                throw new Error("Invalid descriptor(s)");
+            }
+            return faceapi.euclideanDistance(descriptor1, descriptor2);
+        }
+
+        const api = Object.freeze({
+            loadModels: loadModels,
+            detectFace: detectFaceFromCanvas,
+            compareFaces: compareFaces
+        });
+        global.faceValidation = api;
+    })(window);
     </script>
 
     <!-- Main Sidebar and Face Validation Logic -->
     <script nonce="<?php echo $scriptNonce; ?>" defer>
-        document.addEventListener('DOMContentLoaded', function() {
-            const sidebar = document.getElementById('sidebar');
-            const toggleBtn = document.getElementById('sidebarCollapse');
+    document.addEventListener('DOMContentLoaded', function() {
+        const sidebar = document.getElementById('sidebar');
+        const toggleBtn = document.getElementById('sidebarCollapse');
 
-            if (sidebar && toggleBtn) {
-                function updateTogglePosition() {
-                    if (sidebar.classList.contains('collapsed')) {
-                        toggleBtn.style.left = '0';
-                        toggleBtn.innerHTML = '&gt;';
-                    } else {
-                        toggleBtn.style.left = '250px';
-                        toggleBtn.innerHTML = '&lt;';
-                    }
+        if (sidebar && toggleBtn) {
+            function updateTogglePosition() {
+                if (sidebar.classList.contains('collapsed')) {
+                    toggleBtn.style.left = '0';
+                    toggleBtn.innerHTML = '&gt;';
+                } else {
+                    toggleBtn.style.left = '250px';
+                    toggleBtn.innerHTML = '&lt;';
                 }
-                localStorage.setItem('sidebarState', 'expanded');
-                sidebar.classList.remove('collapsed');
+            }
+            localStorage.setItem('sidebarState', 'expanded');
+            sidebar.classList.remove('collapsed');
+            updateTogglePosition();
+
+            toggleBtn.addEventListener('click', function() {
+                sidebar.classList.toggle('collapsed');
                 updateTogglePosition();
+                localStorage.setItem('sidebarState', sidebar.classList.contains('collapsed') ?
+                    'collapsed' : 'expanded');
+            });
+        }
 
-                toggleBtn.addEventListener('click', function() {
-                    sidebar.classList.toggle('collapsed');
-                    updateTogglePosition();
-                    localStorage.setItem('sidebarState', sidebar.classList.contains('collapsed') ?
-                        'collapsed' : 'expanded');
-                });
-            }
+        const memberSubmenu = document.getElementById('memberServicesSubmenu');
+        const memberArrow = document.getElementById('memberServicesArrow');
 
-            const memberSubmenu = document.getElementById('memberServicesSubmenu');
-            const memberArrow = document.getElementById('memberServicesArrow');
+        if (memberSubmenu && memberArrow) {
+            memberSubmenu.addEventListener('shown.bs.collapse', function() {
+                memberArrow.innerHTML = '&uarr;';
+            });
+            memberSubmenu.addEventListener('hidden.bs.collapse', function() {
+                memberArrow.innerHTML = '&darr;';
+            });
+        }
 
-            if (memberSubmenu && memberArrow) {
-                memberSubmenu.addEventListener('shown.bs.collapse', function() {
-                    memberArrow.innerHTML = '&uarr;';
-                });
-                memberSubmenu.addEventListener('hidden.bs.collapse', function() {
-                    memberArrow.innerHTML = '&darr;';
-                });
-            }
+        const virtualIdLink = document.getElementById('virtualIdLink');
+        if (virtualIdLink) {
+            virtualIdLink.addEventListener('click', async function(e) {
+                e.preventDefault();
+                const faceValidationModalEl = document.getElementById('faceValidationModal');
+                if (!faceValidationModalEl) {
+                    console.error("Face validation modal element not found!");
+                    return;
+                }
+                const videoInput = document.getElementById('videoInput');
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: {}
+                    });
+                    videoInput.srcObject = stream;
+                } catch (error) {
+                    console.error("Webcam access error:", error);
+                    alert('Unable to access webcam for face validation. Please check permissions.');
+                }
+                const faceValidationModal = new bootstrap.Modal(faceValidationModalEl);
+                faceValidationModal.show();
+            });
+        }
 
-            const virtualIdLink = document.getElementById('virtualIdLink');
-            if (virtualIdLink) {
-                virtualIdLink.addEventListener('click', async function(e) {
-                    e.preventDefault();
-                    const faceValidationModalEl = document.getElementById('faceValidationModal');
-                    if (!faceValidationModalEl) {
-                        console.error("Face validation modal element not found!");
-                        return;
+        const validateFaceBtn = document.getElementById('validateFaceBtn');
+        if (validateFaceBtn) {
+            validateFaceBtn.addEventListener('click', async function() {
+                const video = document.getElementById('videoInput');
+                const canvas = document.getElementById('userFaceCanvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                // Use the faceValidation module to detect the face
+                const detection = await faceapi
+                    .detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions({
+                        inputSize: 416,
+                        scoreThreshold: 0.5
+                    }))
+                    .withFaceLandmarks()
+                    .withFaceDescriptor();
+                const resultParagraph = document.getElementById('faceValidationResult');
+                if (!detection) {
+                    resultParagraph.innerText = 'No face detected. Please try again.';
+                    return;
+                }
+                if (typeof referenceDescriptor === 'undefined') {
+                    resultParagraph.innerText =
+                        'Reference face not available. Please contact support.';
+                    return;
+                }
+                const distance = faceapi.euclideanDistance(detection.descriptor,
+                    referenceDescriptor);
+                console.log('Distance:', distance);
+                const threshold = 0.6;
+                if (distance < threshold) {
+                    resultParagraph.innerText = 'Face matched successfully!';
+                    const stream = video.srcObject;
+                    if (stream) {
+                        stream.getTracks().forEach(track => track.stop());
                     }
-                    const videoInput = document.getElementById('videoInput');
-                    try {
-                        const stream = await navigator.mediaDevices.getUserMedia({
-                            video: {}
-                        });
-                        videoInput.srcObject = stream;
-                    } catch (error) {
-                        console.error("Webcam access error:", error);
-                        alert('Unable to access webcam for face validation. Please check permissions.');
-                    }
-                    const faceValidationModal = new bootstrap.Modal(faceValidationModalEl);
-                    faceValidationModal.show();
-                });
-            }
-
-            const validateFaceBtn = document.getElementById('validateFaceBtn');
-            if (validateFaceBtn) {
-                validateFaceBtn.addEventListener('click', async function() {
-                    const video = document.getElementById('videoInput');
-                    const canvas = document.getElementById('userFaceCanvas');
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                    // Use the faceValidation module to detect the face
-                    const detection = await faceapi
-                        .detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions({
-                            inputSize: 416,
-                            scoreThreshold: 0.5
-                        }))
-                        .withFaceLandmarks()
-                        .withFaceDescriptor();
-                    const resultParagraph = document.getElementById('faceValidationResult');
-                    if (!detection) {
-                        resultParagraph.innerText = 'No face detected. Please try again.';
-                        return;
-                    }
-                    if (typeof referenceDescriptor === 'undefined') {
-                        resultParagraph.innerText =
-                            'Reference face not available. Please contact support.';
-                        return;
-                    }
-                    const distance = faceapi.euclideanDistance(detection.descriptor,
-                        referenceDescriptor);
-                    console.log('Distance:', distance);
-                    const threshold = 0.6;
-                    if (distance < threshold) {
-                        resultParagraph.innerText = 'Face matched successfully!';
-                        const stream = video.srcObject;
-                        if (stream) {
-                            stream.getTracks().forEach(track => track.stop());
-                        }
-                        const pdfPassword = Math.random().toString(36).slice(-8);
-                        const userId = virtualIdLink.getAttribute('data-user-id');
-                        window.location.href =
-                            `backend/models/generate_virtual_id.php?user_id=${userId}&pdf_password=${pdfPassword}`;
-                    } else {
-                        resultParagraph.innerText = 'Face did not match. Please try again.';
-                    }
-                });
-            }
-        });
+                    const pdfPassword = Math.random().toString(36).slice(-8);
+                    const userId = virtualIdLink.getAttribute('data-user-id');
+                    window.location.href =
+                        `backend/models/generate_virtual_id.php?user_id=${userId}&pdf_password=${pdfPassword}`;
+                } else {
+                    resultParagraph.innerText = 'Face did not match. Please try again.';
+                }
+            });
+        }
+    });
     </script>
 </body>
 
