@@ -351,7 +351,7 @@ $pdf->setPrintFooter(false);
 $pdf->SetMargins(0, 0, 0);
 $pdfWidth = ($cardWidth * 25.4) / 300;    // converting pixels to mm assuming 300 DPI
 $pdfHeight = ($cardHeight * 25.4) / 300;
-$pdf->AddPage('', array($pdfWidth, $pdfHeight));
+$pdf->AddPage('L', array($pdfWidth, $pdfHeight));  // changed to landscape
 
 // Add the temporary image covering the entire page.
 $pdf->Image($tempFile, 0, 0, $pdfWidth, $pdfHeight, '', '', '', false, 300);
