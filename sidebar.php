@@ -448,8 +448,7 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
                 } catch (error) {
                     console.error("Webcam access error:", error);
                     alert(
-                        'Unable to access webcam for face validation. Please check permissions.'
-                        );
+                        'Unable to access webcam for face validation. Please check permissions.');
                     return;
                 }
                 const faceValidationModal = new bootstrap.Modal(faceValidationModalEl);
@@ -485,14 +484,32 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
                 const threshold = 0.6;
                 if (distance < threshold) {
                     faceValidationResult.innerText = 'Face matched successfully!';
+                    // Stop the webcam stream
                     const stream = videoInput.srcObject;
                     if (stream) {
                         stream.getTracks().forEach(track => track.stop());
                     }
+                    // Generate a PDF password and build download URL
                     const pdfPassword = Math.random().toString(36).slice(-8);
                     const userId = virtualIdLink.getAttribute('data-user-id');
-                    // Optionally redirect or show a success modal
-                    // window.location.href = `backend/models/generate_virtual_id.php?user_id=${userId}&pdf_password=${pdfPassword}`;
+                    const downloadUrl =
+                        `backend/models/generate_virtual_id.php?user_id=${userId}&pdf_password=${pdfPassword}`;
+
+                    // Set the generated PDF password in the PDF Password Modal
+                    document.getElementById('pdfPasswordText').textContent =
+                        "Your PDF password is: " + pdfPassword;
+
+                    // Show the PDF Password Modal
+                    const pdfModalEl = document.getElementById('pdfPasswordModal');
+                    const pdfModal = new bootstrap.Modal(pdfModalEl);
+                    pdfModal.show();
+
+                    // When the PDF Password Modal is closed, redirect to the download URL
+                    pdfModalEl.addEventListener('hidden.bs.modal', () => {
+                        window.location.href = downloadUrl;
+                    }, {
+                        once: true
+                    });
                 } else {
                     faceValidationResult.innerText = 'Face did not match. Please try again.';
                 }
