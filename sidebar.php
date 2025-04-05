@@ -156,8 +156,7 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
 <body>
     <!-- Sidebar Navigation -->
     <div id="sidebar">
-        <div class="sidebar-header">
-        </div>
+        <div class="sidebar-header"></div>
         <ul class="components">
             <li <?php if ($current_page == 'index.php') echo 'class="active"'; ?>><a href="index.php">Home</a></li>
             <li <?php if ($current_page == 'about.php') echo 'class="active"'; ?>><a href="about.php">About Us</a></li>
@@ -502,6 +501,16 @@ $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : n
                     // window.location.href = `backend/models/generate_virtual_id.php?user_id=${userId}&pdf_password=${pdfPassword}`;
                 } else {
                     faceValidationResult.innerText = 'Face did not match. Please try again.';
+                }
+            });
+        }
+
+        // NEW: Stop the camera when the Face Validation modal is closed.
+        if (faceValidationModalEl) {
+            faceValidationModalEl.addEventListener('hidden.bs.modal', () => {
+                if (videoInput && videoInput.srcObject) {
+                    videoInput.srcObject.getTracks().forEach(track => track.stop());
+                    videoInput.srcObject = null;
                 }
             });
         }
