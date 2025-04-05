@@ -3,27 +3,18 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Temporarily enable error reporting (remove for production)
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
+// Check if $conn exists and is alive. If not, re-establish the connection.
+if (!isset($conn) || !$conn->ping()) {
+    require_once 'backend/db/db_connect.php';
+}
 
 // If the face image is not already in session and user is logged in, retrieve it from the database.
 if (!isset($_SESSION['face_image']) && isset($_SESSION['user_id'])) {
-    require_once 'backend/db/db_connect.php';
-    
-    // Check if $conn exists
-    if (!isset($conn)) {
-        error_log("Database connection (\$conn) is not set.");
-        die("Database connection error.");
-    }
-    
     $userId = $_SESSION['user_id'];
     $stmt = $conn->prepare("SELECT face_image FROM users WHERE user_id = ?");
     if ($stmt) {
         $stmt->bind_param("i", $userId);
-        if (!$stmt->execute()) {
-            error_log("Statement execution failed: " . $stmt->error);
-        }
+        $stmt->execute();
         $stmt->bind_result($face_image);
         if ($stmt->fetch()) {
             // Store the retrieved face image (URL or filename) in the session
@@ -38,7 +29,7 @@ if (!isset($_SESSION['face_image']) && isset($_SESSION['user_id'])) {
 // Now assign the session variable to a local variable.
 $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : null;
 
-// Generate a unique nonce for inline scripts
+// Generate a unique nonce for inline scripts.
 $scriptNonce = bin2hex(random_bytes(16));
 
 // Get the current page name and determine submenu active state.
@@ -53,7 +44,6 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
     <title>Sidebar</title>
     <!-- Include Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-
     <style>
     /* Modern Sidebar Styles - Centered */
     #sidebar {
@@ -66,31 +56,24 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
         color: #fff;
         transition: all 0.3s ease;
         z-index: 1000;
-
-        /* Flexbox to center items vertically and horizontally */
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-
-        /* Remove or reduce default padding so items can truly center */
         padding: 0;
         box-shadow: 3px 0 10px rgba(0, 0, 0, 0.1);
     }
 
-    /* When collapsed, slide completely off-screen */
     #sidebar.collapsed {
         transform: translateX(-100%);
     }
 
-    /* Optional header area (can remove if not needed) */
     .sidebar-header {
         text-align: center;
         padding: 0;
         margin-bottom: 0;
     }
 
-    /* Remove default list styles and let flex layout handle spacing */
     #sidebar ul.components {
         list-style: none;
         margin: 0;
@@ -102,13 +85,11 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
         gap: 1rem;
     }
 
-    /* Remove or reduce margin on li */
     #sidebar ul li {
         margin: 0;
         width: 100%;
     }
 
-    /* Center link text horizontally; use padding for clickable area */
     #sidebar ul li a {
         display: block;
         width: 100%;
@@ -121,7 +102,6 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
         transition: background 0.3s ease;
     }
 
-    /* Hover and active states */
     #sidebar ul li a:hover {
         background: rgba(255, 255, 255, 0.15);
     }
@@ -131,7 +111,6 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
         color: #fff;
     }
 
-    /* Submenu styling */
     #sidebar ul li ul.submenu {
         list-style: none;
         margin: 0;
@@ -153,7 +132,6 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
         font-size: 0.95em;
     }
 
-    /* Toggle Button styling - place it near middle of screen */
     #sidebarCollapse {
         position: fixed;
         top: 50%;
@@ -174,7 +152,6 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
         left: 250px;
     }
 
-    /* Responsive adjustments */
     @media (max-width: 768px) {
         #sidebar {
             width: 200px;
@@ -197,23 +174,17 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
             <li <?php if ($current_page == 'news.php') echo 'class="active"'; ?>><a href="news.php">News</a></li>
             <li <?php if ($current_page == 'membership_form.php') echo 'class="active"'; ?>><a
                     href="membership_form.php">Member Application</a></li>
-
             <?php if (isset($_SESSION['user_id'])): ?>
             <li>
-                <!-- The "Virtual ID" link triggers the face validation modal -->
                 <a href="#" id="virtualIdLink" data-user-id="<?php echo $_SESSION['user_id']; ?>">Virtual ID</a>
             </li>
             <?php endif; ?>
-
             <li <?php if ($current_page == 'health.php') echo 'class="active"'; ?>>
-                <a data-bs-toggle="offcanvas" href="#offcanvasHealth" role="button" aria-controls="offcanvasHealth">
-                    Health Tips
-                </a>
+                <a data-bs-toggle="offcanvas" href="#offcanvasHealth" role="button"
+                    aria-controls="offcanvasHealth">Health Tips</a>
             </li>
-
             <?php if (isset($_SESSION['user_id']) && (isset($_SESSION['role']) && $_SESSION['role'] !== 'user')): ?>
             <li <?php if ($current_page == 'member_services.php' || $submenuActive) echo 'class="active"'; ?>>
-                <!-- Member Services toggler -->
                 <a href="#" class="dropdown-toggle" id="memberServicesToggle">Member Services</a>
                 <ul class="submenu <?php echo $submenuActive ? 'show' : ''; ?>" id="memberServicesSubmenu">
                     <li <?php if ($current_page == 'consultation.php') echo 'class="active"'; ?>><a
@@ -226,7 +197,6 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
             </li>
             <li <?php if ($current_page == 'events.php') echo 'class="active"'; ?>><a href="events.php">Events</a></li>
             <?php endif; ?>
-
             <?php if (isset($_SESSION['user_id'])): ?>
             <li <?php if ($current_page == 'trainings.php') echo 'class="active"'; ?>><a
                     href="trainings.php">Trainings</a></li>
@@ -388,7 +358,6 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
                     toggleBtn.innerHTML = '&gt;';
                     toggleBtn.classList.remove('expanded');
                 } else {
-                    // Adjust the left position based on viewport width
                     if (window.innerWidth < 768) {
                         toggleBtn.style.left = '200px';
                     } else {
@@ -398,8 +367,6 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
                     toggleBtn.classList.add('expanded');
                 }
             }
-
-            // Get saved state or default to expanded
             const savedState = localStorage.getItem('sidebarState') || 'expanded';
             if (savedState === 'collapsed') {
                 sidebar.classList.add('collapsed');
@@ -407,7 +374,6 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
                 sidebar.classList.remove('collapsed');
             }
             updateTogglePosition();
-
             toggleBtn.addEventListener('click', function() {
                 sidebar.classList.toggle('collapsed');
                 updateTogglePosition();
@@ -415,7 +381,6 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
                     'collapsed' : 'expanded');
             });
         }
-
         // SUBMENU TOGGLE
         const memberServicesToggle = document.getElementById('memberServicesToggle');
         const memberServicesSubmenu = document.getElementById('memberServicesSubmenu');
@@ -425,7 +390,6 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
                 memberServicesSubmenu.classList.toggle('show');
             });
         }
-
         // FACE VALIDATION
         const virtualIdLink = document.getElementById('virtualIdLink');
         const faceValidationModalEl = document.getElementById('faceValidationModal');
@@ -434,12 +398,9 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
         const validateFaceBtn = document.getElementById('validateFaceBtn');
         const faceValidationResult = document.getElementById('faceValidationResult');
         const userFaceCanvas = document.getElementById('userFaceCanvas');
-
         let referenceDescriptor = null;
         const userFaceImageUrl = "<?php echo $userFaceImageUrl; ?>";
-
         await faceValidation.loadModels('backend/models/weights');
-
         async function loadReferenceDescriptor() {
             if (!userFaceImageUrl) {
                 console.warn("No stored face image URL for this user.");
@@ -451,12 +412,10 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
             img.crossOrigin = "anonymous";
             img.src = decryptUrl;
             storedFacePreview.src = decryptUrl;
-
             await new Promise((resolve, reject) => {
                 img.onload = resolve;
                 img.onerror = reject;
             });
-
             try {
                 const detection = await faceapi
                     .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({
@@ -475,11 +434,9 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
                 console.error("Error detecting face in reference image:", error);
             }
         }
-
         if (userFaceImageUrl) {
             await loadReferenceDescriptor();
         }
-
         if (virtualIdLink && faceValidationModalEl) {
             virtualIdLink.addEventListener('click', async function(e) {
                 e.preventDefault();
@@ -491,15 +448,13 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
                 } catch (error) {
                     console.error("Webcam access error:", error);
                     alert(
-                        'Unable to access webcam for face validation. Please check permissions.'
-                    );
+                        'Unable to access webcam for face validation. Please check permissions.');
                     return;
                 }
                 const faceValidationModal = new bootstrap.Modal(faceValidationModalEl);
                 faceValidationModal.show();
             });
         }
-
         if (validateFaceBtn) {
             validateFaceBtn.addEventListener('click', async function() {
                 faceValidationResult.innerText = '';
@@ -507,7 +462,6 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
                 userFaceCanvas.height = videoInput.videoHeight;
                 const ctx = userFaceCanvas.getContext('2d');
                 ctx.drawImage(videoInput, 0, 0, userFaceCanvas.width, userFaceCanvas.height);
-
                 const detection = await faceapi
                     .detectSingleFace(userFaceCanvas, new faceapi.TinyFaceDetectorOptions({
                         inputSize: 416,
@@ -527,7 +481,6 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
                 const distance = faceapi.euclideanDistance(detection.descriptor,
                     referenceDescriptor);
                 console.log('Distance:', distance);
-
                 const threshold = 0.6;
                 if (distance < threshold) {
                     faceValidationResult.innerText = 'Face matched successfully!';
@@ -544,8 +497,7 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
                 }
             });
         }
-
-        // NEW: Stop the camera when the Face Validation modal is closed.
+        // Stop the camera when the Face Validation modal is closed.
         if (faceValidationModalEl) {
             faceValidationModalEl.addEventListener('hidden.bs.modal', () => {
                 if (videoInput && videoInput.srcObject) {
