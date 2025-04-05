@@ -26,14 +26,11 @@ document.addEventListener('DOMContentLoaded', function() {
         toggleBtn.addEventListener('click', function() {
             sidebar.classList.toggle('collapsed');
             updateTogglePosition();
-            localStorage.setItem(
-                'sidebarState',
-                sidebar.classList.contains('collapsed') ? 'collapsed' : 'expanded'
-            );
+            localStorage.setItem('sidebarState', sidebar.classList.contains('collapsed') ? 'collapsed' : 'expanded');
         });
     }
 
-    // Toggle submenu for Member Services if elements exist
+    // Toggle submenu for Member Services
     const memberToggle = document.getElementById('toggleMemberServices');
     const memberSubmenu = document.getElementById('memberServicesSubmenu');
     const memberArrow = document.getElementById('memberServicesArrow');
@@ -50,65 +47,77 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Virtual ID click handler (inspired by login.php face validation)
+    // Virtual ID click handler: show the face validation modal
     const virtualIdLink = document.getElementById('virtualIdLink');
     if (virtualIdLink) {
         virtualIdLink.addEventListener('click', async function(e) {
             e.preventDefault();
-            // Create a hidden video element for face capture
-            const video = document.createElement('video');
-            video.width = 320;
-            video.height = 240;
-            video.autoplay = true;
-            video.muted = true;
-            video.style.position = 'fixed';
-            video.style.top = '-9999px';
-            document.body.appendChild(video);
-
-            let stream;
+            const faceValidationModalEl = document.getElementById('faceValidationModal');
+            if (!faceValidationModalEl) {
+                console.error("Face validation modal element not found!");
+                return;
+            }
+            // Start webcam for face validation
+            const videoInput = document.getElementById('videoInput');
             try {
-                stream = await navigator.mediaDevices.getUserMedia({ video: {} });
-                video.srcObject = stream;
-                // Wait a couple of seconds for the video to initialize
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                
-                // Capture a frame for face detection
-                const canvas = document.createElement('canvas');
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                const context = canvas.getContext('2d');
-                context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                
-                // Perform face detection using face-api (assumes models are already loaded)
-                const detection = await faceapi.detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.5 }));
-                if (!detection) {
-                    alert('No face detected. Please try again.');
+                const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
+                videoInput.srcObject = stream;
+            } catch (error) {
+                console.error("Unable to access webcam:", error);
+                alert('Unable to access webcam for face validation.');
+                return;
+            }
+            // Show the face validation modal
+            const faceValidationModal = new bootstrap.Modal(faceValidationModalEl);
+            faceValidationModal.show();
+        });
+    }
+
+    // Face validation and PDF generation logic after clicking Validate Face
+    // Ensure that the face-api models are already loaded and that a reference descriptor is available
+    const validateFaceBtn = document.getElementById('validateFaceBtn');
+    if (validateFaceBtn) {
+        validateFaceBtn.addEventListener('click', async function() {
+            const video = document.getElementById('videoInput');
+            const canvas = document.getElementById('userFaceCanvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Detect face with landmarks and descriptor
+            const detection = await faceapi
+                .detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.5 }))
+                .withFaceLandmarks()
+                .withFaceDescriptor();
+            
+            const resultParagraph = document.getElementById('faceValidationResult');
+            if (!detection) {
+                resultParagraph.innerText = 'No face detected. Please try again.';
+                return;
+            }
+            // Ensure that a stored reference descriptor is available.
+            if (typeof referenceDescriptor === 'undefined') {
+                resultParagraph.innerText = 'Reference face not available. Please contact support.';
+                return;
+            }
+            const distance = faceapi.euclideanDistance(detection.descriptor, referenceDescriptor);
+            console.log('Distance:', distance);
+            const threshold = 0.6;
+            if (distance < threshold) {
+                resultParagraph.innerText = 'Face matched successfully!';
+                // Stop the webcam stream
+                const stream = video.srcObject;
+                if (stream) {
                     stream.getTracks().forEach(track => track.stop());
-                    video.remove();
-                    return;
                 }
-                
-                // Face validated; stop stream and remove video.
-                stream.getTracks().forEach(track => track.stop());
-                video.remove();
-                
-                // Generate a random 8-character PDF password.
+                // Generate a random 8-character PDF password
                 const pdfPassword = Math.random().toString(36).slice(-8);
                 const userId = virtualIdLink.getAttribute('data-user-id');
-                
-                // Trigger the PDF download with password protection.
-                window.location = `backend/models/generate_virtual_id.php?user_id=${userId}&pdf_password=${pdfPassword}`;
-                
-                // Display the PDF password modal.
-                const pdfModalEl = document.getElementById('pdfPasswordModal');
-                document.getElementById('pdfPasswordText').textContent = `Your PDF password is: ${pdfPassword}`;
-                const pdfModal = new bootstrap.Modal(pdfModalEl);
-                pdfModal.show();
-            } catch (error) {
-                console.error('Error during face validation:', error);
-                alert('Unable to access webcam for face validation.');
-                if (stream) stream.getTracks().forEach(track => track.stop());
-                video.remove();
+                // Redirect to generate_virtual_id.php with the user_id and pdf_password parameters
+                window.location.href = `backend/models/generate_virtual_id.php?user_id=${userId}&pdf_password=${pdfPassword}`;
+            } else {
+                resultParagraph.innerText = 'Face did not match. Please try again.';
             }
         });
     }
