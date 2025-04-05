@@ -13,11 +13,12 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     exit();
 }
 
-// Create directory for uploaded logos if it doesn't exist.
-$uploadDir = __DIR__ . '/uploads/settings/';
-if (!file_exists($uploadDir)) {
-    mkdir($uploadDir, 0755, true);
-}
+// The local upload directory is no longer needed since header logos are stored on S3.
+// Removed: 
+// $uploadDir = __DIR__ . '/uploads/settings/';
+// if (!file_exists($uploadDir)) {
+//     mkdir($uploadDir, 0755, true);
+// }
 
 // Helper function to get a setting value.
 // Assumes a table "settings" with columns `key` (PRIMARY or UNIQUE) and `value`
