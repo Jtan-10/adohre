@@ -212,10 +212,5 @@ $submenuActive = ($current_page == 'chat_assistance.php' || $current_page == 'ap
 <!-- Toggle Button for Sidebar -->
 <button id="sidebarCollapse">&gt;</button>
 
-<!-- Ensure that Bootstrap JS is loaded (if not already in your main template) -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-    integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous">
-</script>
-
 <!-- External logic moved to js/sidebar.js -->
 <script src="js/sidebar.js"></script>
