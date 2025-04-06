@@ -3,7 +3,7 @@ ob_start();
 ini_set('display_errors', 0);
 error_reporting(0);
 if (ob_get_length()) {
-    ob_clean();
+    ob_end_clean(); // Changed from ob_clean() to fully clear & close the buffer
 }
 
 require_once '../controllers/authController.php';
