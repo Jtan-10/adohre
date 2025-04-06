@@ -41,24 +41,81 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo json_encode(['status' => false, 'message' => 'PDF password is required.']);
             exit();
         }
+        
         try {
-            // Attempt to decrypt the PDF using FPDI.
-            $pdf = new Fpdi();
-            // FPDI's setSourceFile accepts a password as a second parameter.
-            // If decryption fails, an exception is thrown.
-            $pageCount = $pdf->setSourceFile($fileTmpPath, $pdfPassword);
-            if ($pageCount > 0) {
-                // For demonstration purposes, assume the virtual ID is the file name without extension.
+            // Use FPDI to process the PDF (free version does not support decryption natively)
+            $pdf = new \setasign\Fpdi\Fpdi();
+            
+            // Create temporary file for processing
+            $tempOutputFile = tempnam(sys_get_temp_dir(), 'pdf_');
+            
+            // First approach: Try using FPDI directly on the PDF file.
+            // Note: Native decryption methods are not available in the free FPDI version.
+            try {
+                $pageCount = $pdf->setSourceFile($fileTmpPath);
+                // Successfully accessed the PDF without decryption.
                 $virtualId = pathinfo($_FILES['virtualIdPdf']['name'], PATHINFO_FILENAME);
-            } else {
-                echo json_encode(['status' => false, 'message' => 'PDF decryption failed.']);
-                exit();
+            } catch (Exception $e) {
+                // Fallback: Use external tools to decrypt the PDF.
+                if (function_exists('exec')) {
+                    // Try using pdftk (commonly available)
+                    $cmd = sprintf('pdftk %s input_pw %s output %s 2>&1',
+                        escapeshellarg($fileTmpPath),
+                        escapeshellarg($pdfPassword),
+                        escapeshellarg($tempOutputFile));
+                    
+                    exec($cmd, $output, $returnCode);
+                    
+                    if ($returnCode === 0 && file_exists($tempOutputFile) && filesize($tempOutputFile) > 0) {
+                        // Successfully decrypted with pdftk
+                        try {
+                            $pageCount = $pdf->setSourceFile($tempOutputFile);
+                            $virtualId = pathinfo($_FILES['virtualIdPdf']['name'], PATHINFO_FILENAME);
+                        } catch (Exception $e2) {
+                            throw new Exception("Failed to process decrypted PDF: " . $e2->getMessage());
+                        }
+                    } else {
+                        // Try using qpdf as another alternative
+                        $cmd = sprintf('qpdf --password=%s --decrypt %s %s 2>&1',
+                            escapeshellarg($pdfPassword),
+                            escapeshellarg($fileTmpPath),
+                            escapeshellarg($tempOutputFile));
+                        
+                        exec($cmd, $output, $returnCode);
+                        
+                        if ($returnCode === 0 && file_exists($tempOutputFile) && filesize($tempOutputFile) > 0) {
+                            // Successfully decrypted with qpdf
+                            try {
+                                $pageCount = $pdf->setSourceFile($tempOutputFile);
+                                $virtualId = pathinfo($_FILES['virtualIdPdf']['name'], PATHINFO_FILENAME);
+                            } catch (Exception $e3) {
+                                throw new Exception("Failed to process decrypted PDF: " . $e3->getMessage());
+                            }
+                        } else {
+                            throw new Exception("Failed to decrypt PDF with external tools. Please ensure the password is correct.");
+                        }
+                    }
+                } else {
+                    throw new Exception("Failed to process encrypted PDF. Server configuration doesn't support external tools.");
+                }
             }
+            
+            // Clean up temporary file
+            if (file_exists($tempOutputFile)) {
+                unlink($tempOutputFile);
+            }
+            
         } catch (Exception $e) {
-            error_log('PDF decryption error: ' . $e->getMessage());
-            echo json_encode(['status' => false, 'message' => 'Invalid PDF password or file error: ' . $e->getMessage()]);
+            // Clean up temporary file if it exists
+            if (isset($tempOutputFile) && file_exists($tempOutputFile)) {
+                unlink($tempOutputFile);
+            }
+            
+            error_log('PDF processing error: ' . $e->getMessage());
+            echo json_encode(['status' => false, 'message' => 'Error processing PDF: ' . $e->getMessage()]);
             exit();
         }
+        
         // Look up user by virtual ID
         $stmt = $conn->prepare('SELECT user_id, first_name, last_name, role, profile_image, face_image, virtual_id FROM users WHERE virtual_id = ?');
         $stmt->bind_param('s', $virtualId);
