@@ -19,7 +19,6 @@ require_once '../controllers/authController.php';
 require_once '../db/db_connect.php';
 
 use Zxing\QrReader;
-use setasign\Fpdi\Tcpdf\Fpdi;
 
 header('Content-Type: application/json');
 
@@ -59,90 +58,75 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         try {
-            // Use FPDI to process the PDF (free version does not support decryption natively)
-            $pdf = new \setasign\Fpdi\Fpdi();
-
-            // Create temporary file for processing
+            // Create a temporary file for the decrypted PDF
             $tempOutputFile = tempnam(sys_get_temp_dir(), 'pdf_');
 
-            // Check if the PDF is encrypted by reading its header.
-            $fileHeader = file_get_contents($fileTmpPath, false, null, 0, 1024);
-            $isEncrypted = (strpos($fileHeader, '/Encrypt') !== false);
+            // Try decryption using pdftk first
+            $cmd = sprintf(
+                'pdftk %s input_pw %s output %s 2>&1',
+                escapeshellarg($fileTmpPath),
+                escapeshellarg($pdfPassword),
+                escapeshellarg($tempOutputFile)
+            );
+            exec($cmd, $output, $returnCode);
+            if (DEBUG) {
+                error_log("pdftk command: $cmd");
+                error_log("pdftk return code: $returnCode");
+                error_log("pdftk output: " . implode(", ", $output));
+            }
+            if ($returnCode !== 0 || !file_exists($tempOutputFile) || filesize($tempOutputFile) == 0) {
+                // If pdftk fails, try qpdf
+                $cmd = sprintf(
+                    'qpdf --password=%s --decrypt %s %s 2>&1',
+                    escapeshellarg($pdfPassword),
+                    escapeshellarg($fileTmpPath),
+                    escapeshellarg($tempOutputFile)
+                );
+                exec($cmd, $output, $returnCode);
+                if (DEBUG) {
+                    error_log("qpdf command: $cmd");
+                    error_log("qpdf return code: $returnCode");
+                    error_log("qpdf output: " . implode(", ", $output));
+                }
+                if ($returnCode !== 0 || !file_exists($tempOutputFile) || filesize($tempOutputFile) == 0) {
+                    throw new Exception("Failed to decrypt PDF with external tools. Please ensure the password is correct.");
+                }
+            }
+            
+            // --- Convert decrypted PDF page to image and extract QR code ---
+            // Check if Imagick is loaded
+            if (!extension_loaded('imagick')) {
+                throw new Exception("Imagick extension is required for QR code extraction.");
+            }
+            $imagick = new Imagick();
+            // Optionally set a resolution for better image quality
+            $imagick->setResolution(300, 300);
+            // Read only the first page ([0]) of the decrypted PDF
+            $imagick->readImage($tempOutputFile . "[0]");
+            $imagick->setImageFormat("png");
+            $tempImageFile = tempnam(sys_get_temp_dir(), 'img_') . ".png";
+            $imagick->writeImage($tempImageFile);
+            $imagick->clear();
+            $imagick->destroy();
+
+            // Use QrReader to decode the QR code from the image
+            $qrReader = new QrReader($tempImageFile);
+            $virtualId = $qrReader->text();
+            
+            // Clean up temporary image file
+            if (file_exists($tempImageFile)) {
+                unlink($tempImageFile);
+            }
 
             if (DEBUG) {
-                error_log("File header: " . substr($fileHeader, 0, 200));
-                error_log("Is Encrypted: " . ($isEncrypted ? 'Yes' : 'No'));
+                error_log("Extracted Virtual ID from QR code: " . $virtualId);
             }
 
-            // If the file does not appear encrypted, try loading it directly.
-            if (!$isEncrypted) {
-                try {
-                    $pageCount = $pdf->setSourceFile($fileTmpPath);
-                    // Successfully processed unencrypted PDF.
-                    $virtualId = pathinfo($_FILES['virtualIdPdf']['name'], PATHINFO_FILENAME);
-                } catch (Exception $e) {
-                    // If FPDI fails, assume encryption and force fallback.
-                    $isEncrypted = true;
-                    if (DEBUG) {
-                        error_log("FPDI load failed, forcing decryption fallback: " . $e->getMessage());
-                    }
-                }
+            if (empty($virtualId)) {
+                throw new Exception("QR code not detected or virtual ID is empty.");
             }
 
-            // If the file is encrypted or FPDI failed, use external tools.
-            if ($isEncrypted) {
-                if (function_exists('exec')) {
-                    // First try pdftk
-                    $cmd = sprintf(
-                        'pdftk %s input_pw %s output %s 2>&1',
-                        escapeshellarg($fileTmpPath),
-                        escapeshellarg($pdfPassword),
-                        escapeshellarg($tempOutputFile)
-                    );
-                    exec($cmd, $output, $returnCode);
-                    if (DEBUG) {
-                        error_log("pdftk command: $cmd");
-                        error_log("pdftk return code: $returnCode");
-                        error_log("pdftk output: " . implode(", ", $output));
-                    }
-                    if ($returnCode === 0 && file_exists($tempOutputFile) && filesize($tempOutputFile) > 0) {
-                        try {
-                            $pageCount = $pdf->setSourceFile($tempOutputFile);
-                            $virtualId = pathinfo($_FILES['virtualIdPdf']['name'], PATHINFO_FILENAME);
-                        } catch (Exception $e2) {
-                            throw new Exception("Failed to process decrypted PDF (pdftk): " . $e2->getMessage());
-                        }
-                    } else {
-                        // Fallback to qpdf if pdftk did not succeed
-                        $cmd = sprintf(
-                            'qpdf --password=%s --decrypt %s %s 2>&1',
-                            escapeshellarg($pdfPassword),
-                            escapeshellarg($fileTmpPath),
-                            escapeshellarg($tempOutputFile)
-                        );
-                        exec($cmd, $output, $returnCode);
-                        if (DEBUG) {
-                            error_log("qpdf command: $cmd");
-                            error_log("qpdf return code: $returnCode");
-                            error_log("qpdf output: " . implode(", ", $output));
-                        }
-                        if ($returnCode === 0 && file_exists($tempOutputFile) && filesize($tempOutputFile) > 0) {
-                            try {
-                                $pageCount = $pdf->setSourceFile($tempOutputFile);
-                                $virtualId = pathinfo($_FILES['virtualIdPdf']['name'], PATHINFO_FILENAME);
-                            } catch (Exception $e3) {
-                                throw new Exception("Failed to process decrypted PDF (qpdf): " . $e3->getMessage());
-                            }
-                        } else {
-                            throw new Exception("Failed to decrypt PDF with external tools. Please ensure the password is correct.");
-                        }
-                    }
-                } else {
-                    throw new Exception("Failed to process encrypted PDF. Server configuration doesn't support external tools.");
-                }
-            }
-
-            // Clean up temporary file
+            // Clean up temporary PDF file
             if (file_exists($tempOutputFile)) {
                 unlink($tempOutputFile);
             }
@@ -151,13 +135,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 unlink($tempOutputFile);
             }
             error_log('PDF processing error: ' . $e->getMessage());
-            // Optionally, include detailed error info if DEBUG is enabled.
             $msg = DEBUG ? $e->getMessage() : "Error processing PDF.";
             echo json_encode(['status' => false, 'message' => $msg]);
             exit();
         }
 
-        // Look up user by virtual ID
+        // Look up user by virtual ID (obtained from the QR code)
         $stmt = $conn->prepare('SELECT user_id, first_name, last_name, role, profile_image, face_image, virtual_id FROM users WHERE virtual_id = ?');
         $stmt->bind_param('s', $virtualId);
         $stmt->execute();
