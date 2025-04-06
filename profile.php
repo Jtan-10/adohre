@@ -228,10 +228,6 @@ header("X-Content-Type-Options: nosniff");
                         'assets/default-profile.jpeg';
 
                     document.getElementById('virtualId').value = user.virtual_id || 'Not assigned';
-
-                    // Update View Virtual ID link
-                    const viewLink = document.getElementById('viewVirtualIdLink');
-                    viewLink.href = `backend/models/generate_virtual_id.php?user_id=${userId}`;
                 } else {
                     showToast('Failed to load profile data.', 'danger');
                 }
@@ -295,10 +291,6 @@ header("X-Content-Type-Options: nosniff");
                     if (data.status) {
                         document.getElementById('virtualId').value = data.virtual_id;
                         showToast(data.message, 'success');
-
-                        // Update the View Virtual ID link with the new ID
-                        const viewLink = document.getElementById('viewVirtualIdLink');
-                        viewLink.href = `backend/models/generate_virtual_id.php?user_id=${userId}`;
                     } else {
                         showToast(data.message, 'danger');
                     }
