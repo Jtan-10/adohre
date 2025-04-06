@@ -140,6 +140,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // -------------------------
+    // Finalize login using virtual_id (face validation step)
+    // -------------------------
+    if (!isset($data['email']) && isset($_POST['virtual_id'])) {
+        $virtualId = $_POST['virtual_id'];
+        $stmt = $conn->prepare('SELECT user_id, first_name, last_name, role, profile_image, face_image, virtual_id FROM users WHERE virtual_id = ?');
+        $stmt->bind_param('s', $virtualId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($result->num_rows > 0) {
+            $user = $result->fetch_assoc();
+            session_regenerate_id(true);
+            $_SESSION['user_id'] = $user['user_id'];
+            $_SESSION['first_name'] = $user['first_name'];
+            $_SESSION['last_name'] = $user['last_name'];
+            $_SESSION['role'] = $user['role'];
+            $_SESSION['profile_image'] = !empty($user['profile_image']) ? $user['profile_image'] : './assets/default-profile.jpeg';
+            recordAuditLog($user['user_id'], 'Login via Virtual ID', 'User logged in using Virtual ID (finalized after face validation)');
+            echo json_encode(['status' => true, 'message' => 'Login successful.', 'user' => $user]);
+        } else {
+            http_response_code(404);
+            echo json_encode(['status' => false, 'message' => 'Invalid Virtual ID.']);
+        }
+        exit();
+    }
+
+    // -------------------------
     // Email Login with OTP
     // -------------------------
     $email = $data['email'] ?? null;
@@ -163,4 +189,3 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     http_response_code(405);
     echo json_encode(['status' => false, 'message' => 'Method Not Allowed.']);
 }
-?>
