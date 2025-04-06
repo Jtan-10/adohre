@@ -1,4 +1,7 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 require_once '../controllers/authController.php';
 require_once '../db/db_connect.php'; // Ensure this is included for database connection
 
