@@ -416,16 +416,44 @@ $scriptNonce = bin2hex(random_bytes(16));
                     method: 'POST',
                     body: formData
                 });
-                let result;
-                const contentType = response.headers.get('content-type') || '';
-                if (contentType.includes('application/json')) {
-                    result = await response.json();
-                } else {
+
+                // Check if the response is ok first
+                if (!response.ok) {
                     const errorText = await response.text();
                     hideLoading();
-                    showModal('Error', 'Unexpected response: ' + errorText);
+                    // Try to parse the error as JSON, otherwise use text
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        showModal('Error', errorJson.message ||
+                            'Server returned an error response.');
+                    } catch (e) {
+                        showModal('Error', 'Server error: ' + (errorText || response.statusText));
+                    }
                     return;
                 }
+
+                // Now safely parse the JSON
+                const contentType = response.headers.get('content-type') || '';
+                if (!contentType.includes('application/json')) {
+                    hideLoading();
+                    showModal('Error', 'Server returned an unexpected content type.');
+                    return;
+                }
+
+                let result;
+                try {
+                    const text = await response.text();
+                    if (!text) {
+                        throw new Error('Empty response received');
+                    }
+                    result = JSON.parse(text);
+                } catch (parseError) {
+                    hideLoading();
+                    logError(parseError);
+                    showModal('Error', 'Failed to parse server response. Please try again.');
+                    return;
+                }
+
                 hideLoading();
                 if (result.status) {
                     globalUserData = result.user;
@@ -433,7 +461,7 @@ $scriptNonce = bin2hex(random_bytes(16));
                     if (!globalUserData.first_name || !globalUserData.last_name || !globalUserData
                         .face_image) {
                         showModal('Info',
-                            'Your profile is incomplete. Please update your details.');
+                        'Your profile is incomplete. Please update your details.');
                         showUpdateDetailsModal();
                     } else {
                         const vidModal = bootstrap.Modal.getInstance(document.getElementById(
@@ -451,7 +479,7 @@ $scriptNonce = bin2hex(random_bytes(16));
                 hideLoading();
                 logError(error);
                 console.error('Error fetching user data:', error);
-                showModal('Error', 'An error occurred fetching user data.');
+                showModal('Error', 'An error occurred fetching user data. Please try again later.');
             }
         });
 
