@@ -27,11 +27,23 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-$action = $_POST['action'] ?? 'finalize';
-$data = json_decode(file_get_contents("php://input"), true);
-if (!$data) {
+// -------------------------
+// Improved Input Handling:
+// -------------------------
+// Determine how to process input based on the Content-Type header
+$contentType = $_SERVER["CONTENT_TYPE"] ?? '';
+if (strpos($contentType, 'application/json') !== false) {
+    $data = json_decode(file_get_contents("php://input"), true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        echo json_encode(['status' => false, 'message' => 'Malformed JSON input.']);
+        exit();
+    }
+} else {
     $data = $_POST;
 }
+
+// Set the action parameter (defaults to 'finalize' if not provided)
+$action = $data['action'] ?? 'finalize';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 

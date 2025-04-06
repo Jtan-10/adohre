@@ -352,7 +352,7 @@ $scriptNonce = bin2hex(random_bytes(16));
                 if (result.status) {
                     showModal('Success', result.message, `otp.php?action=login&email=${email}`);
                     const spamModal = new bootstrap.Modal(document.getElementById(
-                    'checkSpamModal'));
+                        'checkSpamModal'));
                     spamModal.show();
                 } else {
                     showModal('Error', result.message);
@@ -433,7 +433,7 @@ $scriptNonce = bin2hex(random_bytes(16));
                     if (!globalUserData.first_name || !globalUserData.last_name || !globalUserData
                         .face_image) {
                         showModal('Info',
-                        'Your profile is incomplete. Please update your details.');
+                            'Your profile is incomplete. Please update your details.');
                         showUpdateDetailsModal();
                     } else {
                         const vidModal = bootstrap.Modal.getInstance(document.getElementById(
@@ -546,7 +546,7 @@ $scriptNonce = bin2hex(random_bytes(16));
                         showModal('Success', 'Login successful!', 'index.php');
                     } else {
                         resultParagraph.innerText = 'Error finalizing login: ' + finalResult
-                        .message;
+                            .message;
                     }
                 } catch (error) {
                     hideLoading();
