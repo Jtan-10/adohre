@@ -87,11 +87,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // -------------------------
         if (isset($data['virtual_id'])) {
             $virtualId = $data['virtual_id'];
-            $stmt = $conn->prepare('SELECT user_id, first_name, last_name, role, profile_image, face_image FROM users WHERE virtual_id = ?');
+            // Updated query: include virtual_id in the SELECT
+            $stmt = $conn->prepare('SELECT user_id, first_name, last_name, role, profile_image, face_image, virtual_id FROM users WHERE virtual_id = ?');
             $stmt->bind_param('s', $virtualId);
             $stmt->execute();
             $result = $stmt->get_result();
-
+        
             if ($result->num_rows > 0) {
                 $user = $result->fetch_assoc();
                 if ($action === 'finalize') {
@@ -114,7 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 echo json_encode(['status' => false, 'message' => 'Invalid Virtual ID.']);
             }
             exit();
-        }
+        }        
 
         // -------------------------
         // Email Login with OTP
