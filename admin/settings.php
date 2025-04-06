@@ -256,19 +256,24 @@ if ($result) {
                         if (backupPasswordModalEl) {
                             const backupPasswordModal = new bootstrap.Modal(backupPasswordModalEl);
                             backupPasswordModal.show();
+
+                            // Copy-to-clipboard functionality.
+                            const copyBtn = document.getElementById('copyPasswordBtn');
+                            if (copyBtn) {
+                                copyBtn.addEventListener('click', () => {
+                                    const passwordText = document.getElementById(
+                                        'backupPasswordText').textContent;
+                                    navigator.clipboard.writeText(passwordText).then(() => {
+                                        showApiMessage('Password copied to clipboard!',
+                                            'success');
+                                    });
+                                });
+                            } else {
+                                console.error("Copy password button not found");
+                            }
                         } else {
                             console.error("Backup modal element not found");
                         }
-
-                        // Copy-to-clipboard functionality.
-                        document.getElementById('copyPasswordBtn').addEventListener('click', () => {
-                            const passwordText = document.getElementById('backupPasswordText')
-                                .textContent;
-                            navigator.clipboard.writeText(passwordText).then(() => {
-                                showApiMessage('Password copied to clipboard!',
-                                    'success');
-                            });
-                        });
 
                         showApiMessage('Database backup successful', 'success');
                     } else {
