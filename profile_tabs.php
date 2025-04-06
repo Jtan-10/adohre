@@ -218,9 +218,5 @@
             <input type="text" id="virtualId" class="form-control" value="Loading..." readonly>
             <button class="btn btn-primary mt-2" id="regenerateIdBtn">Regenerate Virtual ID</button>
         </div>
-        <div class="mt-3">
-            <a id="viewVirtualIdLink" href="#" target="_blank" class="btn btn-primary">View Virtual ID
-                Card</a>
-        </div>
     </div>
 </div>
