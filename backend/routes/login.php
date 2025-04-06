@@ -86,7 +86,7 @@ try {
                 echo json_encode(['status' => false, 'message' => 'PDF password is required.']);
                 exit();
             }
-            
+
             try {
                 // Create a temporary file for the decrypted PDF
                 $tempOutputFile = tempnam(sys_get_temp_dir(), 'pdf_');
@@ -122,17 +122,17 @@ try {
                         throw new Exception("Failed to decrypt PDF with external tools. Please ensure the password is correct.");
                     }
                 }
-                
+
                 // --- Convert decrypted PDF page to image and extract QR code ---
                 // Check if Imagick is loaded again (redundant but safe)
                 if (!extension_loaded('imagick')) {
                     throw new Exception("Imagick extension is required for QR code extraction.");
                 }
-                
+
                 $imagick = new Imagick();
                 // Optionally set a resolution for better image quality
                 $imagick->setResolution(300, 300);
-                
+
                 // Read only the first page ([0]) of the decrypted PDF
                 $imagick->readImage($tempOutputFile . "[0]");
                 $imagick->setImageFormat("png");
@@ -144,7 +144,7 @@ try {
                 // Use QrReader to decode the QR code from the image
                 $qrReader = new \Zxing\QrReader($tempImageFile);
                 $virtualId = $qrReader->text();
-                
+
                 // Clean up temporary image file
                 if (file_exists($tempImageFile)) {
                     unlink($tempImageFile);
@@ -209,29 +209,29 @@ try {
                 echo json_encode(['status' => false, 'message' => 'File upload failed.']);
                 exit();
             }
-            
+
             // Check if the file is actually an image
             $imgInfo = @getimagesize($fileTmpPath);
             if ($imgInfo === false) {
                 echo json_encode(['status' => false, 'message' => 'Uploaded file is not a valid image.']);
                 exit();
             }
-            
+
             try {
                 // Use QrReader with full namespace if needed
                 $qrReader = new \Zxing\QrReader($fileTmpPath);
                 $virtualId = $qrReader->text();
             } catch (Exception $e) {
                 error_log('QR code read error: ' . $e->getMessage());
-                echo json_encode(['status' => false, 'message' => 'Error reading QR code: ' . ($DEBUG ? $e->getMessage() : '')]);
+                echo json_encode(['status' => false, 'message' => 'Error reading QR code: ' . (DEBUG ? $e->getMessage() : '')]);
                 exit();
             }
-            
+
             if (empty($virtualId)) {
                 echo json_encode(['status' => false, 'message' => 'Invalid or unreadable QR code.']);
                 exit();
             }
-            
+
             $stmt = $conn->prepare('SELECT user_id, first_name, last_name, role, profile_image, face_image, virtual_id FROM users WHERE virtual_id = ?');
             $stmt->bind_param('s', $virtualId);
             $stmt->execute();
@@ -294,7 +294,7 @@ try {
             echo json_encode(['status' => false, 'message' => 'Invalid or missing email address.']);
             exit();
         }
-        
+
         if (function_exists('emailExists') && function_exists('generateOTP')) {
             if (emailExists($email)) {
                 if (generateOTP($email)) {
@@ -320,7 +320,7 @@ try {
     error_log('Uncaught exception in login.php: ' . $e->getMessage());
     http_response_code(500);
     echo json_encode([
-        'status' => false, 
+        'status' => false,
         'message' => DEBUG ? 'Server error: ' . $e->getMessage() : 'An unexpected error occurred.'
     ]);
     exit();
