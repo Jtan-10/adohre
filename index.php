@@ -1,14 +1,4 @@
 <?php
-// At the very top of index.php - add these lines
-ini_set('upload_tmp_dir', __DIR__ . '/backend/temp');
-ini_set('sys_temp_dir', __DIR__ . '/backend/temp');
-
-// Make sure the directory exists
-$tempDir = __DIR__ . '/backend/temp';
-if (!is_dir($tempDir)) {
-    mkdir($tempDir, 0777, true);
-}
-
 // Set secure cookie parameters before session_start
 session_set_cookie_params([
     'secure' => true,
