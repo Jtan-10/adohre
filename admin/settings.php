@@ -131,14 +131,20 @@ if ($result) {
             <form id="restoreForm" method="POST" enctype="multipart/form-data"
                 action="../backend/routes/settings_api.php?action=restore_database">
                 <div class="mb-3">
-                    <label for="restore_file" class="form-label">Restore Database (Upload SQL file)</label>
-                    <input type="file" class="form-control" id="restore_file" name="restore_file" accept=".sql">
+                    <label for="restore_file" class="form-label">Restore Database (Upload Encrypted SQL file)</label>
+                    <input type="file" class="form-control" id="restore_file" name="restore_file" accept=".sql.enc">
+                </div>
+                <div class="mb-3">
+                    <label for="encryption_password" class="form-label">Encryption Password</label>
+                    <input type="password" class="form-control" id="encryption_password" name="encryption_password"
+                        required>
                 </div>
                 <button type="submit" class="btn btn-warning">Restore Database</button>
             </form>
         </div>
     </div>
     <!-- JavaScript to handle API calls -->
+    // JavaScript to handle API calls and backup password retrieval
     <script nonce="<?= $cspNonce ?>">
     // Utility function to display API messages.
     function showApiMessage(message, type = 'info') {
@@ -186,15 +192,82 @@ if ($result) {
             });
     });
 
-    // Remove any JavaScript that intercepts the backup form submission.
-    // The backupForm now submits normally so that the browser can handle the file download.
-    // Similarly, the restoreForm submission remains handled via fetch if desired.
+    // Backup Database form submission with password retrieval
+    document.getElementById('backupForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        try {
+            // Trigger the backup via API
+            const backupResponse = await fetch(
+                '../backend/routes/settings_api.php?action=backup_database', {
+                    method: 'POST'
+                });
+
+            // If the backup was successful, retrieve the password
+            const passwordResponse = await fetch(
+                '../backend/routes/settings_api.php?action=get_backup_password');
+            const passwordData = await passwordResponse.json();
+
+            if (passwordData.status && passwordData.encryption_password) {
+                // Create a modal to show the encryption password
+                const modalHtml = `
+                    <div class="modal fade" id="backupPasswordModal" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Database Backup Encryption Password</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>Your database backup has been downloaded. Please save this encryption password securely:</p>
+                                    <div class="alert alert-warning">
+                                        <strong>Encryption Password:</strong> 
+                                        <code id="backupPasswordText">${passwordData.encryption_password}</code>
+                                    </div>
+                                    <button type="button" class="btn btn-primary" id="copyPasswordBtn">Copy Password</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // Remove any existing modal
+                document.getElementById('backupPasswordModal')?.remove();
+
+                // Add modal to body
+                const modalContainer = document.createElement('div');
+                modalContainer.innerHTML = modalHtml;
+                document.body.appendChild(modalContainer.firstChild);
+
+                // Initialize the modal
+                const backupPasswordModal = new bootstrap.Modal(document.getElementById(
+                    'backupPasswordModal'));
+                backupPasswordModal.show();
+
+                // Add copy functionality
+                document.getElementById('copyPasswordBtn').addEventListener('click', () => {
+                    const passwordText = document.getElementById('backupPasswordText').textContent;
+                    navigator.clipboard.writeText(passwordText).then(() => {
+                        showApiMessage('Password copied to clipboard!', 'success');
+                    });
+                });
+
+                showApiMessage('Database backup successful', 'success');
+            } else {
+                showApiMessage('Failed to retrieve backup password', 'danger');
+            }
+        } catch (error) {
+            console.error("Backup error:", error);
+            showApiMessage('An error occurred during database backup', 'danger');
+        }
+    });
 
     // Restore Database form submission.
     document.getElementById('restoreForm').addEventListener('submit', function(e) {
         e.preventDefault();
         const form = this;
         const formData = new FormData(form);
+
         fetch('../backend/routes/settings_api.php?action=restore_database', {
                 method: 'POST',
                 body: formData
