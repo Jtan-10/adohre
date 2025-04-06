@@ -14,7 +14,6 @@ $scriptNonce = bin2hex(random_bytes(16));
     <link rel="icon" href="assets/logo.png" type="image/jpg" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
 
-    <!-- We no longer include a client-side QR library because QR decoding is done on the backend -->
     <!-- Include face-api.js and faceValidation module -->
     <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script defer src="faceValidation.js"></script>
@@ -26,31 +25,25 @@ $scriptNonce = bin2hex(random_bytes(16));
         min-height: 100vh;
         margin: 0;
         flex-direction: row;
-        /* default desktop layout */
     }
 
-    /* Left pane with form */
     .left-pane {
         flex: 1;
         display: flex;
         flex-direction: column;
         justify-content: center;
-        /* center vertically */
         align-items: center;
-        /* center horizontally */
         background: #ffffff;
         padding: 2rem;
         text-align: center;
     }
 
-    /* Optional: limit form width and center it (for desktop, login-card not styled) */
     .left-pane form {
         width: 100%;
         max-width: 400px;
         margin: 0 auto;
     }
 
-    /* Right pane with background image */
     .right-pane {
         flex: 1;
         background: url('assets/green_bg.png') no-repeat center center/cover;
@@ -70,28 +63,22 @@ $scriptNonce = bin2hex(random_bytes(16));
         display: none;
     }
 
-    /* Mobile styles (max-width: 768px) */
     @media only screen and (max-width: 768px) {
-
-        /* Use a green background for the entire body */
         body {
             flex-direction: column;
             background: url('assets/green_bg.png') no-repeat center center/cover;
             background-size: cover;
         }
 
-        /* Make the left pane transparent so the green background shows */
         .left-pane {
             background: transparent;
             padding: 1rem;
         }
 
-        /* Hide the right pane */
         .right-pane {
             display: none;
         }
 
-        /* Style the login card with a white background, padding, and a subtle shadow */
         .login-card {
             background: #ffffff;
             padding: 2rem;
