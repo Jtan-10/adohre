@@ -236,6 +236,9 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     <script>
     // Sanitize function to escape HTML characters
     function sanitize(str) {
+        if (str === null || str === undefined) {
+            return "";
+        }
         return str.toString()
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
