@@ -199,9 +199,9 @@ if ($result) {
         try {
             // Trigger the backup via API
             const backupResponse = await fetch(
-                '../backend/routes/settings_api.php?action=backup_database', {
-                    method: 'POST'
-                });
+            '../backend/routes/settings_api.php?action=backup_database', {
+                method: 'POST'
+            });
 
             // If the backup was successful, retrieve the password
             const passwordResponse = await fetch(
@@ -211,25 +211,25 @@ if ($result) {
             if (passwordData.status && passwordData.encryption_password) {
                 // Create a modal to show the encryption password
                 const modalHtml = `
-                    <div class="modal fade" id="backupPasswordModal" tabindex="-1">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title">Database Backup Encryption Password</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <div class="modal fade" id="backupPasswordModal" tabindex="-1" aria-labelledby="backupPasswordModalLabel" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="backupPasswordModalLabel">Database Backup Encryption Password</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p>Your database backup has been downloaded. Please save this encryption password securely:</p>
+                                <div class="alert alert-warning">
+                                    <strong>Encryption Password:</strong> 
+                                    <code id="backupPasswordText">${passwordData.encryption_password}</code>
                                 </div>
-                                <div class="modal-body">
-                                    <p>Your database backup has been downloaded. Please save this encryption password securely:</p>
-                                    <div class="alert alert-warning">
-                                        <strong>Encryption Password:</strong> 
-                                        <code id="backupPasswordText">${passwordData.encryption_password}</code>
-                                    </div>
-                                    <button type="button" class="btn btn-primary" id="copyPasswordBtn">Copy Password</button>
-                                </div>
+                                <button type="button" class="btn btn-primary" id="copyPasswordBtn">Copy Password</button>
                             </div>
                         </div>
                     </div>
-                `;
+                </div>
+            `;
 
                 // Remove any existing modal
                 document.getElementById('backupPasswordModal')?.remove();
@@ -239,9 +239,12 @@ if ($result) {
                 modalContainer.innerHTML = modalHtml;
                 document.body.appendChild(modalContainer.firstChild);
 
-                // Initialize the modal
-                const backupPasswordModal = new bootstrap.Modal(document.getElementById(
-                    'backupPasswordModal'));
+                // Initialize the modal using Bootstrap's Modal constructor
+                const backupPasswordModalEl = document.getElementById('backupPasswordModal');
+                const backupPasswordModal = new bootstrap.Modal(backupPasswordModalEl, {
+                    backdrop: true,
+                    keyboard: true
+                });
                 backupPasswordModal.show();
 
                 // Add copy functionality
