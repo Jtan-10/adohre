@@ -6,6 +6,13 @@ use Zxing\QrReader;
 
 header('Content-Type: application/json');
 
+// Allow OPTIONS method for preflight requests
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    header("Access-Control-Allow-Methods: POST, OPTIONS");
+    header("Access-Control-Allow-Headers: Content-Type");
+    exit();
+}
+
 // Start session if not already started
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -92,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->bind_param('s', $virtualId);
             $stmt->execute();
             $result = $stmt->get_result();
-        
+
             if ($result->num_rows > 0) {
                 $user = $result->fetch_assoc();
                 if ($action === 'finalize') {
@@ -115,7 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 echo json_encode(['status' => false, 'message' => 'Invalid Virtual ID.']);
             }
             exit();
-        }        
+        }
 
         // -------------------------
         // Email Login with OTP
