@@ -3,7 +3,7 @@ ob_start();
 ini_set('display_errors', 0);
 error_reporting(0);
 if (ob_get_length()) {
-    ob_end_clean(); // Changed from ob_clean() to fully clear & close the buffer
+    ob_end_clean(); // Fully clear and close the output buffer
 }
 
 require_once '../controllers/authController.php';
@@ -48,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo json_encode(['status' => false, 'message' => 'PDF password is required.']);
             exit();
         }
-
+        
         try {
             // Use FPDI to process the PDF (free version does not support decryption natively)
             $pdf = new \setasign\Fpdi\Fpdi();
@@ -56,51 +56,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Create temporary file for processing
             $tempOutputFile = tempnam(sys_get_temp_dir(), 'pdf_');
 
-            // First approach: Try using FPDI directly on the PDF file.
-            // Note: Native decryption methods are not available in the free FPDI version.
-            try {
-                $pageCount = $pdf->setSourceFile($fileTmpPath);
-                // Successfully accessed the PDF without decryption.
-                $virtualId = pathinfo($_FILES['virtualIdPdf']['name'], PATHINFO_FILENAME);
-            } catch (Exception $e) {
-                // Fallback: Use external tools to decrypt the PDF.
+            // Check if the PDF is encrypted by reading its header.
+            $fileHeader = file_get_contents($fileTmpPath, false, null, 0, 1024);
+            $isEncrypted = (strpos($fileHeader, '/Encrypt') !== false);
+
+            // If the file does not appear encrypted, try loading it directly.
+            if (!$isEncrypted) {
+                try {
+                    $pageCount = $pdf->setSourceFile($fileTmpPath);
+                    // Successfully processed unencrypted PDF.
+                    $virtualId = pathinfo($_FILES['virtualIdPdf']['name'], PATHINFO_FILENAME);
+                } catch (Exception $e) {
+                    // If FPDI fails, assume encryption and force fallback.
+                    $isEncrypted = true;
+                }
+            }
+
+            // If the file is encrypted or FPDI failed, use external tools.
+            if ($isEncrypted) {
                 if (function_exists('exec')) {
-                    // Try using pdftk (commonly available)
+                    // First try pdftk
                     $cmd = sprintf(
                         'pdftk %s input_pw %s output %s 2>&1',
                         escapeshellarg($fileTmpPath),
                         escapeshellarg($pdfPassword),
                         escapeshellarg($tempOutputFile)
                     );
-
                     exec($cmd, $output, $returnCode);
-
                     if ($returnCode === 0 && file_exists($tempOutputFile) && filesize($tempOutputFile) > 0) {
-                        // Successfully decrypted with pdftk
                         try {
                             $pageCount = $pdf->setSourceFile($tempOutputFile);
                             $virtualId = pathinfo($_FILES['virtualIdPdf']['name'], PATHINFO_FILENAME);
                         } catch (Exception $e2) {
-                            throw new Exception("Failed to process decrypted PDF: " . $e2->getMessage());
+                            throw new Exception("Failed to process decrypted PDF (pdftk): " . $e2->getMessage());
                         }
                     } else {
-                        // Try using qpdf as another alternative
+                        // Fallback to qpdf if pdftk did not succeed
                         $cmd = sprintf(
                             'qpdf --password=%s --decrypt %s %s 2>&1',
                             escapeshellarg($pdfPassword),
                             escapeshellarg($fileTmpPath),
                             escapeshellarg($tempOutputFile)
                         );
-
                         exec($cmd, $output, $returnCode);
-
                         if ($returnCode === 0 && file_exists($tempOutputFile) && filesize($tempOutputFile) > 0) {
-                            // Successfully decrypted with qpdf
                             try {
                                 $pageCount = $pdf->setSourceFile($tempOutputFile);
                                 $virtualId = pathinfo($_FILES['virtualIdPdf']['name'], PATHINFO_FILENAME);
                             } catch (Exception $e3) {
-                                throw new Exception("Failed to process decrypted PDF: " . $e3->getMessage());
+                                throw new Exception("Failed to process decrypted PDF (qpdf): " . $e3->getMessage());
                             }
                         } else {
                             throw new Exception("Failed to decrypt PDF with external tools. Please ensure the password is correct.");
@@ -120,7 +124,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (isset($tempOutputFile) && file_exists($tempOutputFile)) {
                 unlink($tempOutputFile);
             }
-
             error_log('PDF processing error: ' . $e->getMessage());
             echo json_encode(['status' => false, 'message' => 'Error processing PDF: ' . $e->getMessage()]);
             exit();
