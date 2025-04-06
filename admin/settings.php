@@ -1,4 +1,3 @@
-admin/settings.php:
 <?php
 // settings.php
 
@@ -179,49 +178,76 @@ if ($result) {
         // Backup Database form submission with password retrieval.
         document.getElementById('backupForm').addEventListener('submit', async function(e) {
             e.preventDefault();
+
             try {
+                // 1) Request the backup file as a Blob
                 const backupResponse = await fetch(
                     '../backend/routes/settings_api.php?action=backup_database', {
                         method: 'POST'
                     }
                 );
+                if (!backupResponse.ok) {
+                    throw new Error('Backup request failed with status ' + backupResponse.status);
+                }
+
+                // 2) Convert the response to a Blob (the .sql.enc file)
+                const backupBlob = await backupResponse.blob();
+
+                // 3) Create a temporary link to trigger the file download
+                const downloadUrl = window.URL.createObjectURL(backupBlob);
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = 'database_backup_' + new Date().toISOString().replace(/[:.]/g,
+                    '-') + '.sql.enc';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(downloadUrl);
+
+                // 4) Now fetch the backup password
                 const passwordResponse = await fetch(
                     '../backend/routes/settings_api.php?action=get_backup_password'
                 );
                 const passwordData = await passwordResponse.json();
                 if (passwordData.status && passwordData.encryption_password) {
+                    // Create the modal markup
                     const modalHtml = `
-                    <div class="modal fade" id="backupPasswordModal" tabindex="-1" aria-labelledby="backupPasswordModalLabel" aria-hidden="true">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title" id="backupPasswordModalLabel">Database Backup Encryption Password</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <p>Your database backup has been downloaded. Please save this encryption password securely:</p>
-                                    <div class="alert alert-warning">
-                                        <strong>Encryption Password:</strong> 
-                                        <code id="backupPasswordText">${passwordData.encryption_password}</code>
+                        <div class="modal fade" id="backupPasswordModal" tabindex="-1" aria-labelledby="backupPasswordModalLabel" aria-hidden="true">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title" id="backupPasswordModalLabel">Database Backup Encryption Password</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                     </div>
-                                    <button type="button" class="btn btn-primary" id="copyPasswordBtn">Copy Password</button>
+                                    <div class="modal-body">
+                                        <p>Your database backup has been downloaded. Please save this encryption password securely:</p>
+                                        <div class="alert alert-warning">
+                                            <strong>Encryption Password:</strong> 
+                                            <code id="backupPasswordText">${passwordData.encryption_password}</code>
+                                        </div>
+                                        <button type="button" class="btn btn-primary" id="copyPasswordBtn">Copy Password</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
                     `;
-                    // Remove any existing modal with the same ID.
+                    // Remove existing modal if any
                     document.getElementById('backupPasswordModal')?.remove();
+
+                    // Insert the new modal
                     const modalContainer = document.createElement('div');
                     modalContainer.innerHTML = modalHtml;
                     document.body.appendChild(modalContainer.firstChild);
+
+                    // Initialize & show the modal
                     const backupPasswordModalEl = document.getElementById('backupPasswordModal');
-                    // Initialize the modal.
                     const backupPasswordModal = new bootstrap.Modal(backupPasswordModalEl, {
                         backdrop: true,
                         keyboard: true
                     });
                     backupPasswordModal.show();
+
+                    // Copy-to-clipboard
                     document.getElementById('copyPasswordBtn').addEventListener('click', () => {
                         const passwordText = document.getElementById('backupPasswordText')
                             .textContent;
@@ -230,10 +256,12 @@ if ($result) {
                                 'success');
                         });
                     });
+
                     showApiMessage('Database backup successful', 'success');
                 } else {
-                    showApiMessage('Failed to retrieve backup password', 'danger');
+                    showApiMessage('Backup succeeded, but no password returned.', 'warning');
                 }
+
             } catch (error) {
                 console.error("Backup error:", error);
                 showApiMessage('An error occurred during database backup', 'danger');
