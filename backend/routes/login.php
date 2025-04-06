@@ -66,7 +66,7 @@ try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // -------------------------
-        // Virtual ID Login via Uploaded PDF
+        // Virtual ID Login via Uploaded PDF using Cloudmersive API
         // -------------------------
         if (isset($_FILES['virtualIdPdf'])) {
             // Ensure file is uploaded
@@ -86,92 +86,71 @@ try {
                 echo json_encode(['status' => false, 'message' => 'PDF password is required.']);
                 exit();
             }
-
-            try {
-                // Create a temporary file for the decrypted PDF
-                $tempOutputFile = tempnam(sys_get_temp_dir(), 'pdf_');
-
-                // Try decryption using pdftk first
-                $cmd = sprintf(
-                    'pdftk %s input_pw %s output %s 2>&1',
-                    escapeshellarg($fileTmpPath),
-                    escapeshellarg($pdfPassword),
-                    escapeshellarg($tempOutputFile)
-                );
-                exec($cmd, $output, $returnCode);
-                if (DEBUG) {
-                    error_log("pdftk command: $cmd");
-                    error_log("pdftk return code: $returnCode");
-                    error_log("pdftk output: " . implode(", ", $output));
-                }
-                if ($returnCode !== 0 || !file_exists($tempOutputFile) || filesize($tempOutputFile) == 0) {
-                    // If pdftk fails, try qpdf
-                    $cmd = sprintf(
-                        'qpdf --password=%s --decrypt %s %s 2>&1',
-                        escapeshellarg($pdfPassword),
-                        escapeshellarg($fileTmpPath),
-                        escapeshellarg($tempOutputFile)
-                    );
-                    exec($cmd, $output, $returnCode);
-                    if (DEBUG) {
-                        error_log("qpdf command: $cmd");
-                        error_log("qpdf return code: $returnCode");
-                        error_log("qpdf output: " . implode(", ", $output));
-                    }
-                    if ($returnCode !== 0 || !file_exists($tempOutputFile) || filesize($tempOutputFile) == 0) {
-                        throw new Exception("Failed to decrypt PDF with external tools. Please ensure the password is correct.");
-                    }
-                }
-
-                // --- Convert decrypted PDF page to image and extract QR code ---
-                // Check if Imagick is loaded again (redundant but safe)
-                if (!extension_loaded('imagick')) {
-                    throw new Exception("Imagick extension is required for QR code extraction.");
-                }
-
-                $imagick = new Imagick();
-                // Optionally set a resolution for better image quality
-                $imagick->setResolution(300, 300);
-
-                // Read only the first page ([0]) of the decrypted PDF
-                $imagick->readImage($tempOutputFile . "[0]");
-                $imagick->setImageFormat("png");
-                $tempImageFile = tempnam(sys_get_temp_dir(), 'img_') . ".png";
-                $imagick->writeImage($tempImageFile);
-                $imagick->clear();
-                $imagick->destroy();
-
-                // Use QrReader to decode the QR code from the image
-                $qrReader = new \Zxing\QrReader($tempImageFile);
-                $virtualId = $qrReader->text();
-
-                // Clean up temporary image file
-                if (file_exists($tempImageFile)) {
-                    unlink($tempImageFile);
-                }
-
-                if (DEBUG) {
-                    error_log("Extracted Virtual ID from QR code: " . $virtualId);
-                }
-
-                if (empty($virtualId)) {
-                    throw new Exception("QR code not detected or virtual ID is empty.");
-                }
-
-                // Clean up temporary PDF file
-                if (file_exists($tempOutputFile)) {
-                    unlink($tempOutputFile);
-                }
-            } catch (Exception $e) {
-                if (isset($tempOutputFile) && file_exists($tempOutputFile)) {
-                    unlink($tempOutputFile);
-                }
-                error_log('PDF processing error: ' . $e->getMessage());
-                $msg = DEBUG ? $e->getMessage() : "Error processing PDF.";
-                echo json_encode(['status' => false, 'message' => $msg]);
+            
+            // Use Cloudmersive API to decrypt and convert the PDF to PNG
+            $apiKey = getenv('CLOUDMERSIVE_API_KEY');
+            if (!$apiKey) {
+                error_log("Cloudmersive API key not found in .env file.");
+                header('Content-Type: application/json');
+                echo json_encode(['status' => false, 'message' => 'Server configuration error: API key missing.']);
                 exit();
             }
-
+            $curl = curl_init();
+            curl_setopt_array($curl, [
+                CURLOPT_URL => "https://api.cloudmersive.com/convert/pdf/to/png",
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => [
+                    'inputFile'   => new CURLFile($fileTmpPath),
+                    'PDFPassword' => $pdfPassword
+                ],
+                CURLOPT_HTTPHEADER => [
+                    "Apikey: $apiKey"
+                ],
+            ]);
+            $cloudResponse = curl_exec($curl);
+            $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($curl);
+            curl_close($curl);
+            
+            if ($curlError) {
+                echo json_encode([
+                    'status'  => false,
+                    'message' => 'Error connecting to Cloudmersive API: ' . $curlError . '. Please decrypt your PDF locally and save as an image.'
+                ]);
+                exit();
+            }
+            
+            if ($httpCode !== 200) {
+                echo json_encode([
+                    'status'  => false,
+                    'message' => 'Cloudmersive API error (HTTP code ' . $httpCode . '). Please decrypt your PDF locally and save as an image.'
+                ]);
+                exit();
+            }
+            
+            // Save the image data returned from Cloudmersive to a temporary file
+            $tempImageFile = tempnam(sys_get_temp_dir(), 'img_') . ".png";
+            file_put_contents($tempImageFile, $cloudResponse);
+            
+            // Use QrReader to decode the QR code from the image
+            $qrReader = new \Zxing\QrReader($tempImageFile);
+            $virtualId = $qrReader->text();
+            
+            // Clean up temporary image file
+            if (file_exists($tempImageFile)) {
+                unlink($tempImageFile);
+            }
+            
+            if (DEBUG) {
+                error_log("Extracted Virtual ID from Cloudmersive image conversion: " . $virtualId);
+            }
+            
+            if (empty($virtualId)) {
+                echo json_encode(['status' => false, 'message' => 'QR code not detected or virtual ID is empty.']);
+                exit();
+            }
+            
             // Look up user by virtual ID (obtained from the QR code)
             $stmt = $conn->prepare('SELECT user_id, first_name, last_name, role, profile_image, face_image, virtual_id FROM users WHERE virtual_id = ?');
             $stmt->bind_param('s', $virtualId);
