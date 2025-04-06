@@ -68,14 +68,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Look up user by virtual ID using face_image as stored reference
             $stmt = $conn->prepare('SELECT user_id, first_name, last_name, role, profile_image, face_image, virtual_id FROM users WHERE virtual_id = ?');
             if (!$stmt) {
-                error_log("login.php backend: Database prepare error - " . $conn->error);
+                error_log("login.php backend: Prepare statement failed - " . $conn->error);
                 http_response_code(500);
                 echo json_encode(['status' => false, 'message' => 'Internal server error.']);
                 exit();
             }
             $stmt->bind_param('s', $virtualId);
             if (!$stmt->execute()) {
-                error_log("login.php backend: Database execute error - " . $stmt->error);
+                error_log("login.php backend: Execute statement failed - " . $stmt->error);
                 http_response_code(500);
                 echo json_encode(['status' => false, 'message' => 'Internal server error.']);
                 exit();
@@ -123,14 +123,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Updated query: include virtual_id in the SELECT
             $stmt = $conn->prepare('SELECT user_id, first_name, last_name, role, profile_image, face_image, virtual_id FROM users WHERE virtual_id = ?');
             if (!$stmt) {
-                error_log("login.php backend: Database prepare error - " . $conn->error);
+                error_log("login.php backend: Prepare statement failed - " . $conn->error);
                 http_response_code(500);
                 echo json_encode(['status' => false, 'message' => 'Internal server error.']);
                 exit();
             }
             $stmt->bind_param('s', $virtualId);
             if (!$stmt->execute()) {
-                error_log("login.php backend: Database execute error - " . $stmt->error);
+                error_log("login.php backend: Execute statement failed - " . $stmt->error);
                 http_response_code(500);
                 echo json_encode(['status' => false, 'message' => 'Internal server error.']);
                 exit();
