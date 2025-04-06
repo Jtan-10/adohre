@@ -1,4 +1,10 @@
 <?php
+ini_set('display_errors', 0);
+error_reporting(0);
+if (ob_get_length()) {
+    ob_clean();
+}
+
 header('Content-Type: application/json');
 
 $data = file_get_contents('php://input');
