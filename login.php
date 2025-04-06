@@ -1,5 +1,6 @@
 <?php
 session_start();
+error_log("login.php: Login page loaded"); // added error log
 // Removed CSRF token generation
 //$csrf_token = bin2hex(random_bytes(32));
 // Instead, unset any previously set token if desired
@@ -24,88 +25,88 @@ $scriptNonce = bin2hex(random_bytes(16));
     <script defer src="faceValidation.js"></script>
 
     <style>
-    /* Base layout: two panes side by side */
-    body {
-        display: flex;
-        min-height: 100vh;
-        margin: 0;
-        flex-direction: row;
-        /* default desktop layout */
-    }
-
-    /* Left pane with form */
-    .left-pane {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        /* center vertically */
-        align-items: center;
-        /* center horizontally */
-        background: #ffffff;
-        padding: 2rem;
-        text-align: center;
-    }
-
-    /* Optional: limit form width and center it (for desktop, login-card not styled) */
-    .left-pane form {
-        width: 100%;
-        max-width: 400px;
-        margin: 0 auto;
-    }
-
-    /* Right pane with background image */
-    .right-pane {
-        flex: 1;
-        background: url('assets/green_bg.png') no-repeat center center/cover;
-    }
-
-    .form-control {
-        border-radius: 0.5rem;
-    }
-
-    .btn-success {
-        width: 100%;
-        border-radius: 0.5rem;
-    }
-
-    #loadingScreen {
-        z-index: 1055;
-        display: none;
-    }
-
-    /* Mobile styles (max-width: 768px) */
-    @media only screen and (max-width: 768px) {
-
-        /* Use a green background for the entire body */
+        /* Base layout: two panes side by side */
         body {
-            flex-direction: column;
-            background: url('assets/green_bg.png') no-repeat center center/cover;
-            background-size: cover;
+            display: flex;
+            min-height: 100vh;
+            margin: 0;
+            flex-direction: row;
+            /* default desktop layout */
         }
 
-        /* Make the left pane transparent so the green background shows */
+        /* Left pane with form */
         .left-pane {
-            background: transparent;
-            padding: 1rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            /* center vertically */
+            align-items: center;
+            /* center horizontally */
+            background: #ffffff;
+            padding: 2rem;
+            text-align: center;
         }
 
-        /* Hide the right pane */
+        /* Optional: limit form width and center it (for desktop, login-card not styled) */
+        .left-pane form {
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        /* Right pane with background image */
         .right-pane {
+            flex: 1;
+            background: url('assets/green_bg.png') no-repeat center center/cover;
+        }
+
+        .form-control {
+            border-radius: 0.5rem;
+        }
+
+        .btn-success {
+            width: 100%;
+            border-radius: 0.5rem;
+        }
+
+        #loadingScreen {
+            z-index: 1055;
             display: none;
         }
 
-        /* Style the login card with a white background, padding, and a subtle shadow */
-        .login-card {
-            background: #ffffff;
-            padding: 2rem;
-            border-radius: 0.5rem;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 90%;
-            margin: 0 auto;
+        /* Mobile styles (max-width: 768px) */
+        @media only screen and (max-width: 768px) {
+
+            /* Use a green background for the entire body */
+            body {
+                flex-direction: column;
+                background: url('assets/green_bg.png') no-repeat center center/cover;
+                background-size: cover;
+            }
+
+            /* Make the left pane transparent so the green background shows */
+            .left-pane {
+                background: transparent;
+                padding: 1rem;
+            }
+
+            /* Hide the right pane */
+            .right-pane {
+                display: none;
+            }
+
+            /* Style the login card with a white background, padding, and a subtle shadow */
+            .login-card {
+                background: #ffffff;
+                padding: 2rem;
+                border-radius: 0.5rem;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                width: 100%;
+                max-width: 90%;
+                margin: 0 auto;
+            }
         }
-    }
     </style>
 </head>
 
@@ -286,375 +287,375 @@ $scriptNonce = bin2hex(random_bytes(16));
     </script>
 
     <script nonce="<?php echo $scriptNonce; ?>">
-    // The hideAllModals function is defined but not called by showModal, so other modals won't auto-close
-    function hideAllModals() {
-        document.querySelectorAll('.modal.show').forEach(modalEl => {
-            let modalInstance = bootstrap.Modal.getInstance(modalEl);
-            if (modalInstance) {
-                modalInstance.hide();
-            }
-        });
-    }
-
-    // Basic showModal function
-    function showModal(title, message, redirectUrl = null) {
-        const responseModalEl = document.getElementById('responseModal');
-        // Remove aria-hidden if present so that accessibility does not conflict with focus
-        responseModalEl.removeAttribute('aria-hidden');
-        document.getElementById('responseModalLabel').textContent = title;
-        document.getElementById('responseModalBody').textContent = message;
-        const modal = new bootstrap.Modal(responseModalEl);
-        modal.show();
-        if (redirectUrl) {
-            modal._element.addEventListener('hidden.bs.modal', () => {
-                window.location.href = redirectUrl;
+        // The hideAllModals function is defined but not called by showModal, so other modals won't auto-close
+        function hideAllModals() {
+            document.querySelectorAll('.modal.show').forEach(modalEl => {
+                let modalInstance = bootstrap.Modal.getInstance(modalEl);
+                if (modalInstance) {
+                    modalInstance.hide();
+                }
             });
         }
-    }
 
-    document.addEventListener('DOMContentLoaded', () => {
-        // -----------------------
-        // 1) Email OTP Login (Fallback)
-        // -----------------------
-        document.getElementById('loginBtn').addEventListener('click', async () => {
-            const email = document.getElementById('email').value;
-            if (!email) {
-                showModal('Error', 'Please enter your email.');
-                return;
-            }
-            showLoading();
-            try {
-                const response = await fetch('backend/routes/login.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        email
-                    })
+        // Basic showModal function
+        function showModal(title, message, redirectUrl = null) {
+            const responseModalEl = document.getElementById('responseModal');
+            // Remove aria-hidden if present so that accessibility does not conflict with focus
+            responseModalEl.removeAttribute('aria-hidden');
+            document.getElementById('responseModalLabel').textContent = title;
+            document.getElementById('responseModalBody').textContent = message;
+            const modal = new bootstrap.Modal(responseModalEl);
+            modal.show();
+            if (redirectUrl) {
+                modal._element.addEventListener('hidden.bs.modal', () => {
+                    window.location.href = redirectUrl;
                 });
-                let result; // Added response content check
-                const contentType = response.headers.get('content-type') || '';
-                if (contentType.includes('application/json')) {
-                    result = await response.json();
-                } else {
-                    const errorText = await response.text();
-                    hideLoading();
-                    showModal('Error', 'Unexpected response: ' + errorText);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // -----------------------
+            // 1) Email OTP Login (Fallback)
+            // -----------------------
+            document.getElementById('loginBtn').addEventListener('click', async () => {
+                const email = document.getElementById('email').value;
+                if (!email) {
+                    showModal('Error', 'Please enter your email.');
                     return;
                 }
-                hideLoading();
-                if (result.status) {
-                    showModal('Success', result.message, `otp.php?action=login&email=${email}`);
-                    const spamModal = new bootstrap.Modal(document.getElementById(
-                        'checkSpamModal'));
-                    spamModal.show();
-                } else {
-                    showModal('Error', result.message);
-                }
-            } catch (error) {
-                hideLoading();
-                console.error('Error:', error);
-                showModal('Error', 'An error occurred. Please try again.');
-            }
-        });
-
-        // Global variables to hold user data and reference descriptors
-        let globalUserData = null;
-        let globalVirtualId = null;
-        let referenceDescriptor = null;
-
-        // -----------------------
-        // 2) Virtual ID: Upload Image & Retrieve User Data
-        // -----------------------
-        document.getElementById('processQrBtn').addEventListener('click', async () => {
-            const fileInput = document.getElementById('virtualIdImage');
-            if (!fileInput.files.length) {
-                showModal('Error', 'Please upload an image.');
-                return;
-            }
-            // Create FormData with the uploaded file and set action to "fetch"
-            const formData = new FormData();
-            formData.append('virtualIdImage', fileInput.files[0]);
-            formData.append('action', 'fetch');
-            try {
                 showLoading();
-                const response = await fetch('backend/routes/login.php', {
-                    method: 'POST',
-                    body: formData
-                });
-                hideLoading();
-                if (!response.ok) {
-                    console.error('Server returned status:', response.status);
-                    showModal('Error', `Server error: ${response.status} ${response.statusText}`);
-                    return;
-                }
-                const text = await response.text();
-                if (!text.trim()) {
-                    showModal('Error', 'Empty response from server.');
-                    return;
-                }
-                const result = JSON.parse(text);
-                if (result.status) {
-                    globalUserData = result.user;
-                    globalVirtualId = result.user.virtual_id;
-                    // Check for incomplete profile
-                    if (!globalUserData.first_name || !globalUserData.last_name || !globalUserData
-                        .face_image) {
-                        showModal('Info',
-                            'Your profile is incomplete. Please update your details.');
-                        showUpdateDetailsModal();
+                try {
+                    const response = await fetch('backend/routes/login.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            email
+                        })
+                    });
+                    let result; // Added response content check
+                    const contentType = response.headers.get('content-type') || '';
+                    if (contentType.includes('application/json')) {
+                        result = await response.json();
                     } else {
-                        const vidModal = bootstrap.Modal.getInstance(document.getElementById(
-                            'virtualIdModal'));
-                        vidModal.hide();
-                        startWebcam();
-                        await faceValidation.loadModels('backend/models/weights');
-                        await loadReferenceDescriptor(globalUserData.face_image);
-                        showFaceValidationModal();
+                        const errorText = await response.text();
+                        hideLoading();
+                        showModal('Error', 'Unexpected response: ' + errorText);
+                        return;
                     }
-                } else {
-                    showModal('Error', result.message);
+                    hideLoading();
+                    if (result.status) {
+                        showModal('Success', result.message, `otp.php?action=login&email=${email}`);
+                        const spamModal = new bootstrap.Modal(document.getElementById(
+                            'checkSpamModal'));
+                        spamModal.show();
+                    } else {
+                        showModal('Error', result.message);
+                    }
+                } catch (error) {
+                    hideLoading();
+                    console.error('Error:', error);
+                    showModal('Error', 'An error occurred. Please try again.');
                 }
-            } catch (error) {
-                hideLoading();
-                console.error('Error fetching user data:', error);
-                showModal('Error', 'An error occurred fetching user data.');
-            }
-        });
-
-        // -----------------------
-        // 3) Face Validation Flow
-        // -----------------------
-        function showFaceValidationModal() {
-            const faceValModal = new bootstrap.Modal(document.getElementById('faceValidationModal'));
-            faceValModal.show();
-        }
-
-        async function startWebcam() {
-            const video = document.getElementById('videoInput');
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {}
-                });
-                video.srcObject = stream;
-            } catch (error) {
-                console.error('Error accessing webcam:', error);
-                showModal('Error', 'Could not access webcam. Please allow camera access.');
-            }
-        }
-
-        async function loadReferenceDescriptor(faceImageUrl) {
-            if (!faceImageUrl) {
-                console.warn("No stored face image URL for login.");
-                return;
-            }
-            const decryptUrl =
-                `backend/routes/decrypt_image.php?face_url=${encodeURIComponent(faceImageUrl)}`;
-            const img = new Image();
-            img.crossOrigin = "anonymous";
-            img.src = decryptUrl;
-            await new Promise((resolve, reject) => {
-                img.onload = resolve;
-                img.onerror = reject;
             });
-            document.getElementById('storedFacePreview').src = img.src;
-            try {
-                const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({
-                    inputSize: 416,
-                    scoreThreshold: 0.5
-                })).withFaceLandmarks().withFaceDescriptor();
-                if (!detection) {
-                    console.error('No face detected in the decrypted reference image.');
+
+            // Global variables to hold user data and reference descriptors
+            let globalUserData = null;
+            let globalVirtualId = null;
+            let referenceDescriptor = null;
+
+            // -----------------------
+            // 2) Virtual ID: Upload Image & Retrieve User Data
+            // -----------------------
+            document.getElementById('processQrBtn').addEventListener('click', async () => {
+                const fileInput = document.getElementById('virtualIdImage');
+                if (!fileInput.files.length) {
+                    showModal('Error', 'Please upload an image.');
                     return;
                 }
-                referenceDescriptor = detection.descriptor;
-                console.log("Reference descriptor loaded for login.");
-            } catch (error) {
-                console.error("Error in face detection on decrypted image:", error);
-            }
-        }
-
-        async function startFaceVideoForLogin() {
-            const video = document.getElementById('videoInput');
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {}
-                });
-                video.srcObject = stream;
-            } catch (error) {
-                console.error("Error accessing webcam for login face validation:", error);
-                showModal('Error', 'Could not access webcam for login face capture.');
-            }
-        }
-
-        async function startFaceVideoForUpdate() {
-            const video = document.getElementById('updateFaceVideo');
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {}
-                });
-                video.srcObject = stream;
-            } catch (error) {
-                console.error("Error accessing webcam for update face capture:", error);
-                showModal('Error', 'Could not access webcam for update face capture.');
-            }
-        }
-
-        function showUpdateDetailsModal() {
-            const updateModal = new bootstrap.Modal(document.getElementById('updateDetailsModal'));
-            updateModal.show();
-            startFaceVideoForUpdateModal();
-        }
-
-        async function startFaceVideoForUpdateModal() {
-            const video = document.getElementById('updateFaceVideoModal');
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {}
-                });
-                video.srcObject = stream;
-            } catch (error) {
-                console.error("Error accessing webcam for update face capture:", error);
-                showModal('Error', 'Could not access webcam for updating face capture.');
-            }
-        }
-
-        let updateCapturedFaceDataModal = "";
-        document.getElementById('updateCaptureFaceBtnModal').addEventListener('click', async () => {
-            await faceValidation.loadModels('backend/models/weights');
-            const video = document.getElementById('updateFaceVideoModal');
-            const canvas = document.getElementById('updateFaceCanvasModal');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const context = canvas.getContext('2d', {
-                willReadFrequently: true
-            });
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const detection = await faceapi.detectSingleFace(canvas, new faceapi
-                .TinyFaceDetectorOptions({
-                    inputSize: 416,
-                    scoreThreshold: 0.5
-                }));
-            if (!detection) {
-                showModal('Error', 'No face detected. Please recapture your face.');
-                return;
-            }
-            updateCapturedFaceDataModal = canvas.toDataURL('image/png');
-            const preview = document.getElementById('updateCapturedFacePreviewModal');
-            preview.src = updateCapturedFaceDataModal;
-            preview.style.display = 'block';
-        });
-
-        document.getElementById('updateDetailsBtnModal').addEventListener('click', async () => {
-            const first_name = document.getElementById('update_first_name_modal').value;
-            const last_name = document.getElementById('update_last_name_modal').value;
-            if (!first_name || !last_name) {
-                showModal('Error', 'Please enter your first and last name.');
-                return;
-            }
-            if (!updateCapturedFaceDataModal) {
-                showModal('Error', 'Please capture your face before submitting your details.');
-                return;
-            }
-            showLoading();
-            try {
-                const response = await fetch('backend/routes/update_user_details.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        email: globalUserData.email,
-                        first_name,
-                        last_name,
-                        faceData: updateCapturedFaceDataModal
-                    })
-                });
-                const result = await response.json();
-                hideLoading();
-                if (result.status) {
-                    // Hide the update details modal on successful update
-                    const updateModalEl = document.getElementById('updateDetailsModal');
-                    const updateModalInstance = bootstrap.Modal.getInstance(updateModalEl);
-                    if (updateModalInstance) {
-                        updateModalInstance.hide();
-                    }
-                    showModal('Success', result.message, 'login.php');
-                } else {
-                    showModal('Error', result.message);
-                }
-            } catch (error) {
-                hideLoading();
-                console.error('Error:', error);
-                showModal('Error', 'An error occurred. Please try again.');
-            }
-        });
-
-        document.getElementById('validateFaceBtn').addEventListener('click', async () => {
-            const video = document.getElementById('videoInput');
-            const canvas = document.getElementById('userFaceCanvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const detection = await faceapi.detectSingleFace(canvas, new faceapi
-                .TinyFaceDetectorOptions({
-                    inputSize: 416,
-                    scoreThreshold: 0.5
-                })).withFaceLandmarks().withFaceDescriptor();
-            const resultParagraph = document.getElementById('faceValidationResult');
-            if (!detection) {
-                resultParagraph.innerText = 'No face detected. Please try again.';
-                return;
-            }
-            if (!referenceDescriptor) {
-                resultParagraph.innerText = 'No reference face found. Please contact support.';
-                return;
-            }
-            const distance = faceapi.euclideanDistance(detection.descriptor, referenceDescriptor);
-            console.log('Distance:', distance);
-            const threshold = 0.6;
-            if (distance < threshold) {
-                resultParagraph.innerText = 'Face matched successfully!';
+                // Create FormData with the uploaded file and set action to "fetch"
+                const formData = new FormData();
+                formData.append('virtualIdImage', fileInput.files[0]);
+                formData.append('action', 'fetch');
                 try {
                     showLoading();
-                    const formData = new FormData();
-                    formData.append('virtual_id', globalVirtualId);
-                    formData.append('action', 'finalize');
                     const response = await fetch('backend/routes/login.php', {
                         method: 'POST',
                         body: formData
                     });
-                    const finalResult = await response.json();
                     hideLoading();
-                    if (finalResult.status) {
-                        showModal('Success', 'Login successful!', 'index.php');
+                    if (!response.ok) {
+                        console.error('Server returned status:', response.status);
+                        showModal('Error', `Server error: ${response.status} ${response.statusText}`);
+                        return;
+                    }
+                    const text = await response.text();
+                    if (!text.trim()) {
+                        showModal('Error', 'Empty response from server.');
+                        return;
+                    }
+                    const result = JSON.parse(text);
+                    if (result.status) {
+                        globalUserData = result.user;
+                        globalVirtualId = result.user.virtual_id;
+                        // Check for incomplete profile
+                        if (!globalUserData.first_name || !globalUserData.last_name || !globalUserData
+                            .face_image) {
+                            showModal('Info',
+                                'Your profile is incomplete. Please update your details.');
+                            showUpdateDetailsModal();
+                        } else {
+                            const vidModal = bootstrap.Modal.getInstance(document.getElementById(
+                                'virtualIdModal'));
+                            vidModal.hide();
+                            startWebcam();
+                            await faceValidation.loadModels('backend/models/weights');
+                            await loadReferenceDescriptor(globalUserData.face_image);
+                            showFaceValidationModal();
+                        }
                     } else {
-                        resultParagraph.innerText = 'Error finalizing login: ' + finalResult
-                            .message;
+                        showModal('Error', result.message);
                     }
                 } catch (error) {
                     hideLoading();
-                    resultParagraph.innerText = 'Error finalizing login: ' + error.message;
+                    console.error('Error fetching user data:', error);
+                    showModal('Error', 'An error occurred fetching user data.');
                 }
-            } else {
-                resultParagraph.innerText = 'Face did not match. Please try again.';
+            });
+
+            // -----------------------
+            // 3) Face Validation Flow
+            // -----------------------
+            function showFaceValidationModal() {
+                const faceValModal = new bootstrap.Modal(document.getElementById('faceValidationModal'));
+                faceValModal.show();
+            }
+
+            async function startWebcam() {
+                const video = document.getElementById('videoInput');
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: {}
+                    });
+                    video.srcObject = stream;
+                } catch (error) {
+                    console.error('Error accessing webcam:', error);
+                    showModal('Error', 'Could not access webcam. Please allow camera access.');
+                }
+            }
+
+            async function loadReferenceDescriptor(faceImageUrl) {
+                if (!faceImageUrl) {
+                    console.warn("No stored face image URL for login.");
+                    return;
+                }
+                const decryptUrl =
+                    `backend/routes/decrypt_image.php?face_url=${encodeURIComponent(faceImageUrl)}`;
+                const img = new Image();
+                img.crossOrigin = "anonymous";
+                img.src = decryptUrl;
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = reject;
+                });
+                document.getElementById('storedFacePreview').src = img.src;
+                try {
+                    const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({
+                        inputSize: 416,
+                        scoreThreshold: 0.5
+                    })).withFaceLandmarks().withFaceDescriptor();
+                    if (!detection) {
+                        console.error('No face detected in the decrypted reference image.');
+                        return;
+                    }
+                    referenceDescriptor = detection.descriptor;
+                    console.log("Reference descriptor loaded for login.");
+                } catch (error) {
+                    console.error("Error in face detection on decrypted image:", error);
+                }
+            }
+
+            async function startFaceVideoForLogin() {
+                const video = document.getElementById('videoInput');
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: {}
+                    });
+                    video.srcObject = stream;
+                } catch (error) {
+                    console.error("Error accessing webcam for login face validation:", error);
+                    showModal('Error', 'Could not access webcam for login face capture.');
+                }
+            }
+
+            async function startFaceVideoForUpdate() {
+                const video = document.getElementById('updateFaceVideo');
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: {}
+                    });
+                    video.srcObject = stream;
+                } catch (error) {
+                    console.error("Error accessing webcam for update face capture:", error);
+                    showModal('Error', 'Could not access webcam for update face capture.');
+                }
+            }
+
+            function showUpdateDetailsModal() {
+                const updateModal = new bootstrap.Modal(document.getElementById('updateDetailsModal'));
+                updateModal.show();
+                startFaceVideoForUpdateModal();
+            }
+
+            async function startFaceVideoForUpdateModal() {
+                const video = document.getElementById('updateFaceVideoModal');
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: {}
+                    });
+                    video.srcObject = stream;
+                } catch (error) {
+                    console.error("Error accessing webcam for update face capture:", error);
+                    showModal('Error', 'Could not access webcam for updating face capture.');
+                }
+            }
+
+            let updateCapturedFaceDataModal = "";
+            document.getElementById('updateCaptureFaceBtnModal').addEventListener('click', async () => {
+                await faceValidation.loadModels('backend/models/weights');
+                const video = document.getElementById('updateFaceVideoModal');
+                const canvas = document.getElementById('updateFaceCanvasModal');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const context = canvas.getContext('2d', {
+                    willReadFrequently: true
+                });
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const detection = await faceapi.detectSingleFace(canvas, new faceapi
+                    .TinyFaceDetectorOptions({
+                        inputSize: 416,
+                        scoreThreshold: 0.5
+                    }));
+                if (!detection) {
+                    showModal('Error', 'No face detected. Please recapture your face.');
+                    return;
+                }
+                updateCapturedFaceDataModal = canvas.toDataURL('image/png');
+                const preview = document.getElementById('updateCapturedFacePreviewModal');
+                preview.src = updateCapturedFaceDataModal;
+                preview.style.display = 'block';
+            });
+
+            document.getElementById('updateDetailsBtnModal').addEventListener('click', async () => {
+                const first_name = document.getElementById('update_first_name_modal').value;
+                const last_name = document.getElementById('update_last_name_modal').value;
+                if (!first_name || !last_name) {
+                    showModal('Error', 'Please enter your first and last name.');
+                    return;
+                }
+                if (!updateCapturedFaceDataModal) {
+                    showModal('Error', 'Please capture your face before submitting your details.');
+                    return;
+                }
+                showLoading();
+                try {
+                    const response = await fetch('backend/routes/update_user_details.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            email: globalUserData.email,
+                            first_name,
+                            last_name,
+                            faceData: updateCapturedFaceDataModal
+                        })
+                    });
+                    const result = await response.json();
+                    hideLoading();
+                    if (result.status) {
+                        // Hide the update details modal on successful update
+                        const updateModalEl = document.getElementById('updateDetailsModal');
+                        const updateModalInstance = bootstrap.Modal.getInstance(updateModalEl);
+                        if (updateModalInstance) {
+                            updateModalInstance.hide();
+                        }
+                        showModal('Success', result.message, 'login.php');
+                    } else {
+                        showModal('Error', result.message);
+                    }
+                } catch (error) {
+                    hideLoading();
+                    console.error('Error:', error);
+                    showModal('Error', 'An error occurred. Please try again.');
+                }
+            });
+
+            document.getElementById('validateFaceBtn').addEventListener('click', async () => {
+                const video = document.getElementById('videoInput');
+                const canvas = document.getElementById('userFaceCanvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const detection = await faceapi.detectSingleFace(canvas, new faceapi
+                    .TinyFaceDetectorOptions({
+                        inputSize: 416,
+                        scoreThreshold: 0.5
+                    })).withFaceLandmarks().withFaceDescriptor();
+                const resultParagraph = document.getElementById('faceValidationResult');
+                if (!detection) {
+                    resultParagraph.innerText = 'No face detected. Please try again.';
+                    return;
+                }
+                if (!referenceDescriptor) {
+                    resultParagraph.innerText = 'No reference face found. Please contact support.';
+                    return;
+                }
+                const distance = faceapi.euclideanDistance(detection.descriptor, referenceDescriptor);
+                console.log('Distance:', distance);
+                const threshold = 0.6;
+                if (distance < threshold) {
+                    resultParagraph.innerText = 'Face matched successfully!';
+                    try {
+                        showLoading();
+                        const formData = new FormData();
+                        formData.append('virtual_id', globalVirtualId);
+                        formData.append('action', 'finalize');
+                        const response = await fetch('backend/routes/login.php', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const finalResult = await response.json();
+                        hideLoading();
+                        if (finalResult.status) {
+                            showModal('Success', 'Login successful!', 'index.php');
+                        } else {
+                            resultParagraph.innerText = 'Error finalizing login: ' + finalResult
+                                .message;
+                        }
+                    } catch (error) {
+                        hideLoading();
+                        resultParagraph.innerText = 'Error finalizing login: ' + error.message;
+                    }
+                } else {
+                    resultParagraph.innerText = 'Face did not match. Please try again.';
+                }
+            });
+
+            function showLoading() {
+                const ls = document.getElementById('loadingScreen');
+                ls.classList.remove('d-none');
+                ls.style.display = 'flex';
+            }
+
+            function hideLoading() {
+                const ls = document.getElementById('loadingScreen');
+                ls.classList.add('d-none');
+                ls.style.display = 'none';
             }
         });
-
-        function showLoading() {
-            const ls = document.getElementById('loadingScreen');
-            ls.classList.remove('d-none');
-            ls.style.display = 'flex';
-        }
-
-        function hideLoading() {
-            const ls = document.getElementById('loadingScreen');
-            ls.classList.add('d-none');
-            ls.style.display = 'none';
-        }
-    });
     </script>
 </body>
 

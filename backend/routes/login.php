@@ -41,11 +41,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Ensure file is uploaded
             $fileTmpPath = $_FILES['virtualIdImage']['tmp_name'];
             if (!$fileTmpPath || !file_exists($fileTmpPath)) {
+                error_log("login.php backend: File upload failed for virtualIdImage");
                 echo json_encode(['status' => false, 'message' => 'File upload failed.']);
                 exit();
             }
             // Validate that the uploaded file is an image
             if (!getimagesize($fileTmpPath)) {
+                error_log("login.php backend: Uploaded file is not a valid image");
                 echo json_encode(['status' => false, 'message' => 'Uploaded file is not a valid image.']);
                 exit();
             }
@@ -54,11 +56,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $qrReader = new QrReader($fileTmpPath);
                 $virtualId = $qrReader->text();
             } catch (Exception $e) {
-                error_log('QR code read error: ' . $e->getMessage());
+                error_log("login.php backend: QR code read error - " . $e->getMessage());
                 echo json_encode(['status' => false, 'message' => 'Error reading QR code.']);
                 exit();
             }
             if (empty($virtualId)) {
+                error_log("login.php backend: QR code is empty or unreadable");
                 echo json_encode(['status' => false, 'message' => 'Invalid or unreadable QR code.']);
                 exit();
             }
@@ -86,6 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     echo json_encode(['status' => true, 'message' => 'Login successful.', 'user' => $user]);
                 }
             } else {
+                error_log("login.php backend: No user found matching Virtual ID: " . $virtualId);
                 http_response_code(404);
                 echo json_encode(['status' => false, 'message' => 'Invalid Virtual ID.']);
             }
@@ -121,6 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     echo json_encode(['status' => true, 'message' => 'User data retrieved.', 'user' => $user]);
                 }
             } else {
+                error_log("login.php backend: No user found matching Virtual ID: " . $virtualId);
                 http_response_code(404);
                 echo json_encode(['status' => false, 'message' => 'Invalid Virtual ID.']);
             }
@@ -132,6 +137,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // -------------------------
         $email = $data['email'] ?? null;
         if (!$email || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            error_log("login.php backend: Invalid or missing email address");
             http_response_code(400);
             echo json_encode(['status' => false, 'message' => 'Invalid or missing email address.']);
             exit();
@@ -140,10 +146,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (generateOTP($email)) {
                 echo json_encode(['status' => true, 'message' => 'OTP sent to your email.']);
             } else {
+                error_log("login.php backend: Failed to send OTP to email: " . $email);
                 http_response_code(500);
                 echo json_encode(['status' => false, 'message' => 'Failed to send OTP.']);
             }
         } else {
+            error_log("login.php backend: Email not registered: " . $email);
             http_response_code(404);
             echo json_encode(['status' => false, 'message' => 'Email not registered.']);
         }
