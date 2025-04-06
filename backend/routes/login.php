@@ -78,14 +78,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     session_regenerate_id(true);
                     $_SESSION['temp_user'] = $user;
                     echo json_encode(['status' => true, 'message' => 'User data retrieved.', 'user' => $user]);
-                } else { // Finalize login
+                } else { // Finalize login (file upload branch)
                     session_regenerate_id(true);
                     $_SESSION['user_id'] = $user['user_id'];
                     $_SESSION['first_name'] = $user['first_name'];
                     $_SESSION['last_name'] = $user['last_name'];
                     $_SESSION['role'] = $user['role'];
                     $_SESSION['profile_image'] = !empty($user['profile_image']) ? $user['profile_image'] : './assets/default-profile.jpeg';
-                    recordAuditLog($user['user_id'], 'Login via Virtual ID', 'User logged in using Virtual ID (via QR code upload)');
+                    error_log("login.php backend: Finalizing login for user id " . $user['user_id'] . " (QR code upload)");
+                    if (!recordAuditLog($user['user_id'], 'Login via Virtual ID', 'User logged in using Virtual ID (via QR code upload)')) {
+                        error_log("login.php backend: recordAuditLog failed for user id " . $user['user_id']);
+                    }
                     echo json_encode(['status' => true, 'message' => 'Login successful.', 'user' => $user]);
                 }
             } else {
@@ -116,7 +119,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['last_name'] = $user['last_name'];
                     $_SESSION['role'] = $user['role'];
                     $_SESSION['profile_image'] = !empty($user['profile_image']) ? $user['profile_image'] : './assets/default-profile.jpeg';
-                    recordAuditLog($user['user_id'], 'Login via Virtual ID', 'User logged in using Virtual ID (via direct parameter)');
+                    error_log("login.php backend: Finalizing login for user id " . $user['user_id'] . " (Direct parameter)");
+                    if (!recordAuditLog($user['user_id'], 'Login via Virtual ID', 'User logged in using Virtual ID (via direct parameter)')) {
+                        error_log("login.php backend: recordAuditLog failed for user id " . $user['user_id']);
+                    }
                     echo json_encode(['status' => true, 'message' => 'Login successful.', 'user' => $user]);
                 } else {
                     // For non-finalize action, store as temporary user.
