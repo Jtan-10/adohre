@@ -100,4 +100,3 @@ $isLoggedIn = isset($_SESSION['user_id']);
 </nav>
 
 <!-- Include external sidebar script with nonce -->
-<script src="/capstone-php/js/sidebar.js" nonce="<?= $cspNonce ?>"></script>
