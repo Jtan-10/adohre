@@ -75,11 +75,8 @@ try {
                 echo json_encode(['status' => false, 'message' => 'File upload failed.']);
                 exit();
             }
-            // Validate that the uploaded file is a PDF using finfo
-            $finfo = finfo_open(FILEINFO_MIME_TYPE);
-            $mimeType = finfo_file($finfo, $fileTmpPath);
-            finfo_close($finfo);
-            if ($mimeType !== 'application/pdf') {
+            // Validate that the uploaded file is a PDF
+            if ($_FILES['virtualIdPdf']['type'] !== 'application/pdf') {
                 echo json_encode(['status' => false, 'message' => 'Uploaded file must be a PDF.']);
                 exit();
             }
@@ -89,7 +86,7 @@ try {
                 echo json_encode(['status' => false, 'message' => 'PDF password is required.']);
                 exit();
             }
-
+            
             // Use Cloudmersive API to decrypt and convert the PDF to PNG
             $apiKey = getenv('CLOUDMERSIVE_API_KEY');
             if (!$apiKey) {
@@ -115,7 +112,7 @@ try {
             $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
             $curlError = curl_error($curl);
             curl_close($curl);
-
+            
             if ($curlError) {
                 echo json_encode([
                     'status'  => false,
@@ -123,7 +120,7 @@ try {
                 ]);
                 exit();
             }
-
+            
             if ($httpCode !== 200) {
                 echo json_encode([
                     'status'  => false,
@@ -131,29 +128,29 @@ try {
                 ]);
                 exit();
             }
-
+            
             // Save the image data returned from Cloudmersive to a temporary file
             $tempImageFile = tempnam(sys_get_temp_dir(), 'img_') . ".png";
             file_put_contents($tempImageFile, $cloudResponse);
-
+            
             // Use QrReader to decode the QR code from the image
             $qrReader = new \Zxing\QrReader($tempImageFile);
             $virtualId = $qrReader->text();
-
+            
             // Clean up temporary image file
             if (file_exists($tempImageFile)) {
                 unlink($tempImageFile);
             }
-
+            
             if (DEBUG) {
                 error_log("Extracted Virtual ID from Cloudmersive image conversion: " . $virtualId);
             }
-
+            
             if (empty($virtualId)) {
                 echo json_encode(['status' => false, 'message' => 'QR code not detected or virtual ID is empty.']);
                 exit();
             }
-
+            
             // Look up user by virtual ID (obtained from the QR code)
             $stmt = $conn->prepare('SELECT user_id, first_name, last_name, role, profile_image, face_image, virtual_id FROM users WHERE virtual_id = ?');
             $stmt->bind_param('s', $virtualId);
@@ -192,11 +189,9 @@ try {
                 exit();
             }
 
-            // Use finfo to verify the image MIME type
-            $finfo = finfo_open(FILEINFO_MIME_TYPE);
-            $mimeType = finfo_file($finfo, $fileTmpPath);
-            finfo_close($finfo);
-            if (strpos($mimeType, 'image/') !== 0) {
+            // Check if the file is actually an image
+            $imgInfo = @getimagesize($fileTmpPath);
+            if ($imgInfo === false) {
                 echo json_encode(['status' => false, 'message' => 'Uploaded file is not a valid image.']);
                 exit();
             }
