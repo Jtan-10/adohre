@@ -86,8 +86,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['role'] = $user['role'];
                     $_SESSION['profile_image'] = !empty($user['profile_image']) ? $user['profile_image'] : './assets/default-profile.jpeg';
                     error_log("login.php backend: Finalizing login for user id " . $user['user_id'] . " (QR code upload)");
-                    if (!recordAuditLog($user['user_id'], 'Login via Virtual ID', 'User logged in using Virtual ID (via QR code upload)')) {
-                        error_log("login.php backend: recordAuditLog failed for user id " . $user['user_id']);
+                    if (function_exists('recordAuditLog')) {
+                        if (!recordAuditLog($user['user_id'], 'Login via Virtual ID', 'User logged in using Virtual ID (via QR code upload)')) {
+                            error_log("login.php backend: recordAuditLog failed for user id " . $user['user_id']);
+                        }
+                    } else {
+                        error_log("login.php backend: recordAuditLog function is not defined.");
                     }
                     echo json_encode(['status' => true, 'message' => 'Login successful.', 'user' => $user]);
                 }
@@ -120,8 +124,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['role'] = $user['role'];
                     $_SESSION['profile_image'] = !empty($user['profile_image']) ? $user['profile_image'] : './assets/default-profile.jpeg';
                     error_log("login.php backend: Finalizing login for user id " . $user['user_id'] . " (Direct parameter)");
-                    if (!recordAuditLog($user['user_id'], 'Login via Virtual ID', 'User logged in using Virtual ID (via direct parameter)')) {
-                        error_log("login.php backend: recordAuditLog failed for user id " . $user['user_id']);
+                    if (function_exists('recordAuditLog')) {
+                        if (!recordAuditLog($user['user_id'], 'Login via Virtual ID', 'User logged in using Virtual ID (via direct parameter)')) {
+                            error_log("login.php backend: recordAuditLog failed for user id " . $user['user_id']);
+                        }
+                    } else {
+                        error_log("login.php backend: recordAuditLog function is not defined.");
                     }
                     echo json_encode(['status' => true, 'message' => 'Login successful.', 'user' => $user]);
                 } else {
