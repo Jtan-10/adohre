@@ -180,18 +180,21 @@ if ($result) {
             e.preventDefault();
 
             try {
-                // 1) Request the backup file as a Blob
+                // 1) Request the backup file as a Blob with credentials included.
                 const backupResponse = await fetch(
                     '../backend/routes/settings_api.php?action=backup_database', {
-                        method: 'POST'
+                        method: 'POST',
+                        credentials: 'include'
                     }
                 );
+                console.log('Backup response status:', backupResponse.status);
                 if (!backupResponse.ok) {
                     throw new Error('Backup request failed with status ' + backupResponse.status);
                 }
 
                 // 2) Convert the response to a Blob (the .sql.enc file)
                 const backupBlob = await backupResponse.blob();
+                console.log('Received backup blob, size:', backupBlob.size);
 
                 // 3) Create a temporary link to trigger the file download
                 const downloadUrl = window.URL.createObjectURL(backupBlob);
@@ -204,11 +207,20 @@ if ($result) {
                 document.body.removeChild(link);
                 window.URL.revokeObjectURL(downloadUrl);
 
-                // 4) Now fetch the backup password
+                // 4) Now fetch the backup password with credentials included.
                 const passwordResponse = await fetch(
-                    '../backend/routes/settings_api.php?action=get_backup_password'
+                    '../backend/routes/settings_api.php?action=get_backup_password', {
+                        credentials: 'include'
+                    }
                 );
+                console.log('Password response status:', passwordResponse.status);
+                if (!passwordResponse.ok) {
+                    throw new Error('Password request failed with status ' + passwordResponse
+                        .status);
+                }
                 const passwordData = await passwordResponse.json();
+                console.log('Password data:', passwordData);
+
                 if (passwordData.status && passwordData.encryption_password) {
                     // Create the modal markup
                     const modalHtml = `
@@ -231,15 +243,15 @@ if ($result) {
                             </div>
                         </div>
                     `;
-                    // Remove existing modal if any
+                    // Remove existing modal if any.
                     document.getElementById('backupPasswordModal')?.remove();
 
-                    // Insert the new modal
+                    // Insert the new modal.
                     const modalContainer = document.createElement('div');
                     modalContainer.innerHTML = modalHtml;
                     document.body.appendChild(modalContainer.firstChild);
 
-                    // Initialize & show the modal
+                    // Initialize & show the modal.
                     const backupPasswordModalEl = document.getElementById('backupPasswordModal');
                     const backupPasswordModal = new bootstrap.Modal(backupPasswordModalEl, {
                         backdrop: true,
@@ -247,7 +259,7 @@ if ($result) {
                     });
                     backupPasswordModal.show();
 
-                    // Copy-to-clipboard
+                    // Copy-to-clipboard functionality.
                     document.getElementById('copyPasswordBtn').addEventListener('click', () => {
                         const passwordText = document.getElementById('backupPasswordText')
                             .textContent;
@@ -264,7 +276,8 @@ if ($result) {
 
             } catch (error) {
                 console.error("Backup error:", error);
-                showApiMessage('An error occurred during database backup', 'danger');
+                showApiMessage('An error occurred during database backup: ' + error.message,
+                    'danger');
             }
         });
 
@@ -275,7 +288,8 @@ if ($result) {
             const formData = new FormData(form);
             fetch('../backend/routes/settings_api.php?action=restore_database', {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    credentials: 'include'
                 })
                 .then(response => response.json())
                 .then(data => {
