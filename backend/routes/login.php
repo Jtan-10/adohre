@@ -1,7 +1,16 @@
 <?php
+// Enable debugging for development (set to false in production)
+define('DEBUG', true);
+
+if (DEBUG) {
+    ini_set('display_errors', 1);
+    error_reporting(E_ALL);
+} else {
+    ini_set('display_errors', 0);
+    error_reporting(0);
+}
+
 ob_start();
-ini_set('display_errors', 0);
-error_reporting(0);
 if (ob_get_length()) {
     ob_end_clean(); // Fully clear and close the output buffer
 }
@@ -60,6 +69,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $fileHeader = file_get_contents($fileTmpPath, false, null, 0, 1024);
             $isEncrypted = (strpos($fileHeader, '/Encrypt') !== false);
 
+            if (DEBUG) {
+                error_log("File header: " . substr($fileHeader, 0, 200));
+                error_log("Is Encrypted: " . ($isEncrypted ? 'Yes' : 'No'));
+            }
+
             // If the file does not appear encrypted, try loading it directly.
             if (!$isEncrypted) {
                 try {
@@ -69,6 +83,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } catch (Exception $e) {
                     // If FPDI fails, assume encryption and force fallback.
                     $isEncrypted = true;
+                    if (DEBUG) {
+                        error_log("FPDI load failed, forcing decryption fallback: " . $e->getMessage());
+                    }
                 }
             }
 
@@ -83,6 +100,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         escapeshellarg($tempOutputFile)
                     );
                     exec($cmd, $output, $returnCode);
+                    if (DEBUG) {
+                        error_log("pdftk command: $cmd");
+                        error_log("pdftk return code: $returnCode");
+                        error_log("pdftk output: " . implode(", ", $output));
+                    }
                     if ($returnCode === 0 && file_exists($tempOutputFile) && filesize($tempOutputFile) > 0) {
                         try {
                             $pageCount = $pdf->setSourceFile($tempOutputFile);
@@ -99,6 +121,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             escapeshellarg($tempOutputFile)
                         );
                         exec($cmd, $output, $returnCode);
+                        if (DEBUG) {
+                            error_log("qpdf command: $cmd");
+                            error_log("qpdf return code: $returnCode");
+                            error_log("qpdf output: " . implode(", ", $output));
+                        }
                         if ($returnCode === 0 && file_exists($tempOutputFile) && filesize($tempOutputFile) > 0) {
                             try {
                                 $pageCount = $pdf->setSourceFile($tempOutputFile);
@@ -120,12 +147,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 unlink($tempOutputFile);
             }
         } catch (Exception $e) {
-            // Clean up temporary file if it exists
             if (isset($tempOutputFile) && file_exists($tempOutputFile)) {
                 unlink($tempOutputFile);
             }
             error_log('PDF processing error: ' . $e->getMessage());
-            echo json_encode(['status' => false, 'message' => 'Error processing PDF: ' . $e->getMessage()]);
+            // Optionally, include detailed error info if DEBUG is enabled.
+            $msg = DEBUG ? $e->getMessage() : "Error processing PDF.";
+            echo json_encode(['status' => false, 'message' => $msg]);
             exit();
         }
 

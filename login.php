@@ -273,9 +273,13 @@ $scriptNonce = bin2hex(random_bytes(16));
     </script>
 
     <script nonce="<?php echo $scriptNonce; ?>">
-    // Added logError function for error logging
+    // Debug flag for JS (set to true for extra logging during development)
+    const DEBUG = true;
+
+    // logError function for error logging (sends error details to a backend log and prints to console)
     function logError(error) {
         console.error("Logged error:", error);
+        // Optional: send error details to a backend logging script
         fetch('backend/routes/log_error.php', {
             method: 'POST',
             headers: {
@@ -288,7 +292,7 @@ $scriptNonce = bin2hex(random_bytes(16));
         }).catch(() => {});
     }
 
-    // The hideAllModals function is defined but not called by showModal, so other modals won't auto-close
+    // The hideAllModals function (if you need to hide any open modals)
     function hideAllModals() {
         document.querySelectorAll('.modal.show').forEach(modalEl => {
             let modalInstance = bootstrap.Modal.getInstance(modalEl);
@@ -298,7 +302,7 @@ $scriptNonce = bin2hex(random_bytes(16));
         });
     }
 
-    // Basic showModal function
+    // Basic showModal function to show messages
     function showModal(title, message, redirectUrl = null) {
         const responseModalEl = document.getElementById('responseModal');
         responseModalEl.removeAttribute('aria-hidden');
@@ -348,7 +352,7 @@ $scriptNonce = bin2hex(random_bytes(16));
                 if (result.status) {
                     showModal('Success', result.message, `otp.php?action=login&email=${email}`);
                     const spamModal = new bootstrap.Modal(document.getElementById(
-                        'checkSpamModal'));
+                    'checkSpamModal'));
                     spamModal.show();
                 } else {
                     showModal('Error', result.message);
@@ -369,11 +373,11 @@ $scriptNonce = bin2hex(random_bytes(16));
         // -----------------------
         // 2) Virtual ID Flow: Upload File and Retrieve User Data
         // -----------------------
-        // Show PDF password field if file is PDF
         document.getElementById('virtualIdImage').addEventListener('change', () => {
             const fileInput = document.getElementById('virtualIdImage');
             if (fileInput.files.length) {
                 const file = fileInput.files[0];
+                console.log("File selected:", file.name, file.type);
                 const pdfPasswordField = document.getElementById('pdfPasswordField');
                 if (file.type === 'application/pdf') {
                     pdfPasswordField.classList.remove('d-none');
@@ -382,7 +386,7 @@ $scriptNonce = bin2hex(random_bytes(16));
                 }
             }
         });
-        // Process Virtual ID file upload
+
         document.getElementById('processQrBtn').addEventListener('click', async () => {
             const fileInput = document.getElementById('virtualIdImage');
             if (!fileInput.files.length) {
@@ -429,7 +433,7 @@ $scriptNonce = bin2hex(random_bytes(16));
                     if (!globalUserData.first_name || !globalUserData.last_name || !globalUserData
                         .face_image) {
                         showModal('Info',
-                            'Your profile is incomplete. Please update your details.');
+                        'Your profile is incomplete. Please update your details.');
                         showUpdateDetailsModal();
                     } else {
                         const vidModal = bootstrap.Modal.getInstance(document.getElementById(
@@ -542,7 +546,7 @@ $scriptNonce = bin2hex(random_bytes(16));
                         showModal('Success', 'Login successful!', 'index.php');
                     } else {
                         resultParagraph.innerText = 'Error finalizing login: ' + finalResult
-                            .message;
+                        .message;
                     }
                 } catch (error) {
                     hideLoading();
@@ -553,7 +557,7 @@ $scriptNonce = bin2hex(random_bytes(16));
                 resultParagraph.innerText = 'Face did not match. Please try again.';
             }
         });
-        // Stop the webcam when the Face Validation modal is closed.
+        // Stop webcam when the Face Validation modal is closed.
         const faceValidationModalEl = document.getElementById('faceValidationModal');
         if (faceValidationModalEl) {
             faceValidationModalEl.addEventListener('hidden.bs.modal', () => {
@@ -564,6 +568,7 @@ $scriptNonce = bin2hex(random_bytes(16));
                 }
             });
         }
+
         // -----------------------
         // 4) Update Details Flow (For incomplete profiles)
         // -----------------------
