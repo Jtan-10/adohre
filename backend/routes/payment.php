@@ -461,9 +461,36 @@ if ($method === 'GET') {
     }
     $stmt->bind_param("si", $newStatus, $payment_id);
     if ($stmt->execute()) {
+        // Audit log the payment status update.
         recordAuditLog($_SESSION['user_id'], 'Update Payment Status', "Payment ID $payment_id updated to status: $newStatus");
 
+        // If the new status is "Completed", update membership and register for event/training.
         if (strtolower($newStatus) === 'completed') {
+            // Retrieve full payment record
+            $stmtPayment = $conn->prepare("SELECT user_id, payment_type, event_id, training_id FROM payments WHERE payment_id = ?");
+            $stmtPayment->bind_param("i", $payment_id);
+            $stmtPayment->execute();
+            $resultPayment = $stmtPayment->get_result();
+            if ($resultPayment->num_rows === 1) {
+                $paymentRecord = $resultPayment->fetch_assoc();
+                // For event registration, insert into event_registrations table if not exists.
+                if ($paymentRecord['payment_type'] === 'Event Registration' && !empty($paymentRecord['event_id'])) {
+                    $stmtReg = $conn->prepare("INSERT IGNORE INTO event_registrations (user_id, event_id) VALUES (?, ?)");
+                    $stmtReg->bind_param("ii", $paymentRecord['user_id'], $paymentRecord['event_id']);
+                    $stmtReg->execute();
+                    $stmtReg->close();
+                }
+                // For training registration, insert into training_registrations table if not exists.
+                elseif ($paymentRecord['payment_type'] === 'Training Registration' && !empty($paymentRecord['training_id'])) {
+                    $stmtReg = $conn->prepare("INSERT IGNORE INTO training_registrations (user_id, training_id) VALUES (?, ?)");
+                    $stmtReg->bind_param("ii", $paymentRecord['user_id'], $paymentRecord['training_id']);
+                    $stmtReg->execute();
+                    $stmtReg->close();
+                }
+            }
+            $stmtPayment->close();
+
+            // (Optional) Update membership_status if needed
             $stmtUser = $conn->prepare("SELECT user_id FROM payments WHERE payment_id = ?");
             $stmtUser->bind_param("i", $payment_id);
             $stmtUser->execute();
