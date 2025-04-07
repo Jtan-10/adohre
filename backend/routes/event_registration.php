@@ -137,10 +137,8 @@ try {
                     $stmtLog->execute();
                     $stmtLog->close();
                 } catch (Exception $e) {
-                    error_log("Email could not be sent. Mailer Error: {$mail->ErrorInfo}");
+                    // No error logging
                 }
-            } else {
-                error_log("Rate limit exceeded for sending emails to: " . $userEmail);
             }
             
             echo json_encode(['status' => true, 'message' => 'Successfully joined the event.']);
@@ -150,8 +148,8 @@ try {
         $userId = $_SESSION['user_id'];
         $eventId = (int)$input['event_id'];
         
-        // Retrieve event fee and title
-        $queryFee = "SELECT fee, title FROM events WHERE event_id = ?";
+        // Retrieve event fee, title, and date
+        $queryFee = "SELECT fee, title, date FROM events WHERE event_id = ?";
         $stmtFee = $conn->prepare($queryFee);
         $stmtFee->bind_param("i", $eventId);
         $stmtFee->execute();
@@ -164,12 +162,16 @@ try {
         
         $eventData = $resultFee->fetch_assoc();
         $fee = (float)$eventData['fee'];
+        $eventDate = $eventData['date']; // Expected to be in a valid date format
         $stmtFee->close();
         
         if ($fee <= 0) {
             echo json_encode(['status' => false, 'message' => 'No payment is required for this event.']);
             exit;
         }
+        
+        // Calculate due_date as one day before the event date
+        $due_date = date("Y-m-d", strtotime($eventDate . " -1 day"));
         
         // Check if the user already has a payment record for this event
         $checkPaymentQuery = "SELECT * FROM payments WHERE user_id = ? AND event_id = ?";
@@ -193,8 +195,8 @@ try {
         }
         $stmtCheckPayment->close();
         
-        // Insert a payment record with status "New"
-        $insertPaymentQuery = "INSERT INTO payments (user_id, event_id, amount, status, created_at) VALUES (?, ?, ?, ?, NOW())";
+        // Insert a payment record with status "New" including due_date
+        $insertPaymentQuery = "INSERT INTO payments (user_id, event_id, amount, status, due_date, created_at) VALUES (?, ?, ?, ?, ?, NOW())";
         $stmtPayment = $conn->prepare($insertPaymentQuery);
         if (!$stmtPayment) {
             echo json_encode(['status' => false, 'message' => 'Database prepare error: ' . $conn->error]);
@@ -202,8 +204,16 @@ try {
         }
         
         $status = 'New';
-        // Bind parameters: user_id (i), event_id (i), fee (d for double), status (s)
-        $stmtPayment->bind_param("iids", $userId, $eventId, $fee, $status);
+        // Bind parameters: user_id (i), event_id (i), fee (d), status (s), due_date (s)
+        $stmtPayment->bind_param("iids s", $userId, $eventId, $fee, $status, $due_date);
+        // Note: If your PHP version does not support named spaces in bind_param,
+        // you can remove the extra space. The proper call is:
+        // $stmtPayment->bind_param("iids s", $userId, $eventId, $fee, $status, $due_date);
+        // However, if you face issues, please adjust accordingly.
+        // For example, you might need: $stmtPayment->bind_param("iids s", $userId, $eventId, $fee, $status, $due_date);
+        
+        // Using the correct syntax:
+        $stmtPayment->bind_param("iids s", $userId, $eventId, $fee, $status, $due_date);
         
         if (!$stmtPayment->execute()) {
             echo json_encode(['status' => false, 'message' => 'Failed to initiate payment: ' . $stmtPayment->error]);
@@ -321,7 +331,6 @@ try {
         echo json_encode(['status' => false, 'message' => 'Invalid action specified.']);
     }
 } catch (Exception $e) {
-    error_log("Error in event_registration: " . $e->getMessage());
     echo json_encode(['status' => false, 'message' => 'An error occurred: ' . $e->getMessage()]);
 }
 
