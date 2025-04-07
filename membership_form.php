@@ -373,54 +373,35 @@ if (isset($_SESSION['user_id'])) {
         });
 
         // Intercept form submission to ensure face validation is done
-        membershipForm.addEventListener('submit', function(e) {
+        document.querySelector('#membership-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
             // Check if signature is provided
             if (signaturePad.isEmpty()) {
                 alert("Please provide your signature.");
-                e.preventDefault();
                 return;
             }
-            // If face validation hasn't yet been completed, prevent final submission and show face validation modal
+            // If face validation hasn't been completed, show the modal and do not proceed
             if (!faceValidated) {
-                e.preventDefault();
                 const faceValidationModal = new bootstrap.Modal(document.getElementById('faceValidationModal'));
                 faceValidationModal.show();
                 return;
             }
-            // Otherwise, the form will submit as usual.
-        });
-    </script>
-    <script nonce="<?php echo $csp_nonce; ?>">
-        // Form submission for membership application
-        document.querySelector('#membership-form').addEventListener('submit', async function(e) {
-            e.preventDefault();
             const submitButton = document.querySelector('#submit-btn');
             submitButton.disabled = true;
             submitButton.textContent = 'Submitting...';
 
-            // Save signature if not empty
-            if (!signaturePad.isEmpty()) {
-                const signatureData = signaturePad.toDataURL();
-                document.getElementById('signature').value = signatureData;
-                signaturePad.clear();
-            } else {
-                alert("Please provide your signature.");
-                e.preventDefault();
-                submitButton.disabled = false;
-                submitButton.textContent = 'Submit Application';
-                return;
-            }
+            // Save signature data
+            const signatureData = signaturePad.toDataURL();
+            document.getElementById('signature').value = signatureData;
+            signaturePad.clear();
 
             const formData = new FormData(this);
-
             try {
                 const response = await fetch(this.action, {
                     method: 'POST',
                     body: formData
                 });
-
                 const result = await response.json();
-
                 if (result.status) {
                     alert(result.message);
                     this.reset();
