@@ -78,26 +78,34 @@ try {
         // Get the current user ID
         $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 0;
 
-        // Updated query to add a "joined" flag.
-        // If a matching registration is found for the current user, joined will be 1; otherwise, 0.
+        // Updated query to add a "joined" flag and a "pending_payment" flag.
+        // The pending_payment flag is 1 if a payment record for this event exists for the user with status 'New'
+        // and payment_type 'Event Registration'; otherwise, it is 0.
         $eventsQuery = "
             SELECT e.*,
-                   IF(er.registration_id IS NOT NULL, 1, 0) AS joined
+                   IF(er.registration_id IS NOT NULL, 1, 0) AS joined,
+                   IF(p.payment_id IS NOT NULL, 1, 0) AS pending_payment
             FROM events e
             LEFT JOIN event_registrations er 
                  ON e.event_id = er.event_id AND er.user_id = ?
+            LEFT JOIN payments p
+                 ON e.event_id = p.event_id 
+                 AND p.user_id = ? 
+                 AND p.status = 'New'
+                 AND p.payment_type = 'Event Registration'
             ORDER BY e.date DESC
         ";
 
-        // Use a prepared statement to bind the user id
+        // Use a prepared statement to bind the user id twice.
         $stmt = $conn->prepare($eventsQuery);
-        $stmt->bind_param("i", $user_id);
+        $stmt->bind_param("ii", $user_id, $user_id);
         $stmt->execute();
         $eventsResult = $stmt->get_result();
         $events = [];
         while ($row = $eventsResult->fetch_assoc()) {
-            // Convert the joined flag to boolean for easier use on the front end
+            // Convert the joined and pending_payment flags to boolean for easier use on the front end
             $row['joined'] = (bool)$row['joined'];
+            $row['pending_payment'] = (bool)$row['pending_payment'];
             // Set a default image if none provided (update path as needed)
             $row['image'] = $row['image'] ?: '../assets/default-image.jpg';
             $events[] = $row;
@@ -556,3 +564,4 @@ try {
         'message' => 'Internal Server Error.'
     ]);
 }
+?>

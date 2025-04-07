@@ -377,22 +377,43 @@ error_reporting(0);
                 });
                 let joinBtn;
                 if (event.joined) {
-                    joinBtn = `<button class="btn btn-secondary btn-sm join-event-btn" 
-              data-event-id="${event.event_id}" disabled>
-              Joined <i class="fas fa-check ms-2"></i>
-            </button>`;
+                    // Already joined
+                    joinBtn = `
+                        <button class="btn btn-secondary btn-sm join-event-btn" 
+                                data-event-id="${event.event_id}" 
+                                disabled>
+                        Joined <i class="fas fa-check ms-2"></i>
+                        </button>
+                    `;
+                } else if (event.pending_payment) {
+                    // Payment is initiated (status = 'New') but not completed
+                    joinBtn = `
+                        <button class="btn btn-warning btn-sm join-event-btn" 
+                                data-event-id="${event.event_id}" 
+                                disabled>
+                        Pending Payment
+                        </button>
+                    `;
                 } else {
-                    // If the event has a fee > 0, show "Register Now" and include fee in a data attribute.
+                    // Not joined, no pending payment
                     if (parseFloat(event.fee) > 0) {
-                        joinBtn = `<button class="btn btn-success btn-sm join-event-btn" 
-                data-event-id="${event.event_id}" data-fee="${event.fee}">
-                Register Now <i class="fas fa-arrow-right ms-2"></i>
-              </button>`;
+                        // Paid event
+                        joinBtn = `
+                        <button class="btn btn-success btn-sm join-event-btn" 
+                                data-event-id="${event.event_id}" 
+                                data-fee="${event.fee}">
+                            Register Now <i class="fas fa-arrow-right ms-2"></i>
+                        </button>
+                        `;
                     } else {
-                        joinBtn = `<button class="btn btn-success btn-sm join-event-btn" 
-                data-event-id="${event.event_id}" data-fee="0">
-                Join Now <i class="fas fa-arrow-right ms-2"></i>
-              </button>`;
+                        // Free event
+                        joinBtn = `
+                        <button class="btn btn-success btn-sm join-event-btn" 
+                                data-event-id="${event.event_id}" 
+                                data-fee="0">
+                            Join Now <i class="fas fa-arrow-right ms-2"></i>
+                        </button>
+                        `;
                     }
                 }
                 return `
