@@ -325,9 +325,15 @@ if (isset($_SESSION['user_id'])) {
         let modelsPromise = loadFaceModels();
         modelsPromise.then(loadReferenceDescriptor);
 
-        // Handler for face validation
+        // Updated Handler for face validation
         validateFaceBtn.addEventListener('click', async function() {
             faceValidationResult.innerText = '';
+            // If video metadata is not loaded yet, wait for it
+            if (videoInput.videoWidth === 0) {
+                await new Promise(resolve => videoInput.addEventListener('loadedmetadata', resolve, {
+                    once: true
+                }));
+            }
             userFaceCanvas.width = videoInput.videoWidth;
             userFaceCanvas.height = videoInput.videoHeight;
             const ctx = userFaceCanvas.getContext('2d');
