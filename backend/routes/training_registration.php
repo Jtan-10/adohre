@@ -8,7 +8,7 @@ use PHPMailer\PHPMailer\Exception;
 // Add secure session settings before starting the session
 session_set_cookie_params([
     'lifetime' => 0,
-    'secure' => true,
+    'secure'   => true,
     'httponly' => true,
     'samesite' => 'Strict'
 ]);
@@ -21,39 +21,23 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 try {
+    $input = json_decode(file_get_contents('php://input'), true);
+
+    // For actions that require training_id validation
+    if (isset($_GET['action']) && in_array($_GET['action'], ['join_training', 'initiate_payment', 'check_payment_status'])) {
+        if (!isset($input['training_id']) || filter_var($input['training_id'], FILTER_VALIDATE_INT) === false) {
+            echo json_encode(['status' => false, 'message' => 'Invalid training ID.']);
+            exit;
+        }
+    }
+
     $action = isset($_GET['action']) ? $_GET['action'] : null;
     $userId = $_SESSION['user_id'];
 
     if ($action === 'join_training') {
-        $input = json_decode(file_get_contents('php://input'), true);
-        // Validate training_id is a valid integer
-        $trainingId = filter_var($input['training_id'] ?? null, FILTER_VALIDATE_INT);
-        if (!$trainingId) {
-            echo json_encode(['status' => false, 'message' => 'Invalid training identifier.']);
-            exit;
-        }
+        $trainingId = (int)$input['training_id'];
 
-        // Retrieve the training fee
-        $feeQuery = "SELECT fee FROM trainings WHERE training_id = ?";
-        $stmtFee = $conn->prepare($feeQuery);
-        $stmtFee->bind_param("i", $trainingId);
-        $stmtFee->execute();
-        $resultFee = $stmtFee->get_result();
-        if ($resultFee->num_rows == 0) {
-            echo json_encode(['status' => false, 'message' => 'Training not found.']);
-            exit;
-        }
-        $trainingFeeData = $resultFee->fetch_assoc();
-        $fee = (float)$trainingFeeData['fee'];
-        $stmtFee->close();
-
-        // If fee is required, instruct client to complete payment first.
-        if ($fee > 0) {
-            echo json_encode(['status' => false, 'message' => 'Payment required for this training. Please complete your payment in the Profile & Payments section.']);
-            exit;
-        }
-
-        // Check if the user is already registered
+        // Check if the user is already registered for the training
         $checkQuery = "SELECT * FROM training_registrations WHERE user_id = ? AND training_id = ?";
         $stmt = $conn->prepare($checkQuery);
         $stmt->bind_param('ii', $userId, $trainingId);
@@ -69,8 +53,8 @@ try {
             $stmt->bind_param('ii', $userId, $trainingId);
             $stmt->execute();
 
-            // Audit log: record the training registration action.
-            recordAuditLog($userId, "Joined Training", "User joined training ID: " . $trainingId);
+            // Record audit log for joining the training
+            recordAuditLog($userId, "Join Training", "User joined training ID: $trainingId");
 
             // Retrieve training details
             $trainingQuery = "SELECT title, schedule, image, description FROM trainings WHERE training_id = ?";
@@ -90,31 +74,34 @@ try {
             $user = $resultUser->fetch_assoc();
             $stmtUser->close();
 
-            // Log the email request with recipient and timestamp
-            error_log("Sending training registration email to: " . $user['email'] . " at " . date('Y-m-d H:i:s'));
-
-            // Rate limiting for email sending: allow a maximum of 10 emails per recipient within a 1-hour window.
-            $window = 3600; // 1 hour in seconds
-            $maxEmails = 10;
+            // Rate limiting for email sending
+            if (session_status() === PHP_SESSION_NONE) {
+                session_start();
+            }
+            $window = 3600;  // 1 hour
+            $maxEmails = 10; // Maximum emails per window
             $now = time();
-            $recipient = $user['email'];
+            $userEmail = $user['email'];
 
             if (!isset($_SESSION['email_send_requests'])) {
                 $_SESSION['email_send_requests'] = [];
             }
-            if (!isset($_SESSION['email_send_requests'][$recipient])) {
-                $_SESSION['email_send_requests'][$recipient] = [
+            if (!isset($_SESSION['email_send_requests'][$userEmail])) {
+                $_SESSION['email_send_requests'][$userEmail] = [
                     'count' => 0,
                     'first_request_time' => $now
                 ];
             }
-            if ($now - $_SESSION['email_send_requests'][$recipient]['first_request_time'] > $window) {
-                $_SESSION['email_send_requests'][$recipient]['count'] = 0;
-                $_SESSION['email_send_requests'][$recipient]['first_request_time'] = $now;
+            // Reset counter if the window has expired.
+            if ($now - $_SESSION['email_send_requests'][$userEmail]['first_request_time'] > $window) {
+                $_SESSION['email_send_requests'][$userEmail]['count'] = 0;
+                $_SESSION['email_send_requests'][$userEmail]['first_request_time'] = $now;
             }
-            if ($_SESSION['email_send_requests'][$recipient]['count'] < $maxEmails) {
-                $_SESSION['email_send_requests'][$recipient]['count']++;
 
+            if ($_SESSION['email_send_requests'][$userEmail]['count'] < $maxEmails) {
+                $_SESSION['email_send_requests'][$userEmail]['count']++;
+
+                // Send email notification using PHPMailer
                 $mail = new PHPMailer(true);
                 try {
                     $mail->isSMTP();
@@ -124,6 +111,7 @@ try {
                     $mail->Password   = $_ENV['SMTP_PASS'];
                     $mail->SMTPSecure = $_ENV['SMTP_SECURE'];
                     $mail->Port       = $_ENV['SMTP_PORT'];
+
                     $mail->SMTPOptions = [
                         'ssl' => [
                             'verify_peer'      => true,
@@ -131,11 +119,13 @@ try {
                             'allow_self_signed' => false,
                         ],
                     ];
+
                     $mail->setFrom($_ENV['SMTP_FROM'], $_ENV['SMTP_FROM_NAME']);
-                    $mail->addAddress($user['email']);
+                    $mail->addAddress($userEmail);
+
                     $mail->isHTML(true);
                     $mail->Subject = "Training Registration Confirmation";
-                    $mail->Body = "
+                    $mail->Body    = "
                         <h1>Hello " . htmlspecialchars($user['first_name'], ENT_QUOTES, 'UTF-8') . ",</h1>
                         <p>Thank you for joining our training!</p>
                         <p>You have successfully registered for the training: <strong>" . htmlspecialchars($training['title'], ENT_QUOTES, 'UTF-8') . "</strong>.</p>
@@ -143,8 +133,10 @@ try {
                         <p>" . htmlspecialchars($training['description'], ENT_QUOTES, 'UTF-8') . "</p>
                         <p>For more details, please log in to your account.</p>";
                     $mail->AltBody = strip_tags($mail->Body);
+
                     $mail->send();
 
+                    // Log the sent email into the database
                     $stmtLog = $conn->prepare("INSERT INTO email_notifications (user_id, subject, body) VALUES (?, ?, ?)");
                     $subjectLog = "Training Registration Confirmation";
                     $bodyLog = $mail->Body;
@@ -152,25 +144,22 @@ try {
                     $stmtLog->execute();
                     $stmtLog->close();
                 } catch (Exception $e) {
-                    error_log("Email could not be sent. Mailer Error: {$mail->ErrorInfo}");
+                    // No error logging if email fails
                 }
-            } else {
-                error_log("Rate limit exceeded for sending emails to: " . $recipient);
             }
 
             echo json_encode(['status' => true, 'message' => 'Successfully joined the training.']);
         }
     } elseif ($action === 'initiate_payment') {
         // Initiate a payment record for trainings that require a fee
-        $input = json_decode(file_get_contents('php://input'), true);
         if (!isset($input['training_id']) || filter_var($input['training_id'], FILTER_VALIDATE_INT) === false) {
             echo json_encode(['status' => false, 'message' => 'Invalid training ID.']);
             exit;
         }
         $trainingId = (int)$input['training_id'];
 
-        // Retrieve training fee and title
-        $queryFee = "SELECT fee, title FROM trainings WHERE training_id = ?";
+        // Retrieve training fee, title and schedule
+        $queryFee = "SELECT fee, title, schedule FROM trainings WHERE training_id = ?";
         $stmtFee = $conn->prepare($queryFee);
         $stmtFee->bind_param("i", $trainingId);
         $stmtFee->execute();
@@ -181,6 +170,7 @@ try {
         }
         $trainingData = $resultFee->fetch_assoc();
         $fee = (float)$trainingData['fee'];
+        $schedule = $trainingData['schedule'];
         $stmtFee->close();
 
         if ($fee <= 0) {
@@ -188,22 +178,45 @@ try {
             exit;
         }
 
-        // Insert a payment record with status "New" for this training.
-        $insertPaymentQuery = "INSERT INTO payments (user_id, training_id, amount, status, created_at) VALUES (?, ?, ?, ?, NOW())";
-        $stmtPayment = $conn->prepare($insertPaymentQuery);
-        $status = 'New';
-        $stmtPayment->bind_param('iids', $userId, $trainingId, $fee, $status);
-        $stmtPayment->execute();
+        // Check if the user already has a payment record for this training
+        $checkPaymentQuery = "SELECT * FROM payments WHERE user_id = ? AND training_id = ?";
+        $stmtCheck = $conn->prepare($checkPaymentQuery);
+        $stmtCheck->bind_param("ii", $userId, $trainingId);
+        $stmtCheck->execute();
+        $resultCheck = $stmtCheck->get_result();
+        if ($resultCheck->num_rows > 0) {
+            echo json_encode(['status' => true, 'message' => 'Payment already initiated. Please complete your payment in the Profile & Payments section.']);
+            $stmtCheck->close();
+            exit;
+        }
+        $stmtCheck->close();
 
+        // Calculate due_date as one day before the training schedule
+        $due_date = date("Y-m-d", strtotime($schedule . " -1 day"));
+        // Set payment type as "Training Registration"
+        $payment_type = 'Training Registration';
+        $status = 'New';
+
+        // Insert a payment record with payment_type and due_date
+        $insertPaymentQuery = "INSERT INTO payments (user_id, training_id, payment_type, amount, status, due_date) VALUES (?, ?, ?, ?, ?, ?)";
+        $stmtPayment = $conn->prepare($insertPaymentQuery);
+        if (!$stmtPayment) {
+            echo json_encode(['status' => false, 'message' => 'Database prepare error: ' . $conn->error]);
+            exit;
+        }
+        // Bind parameters: user_id (i), training_id (i), payment_type (s), fee (d), status (s), due_date (s)
+        $stmtPayment->bind_param("iisdss", $userId, $trainingId, $payment_type, $fee, $status, $due_date);
+        if (!$stmtPayment->execute()) {
+            echo json_encode(['status' => false, 'message' => 'Failed to initiate payment: ' . $stmtPayment->error]);
+            exit;
+        }
         if ($stmtPayment->affected_rows > 0) {
             echo json_encode(['status' => true, 'message' => 'Payment initiated. Please complete your payment in the Profile & Payments section.']);
         } else {
-            echo json_encode(['status' => false, 'message' => 'Failed to initiate payment.']);
+            echo json_encode(['status' => false, 'message' => 'Failed to initiate payment. No records were inserted.']);
         }
         $stmtPayment->close();
     } elseif ($action === 'check_payment_status') {
-        // Polling endpoint to check if a training payment has been completed
-        $input = json_decode(file_get_contents('php://input'), true);
         if (!isset($input['training_id']) || filter_var($input['training_id'], FILTER_VALIDATE_INT) === false) {
             echo json_encode(['status' => false, 'message' => 'Invalid training ID.']);
             exit;
@@ -215,7 +228,7 @@ try {
         $stmt->bind_param("ii", $userId, $trainingId);
         $stmt->execute();
         $result = $stmt->get_result();
-        
+
         if ($result->num_rows > 0) {
             // If payment is completed, ensure the user is registered for the training.
             $checkReg = $conn->prepare("SELECT * FROM training_registrations WHERE user_id = ? AND training_id = ?");
@@ -258,10 +271,20 @@ try {
 
         echo json_encode(['status' => true, 'trainings' => $trainings]);
     } else {
-        echo json_encode(['status' => false, 'message' => 'Invalid action.']);
+        echo json_encode(['status' => false, 'message' => 'Invalid action specified.']);
     }
 } catch (Exception $e) {
     error_log("Error in training_registration.php: " . $e->getMessage());
-    echo json_encode(['status' => false, 'message' => 'An internal error occurred.']);
+    echo json_encode(['status' => false, 'message' => 'An internal error occurred: ' . $e->getMessage()]);
 }
-?>
+
+function recordAuditLog($userId, $action, $details)
+{
+    // Assumes there is an audit_log table with columns: user_id, action, details, created_at
+    global $conn;
+    $query = "INSERT INTO audit_logs (user_id, action, details, created_at) VALUES (?, ?, ?, NOW())";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("iss", $userId, $action, $details);
+    $stmt->execute();
+    $stmt->close();
+}

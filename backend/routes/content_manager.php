@@ -25,7 +25,8 @@ if (!function_exists('embedDataInPng')) {
      * @param int    $desiredWidth Desired width (used to compute a roughly square image)
      * @return GdImage A GD image resource.
      */
-    function embedDataInPng($binaryData, $desiredWidth = 100): GdImage {
+    function embedDataInPng($binaryData, $desiredWidth = 100): GdImage
+    {
         $dataLen = strlen($binaryData);
         // Each pixel holds 3 bytes.
         $numPixels = ceil($dataLen / 3);
@@ -125,15 +126,21 @@ try {
         $trainingsStmt = $conn->prepare("
             SELECT t.*, 
                 IF(tr.registration_id IS NOT NULL, 1, 0) AS joined,
-                u.first_name, u.last_name
+                u.first_name, u.last_name,
+                IF(p.payment_id IS NOT NULL, 1, 0) AS pending_payment
             FROM trainings t
             LEFT JOIN training_registrations tr 
                 ON t.training_id = tr.training_id AND tr.user_id = ?
             LEFT JOIN users u 
                 ON t.created_by = u.user_id
+            LEFT JOIN payments p 
+                ON t.training_id = p.training_id 
+                   AND p.user_id = ? 
+                   AND p.status = 'New'
+                   AND p.payment_type = 'Training Registration'
             ORDER BY t.schedule ASC
         ");
-        $trainingsStmt->bind_param("i", $user_id);
+        $trainingsStmt->bind_param("ii", $user_id, $user_id);
         $trainingsStmt->execute();
         $trainingsResult = $trainingsStmt->get_result();
         $trainings = $trainingsResult->fetch_all(MYSQLI_ASSOC);
@@ -193,7 +200,7 @@ try {
             imagepng($pngImage, $finalEncryptedPngFile);
             imagedestroy($pngImage);
             // -------------------------
-            
+
             // If updating an event, check if an existing image exists and delete it from S3.
             if ($action === 'update_event') {
                 $stmtCheck = $conn->prepare("SELECT image FROM events WHERE event_id = ?");
@@ -246,30 +253,30 @@ try {
         if ($action === 'add_event') {
             // New: retrieve fee; default to 0 if not provided
             $fee = isset($_POST['fee']) && is_numeric($_POST['fee']) ? floatval($_POST['fee']) : 0.00;
-            
+
             // Insert new event with fee column included
             $stmt = $conn->prepare("INSERT INTO events (title, description, date, location, fee, image) VALUES (?, ?, ?, ?, ?, ?)");
             $stmt->bind_param('ssssds', $title, $description, $date, $location, $fee, $relativeImagePath);
             $stmt->execute();
-        
+
             // Audit log for event addition
             recordAuditLog($userId, "Add Event", "Event '$title' added.");
             echo json_encode(['status' => true, 'message' => 'Event added successfully.']);
         } elseif ($action === 'update_event') {
             // New: retrieve fee; default to 0 if not provided
             $fee = isset($_POST['fee']) && is_numeric($_POST['fee']) ? floatval($_POST['fee']) : 0.00;
-            
+
             // Update existing event; if no new image provided, the old image remains.
             $stmt = $conn->prepare(
                 "UPDATE events SET title = ?, description = ?, date = ?, location = ?, fee = ?, image = IFNULL(?, image) WHERE event_id = ?"
             );
             $stmt->bind_param('ssssdsi', $title, $description, $date, $location, $fee, $relativeImagePath, $event_id);
             $stmt->execute();
-        
+
             // Audit log for event update
             recordAuditLog($userId, "Update Event", "Event ID $event_id updated with title '$title'.");
             echo json_encode(['status' => true, 'message' => 'Event updated successfully.']);
-        }        
+        }
     } elseif ($action === 'delete_event') {
         ensureAuthenticated();
         // ----------------------------
@@ -277,7 +284,7 @@ try {
         // ----------------------------
         $event_id = $_POST['id'];
         $userId = $_SESSION['user_id'];
-    
+
         // Retrieve the event record to check for an existing image.
         $stmt = $conn->prepare("SELECT image FROM events WHERE event_id = ?");
         $stmt->bind_param('i', $event_id);
@@ -307,12 +314,12 @@ try {
             }
         }
         $stmt->close();
-    
+
         // Now delete the event record from the database.
         $stmt = $conn->prepare("DELETE FROM events WHERE event_id = ?");
         $stmt->bind_param('i', $event_id);
         $stmt->execute();
-    
+
         // Audit log for event deletion.
         recordAuditLog($userId, "Delete Event", "Event ID $event_id deleted.");
         echo json_encode(['status' => true, 'message' => 'Event deleted successfully.']);
@@ -488,7 +495,7 @@ try {
             $stmt = $conn->prepare("INSERT INTO trainings (title, description, schedule, capacity, fee, image, modality, modality_details, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->bind_param('sssidsssi', $title, $description, $schedule, $capacity, $fee, $relativeImagePath, $modality, $modality_details, $trainer_id);
             $stmt->execute();
-        
+
             recordAuditLog($trainer_id, "Add Training", "Training '$title' added.");
             echo json_encode(['status' => true, 'message' => 'Training added successfully.']);
         } elseif ($action === 'update_training') {
@@ -497,15 +504,15 @@ try {
             $stmt = $conn->prepare("UPDATE trainings SET title = ?, description = ?, schedule = ?, capacity = ?, fee = ?, image = IFNULL(?, image), modality = ?, modality_details = ? WHERE training_id = ?");
             $stmt->bind_param('sssidsssi', $title, $description, $schedule, $capacity, $fee, $relativeImagePath, $modality, $modality_details, $training_id);
             $stmt->execute();
-        
+
             recordAuditLog($_SESSION['user_id'], "Update Training", "Training ID $training_id updated with title '$title'.");
             echo json_encode(['status' => true, 'message' => 'Training updated successfully.']);
             exit();
-        }        
+        }
     } elseif ($action === 'delete_training') {
         ensureAuthenticated();
         $training_id = $_POST['id'];
-        
+
         // Check if there is an existing image and delete it from S3
         $stmtCheck = $conn->prepare("SELECT image FROM trainings WHERE training_id = ?");
         $stmtCheck->bind_param("i", $training_id);
@@ -527,7 +534,7 @@ try {
             }
         }
         $stmtCheck->close();
-    
+
         // Now delete the training record from the database.
         $stmt = $conn->prepare("DELETE FROM trainings WHERE training_id = ?");
         $stmt->bind_param('i', $training_id);
@@ -564,4 +571,3 @@ try {
         'message' => 'Internal Server Error.'
     ]);
 }
-?>

@@ -356,7 +356,7 @@
               <div class="training-card card">
                 <div class="row g-0">
                   <div class="col-md-4">
-                    <img src="${ training.image ? '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image) : 'assets/default-training.jpg' }" 
+                    <img src="${training.image ? '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image) : 'assets/default-training.jpg'}" 
                          class="img-fluid training-image" 
                          alt="${training.title}">
                   </div>
@@ -402,7 +402,7 @@
               <div class="training-card card">
                 <div class="row g-0">
                   <div class="col-md-4">
-                    <img src="${ training.image ? '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image) : 'assets/default-training.jpg' }" 
+                    <img src="${training.image ? '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image) : 'assets/default-training.jpg'}" 
                          class="img-fluid training-image" 
                          alt="${training.title}">
                   </div>
@@ -460,28 +460,17 @@
         `;
         }
 
+        // Updated joinTraining function to mimic events.php functionality.
         async function joinTraining(trainingId, button, fee) {
             // If training has a fee > 0, show the payment modal and initiate a payment record
             if (parseFloat(fee) > 0) {
                 trainingFeeSpan.textContent = "PHP " + parseFloat(fee).toFixed(2);
                 paymentModal.show();
 
-                // Initiate the payment record for the training (assumes endpoint exists)
-                await fetch(
-                    '/capstone-php/backend/routes/training_registration.php?action=initiate_payment', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            training_id: trainingId
-                        })
-                    });
-
-                // Start polling for payment status every 5 seconds.
-                const pollInterval = setInterval(async () => {
-                    const pollResponse = await fetch(
-                        '/capstone-php/backend/routes/training_registration.php?action=check_payment_status', {
+                try {
+                    // Initiate the payment record
+                    const response = await fetch(
+                        '/capstone-php/backend/routes/training_registration.php?action=initiate_payment', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
@@ -490,17 +479,48 @@
                                 training_id: trainingId
                             })
                         });
-                    const pollData = await pollResponse.json();
-                    if (pollData.payment_completed) {
-                        clearInterval(pollInterval);
-                        // Update button state once payment is completed
-                        button.innerHTML = `Joined <i class="fas fa-check me-2"></i>`;
+                    const data = await response.json();
+                    if (data.status) {
+                        // Immediately update the button to "Pending Payment"
+                        button.innerHTML = `Pending Payment`;
                         button.classList.remove('btn-success');
-                        button.classList.add('btn-secondary');
+                        button.classList.add('btn-warning');
                         button.disabled = true;
-                        alert(pollData.message);
+
+                        // Start polling for payment status every 5 seconds.
+                        const pollInterval = setInterval(async () => {
+                            const pollResponse = await fetch(
+                                '/capstone-php/backend/routes/training_registration.php?action=check_payment_status', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({
+                                        training_id: trainingId
+                                    })
+                                });
+                            const pollData = await pollResponse.json();
+                            if (pollData.payment_completed) {
+                                clearInterval(pollInterval);
+                                // Update button state once payment is completed
+                                button.innerHTML = `Joined <i class="fas fa-check me-2"></i>`;
+                                button.classList.remove('btn-warning');
+                                button.classList.add('btn-secondary');
+                                button.disabled = true;
+                                alert(pollData.message);
+                            }
+                        }, 5000);
+                    } else {
+                        alert(data.message || 'Failed to initiate payment');
+                        button.innerHTML = `Register Now <i class="fas fa-arrow-right me-2"></i>`;
+                        button.disabled = false;
                     }
-                }, 5000);
+                } catch (err) {
+                    console.error('initiate_payment error:', err);
+                    alert('Error initiating payment');
+                    button.innerHTML = `Register Now <i class="fas fa-arrow-right me-2"></i>`;
+                    button.disabled = false;
+                }
                 return;
             }
 
