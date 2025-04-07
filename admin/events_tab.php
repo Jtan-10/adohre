@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <p class="card-text">${event.description}</p>
                                         <p><strong>Date:</strong> ${event.date}</p>
                                         <p><strong>Location:</strong> ${event.location}</p>
-                                        <p><strong>Fee:</strong> ${event.fee && parseFloat(event.fee) > 0 ? '$' + event.fee : 'Free'}</p>
+                                        <p><strong>Fee:</strong> ${event.fee && parseFloat(event.fee) > 0 ? '₱' + event.fee : 'Free'}</p>
                                         <div>
                                             <button class="btn btn-primary btn-sm edit-event" data-id="${event.event_id}">Edit</button>
                                             <button class="btn btn-danger btn-sm delete-event" data-id="${event.event_id}">Delete</button>
@@ -125,7 +125,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <p class="card-text">${event.description}</p>
                                         <p><strong>Date:</strong> ${event.date}</p>
                                         <p><strong>Location:</strong> ${event.location}</p>
-                                        <p><strong>Fee:</strong> ${event.fee && parseFloat(event.fee) > 0 ? '$' + event.fee : 'Free'}</p>
+                                        <p><strong>Fee:</strong> ${event.fee && parseFloat(event.fee) > 0 ? '₱' + event.fee : 'Free'}</p>
                                         <div>
                                             <button class="btn btn-primary btn-sm edit-event" data-id="${event.event_id}">Edit</button>
                                             <button class="btn btn-danger btn-sm delete-event" data-id="${event.event_id}">Delete</button>
