@@ -294,7 +294,6 @@ if (isset($_SESSION['user_id'])) {
             await faceapi.nets.faceLandmark68Net.loadFromUri('backend/models/weights');
             await faceapi.nets.faceRecognitionNet.loadFromUri('backend/models/weights');
         }
-        loadFaceModels();
 
         // Load the stored face descriptor from the stored face image URL (from session)
         async function loadReferenceDescriptor() {
@@ -321,7 +320,10 @@ if (isset($_SESSION['user_id'])) {
                 console.error("No face detected in stored reference image.");
             }
         }
-        loadReferenceDescriptor();
+
+        // Ensure models are loaded before detection
+        let modelsPromise = loadFaceModels();
+        modelsPromise.then(loadReferenceDescriptor);
 
         // Handler for face validation
         validateFaceBtn.addEventListener('click', async function() {
@@ -330,6 +332,10 @@ if (isset($_SESSION['user_id'])) {
             userFaceCanvas.height = videoInput.videoHeight;
             const ctx = userFaceCanvas.getContext('2d');
             ctx.drawImage(videoInput, 0, 0, userFaceCanvas.width, userFaceCanvas.height);
+
+            // Ensure models are loaded before detection
+            await modelsPromise;
+
             const detection = await faceapi
                 .detectSingleFace(userFaceCanvas, new faceapi.TinyFaceDetectorOptions({
                     inputSize: 416,
