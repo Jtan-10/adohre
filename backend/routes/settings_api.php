@@ -43,7 +43,8 @@ if (!function_exists('embedDataInPng')) {
      * @param int    $desiredWidth Desired width (used to compute a roughly square image)
      * @return GdImage A GD image resource.
      */
-    function embedDataInPng($binaryData, $desiredWidth = 100) {
+    function embedDataInPng($binaryData, $desiredWidth = 100)
+    {
         $dataLen = strlen($binaryData);
         // Each pixel holds 3 bytes.
         $numPixels = ceil($dataLen / 3);
@@ -83,7 +84,7 @@ switch ($action) {
         $headerName = trim($_POST['header_name'] ?? '');
         $message = "";
         $headerLogoUrl = null;
-    
+
         // Update header name if provided.
         if (!empty($headerName)) {
             $stmt = $conn->prepare("
@@ -103,11 +104,11 @@ switch ($action) {
                 $stmt->close();
             }
         }
-    
+
         if (isset($_FILES['header_logo']) && $_FILES['header_logo']['error'] === UPLOAD_ERR_OK) {
             $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
             $fileType = mime_content_type($_FILES['header_logo']['tmp_name']);
-    
+
             if (!in_array($fileType, $allowedTypes)) {
                 $message .= "Invalid logo file type. ";
             } else {
@@ -135,30 +136,30 @@ switch ($action) {
                     }
                     $stmtExisting->close();
                 }
-    
+
                 $ext = pathinfo($_FILES['header_logo']['name'], PATHINFO_EXTENSION);
                 $s3Key = 'uploads/settings/header_logo_' . time() . '.png';
-    
+
                 // Encrypt and embed the image into a PNG.
                 $clearImageData = file_get_contents($_FILES['header_logo']['tmp_name']);
-    
+
                 // Encryption setup.
                 $cipher = "AES-256-CBC";
                 $ivlen = openssl_cipher_iv_length($cipher);
                 $iv = openssl_random_pseudo_bytes($ivlen);
                 $rawKey = getenv('ENCRYPTION_KEY'); // Same method as your existing code.
                 $encryptionKey = hash('sha256', $rawKey, true);
-    
+
                 // Encrypt the image.
                 $encryptedData = openssl_encrypt($clearImageData, $cipher, $encryptionKey, OPENSSL_RAW_DATA, $iv);
                 $encryptedImageData = $iv . $encryptedData;
-    
+
                 // Use your existing embedDataInPng function (assumed to be available via an include or require).
                 $pngImage = embedDataInPng($encryptedImageData, 100);
                 $encryptedTempPath = tempnam(sys_get_temp_dir(), 'enc_logo_') . '.png';
                 imagepng($pngImage, $encryptedTempPath);
                 imagedestroy($pngImage);
-    
+
                 try {
                     $result = $s3->putObject([
                         'Bucket' => $bucketName,
@@ -168,13 +169,13 @@ switch ($action) {
                         'ContentType' => 'image/png'
                     ]);
                     @unlink($encryptedTempPath);
-    
+
                     $headerLogoUrl = str_replace(
                         "https://{$bucketName}.s3." . $_ENV['AWS_REGION'] . ".amazonaws.com/",
                         "/s3proxy/",
                         $result['ObjectURL']
                     );
-    
+
                     $stmt = $conn->prepare("
                         INSERT INTO settings (`key`, value) 
                         VALUES ('header_logo', ?) 
@@ -197,228 +198,228 @@ switch ($action) {
                 }
             }
         }
-    
+
         recordAuditLog($_SESSION['user_id'], 'Update Header Settings', $message);
-    
+
         echo json_encode([
             'status' => true,
             'message' => $message,
             'header_name' => $headerName,
             'header_logo' => $headerLogoUrl
         ]);
-        break;    
+        break;
 
     case 'backup_database':
-            // Remove any previously set Content-Type header so we can output file data.
-            header_remove('Content-Type');
-        
-            // Use credentials from db_connect.php.
+        // Remove any previously set Content-Type header so we can output file data.
+        header_remove('Content-Type');
+
+        // Use credentials from db_connect.php.
+        $dbHost = $servername;
+        $dbUser = $username;
+        $dbPass = $password;
+        $dbName = $dbname;
+
+        // Use system's temporary directory for backups
+        $backupDir = sys_get_temp_dir() . '/capstone_backups/';
+        if (!is_dir($backupDir)) {
+            if (!mkdir($backupDir, 0755, true)) {
+                $error = error_get_last();
+                error_log("Failed to create backup directory: " . print_r($error, true));
+                header('Content-Type: text/plain');
+                echo "Failed to create backup directory. Check permissions on: $backupDir";
+                exit;
+            }
+        }
+
+        // Generate a backup file name.
+        $backupFile = $backupDir . "backup_" . date('Ymd_His') . ".sql";
+
+        // Determine the mysqldump command path.
+        $mysqldumpPath = '/opt/bitnami/mysql/bin/mysqldump';
+        if (!file_exists($mysqldumpPath)) {
+            $mysqldumpPath = '/opt/lampp/bin/mysqldump';
+            if (!file_exists($mysqldumpPath)) {
+                // Fallback to system command; ensure that mysqldump is in the server's PATH.
+                $mysqldumpPath = 'mysqldump';
+            }
+        }
+
+        // Build the command using proper escaping.
+        $command = $mysqldumpPath .
+            " --host=" . escapeshellarg($dbHost) .
+            " --user=" . escapeshellarg($dbUser) .
+            " --password=" . escapeshellarg($dbPass) .
+            " " . escapeshellarg($dbName) .
+            " > " . escapeshellarg($backupFile);
+        error_log("Starting database backup. Command: $command");
+
+        // Execute the command.
+        exec($command, $output, $returnVar);
+
+        if ($returnVar === 0 && file_exists($backupFile)) {
+            // Generate a secure random encryption password
+            $encryptionPassword = bin2hex(random_bytes(16)); // 32 character hex string
+
+            // Encrypt the backup file
+            $encryptedBackupFile = $backupFile . '.enc';
+            $encryptCmd = "openssl enc -aes-256-cbc -salt -in " . escapeshellarg($backupFile) .
+                " -out " . escapeshellarg($encryptedBackupFile) .
+                " -pass pass:" . escapeshellarg($encryptionPassword);
+            exec($encryptCmd, $encryptOutput, $encryptReturnVar);
+
+            // Remove the original unencrypted backup
+            unlink($backupFile);
+
+            if ($encryptReturnVar === 0 && file_exists($encryptedBackupFile)) {
+                // Store the encryption password in the session for retrieval
+                $_SESSION['last_backup_encryption_password'] = $encryptionPassword;
+
+                // Send the encrypted backup file
+                header('Content-Description: File Transfer');
+                header('Content-Type: application/octet-stream');
+                header('Content-Disposition: attachment; filename="backup_' . date('Ymd_His') . '.sql.enc"');
+                header('Expires: 0');
+                header('Cache-Control: must-revalidate');
+                header('Pragma: public');
+                header('Content-Length: ' . filesize($encryptedBackupFile));
+                flush();
+                readfile($encryptedBackupFile);
+
+                // Remove the encrypted backup file
+                unlink($encryptedBackupFile);
+                exit();
+            } else {
+                header('Content-Type: text/plain');
+                http_response_code(500);
+                echo "Database backup encryption failed.";
+                exit();
+            }
+        } else {
+            header('Content-Type: text/plain');
+            http_response_code(500);
+            echo "Database backup failed.";
+            exit();
+        }
+        break;
+
+    case 'get_backup_password':
+        // Retrieve the backup encryption password from the session
+        if (isset($_SESSION['last_backup_encryption_password'])) {
+            $password = $_SESSION['last_backup_encryption_password'];
+
+            // Clear the password after retrieval (one-time use)
+            unset($_SESSION['last_backup_encryption_password']);
+
+            // Set content type back to JSON
+            header('Content-Type: application/json');
+
+            echo json_encode([
+                'status' => true,
+                'encryption_password' => $password
+            ]);
+        } else {
+            // Set content type back to JSON
+            header('Content-Type: application/json');
+
+            echo json_encode([
+                'status' => false,
+                'message' => 'No recent backup password found.'
+            ]);
+        }
+        break;
+    case 'restore_database':
+        if (isset($_FILES['restore_file']) && $_FILES['restore_file']['error'] === UPLOAD_ERR_OK) {
+            // Get the encryption password
+            $encryptionPassword = $_POST['encryption_password'] ?? null;
+            if (!$encryptionPassword) {
+                echo json_encode([
+                    'status'  => false,
+                    'message' => "Encryption password is required."
+                ]);
+                exit;
+            }
+
             $dbHost = $servername;
             $dbUser = $username;
             $dbPass = $password;
             $dbName = $dbname;
-        
-            // Use system's temporary directory for backups
-            $backupDir = sys_get_temp_dir() . '/capstone_backups/';
-            if (!is_dir($backupDir)) {
-                if (!mkdir($backupDir, 0755, true)) {
-                    $error = error_get_last();
-                    error_log("Failed to create backup directory: " . print_r($error, true));
-                    header('Content-Type: text/plain');
-                    echo "Failed to create backup directory. Check permissions on: $backupDir";
-                    exit;
-                }
+
+            // Move the uploaded encrypted file to a temporary location
+            $tempEncryptedRestore = tempnam(sys_get_temp_dir(), 'restore_') . '.sql.enc';
+            if (!move_uploaded_file($_FILES['restore_file']['tmp_name'], $tempEncryptedRestore)) {
+                error_log("Failed to move uploaded encrypted restore file.");
+                echo json_encode([
+                    'status'  => false,
+                    'message' => "Failed to move uploaded restore file."
+                ]);
+                exit;
             }
-        
-            // Generate a backup file name.
-            $backupFile = $backupDir . "backup_" . date('Ymd_His') . ".sql";
-        
-            // Determine the mysqldump command path.
-            $mysqldumpPath = '/opt/bitnami/mysql/bin/mysqldump';
-            if (!file_exists($mysqldumpPath)) {
-                $mysqldumpPath = '/opt/lampp/bin/mysqldump';
-                if (!file_exists($mysqldumpPath)) {
-                    // Fallback to system command; ensure that mysqldump is in the server's PATH.
-                    $mysqldumpPath = 'mysqldump';
-                }
+
+            // Decrypt the file
+            $tempRestore = tempnam(sys_get_temp_dir(), 'restore_') . '.sql';
+            $decryptCmd = "openssl enc -aes-256-cbc -d -salt -in " . escapeshellarg($tempEncryptedRestore) .
+                " -out " . escapeshellarg($tempRestore) .
+                " -pass pass:" . escapeshellarg($encryptionPassword);
+
+            exec($decryptCmd, $decryptOutput, $decryptReturnVar);
+
+            // Remove the encrypted file
+            unlink($tempEncryptedRestore);
+
+            if ($decryptReturnVar !== 0 || !file_exists($tempRestore)) {
+                error_log("Decryption failed");
+                echo json_encode([
+                    'status'  => false,
+                    'message' => "Decryption failed. Check your encryption password."
+                ]);
+                exit;
             }
-        
-            // Build the command using proper escaping.
-            $command = $mysqldumpPath .
-                        " --host=" . escapeshellarg($dbHost) .
-                        " --user=" . escapeshellarg($dbUser) .
-                        " --password=" . escapeshellarg($dbPass) .
-                        " " . escapeshellarg($dbName) .
-                        " > " . escapeshellarg($backupFile);
-            error_log("Starting database backup. Command: $command");
-        
-            // Execute the command.
+
+            error_log("Starting database restore from decrypted file: $tempRestore");
+
+            // Escape shell arguments
+            $dbHostEscaped      = escapeshellarg($dbHost);
+            $dbUserEscaped      = escapeshellarg($dbUser);
+            $dbPassEscaped      = escapeshellarg($dbPass);
+            $dbNameEscaped      = escapeshellarg($dbName);
+            $tempRestoreEscaped = escapeshellarg($tempRestore);
+
+            // Use the full path to the mysql client
+            $mysqlPath = '/opt/lampp/bin/mysql';
+            $command = "sh -c '" . $mysqlPath . " --host={$dbHostEscaped} --user={$dbUserEscaped} --password={$dbPassEscaped} {$dbNameEscaped} < {$tempRestoreEscaped}'";
+            error_log("Restore command: $command");
+
+            $output = [];
             exec($command, $output, $returnVar);
-        
-            if ($returnVar === 0 && file_exists($backupFile)) {
-                // Generate a secure random encryption password
-                $encryptionPassword = bin2hex(random_bytes(16)); // 32 character hex string
-        
-                // Encrypt the backup file
-                $encryptedBackupFile = $backupFile . '.enc';
-                $encryptCmd = "openssl enc -aes-256-cbc -salt -in " . escapeshellarg($backupFile) . 
-                              " -out " . escapeshellarg($encryptedBackupFile) . 
-                              " -pass pass:" . escapeshellarg($encryptionPassword);
-                exec($encryptCmd, $encryptOutput, $encryptReturnVar);
-        
-                // Remove the original unencrypted backup
-                unlink($backupFile);
-        
-                if ($encryptReturnVar === 0 && file_exists($encryptedBackupFile)) {
-                    // Store the encryption password in the session for retrieval
-                    $_SESSION['last_backup_encryption_password'] = $encryptionPassword;
-        
-                    // Send the encrypted backup file
-                    header('Content-Description: File Transfer');
-                    header('Content-Type: application/octet-stream');
-                    header('Content-Disposition: attachment; filename="backup_' . date('Ymd_His') . '.sql.enc"');
-                    header('Expires: 0');
-                    header('Cache-Control: must-revalidate');
-                    header('Pragma: public');
-                    header('Content-Length: ' . filesize($encryptedBackupFile));
-                    flush();
-                    readfile($encryptedBackupFile);
-                    
-                    // Remove the encrypted backup file
-                    unlink($encryptedBackupFile);
-                    exit();
-                } else {
-                    header('Content-Type: text/plain');
-                    http_response_code(500);
-                    echo "Database backup encryption failed.";
-                    exit();
-                }
-            } else {
-                header('Content-Type: text/plain');
-                http_response_code(500);
-                echo "Database backup failed.";
-                exit();
-            }
-            break;
-        
-    case 'get_backup_password':
-            // Retrieve the backup encryption password from the session
-            if (isset($_SESSION['last_backup_encryption_password'])) {
-                $password = $_SESSION['last_backup_encryption_password'];
-                
-                // Clear the password after retrieval (one-time use)
-                unset($_SESSION['last_backup_encryption_password']);
-                
-                // Set content type back to JSON
-                header('Content-Type: application/json');
-                
+
+            // Remove the decrypted temporary file
+            unlink($tempRestore);
+
+            if ($returnVar === 0) {
+                error_log("Database restore successful.");
+                // Record the restore action using the audit log helper
+                recordAuditLog($_SESSION['user_id'], 'Database Restore', 'Encrypted database restored from uploaded file');
+
                 echo json_encode([
-                    'status' => true,
-                    'encryption_password' => $password
+                    'status'  => true,
+                    'message' => "Database restore successful."
                 ]);
             } else {
-                // Set content type back to JSON
-                header('Content-Type: application/json');
-                
+                $errorMessage = implode("\n", $output);
+                error_log("Database restore failed: " . $errorMessage);
                 echo json_encode([
-                    'status' => false,
-                    'message' => 'No recent backup password found.'
+                    'status'  => false,
+                    'message' => "Database restore failed."
                 ]);
             }
-            break;
-    case 'restore_database':
-                if (isset($_FILES['restore_file']) && $_FILES['restore_file']['error'] === UPLOAD_ERR_OK) {
-                    // Get the encryption password
-                    $encryptionPassword = $_POST['encryption_password'] ?? null;
-                    if (!$encryptionPassword) {
-                        echo json_encode([
-                            'status'  => false,
-                            'message' => "Encryption password is required."
-                        ]);
-                        exit;
-                    }
-            
-                    $dbHost = $servername;
-                    $dbUser = $username;
-                    $dbPass = $password;
-                    $dbName = $dbname;
-            
-                    // Move the uploaded encrypted file to a temporary location
-                    $tempEncryptedRestore = tempnam(sys_get_temp_dir(), 'restore_') . '.sql.enc';
-                    if (!move_uploaded_file($_FILES['restore_file']['tmp_name'], $tempEncryptedRestore)) {
-                        error_log("Failed to move uploaded encrypted restore file.");
-                        echo json_encode([
-                            'status'  => false,
-                            'message' => "Failed to move uploaded restore file."
-                        ]);
-                        exit;
-                    }
-            
-                    // Decrypt the file
-                    $tempRestore = tempnam(sys_get_temp_dir(), 'restore_') . '.sql';
-                    $decryptCmd = "openssl enc -aes-256-cbc -d -salt -in " . escapeshellarg($tempEncryptedRestore) . 
-                                  " -out " . escapeshellarg($tempRestore) . 
-                                  " -pass pass:" . escapeshellarg($encryptionPassword);
-                    
-                    exec($decryptCmd, $decryptOutput, $decryptReturnVar);
-            
-                    // Remove the encrypted file
-                    unlink($tempEncryptedRestore);
-            
-                    if ($decryptReturnVar !== 0 || !file_exists($tempRestore)) {
-                        error_log("Decryption failed");
-                        echo json_encode([
-                            'status'  => false,
-                            'message' => "Decryption failed. Check your encryption password."
-                        ]);
-                        exit;
-                    }
-            
-                    error_log("Starting database restore from decrypted file: $tempRestore");
-            
-                    // Escape shell arguments
-                    $dbHostEscaped      = escapeshellarg($dbHost);
-                    $dbUserEscaped      = escapeshellarg($dbUser);
-                    $dbPassEscaped      = escapeshellarg($dbPass);
-                    $dbNameEscaped      = escapeshellarg($dbName);
-                    $tempRestoreEscaped = escapeshellarg($tempRestore);
-            
-                    // Use the full path to the mysql client
-                    $mysqlPath = '/opt/lampp/bin/mysql';
-                    $command = "$mysqlPath --host={$dbHostEscaped} --user={$dbUserEscaped} --password={$dbPassEscaped} {$dbNameEscaped} < $tempRestoreEscaped";
-                    error_log("Restore command: $command");
-            
-                    $output = [];
-                    exec($command, $output, $returnVar);
-                    
-                    // Remove the decrypted temporary file
-                    unlink($tempRestore);
-            
-                    if ($returnVar === 0) {
-                        error_log("Database restore successful.");
-                        // Record the restore action using the audit log helper
-                        recordAuditLog($_SESSION['user_id'], 'Database Restore', 'Encrypted database restored from uploaded file');
-            
-                        echo json_encode([
-                            'status'  => true,
-                            'message' => "Database restore successful."
-                        ]);
-                    } else {
-                        $errorMessage = implode("\n", $output);
-                        error_log("Database restore failed: " . $errorMessage);
-                        echo json_encode([
-                            'status'  => false,
-                            'message' => "Database restore failed."
-                        ]);
-                    }
-                } else {
-                    error_log("No restore file uploaded.");
-                    echo json_encode([
-                        'status'  => false,
-                        'message' => "No restore file uploaded."
-                    ]);
-                }
-                break;
+        } else {
+            error_log("No restore file uploaded.");
+            echo json_encode([
+                'status'  => false,
+                'message' => "No restore file uploaded."
+            ]);
+        }
+        break;
 
     case 'get_audit_logs':
         $auditLogs = [];
