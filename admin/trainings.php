@@ -62,7 +62,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
             <h1 class="text-center mt-4">Trainings Management</h1>
 
             <!-- Training Form for Creating/Editing -->
-            <div class="form-section">
+            <div class="form-section" id="manageTrainingSection">
                 <h3>Create / Edit Training</h3>
                 <form id="trainingForm" enctype="multipart/form-data">
                     <div class="mb-3">
@@ -78,20 +78,10 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
                         <input type="datetime-local" id="trainingSchedule" name="schedule" class="form-control"
                             required>
                     </div>
-                    <!-- Add Fee Field -->
-                    <div class="mb-3">
-                        <label for="trainingFee" class="form-label">Event Fee</label>
-                        <input type="number" step="0.01" id="trainingFee" name="fee" class="form-control" value="0.00"
-                            required>
-                    </div>
                     <div class="mb-3">
                         <label for="trainingCapacity" class="form-label">Capacity</label>
                         <input type="number" id="trainingCapacity" name="capacity" class="form-control" value="50"
                             required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="trainingImage" class="form-label">Training Image</label>
-                        <input type="file" id="trainingImage" name="image" class="form-control" accept="image/*">
                     </div>
                     <div class="mb-3">
                         <label for="trainingModality" class="form-label">Modality</label>
@@ -103,6 +93,16 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
                         <textarea id="trainingModalityDetails" name="modality_details" class="form-control"
                             placeholder="Link or instructions"></textarea>
                     </div>
+                    <!-- Add Fee Field -->
+                    <div class="mb-3">
+                        <label for="trainingFee" class="form-label">Training Fee</label>
+                        <input type="number" step="0.01" id="trainingFee" name="fee" class="form-control" value="0.00"
+                            required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="trainingImage" class="form-label">Training Image</label>
+                        <input type="file" id="trainingImage" name="image" class="form-control" accept="image/*">
+                    </div>
                     <!-- Hidden field for training id -->
                     <input type="hidden" id="trainingId" name="id">
                     <!-- Hidden field for CSRF protection -->
@@ -111,10 +111,16 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
                 </form>
             </div>
 
-            <!-- List of Trainers and Their Trainings -->
+            <!-- Trainings List by Trainer with Upcoming/Past Tabs -->
             <div id="trainingsListSection">
-                <h3>All Trainings by Trainers</h3>
-                <div id="trainingsList"></div>
+                <h3>Trainings by Trainer</h3>
+                <!-- Top-level tabs for each trainer -->
+                <ul class="nav nav-tabs" id="trainerTabs" role="tablist">
+                    <!-- Trainer tabs will be injected here by JS -->
+                </ul>
+                <div class="tab-content mt-3" id="trainerTabsContent">
+                    <!-- Trainer tab panes will be injected here by JS -->
+                </div>
             </div>
 
         </main>
@@ -124,7 +130,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     <!-- Added nonce attribute (using the $cspNonce from admin_header.php) to the inline script -->
     <script nonce="<?= $cspNonce ?>">
     document.addEventListener('DOMContentLoaded', function() {
-        // Fetch and display all trainings grouped by creator
+        // Fetch and display trainings grouped by trainer and by upcoming/past
         fetchTrainings();
 
         // Handle form submission for creating/updating training
@@ -165,73 +171,148 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
                 });
         });
 
-        // Fetch trainings from the backend and group by creator.
+        // Fetch trainings from the backend and group by trainer.
         function fetchTrainings() {
             fetch('../backend/routes/content_manager.php?action=fetch')
                 .then(response => response.json())
                 .then(data => {
                     if (data.status) {
-                        // Group trainings by the creator (trainer/admin)
+                        // Group trainings by creator (trainer)
                         let grouped = {};
                         data.trainings.forEach(training => {
-                            let creatorId = training.created_by;
-                            // Provide fallback for missing first or last names
-                            let creatorName = (training.first_name || 'Unknown') + ' ' + (training
+                            let trainerId = training.created_by;
+                            let trainerName = (training.first_name || 'Unknown') + ' ' + (training
                                 .last_name || '');
-                            if (!grouped[creatorId]) {
-                                grouped[creatorId] = {
-                                    creatorName: creatorName,
+                            if (!grouped[trainerId]) {
+                                grouped[trainerId] = {
+                                    trainerName: trainerName,
                                     trainings: []
                                 };
                             }
-                            grouped[creatorId].trainings.push(training);
+                            grouped[trainerId].trainings.push(training);
                         });
 
-                        let html = '';
-                        for (let creatorId in grouped) {
-                            html += `<div class="trainer-group card mb-4">
-                          <div class="card-header">
-                              <h5>Created by: ${grouped[creatorId].creatorName}</h5>
-                          </div>
-                          <div class="card-body">`;
-                            grouped[creatorId].trainings.forEach(training => {
-                                html += `
-                    <div class="content-item">
-                      <div style="flex:1;">
-                        <img src="${ training.image ? '../backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image) : 'assets/default-training.jpeg' }" alt="${training.title}" class="img-thumbnail training-image">
-                        <h6>${training.title}</h6>
-                        <p>${training.description}</p>
-                        <p><strong>Schedule:</strong> ${new Date(training.schedule).toLocaleString()}</p>
-                        <p><strong>Capacity:</strong> ${training.capacity}</p>
-                        <p><strong>Modality:</strong> ${training.modality || 'N/A'}</p>
-                        <p><strong>Modality Details:</strong> ${training.modality_details || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <button class="btn btn-sm btn-primary edit-training" data-id="${training.training_id}">Edit</button>
-                        <button class="btn btn-sm btn-danger delete-training" data-id="${training.training_id}">Delete</button>
-                      </div>
-                    </div>
-                  `;
-                            });
-                            html += `</div></div>`;
+                        // Build the trainer tabs and tab panes
+                        let trainerTabsHtml = '';
+                        let trainerTabsContentHtml = '';
+                        let first = true;
+                        for (let trainerId in grouped) {
+                            // Create a tab for each trainer
+                            trainerTabsHtml += `
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link ${first ? 'active' : ''}" id="trainer-${trainerId}-tab" data-bs-toggle="tab" data-bs-target="#trainer-${trainerId}" type="button" role="tab">
+                                        ${grouped[trainerId].trainerName}
+                                    </button>
+                                </li>
+                            `;
+
+                            // Within each trainer tab pane, split trainings into upcoming and past
+                            let now = new Date();
+                            let upcomingTrainings = grouped[trainerId].trainings.filter(t => new Date(t
+                                .schedule) >= now);
+                            let pastTrainings = grouped[trainerId].trainings.filter(t => new Date(t
+                                .schedule) < now);
+
+                            // Create sub-tabs for upcoming and past trainings
+                            let subTabs = `
+                                <ul class="nav nav-tabs" id="subTabs-${trainerId}" role="tablist">
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link active" id="upcoming-${trainerId}-tab" data-bs-toggle="tab" data-bs-target="#upcoming-${trainerId}" type="button" role="tab">
+                                            Upcoming Trainings
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="past-${trainerId}-tab" data-bs-toggle="tab" data-bs-target="#past-${trainerId}" type="button" role="tab">
+                                            Past Trainings
+                                        </button>
+                                    </li>
+                                </ul>
+                            `;
+
+                            // Build upcoming trainings HTML for this trainer
+                            let upcomingHtml = upcomingTrainings.map(training => `
+                                <div class="card mb-3">
+                                    <div class="row g-0">
+                                        <div class="col-md-4">
+                                            <img src="../backend/routes/decrypt_image.php?image_url=${ encodeURIComponent(training.image || '/capstone-php/assets/default-training.jpeg') }" class="card-img-top" alt="Training image">
+                                        </div>
+                                        <div class="col-md-8">
+                                            <div class="card-body">
+                                                <h5 class="card-title">${training.title}</h5>
+                                                <p class="card-text">${training.description}</p>
+                                                <p><strong>Schedule:</strong> ${new Date(training.schedule).toLocaleString()}</p>
+                                                <p><strong>Capacity:</strong> ${training.capacity}</p>
+                                                <p><strong>Modality:</strong> ${training.modality || 'N/A'}</p>
+                                                <p><strong>Fee:</strong> ${training.fee && parseFloat(training.fee) > 0 ? '$' + training.fee : 'Free'}</p>
+                                                <div>
+                                                    <button class="btn btn-primary btn-sm edit-training" data-id="${training.training_id}">Edit</button>
+                                                    <button class="btn btn-danger btn-sm delete-training" data-id="${training.training_id}">Delete</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('');
+
+                            // Build past trainings HTML for this trainer
+                            let pastHtml = pastTrainings.map(training => `
+                                <div class="card mb-3">
+                                    <div class="row g-0">
+                                        <div class="col-md-4">
+                                            <img src="../backend/routes/decrypt_image.php?image_url=${ encodeURIComponent(training.image || '/capstone-php/assets/default-training.jpeg') }" class="card-img-top" alt="Training image">
+                                        </div>
+                                        <div class="col-md-8">
+                                            <div class="card-body">
+                                                <h5 class="card-title">${training.title}</h5>
+                                                <p class="card-text">${training.description}</p>
+                                                <p><strong>Schedule:</strong> ${new Date(training.schedule).toLocaleString()}</p>
+                                                <p><strong>Capacity:</strong> ${training.capacity}</p>
+                                                <p><strong>Modality:</strong> ${training.modality || 'N/A'}</p>
+                                                <p><strong>Fee:</strong> ${training.fee && parseFloat(training.fee) > 0 ? '$' + training.fee : 'Free'}</p>
+                                                <div>
+                                                    <button class="btn btn-primary btn-sm edit-training" data-id="${training.training_id}">Edit</button>
+                                                    <button class="btn btn-danger btn-sm delete-training" data-id="${training.training_id}">Delete</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('');
+
+                            // Create the tab pane for this trainer with sub-tabs content
+                            trainerTabsContentHtml += `
+                                <div class="tab-pane fade ${first ? 'show active' : ''}" id="trainer-${trainerId}" role="tabpanel">
+                                    ${subTabs}
+                                    <div class="tab-content mt-3">
+                                        <div class="tab-pane fade show active" id="upcoming-${trainerId}" role="tabpanel">
+                                            ${upcomingHtml || '<p class="text-center text-muted">No upcoming trainings</p>'}
+                                        </div>
+                                        <div class="tab-pane fade" id="past-${trainerId}" role="tabpanel">
+                                            ${pastHtml || '<p class="text-center text-muted">No past trainings</p>'}
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            first = false;
                         }
-                        document.getElementById('trainingsList').innerHTML = html;
-                        // Attach event listeners to edit buttons
+
+                        // Inject the trainer tabs and content into the page
+                        document.getElementById('trainerTabs').innerHTML = trainerTabsHtml;
+                        document.getElementById('trainerTabsContent').innerHTML = trainerTabsContentHtml;
+
+                        // Attach Edit and Delete Training Handlers
                         document.querySelectorAll('.edit-training').forEach(btn => {
                             btn.addEventListener('click', function() {
                                 let id = this.getAttribute('data-id');
                                 editTraining(id);
                             });
                         });
-                        // Attach event listeners to delete buttons
                         document.querySelectorAll('.delete-training').forEach(btn => {
                             btn.addEventListener('click', function() {
                                 let id = this.getAttribute('data-id');
                                 deleteTraining(id);
                             });
                         });
-                    } else {
-                        document.getElementById('trainingsList').innerHTML = '<p>No trainings found.</p>';
                     }
                 })
                 .catch(err => console.error(err));
@@ -254,6 +335,12 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
                         document.getElementById('trainingModality').value = training.modality || '';
                         document.getElementById('trainingModalityDetails').value = training
                             .modality_details || '';
+                        document.getElementById('trainingFee').value = training.fee || '0.00';
+
+                        // Scroll smoothly to the manage training form
+                        document.getElementById('manageTrainingSection').scrollIntoView({
+                            behavior: 'smooth'
+                        });
                     } else {
                         alert('Error fetching training details.');
                     }
@@ -261,7 +348,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
                 .catch(err => console.error(err));
         }
 
-        // Delete training function
+        // Delete Training function
         function deleteTraining(id) {
             if (confirm('Are you sure you want to delete this training?')) {
                 const formData = new FormData();
