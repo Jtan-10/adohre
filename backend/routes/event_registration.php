@@ -14,15 +14,15 @@ if (!isset($_SESSION['user_id'])) {
 
 try {
     $input = json_decode(file_get_contents('php://input'), true);
-    // Validate event_id for join_event action
-    if (isset($_GET['action']) && $_GET['action'] === 'join_event') {
+    // Validate event_id for join_event and initiate_payment actions
+    if (isset($_GET['action']) && in_array($_GET['action'], ['join_event', 'initiate_payment'])) {
         if (!isset($input['event_id']) || filter_var($input['event_id'], FILTER_VALIDATE_INT) === false) {
             echo json_encode(['status' => false, 'message' => 'Invalid event ID.']);
             exit;
         }
     }
     $action = isset($_GET['action']) ? $_GET['action'] : null;
-
+    
     if ($action === 'join_event') {
         $userId = $_SESSION['user_id'];
         $eventId = (int)$input['event_id'];
@@ -141,6 +141,44 @@ try {
             }
             echo json_encode(['status' => true, 'message' => 'Successfully joined the event.']);
         }
+    } elseif ($action === 'initiate_payment') {
+        // Initiate a payment record for events that require a fee
+        $userId = $_SESSION['user_id'];
+        $eventId = (int)$input['event_id'];
+
+        // Retrieve event fee and title
+        $queryFee = "SELECT fee, title FROM events WHERE event_id = ?";
+        $stmtFee = $conn->prepare($queryFee);
+        $stmtFee->bind_param("i", $eventId);
+        $stmtFee->execute();
+        $resultFee = $stmtFee->get_result();
+        if ($resultFee->num_rows == 0) {
+            echo json_encode(['status' => false, 'message' => 'Event not found.']);
+            exit;
+        }
+        $eventData = $resultFee->fetch_assoc();
+        $fee = (float)$eventData['fee'];
+        $stmtFee->close();
+
+        if ($fee <= 0) {
+            echo json_encode(['status' => false, 'message' => 'No payment is required for this event.']);
+            exit;
+        }
+
+        // Insert a payment record with status "New"
+        $insertPaymentQuery = "INSERT INTO payments (user_id, event_id, amount, status, created_at) VALUES (?, ?, ?, ?, NOW())";
+        $stmtPayment = $conn->prepare($insertPaymentQuery);
+        $status = 'New';
+        // Bind parameters: user_id (i), event_id (i), fee (d for double), status (s)
+        $stmtPayment->bind_param('iids', $userId, $eventId, $fee, $status);
+        $stmtPayment->execute();
+
+        if ($stmtPayment->affected_rows > 0) {
+            echo json_encode(['status' => true, 'message' => 'Payment initiated. Please complete your payment in the Profile & Payments section.']);
+        } else {
+            echo json_encode(['status' => false, 'message' => 'Failed to initiate payment.']);
+        }
+        $stmtPayment->close();
     } elseif ($action === 'get_joined_events') {
         $userId = $_SESSION['user_id'];
         $query = "SELECT e.event_id, e.title, e.description, e.date, e.location, e.image
@@ -165,3 +203,14 @@ try {
     error_log("Error in event_registration: " . $e->getMessage());
     echo json_encode(['status' => false, 'message' => 'An error occurred.']);
 }
+
+function recordAuditLog($userId, $action, $details) {
+    // Assumes there is an audit_log table with columns: user_id, action, details, created_at
+    global $conn;
+    $query = "INSERT INTO audit_log (user_id, action, details, created_at) VALUES (?, ?, ?, NOW())";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("iss", $userId, $action, $details);
+    $stmt->execute();
+    $stmt->close();
+}
+?>

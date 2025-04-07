@@ -146,11 +146,11 @@ error_reporting(0);
     <header>
         <?php include('header.php'); ?>
         <?php
-        if (!isset($_SESSION['user_id'])) {
-            header("Location: login.php");
-            exit;
-        }
-        ?>
+    if (!isset($_SESSION['user_id'])) {
+      header("Location: login.php");
+      exit;
+    }
+    ?>
     </header>
 
     <?php include('sidebar.php'); ?>
@@ -183,24 +183,73 @@ error_reporting(0);
 
     <?php include('footer.php'); ?>
 
+    <!-- Payment Modal -->
+    <div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="paymentModalLabel">Payment Required</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>This event requires a fee of <span id="eventFee"></span>.</p>
+                    <p>Please proceed to your <strong>Profile &amp; Payments</strong> tab to complete your payment.</p>
+                    <p>Once your payment status is updated to <em>New</em> (and later to <em>Completed</em>), you will
+                        be registered for the event.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Ok, Got It</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous">
+    </script>
+
     <script>
     document.addEventListener("DOMContentLoaded", function() {
         // Securely output the user ID
         const userId = <?php echo json_encode($_SESSION['user_id']); ?>;
         const eventsList = document.getElementById('eventsList');
         let eventsData = [];
+        const paymentModal = new bootstrap.Modal(document.getElementById('paymentModal'));
+        const eventFeeSpan = document.getElementById('eventFee');
 
         // Event delegation for dynamic buttons
         eventsList.addEventListener('click', async (e) => {
-            const joinBtn = e.target.closest('.join-event-btn');
-            if (!joinBtn) return;
+            const registerBtn = e.target.closest('.join-event-btn');
+            if (!registerBtn) return;
 
-            const eventId = joinBtn.dataset.eventId;
+            const eventId = registerBtn.dataset.eventId;
+            const fee = parseFloat(registerBtn.dataset.fee);
+
+            // If fee > 0, open modal instructing user to pay first.
+            if (fee > 0) {
+                eventFeeSpan.textContent = "PHP " + fee.toFixed(2);
+                paymentModal.show();
+
+                // Optionally, you can trigger the backend to push a payment record
+                // Here’s an example call (if not already done upon button click):
+                await fetch('backend/routes/event_registration.php?action=initiate_payment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        event_id: eventId
+                    })
+                });
+                return;
+            }
+
+            // For free events (fee == 0), proceed to register immediately.
             try {
-                joinBtn.innerHTML =
+                registerBtn.innerHTML =
                     `<span class="spinner-border spinner-border-sm" role="status"></span> Joining...`;
-                joinBtn.disabled = true;
+                registerBtn.disabled = true;
 
                 const response = await fetch(
                     'backend/routes/event_registration.php?action=join_event', {
@@ -217,10 +266,10 @@ error_reporting(0);
 
                 if (data.status) {
                     // Permanently update button state for joined events
-                    joinBtn.innerHTML = `Joined <i class="fas fa-check ms-2"></i>`;
-                    joinBtn.classList.remove('btn-success');
-                    joinBtn.classList.add('btn-secondary');
-                    joinBtn.disabled = true;
+                    registerBtn.innerHTML = `Joined <i class="fas fa-check ms-2"></i>`;
+                    registerBtn.classList.remove('btn-success');
+                    registerBtn.classList.add('btn-secondary');
+                    registerBtn.disabled = true;
 
                     // Update local data
                     const eventIndex = eventsData.findIndex(e => e.event_id == eventId);
@@ -229,14 +278,18 @@ error_reporting(0);
                     }
                 } else {
                     alert(data.message || 'Failed to join event');
-                    joinBtn.innerHTML = `Join Now <i class="fas fa-arrow-right ms-2"></i>`;
-                    joinBtn.disabled = false;
+                    registerBtn.innerHTML = fee > 0 ?
+                        `Register Now <i class="fas fa-arrow-right ms-2"></i>` :
+                        `Join Now <i class="fas fa-arrow-right ms-2"></i>`;
+                    registerBtn.disabled = false;
                 }
             } catch (err) {
                 console.error('Join event error:', err);
                 alert('Error joining event');
-                joinBtn.innerHTML = `Join Now <i class="fas fa-arrow-right ms-2"></i>`;
-                joinBtn.disabled = false;
+                registerBtn.innerHTML = fee > 0 ?
+                    `Register Now <i class="fas fa-arrow-right ms-2"></i>` :
+                    `Join Now <i class="fas fa-arrow-right ms-2"></i>`;
+                registerBtn.disabled = false;
             }
         });
 
@@ -274,33 +327,48 @@ error_reporting(0);
                     minute: 'numeric',
                     hour12: true
                 });
-                const joinBtn = `<button class="btn ${event.joined ? 'btn-secondary' : 'btn-success'} btn-sm join-event-btn" 
-            data-event-id="${event.event_id}"
-            ${event.joined ? 'disabled' : ''}>
-            ${event.joined ? 'Joined <i class="fas fa-check ms-2"></i>' : 'Join Now <i class="fas fa-arrow-right ms-2"></i>'}
-        </button>`;
+                let joinBtn;
+                if (event.joined) {
+                    joinBtn = `<button class="btn btn-secondary btn-sm join-event-btn" 
+              data-event-id="${event.event_id}" disabled>
+              Joined <i class="fas fa-check ms-2"></i>
+            </button>`;
+                } else {
+                    // If the event has a fee > 0, show "Register Now" and include fee in a data attribute.
+                    if (parseFloat(event.fee) > 0) {
+                        joinBtn = `<button class="btn btn-success btn-sm join-event-btn" 
+                data-event-id="${event.event_id}" data-fee="${event.fee}">
+                Register Now <i class="fas fa-arrow-right ms-2"></i>
+              </button>`;
+                    } else {
+                        joinBtn = `<button class="btn btn-success btn-sm join-event-btn" 
+                data-event-id="${event.event_id}" data-fee="0">
+                Join Now <i class="fas fa-arrow-right ms-2"></i>
+              </button>`;
+                    }
+                }
                 return `
             <div class="col-12">
-                <div class="event-card">
-                    <img src="${ event.image ? '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(event.image) : 'assets/default-event.jpg' }" 
-                         class="card-img-top" 
-                         alt="${event.title}">
-                    <div class="event-card-body">
-                        <div class="event-date">
-                            <i class="fas fa-calendar-alt me-2"></i>
-                            ${dateStr}
-                        </div>
-                        <h3 class="h5 fw-bold mb-3">${event.title}</h3>
-                        <p class="text-muted mb-3">${event.description}</p>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div class="location">
-                                <i class="fas fa-map-marker-alt text-primary me-2"></i>
-                                <span class="text-muted">${event.location}</span>
-                            </div>
-                            ${joinBtn}
-                        </div>
+              <div class="event-card">
+                <img src="${ event.image ? '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(event.image) : 'assets/default-event.jpg' }" 
+                     class="card-img-top" 
+                     alt="${event.title}">
+                <div class="event-card-body">
+                  <div class="event-date">
+                    <i class="fas fa-calendar-alt me-2"></i>
+                    ${dateStr}
+                  </div>
+                  <h3 class="h5 fw-bold mb-3">${event.title}</h3>
+                  <p class="text-muted mb-3">${event.description}</p>
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div class="location">
+                      <i class="fas fa-map-marker-alt text-primary me-2"></i>
+                      <span class="text-muted">${event.location}</span>
                     </div>
+                    ${joinBtn}
+                  </div>
                 </div>
+              </div>
             </div>`;
             }).join('');
 
@@ -318,56 +386,56 @@ error_reporting(0);
                 const pastBtn = `<button class="btn btn-secondary btn-sm" disabled>Past Event</button>`;
                 return `
             <div class="col-12">
-                <div class="event-card">
-                    <img src="${ event.image ? '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(event.image) : 'assets/default-event.jpg' }" 
-                         class="card-img-top" 
-                         alt="${event.title}">
-                    <div class="event-card-body">
-                        <div class="event-date">
-                            <i class="fas fa-calendar-alt me-2"></i>
-                            ${dateStr}
-                        </div>
-                        <h3 class="h5 fw-bold mb-3">${event.title}</h3>
-                        <p class="text-muted mb-3">${event.description}</p>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div class="location">
-                                <i class="fas fa-map-marker-alt text-primary me-2"></i>
-                                <span class="text-muted">${event.location}</span>
-                            </div>
-                            ${pastBtn}
-                        </div>
+              <div class="event-card">
+                <img src="${ event.image ? '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(event.image) : 'assets/default-event.jpg' }" 
+                     class="card-img-top" 
+                     alt="${event.title}">
+                <div class="event-card-body">
+                  <div class="event-date">
+                    <i class="fas fa-calendar-alt me-2"></i>
+                    ${dateStr}
+                  </div>
+                  <h3 class="h5 fw-bold mb-3">${event.title}</h3>
+                  <p class="text-muted mb-3">${event.description}</p>
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div class="location">
+                      <i class="fas fa-map-marker-alt text-primary me-2"></i>
+                      <span class="text-muted">${event.location}</span>
                     </div>
+                    ${pastBtn}
+                  </div>
                 </div>
+              </div>
             </div>`;
             }).join('');
 
             // Render both tabs: Upcoming and Past events
             eventsList.innerHTML = `
-       <ul class="nav nav-tabs" id="eventsTab" role="tablist">
-         <li class="nav-item" role="presentation">
-           <button class="nav-link active" id="upcoming-tab" data-bs-toggle="tab" data-bs-target="#upcoming" type="button" role="tab">
-             Upcoming Events
-           </button>
-         </li>
-         <li class="nav-item" role="presentation">
-           <button class="nav-link" id="past-tab" data-bs-toggle="tab" data-bs-target="#past" type="button" role="tab">
-             Past Events
-           </button>
-         </li>
-       </ul>
-       <div class="tab-content mt-3">
-         <div class="tab-pane fade show active" id="upcoming" role="tabpanel">
-           <div class="row g-4">
-             ${upcomingHtml || '<p class="text-center text-muted">No upcoming events</p>'}
-           </div>
-         </div>
-         <div class="tab-pane fade" id="past" role="tabpanel">
-           <div class="row g-4">
-             ${pastHtml || '<p class="text-center text-muted">No past events</p>'}
-           </div>
-         </div>
-       </div>
-    `;
+          <ul class="nav nav-tabs" id="eventsTab" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="upcoming-tab" data-bs-toggle="tab" data-bs-target="#upcoming" type="button" role="tab">
+                Upcoming Events
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="past-tab" data-bs-toggle="tab" data-bs-target="#past" type="button" role="tab">
+                Past Events
+              </button>
+            </li>
+          </ul>
+          <div class="tab-content mt-3">
+            <div class="tab-pane fade show active" id="upcoming" role="tabpanel">
+              <div class="row g-4">
+                ${upcomingHtml || '<p class="text-center text-muted">No upcoming events</p>'}
+              </div>
+            </div>
+            <div class="tab-pane fade" id="past" role="tabpanel">
+              <div class="row g-4">
+                ${pastHtml || '<p class="text-center text-muted">No past events</p>'}
+              </div>
+            </div>
+          </div>
+        `;
         }
         // --- End updated renderEvents() ---
 
@@ -384,19 +452,19 @@ error_reporting(0);
                     hour12: true
                 });
                 return `
-      <div class="announcement-card">
-        <div class="d-flex align-items-start mb-2">
-          <i class="fas fa-bullhorn text-primary me-3 mt-1"></i>
-          <div>
-            <p class="h5 mb-2">${announcement.title}</p>
-            <div style="white-space: pre-wrap;">${announcement.text}</div>
-            <div class="text-end mt-2">
-              <small class="text-muted">Posted on: ${formattedDate}</small>
+            <div class="announcement-card">
+              <div class="d-flex align-items-start mb-2">
+                <i class="fas fa-bullhorn text-primary me-3 mt-1"></i>
+                <div>
+                  <p class="h5 mb-2">${announcement.title}</p>
+                  <div style="white-space: pre-wrap;">${announcement.text}</div>
+                  <div class="text-end mt-2">
+                    <small class="text-muted">Posted on: ${formattedDate}</small>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      </div>
-    `;
+          `;
             }).join('');
 
             announcementsList.innerHTML = html || '<p class="text-center text-muted">No announcements</p>';
@@ -404,16 +472,13 @@ error_reporting(0);
 
         function showError(message) {
             eventsList.innerHTML = `
-            <div class="col-12 text-center text-danger">
-                <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
-                <p>${message}</p>
-            </div>
+          <div class="col-12 text-center text-danger">
+            <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+            <p>${message}</p>
+          </div>
         `;
         }
     });
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous">
     </script>
 </body>
 
