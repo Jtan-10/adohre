@@ -243,7 +243,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
                                                 <p><strong>Schedule:</strong> ${new Date(training.schedule).toLocaleString()}</p>
                                                 <p><strong>Capacity:</strong> ${training.capacity}</p>
                                                 <p><strong>Modality:</strong> ${training.modality || 'N/A'}</p>
-                                                <p><strong>Fee:</strong> ${training.fee && parseFloat(training.fee) > 0 ? '$' + training.fee : 'Free'}</p>
+                                                <p><strong>Fee:</strong> ${training.fee && parseFloat(training.fee) > 0 ? '₱' + training.fee : 'Free'}</p>
                                                 <div>
                                                     <button class="btn btn-primary btn-sm edit-training" data-id="${training.training_id}">Edit</button>
                                                     <button class="btn btn-danger btn-sm delete-training" data-id="${training.training_id}">Delete</button>
@@ -268,7 +268,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
                                                 <p><strong>Schedule:</strong> ${new Date(training.schedule).toLocaleString()}</p>
                                                 <p><strong>Capacity:</strong> ${training.capacity}</p>
                                                 <p><strong>Modality:</strong> ${training.modality || 'N/A'}</p>
-                                                <p><strong>Fee:</strong> ${training.fee && parseFloat(training.fee) > 0 ? '$' + training.fee : 'Free'}</p>
+                                                <p><strong>Fee:</strong> ${training.fee && parseFloat(training.fee) > 0 ? '₱' + training.fee : 'Free'}</p>
                                                 <div>
                                                     <button class="btn btn-primary btn-sm edit-training" data-id="${training.training_id}">Edit</button>
                                                     <button class="btn btn-danger btn-sm delete-training" data-id="${training.training_id}">Delete</button>
