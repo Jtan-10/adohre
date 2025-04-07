@@ -1,4 +1,4 @@
-<div class="form-section">
+<div class="form-section" id="manageEventsSection">
     <h3>Manage Events</h3>
 
     <!-- Event Form -->
@@ -35,8 +35,11 @@
     <hr>
 
     <!-- Events List -->
-    <h4>Existing Events</h4>
-    <div id="eventsList"></div>
+    <h4>Upcoming / Current Events</h4>
+    <div id="currentEventsList"></div>
+
+    <h4>Past Events</h4>
+    <div id="pastEventsList"></div>
 </div>
 
 <!-- Updated inline script with matching nonce -->
@@ -64,15 +67,17 @@ document.addEventListener('DOMContentLoaded', function() {
             .then((response) => response.json())
             .then((data) => {
                 if (data.status) {
-                    // Populate Events List with fee info.
-                    const eventsList = data.events
-                        .map(
-                            (event) => `
+                    // Separate events into current/upcoming and past based on date
+                    const now = new Date();
+                    const currentEvents = data.events.filter(event => new Date(event.date) >= now);
+                    const pastEvents = data.events.filter(event => new Date(event.date) < now);
+
+                    // Map current events
+                    const currentHtml = currentEvents.map(event => `
                         <div class="card mb-3">
                             <div class="row g-0">
                                 <div class="col-md-4">
-                                    <img src="../backend/routes/decrypt_image.php?image_url=` + encodeURIComponent(
-                                event.image || '/capstone-php/assets/default-image.jpg') + `" class="card-img-top" alt="Event image">
+                                    <img src="../backend/routes/decrypt_image.php?image_url=${ encodeURIComponent(event.image || '/capstone-php/assets/default-image.jpg') }" class="card-img-top" alt="Event image">
                                 </div>
                                 <div class="col-md-8">
                                     <div class="card-body">
@@ -89,12 +94,38 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                             </div>
                         </div>
-                    `
-                        )
-                        .join('');
-                    document.getElementById('eventsList').innerHTML = eventsList;
+                    `).join('');
 
-                    // Attach Edit and Delete Event Handlers
+                    // Map past events
+                    const pastHtml = pastEvents.map(event => `
+                        <div class="card mb-3">
+                            <div class="row g-0">
+                                <div class="col-md-4">
+                                    <img src="../backend/routes/decrypt_image.php?image_url=${ encodeURIComponent(event.image || '/capstone-php/assets/default-image.jpg') }" class="card-img-top" alt="Event image">
+                                </div>
+                                <div class="col-md-8">
+                                    <div class="card-body">
+                                        <h5 class="card-title">${event.title}</h5>
+                                        <p class="card-text">${event.description}</p>
+                                        <p><strong>Date:</strong> ${event.date}</p>
+                                        <p><strong>Location:</strong> ${event.location}</p>
+                                        <p><strong>Fee:</strong> ${event.fee && parseFloat(event.fee) > 0 ? '$' + event.fee : 'Free'}</p>
+                                        <div>
+                                            <button class="btn btn-primary btn-sm edit-event" data-id="${event.event_id}">Edit</button>
+                                            <button class="btn btn-danger btn-sm delete-event" data-id="${event.event_id}">Delete</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+
+                    document.getElementById('currentEventsList').innerHTML = currentHtml ||
+                        '<p class="text-center text-muted">No upcoming events</p>';
+                    document.getElementById('pastEventsList').innerHTML = pastHtml ||
+                        '<p class="text-center text-muted">No past events</p>';
+
+                    // Attach Edit and Delete Event Handlers for both sections
                     document.querySelectorAll('.edit-event').forEach((button) =>
                         button.addEventListener('click', function() {
                             editEvent(this.getAttribute('data-id'));
@@ -123,6 +154,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.getElementById('eventDate').value = event.date;
                     document.getElementById('eventLocation').value = event.location;
                     document.getElementById('eventFee').value = event.fee || '';
+
+                    // Scroll smoothly to the manage events section (the event form)
+                    document.getElementById('manageEventsSection').scrollIntoView({
+                        behavior: 'smooth'
+                    });
                 }
             })
             .catch((err) => console.error(err));
