@@ -195,8 +195,11 @@ try {
         }
         $stmtCheckPayment->close();
         
-        // Insert a payment record with status "New" including due_date
-        $insertPaymentQuery = "INSERT INTO payments (user_id, event_id, amount, status, due_date, created_at) VALUES (?, ?, ?, ?, ?, NOW())";
+        // Set payment type as "Event Registration"
+        $payment_type = 'Event Registration';
+        
+        // Insert a payment record with status "New", payment_type, and due_date
+        $insertPaymentQuery = "INSERT INTO payments (user_id, event_id, payment_type, amount, status, due_date) VALUES (?, ?, ?, ?, ?, ?)";
         $stmtPayment = $conn->prepare($insertPaymentQuery);
         if (!$stmtPayment) {
             echo json_encode(['status' => false, 'message' => 'Database prepare error: ' . $conn->error]);
@@ -204,8 +207,8 @@ try {
         }
         
         $status = 'New';
-        // Bind parameters: user_id (i), event_id (i), fee (d), status (s), due_date (s)
-        $stmtPayment->bind_param("iidss", $userId, $eventId, $fee, $status, $due_date);
+        // Bind parameters: user_id (i), event_id (i), payment_type (s), fee (d), status (s), due_date (s)
+        $stmtPayment->bind_param("iisdss", $userId, $eventId, $payment_type, $fee, $status, $due_date);
         
         if (!$stmtPayment->execute()) {
             echo json_encode(['status' => false, 'message' => 'Failed to initiate payment: ' . $stmtPayment->error]);
@@ -218,7 +221,6 @@ try {
             echo json_encode(['status' => false, 'message' => 'Failed to initiate payment. No records were inserted.']);
         }
         $stmtPayment->close();
-        
     } elseif ($action === 'check_payment_status') {
         $userId = $_SESSION['user_id'];
         $eventId = (int)$input['event_id'];
