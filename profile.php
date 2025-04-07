@@ -415,14 +415,16 @@ header("X-Content-Type-Options: nosniff");
                 if (distance < 0.6) {
                     document.getElementById('faceValidationResult').innerText =
                         'Face matched successfully!';
-                    // Enable the Close button so the user can proceed
-                    document.getElementById('faceValidationCloseBtn').disabled = false;
                     // Stop webcam stream
                     const stream = video.srcObject;
                     if (stream) {
                         stream.getTracks().forEach(track => track.stop());
                         video.srcObject = null;
                     }
+                    // Automatically close the Face Validation modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById(
+                        'faceValidationModal'));
+                    modal.hide();
                 } else {
                     document.getElementById('faceValidationResult').innerText =
                         'Face did not match. Please try again.';
