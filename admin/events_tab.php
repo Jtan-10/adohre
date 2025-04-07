@@ -19,6 +19,12 @@
             <label for="eventLocation" class="form-label">Event Location</label>
             <input type="text" id="eventLocation" name="location" class="form-control" required>
         </div>
+        <!-- New Event Fee Field -->
+        <div class="mb-3">
+            <label for="eventFee" class="form-label">Event Fee</label>
+            <input type="number" id="eventFee" name="fee" class="form-control"
+                placeholder="Enter event fee (0 for free)" step="0.01">
+        </div>
         <div class="mb-3">
             <label for="eventImage" class="form-label">Event Image</label>
             <input type="file" id="eventImage" name="image" class="form-control" accept="image/*">
@@ -36,7 +42,7 @@
 <!-- Updated inline script with matching nonce -->
 <script nonce="<?= $cspNonce ?>">
 document.addEventListener('DOMContentLoaded', function() {
-    // Fetch and display existing events, announcements, and trainings
+    // Fetch and display existing events
     fetchContent();
 
     // Handle form submission (Add/Update Event)
@@ -58,7 +64,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then((response) => response.json())
             .then((data) => {
                 if (data.status) {
-                    // Populate Events List
+                    // Populate Events List with fee info.
                     const eventsList = data.events
                         .map(
                             (event) => `
@@ -74,6 +80,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <p class="card-text">${event.description}</p>
                                         <p><strong>Date:</strong> ${event.date}</p>
                                         <p><strong>Location:</strong> ${event.location}</p>
+                                        <p><strong>Fee:</strong> ${event.fee && parseFloat(event.fee) > 0 ? '$' + event.fee : 'Free'}</p>
                                         <div>
                                             <button class="btn btn-primary btn-sm edit-event" data-id="${event.event_id}">Edit</button>
                                             <button class="btn btn-danger btn-sm delete-event" data-id="${event.event_id}">Delete</button>
@@ -115,6 +122,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.getElementById('eventDescription').value = event.description;
                     document.getElementById('eventDate').value = event.date;
                     document.getElementById('eventLocation').value = event.location;
+                    document.getElementById('eventFee').value = event.fee || '';
                 }
             })
             .catch((err) => console.error(err));

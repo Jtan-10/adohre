@@ -236,26 +236,32 @@ try {
         }
 
         if ($action === 'add_event') {
-            // Insert new event
-            $stmt = $conn->prepare("INSERT INTO events (title, description, date, location, image) VALUES (?, ?, ?, ?, ?)");
-            $stmt->bind_param('sssss', $title, $description, $date, $location, $relativeImagePath);
+            // New: retrieve fee; default to 0 if not provided
+            $fee = isset($_POST['fee']) && is_numeric($_POST['fee']) ? floatval($_POST['fee']) : 0.00;
+            
+            // Insert new event with fee column included
+            $stmt = $conn->prepare("INSERT INTO events (title, description, date, location, fee, image) VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param('ssssds', $title, $description, $date, $location, $fee, $relativeImagePath);
             $stmt->execute();
-
+        
             // Audit log for event addition
             recordAuditLog($userId, "Add Event", "Event '$title' added.");
             echo json_encode(['status' => true, 'message' => 'Event added successfully.']);
         } elseif ($action === 'update_event') {
+            // New: retrieve fee; default to 0 if not provided
+            $fee = isset($_POST['fee']) && is_numeric($_POST['fee']) ? floatval($_POST['fee']) : 0.00;
+            
             // Update existing event; if no new image provided, the old image remains.
             $stmt = $conn->prepare(
-                "UPDATE events SET title = ?, description = ?, date = ?, location = ?, image = IFNULL(?, image) WHERE event_id = ?"
+                "UPDATE events SET title = ?, description = ?, date = ?, location = ?, fee = ?, image = IFNULL(?, image) WHERE event_id = ?"
             );
-            $stmt->bind_param('sssssi', $title, $description, $date, $location, $relativeImagePath, $event_id);
+            $stmt->bind_param('ssssdsi', $title, $description, $date, $location, $fee, $relativeImagePath, $event_id);
             $stmt->execute();
-
+        
             // Audit log for event update
             recordAuditLog($userId, "Update Event", "Event ID $event_id updated with title '$title'.");
             echo json_encode(['status' => true, 'message' => 'Event updated successfully.']);
-        }
+        }        
     } elseif ($action === 'delete_event') {
         ensureAuthenticated();
         // ----------------------------
