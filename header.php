@@ -52,9 +52,14 @@ if ($stmt) {
     object-fit: cover;
     border-radius: 50%;
 }
+
+/* Force nav link text to white */
+.navbar-nav .nav-link {
+    color: #fff !important;
+}
 </style>
 
-<!-- Use navbar-dark so that text/icon colors are set to white by default -->
+<!-- Use navbar-dark so that text/icon colors are white by default -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-success">
     <div class="container">
         <a class="navbar-brand" href="index.php">
@@ -63,11 +68,12 @@ if ($stmt) {
                 class="d-inline-block align-text-top">
             <?= htmlspecialchars($headerName, ENT_QUOTES, 'UTF-8') ?>
         </a>
-        <!-- The toggler button uses data-bs-* attributes to work with Bootstrap's JS -->
+        <!-- Toggler button using Bootstrap's data-bs attributes -->
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
             aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
+        <!-- Collapsible nav links -->
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
                 <li class="nav-item"><a class="nav-link" href="index.php">Home</a></li>
@@ -108,5 +114,5 @@ if ($stmt) {
     </div>
 </nav>
 
-<!-- Include the Bootstrap JS bundle (includes Popper) so that the toggler works -->
+<!-- Include the Bootstrap JS bundle (which includes Popper) so that the toggler works -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
