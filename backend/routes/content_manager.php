@@ -475,21 +475,25 @@ try {
 
         if ($action === 'add_training') {
             $trainer_id = $_SESSION['user_id'] ?? 0;
-            $stmt = $conn->prepare("INSERT INTO trainings (title, description, schedule, capacity, image, modality, modality_details, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param('sssisssi', $title, $description, $schedule, $capacity, $relativeImagePath, $modality, $modality_details, $trainer_id);
+            // Retrieve fee; default to 0 if not provided
+            $fee = isset($_POST['fee']) && is_numeric($_POST['fee']) ? floatval($_POST['fee']) : 0.00;
+            $stmt = $conn->prepare("INSERT INTO trainings (title, description, schedule, capacity, fee, image, modality, modality_details, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param('sssidsssi', $title, $description, $schedule, $capacity, $fee, $relativeImagePath, $modality, $modality_details, $trainer_id);
             $stmt->execute();
-
+        
             recordAuditLog($trainer_id, "Add Training", "Training '$title' added.");
             echo json_encode(['status' => true, 'message' => 'Training added successfully.']);
         } elseif ($action === 'update_training') {
-            $stmt = $conn->prepare("UPDATE trainings SET title = ?, description = ?, schedule = ?, capacity = ?, image = IFNULL(?, image), modality = ?, modality_details = ? WHERE training_id = ?");
-            $stmt->bind_param('sssisssi', $title, $description, $schedule, $capacity, $relativeImagePath, $modality, $modality_details, $training_id);
+            // Retrieve fee; default to 0 if not provided
+            $fee = isset($_POST['fee']) && is_numeric($_POST['fee']) ? floatval($_POST['fee']) : 0.00;
+            $stmt = $conn->prepare("UPDATE trainings SET title = ?, description = ?, schedule = ?, capacity = ?, fee = ?, image = IFNULL(?, image), modality = ?, modality_details = ? WHERE training_id = ?");
+            $stmt->bind_param('sssidsssi', $title, $description, $schedule, $capacity, $fee, $relativeImagePath, $modality, $modality_details, $training_id);
             $stmt->execute();
-
+        
             recordAuditLog($_SESSION['user_id'], "Update Training", "Training ID $training_id updated with title '$title'.");
             echo json_encode(['status' => true, 'message' => 'Training updated successfully.']);
             exit();
-        }
+        }        
     } elseif ($action === 'delete_training') {
         ensureAuthenticated();
         $training_id = $_POST['id'];

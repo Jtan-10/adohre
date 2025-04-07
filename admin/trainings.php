@@ -78,6 +78,12 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
                         <input type="datetime-local" id="trainingSchedule" name="schedule" class="form-control"
                             required>
                     </div>
+                    <!-- Add Fee Field -->
+                    <div class="mb-3">
+                        <label for="trainingFee" class="form-label">Event Fee</label>
+                        <input type="number" step="0.01" id="trainingFee" name="fee" class="form-control" value="0.00"
+                            required>
+                    </div>
                     <div class="mb-3">
                         <label for="trainingCapacity" class="form-label">Capacity</label>
                         <input type="number" id="trainingCapacity" name="capacity" class="form-control" value="50"

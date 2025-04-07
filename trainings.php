@@ -205,6 +205,27 @@
         </div>
     </main>
 
+    <!-- Payment Modal for Trainings -->
+    <div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="paymentModalLabel">Payment Required</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>This training requires a fee of <span id="trainingFee"></span>.</p>
+                    <p>Please proceed to your <strong>Profile &amp; Payments</strong> tab to complete your payment.</p>
+                    <p>Once your payment status is updated to <em>New</em> (and later to <em>Completed</em>), you will
+                        be registered for the training.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Ok, Got It</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal for Viewing Training Details -->
     <div class="modal fade" id="trainingModal" tabindex="-1" aria-labelledby="trainingModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
@@ -290,6 +311,8 @@
         const role = <?php echo json_encode($_SESSION['role']); ?>; // e.g., 'trainer' or 'user'
         let trainingsData = [];
         const trainingsList = document.getElementById('trainingsList');
+        const paymentModal = new bootstrap.Modal(document.getElementById('paymentModal'));
+        const trainingFeeSpan = document.getElementById('trainingFee');
 
         // Event delegation for training card buttons
         trainingsList.addEventListener('click', function(e) {
@@ -298,7 +321,7 @@
             const trainingId = btn.dataset.trainingId;
             const training = trainingsData.find(t => t.training_id == trainingId);
             if (btn.classList.contains('join-training-btn')) {
-                joinTraining(trainingId, btn);
+                joinTraining(trainingId, btn, training.fee);
             } else if (btn.classList.contains('view-training-btn')) {
                 showTrainingModal(training);
             }
@@ -327,7 +350,7 @@
             const upcomingTrainings = trainings.filter(training => new Date(training.schedule) >= now);
             const pastTrainings = trainings.filter(training => new Date(training.schedule) < now);
 
-            // Build upcoming trainings HTML with decrypted image source
+            // Build upcoming trainings HTML with decrypted image source and fee handling
             const upcomingHtml = upcomingTrainings.map(training => `
             <div class="col-12">
               <div class="training-card card">
@@ -358,9 +381,14 @@
                         ? `<button class="btn btn-primary view-training-btn" data-training-id="${training.training_id}">
                              <i class="fas fa-eye me-2"></i>View Training
                            </button>`
-                        : `<button class="btn btn-success join-training-btn" data-training-id="${training.training_id}">
-                             <i class="fas fa-user-plus me-2"></i>Join Training
-                           </button>`}
+                        : (parseFloat(training.fee) > 0 
+                           ? `<button class="btn btn-success join-training-btn" data-training-id="${training.training_id}" data-fee="${training.fee}">
+                             Register Now <i class="fas fa-arrow-right me-2"></i>
+                           </button>`
+                           : `<button class="btn btn-success join-training-btn" data-training-id="${training.training_id}" data-fee="0">
+                             Join Training <i class="fas fa-arrow-right me-2"></i>
+                           </button>`)
+                      }
                     </div>
                   </div>
                 </div>
@@ -432,8 +460,56 @@
         `;
         }
 
-        async function joinTraining(trainingId, button) {
+        async function joinTraining(trainingId, button, fee) {
+            // If training has a fee > 0, show the payment modal and initiate a payment record
+            if (parseFloat(fee) > 0) {
+                trainingFeeSpan.textContent = "PHP " + parseFloat(fee).toFixed(2);
+                paymentModal.show();
+
+                // Initiate the payment record for the training (assumes endpoint exists)
+                await fetch(
+                    '/capstone-php/backend/routes/training_registration.php?action=initiate_payment', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            training_id: trainingId
+                        })
+                    });
+
+                // Start polling for payment status every 5 seconds.
+                const pollInterval = setInterval(async () => {
+                    const pollResponse = await fetch(
+                        '/capstone-php/backend/routes/training_registration.php?action=check_payment_status', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                training_id: trainingId
+                            })
+                        });
+                    const pollData = await pollResponse.json();
+                    if (pollData.payment_completed) {
+                        clearInterval(pollInterval);
+                        // Update button state once payment is completed
+                        button.innerHTML = `Joined <i class="fas fa-check me-2"></i>`;
+                        button.classList.remove('btn-success');
+                        button.classList.add('btn-secondary');
+                        button.disabled = true;
+                        alert(pollData.message);
+                    }
+                }, 5000);
+                return;
+            }
+
+            // For free trainings (fee == 0), proceed to register immediately.
             try {
+                button.innerHTML =
+                    `<span class="spinner-border spinner-border-sm" role="status"></span> Joining...`;
+                button.disabled = true;
+
                 const response = await fetch(
                     '/capstone-php/backend/routes/training_registration.php?action=join_training', {
                         method: 'POST',
@@ -465,8 +541,8 @@
             document.getElementById('trainingModalLabel').textContent = training.title;
             // Update modal image source to use decryption endpoint if available
             document.getElementById('trainingModalImage').src = training.image ?
-                '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training
-                    .image) : 'assets/default-training.jpg';
+                '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image) :
+                'assets/default-training.jpg';
             document.getElementById('trainingModalDescription').textContent = training.description;
             document.getElementById('trainingModalSchedule').textContent = new Date(training.schedule)
                 .toLocaleString();
@@ -485,8 +561,7 @@
             // For participants, fetch the assessment form link
             if (role !== 'trainer') {
                 fetch(
-                        `/backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${training.training_id}`
-                    )
+                        `/capstone-php/backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${training.training_id}`)
                     .then(response => response.json())
                     .then(data => {
                         const assessmentSection = document.getElementById('assessmentSection');
