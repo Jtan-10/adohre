@@ -504,6 +504,52 @@ if ($method === 'GET') {
                 $stmtUpdateMember->close();
             }
             $stmtUser->close();
+
+            // New code to send email notification to the user for completed payment.
+            $stmtEmail = $conn->prepare("SELECT u.email, u.first_name, p.payment_type, p.amount, p.mode_of_payment, p.payment_date FROM payments p JOIN users u ON p.user_id = u.user_id WHERE p.payment_id = ? LIMIT 1");
+            $stmtEmail->bind_param("i", $payment_id);
+            $stmtEmail->execute();
+            $resultEmail = $stmtEmail->get_result();
+            if ($resultEmail->num_rows === 1) {
+                $userDetails = $resultEmail->fetch_assoc();
+                $stmtEmail->close();
+
+                $mail = new PHPMailer(true);
+                try {
+                    $mail->isSMTP();
+                    $mail->Host       = $_ENV['SMTP_HOST'];
+                    $mail->SMTPAuth   = true;
+                    $mail->Username   = $_ENV['SMTP_USER'];
+                    $mail->Password   = $_ENV['SMTP_PASS'];
+                    $mail->SMTPSecure = $_ENV['SMTP_SECURE'];
+                    $mail->Port       = $_ENV['SMTP_PORT'];
+                    $mail->SMTPOptions = [
+                        'ssl' => [
+                            'verify_peer'      => true,
+                            'verify_peer_name' => true,
+                            'allow_self_signed' => false,
+                        ],
+                    ];
+                    $mail->setFrom($_ENV['SMTP_FROM'], $_ENV['SMTP_FROM_NAME']);
+                    $mail->addAddress($userDetails['email']);
+                    $mail->isHTML(true);
+                    $mail->Subject = "Payment Completed Notification";
+                    $mail->Body    = "
+                        <h1>Hello " . htmlspecialchars($userDetails['first_name'], ENT_QUOTES, 'UTF-8') . ",</h1>
+                        <p>Your payment has been marked as <strong>Completed</strong>.</p>
+                        <p><strong>Payment Type:</strong> " . htmlspecialchars($userDetails['payment_type'], ENT_QUOTES, 'UTF-8') . "</p>
+                        <p><strong>Amount:</strong> " . htmlspecialchars($userDetails['amount'], ENT_QUOTES, 'UTF-8') . "</p>
+                        <p><strong>Mode of Payment:</strong> " . htmlspecialchars($userDetails['mode_of_payment'], ENT_QUOTES, 'UTF-8') . "</p>
+                        <p><strong>Payment Date:</strong> " . htmlspecialchars($userDetails['payment_date'], ENT_QUOTES, 'UTF-8') . "</p>
+                        <p>Thank you for your payment!</p>";
+                    $mail->AltBody = strip_tags($mail->Body);
+                    $mail->send();
+                } catch (Exception $e) {
+                    error_log("Email could not be sent to " . $userDetails['email'] . ". Mailer Error: " . $mail->ErrorInfo);
+                }
+            } else {
+                $stmtEmail->close();
+            }
         }
 
         echo json_encode(['status' => true, 'message' => 'Payment status updated successfully.']);
