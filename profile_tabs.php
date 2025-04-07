@@ -100,6 +100,7 @@
                         <th>Type</th>
                         <th>Amount</th>
                         <th>Status</th>
+                        <th>Details</th>
                         <th>Actions</th>
                     </tr>
                 </thead>

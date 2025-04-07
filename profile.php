@@ -124,21 +124,34 @@ header("X-Content-Type-Options: nosniff");
                     if (data.status) {
                         let paymentsHTML = '';
                         data.payments.forEach(payment => {
+                            // Determine details based on payment type:
+                            let detailText = '';
+                            if (payment.payment_type === 'Event Registration') {
+                                // If event title is provided, display it; otherwise, show event ID.
+                                detailText = payment.event_title ? payment.event_title :
+                                    'Event ID: ' + payment.event_id;
+                            } else if (payment.payment_type === 'Training Registration') {
+                                detailText = payment.training_title ? payment.training_title :
+                                    'Training ID: ' + payment.training_id;
+                            } else {
+                                detailText = 'N/A';
+                            }
                             paymentsHTML += `
                         <tr>
                             <td>${payment.payment_id}</td>
                             <td>${payment.payment_type}</td>
                             <td>${payment.amount}</td>
                             <td>${payment.status}</td>
+                            <td>${detailText}</td>
                             <td>
-                              <button class="btn btn-info btn-sm" onclick='viewPaymentDetails(${JSON.stringify(payment)})'>View Details</button>
-                              ${payment.status === "New" ? `<button class="btn btn-success btn-sm" onclick="openPayFeeModal(${payment.payment_id})">Pay Fees</button>` : ''}
+                                <button class="btn btn-info btn-sm" onclick='viewPaymentDetails(${JSON.stringify(payment)})'>View Details</button>
+                                ${payment.status === "New" ? `<button class="btn btn-success btn-sm" onclick="openPayFeeModal(${payment.payment_id})">Pay Fees</button>` : ''}
                             </td>
                         </tr>
                     `;
                         });
                         document.getElementById('pendingPaymentsTable').innerHTML = paymentsHTML ||
-                            '<tr><td colspan="5">No payments found</td></tr>';
+                            '<tr><td colspan="6">No payments found</td></tr>';
                     } else {
                         document.getElementById('paymentInfo').innerHTML =
                             `<p>${data.message || 'Failed to load payment info.'}</p>`;
