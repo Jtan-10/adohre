@@ -242,7 +242,7 @@ try {
 function recordAuditLog($userId, $action, $details) {
     // Assumes there is an audit_log table with columns: user_id, action, details, created_at
     global $conn;
-    $query = "INSERT INTO audit_log (user_id, action, details, created_at) VALUES (?, ?, ?, NOW())";
+    $query = "INSERT INTO audit_logs (user_id, action, details, created_at) VALUES (?, ?, ?, NOW())";
     $stmt = $conn->prepare($query);
     $stmt->bind_param("iss", $userId, $action, $details);
     $stmt->execute();
