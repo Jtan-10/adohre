@@ -45,80 +45,68 @@ if ($stmt) {
 ?>
 
 <style>
-    /* Added profile-image styles */
-    .profile-image-header {
-        width: 30px;
-        height: 30px;
-        object-fit: cover;
-        border-radius: 50%;
-    }
+/* Added profile-image styles */
+.profile-image-header {
+    width: 30px;
+    height: 30px;
+    object-fit: cover;
+    border-radius: 50%;
+}
 </style>
 
-<nav class="navbar navbar-expand-lg bg-success text-white">
+<!-- Use navbar-dark so that text/icon colors are set to white by default -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-success">
     <div class="container">
-        <a class="navbar-brand text-white" href="index.php">
+        <a class="navbar-brand" href="index.php">
             <img src="/capstone-php/backend/routes/decrypt_image.php?image_url=<?= urlencode($headerLogo) ?>"
                 alt="<?= htmlspecialchars($headerName, ENT_QUOTES, 'UTF-8') ?> Logo" width="30" height="28"
                 class="d-inline-block align-text-top">
             <?= htmlspecialchars($headerName, ENT_QUOTES, 'UTF-8') ?>
         </a>
-        <button class="navbar-toggler text-white" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+        <!-- The toggler button uses data-bs-* attributes to work with Bootstrap's JS -->
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
             aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-                <li class="nav-item"><a class="nav-link text-white" href="index.php">Home</a></li>
-                <li class="nav-item"><a class="nav-link text-white" href="about.php">About Us</a></li>
-                <li class="nav-item"><a class="nav-link text-white" href="news.php">News</a></li>
+                <li class="nav-item"><a class="nav-link" href="index.php">Home</a></li>
+                <li class="nav-item"><a class="nav-link" href="about.php">About Us</a></li>
+                <li class="nav-item"><a class="nav-link" href="news.php">News</a></li>
                 <?php if ($isLoggedIn && (isset($_SESSION['role']) && $_SESSION['role'] !== 'user')): ?>
-                    <li class="nav-item"><a class="nav-link text-white" href="events.php">Events</a></li>
+                <li class="nav-item"><a class="nav-link" href="events.php">Events</a></li>
                 <?php endif; ?>
                 <?php if (isset($_SESSION['user_id'])): ?>
-                    <li class="nav-item"><a class="nav-link text-white" href="trainings.php">Trainings</a></li>
+                <li class="nav-item"><a class="nav-link" href="trainings.php">Trainings</a></li>
                 <?php endif; ?>
                 <?php if ($isLoggedIn): ?>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle text-white" href="#" id="navbarDropdown" role="button"
-                            data-bs-toggle="dropdown" aria-expanded="false">
-                            <img id="profileImageNav" src="<?= isset($_SESSION['profile_image'])
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                        <img id="profileImageNav" src="<?= isset($_SESSION['profile_image'])
                                                                 ? '/capstone-php/backend/routes/decrypt_image.php?image_url=' . urlencode($_SESSION['profile_image'])
                                                                 : './assets/default-profile.jpeg' ?>"
-                                alt="Profile Image" class="profile-image-header rounded-circle" width="30" height="30">
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
-                            <li><a class="dropdown-item" href="profile.php">Profile</a></li>
-                            <?php if ($_SESSION['role'] === 'admin'): ?>
-                                <li><a class="dropdown-item" href="admin/dashboard.php">Admin Dashboard</a></li>
-                            <?php endif; ?>
-                            <?php if ($_SESSION['role'] === 'trainer'): ?>
-                                <li><a class="dropdown-item" href="admin/trainer/dashboard.php">Trainer Dashboard</a></li>
-                            <?php endif; ?>
-                            <li><a class="dropdown-item" href="logout.php">Logout</a></li>
-                        </ul>
-                    </li>
+                            alt="Profile Image" class="profile-image-header rounded-circle" width="30" height="30">
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                        <li><a class="dropdown-item" href="profile.php">Profile</a></li>
+                        <?php if ($_SESSION['role'] === 'admin'): ?>
+                        <li><a class="dropdown-item" href="admin/dashboard.php">Admin Dashboard</a></li>
+                        <?php endif; ?>
+                        <?php if ($_SESSION['role'] === 'trainer'): ?>
+                        <li><a class="dropdown-item" href="admin/trainer/dashboard.php">Trainer Dashboard</a></li>
+                        <?php endif; ?>
+                        <li><a class="dropdown-item" href="logout.php">Logout</a></li>
+                    </ul>
+                </li>
                 <?php else: ?>
-                    <li class="nav-item mt-1"><a href="login.php" class="btn btn-light btn-sm">Login</a></li>
-                    <li class="nav-item mt-1"><a href="signup.php" class="btn btn-light btn-sm">Sign Up</a></li>
+                <li class="nav-item mt-1"><a href="login.php" class="btn btn-light btn-sm">Login</a></li>
+                <li class="nav-item mt-1"><a href="signup.php" class="btn btn-light btn-sm">Sign Up</a></li>
                 <?php endif; ?>
             </ul>
         </div>
     </div>
 </nav>
-<!-- Added Bootstrap JS Bundle for dropdown functionality -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-<!-- Added custom toggler script -->
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        var navbarToggler = document.querySelector('.navbar-toggler');
-        var navbarCollapse = document.getElementById('navbarNav');
-        var collapseInstance = new bootstrap.Collapse(navbarCollapse, {
-            toggle: false
-        });
-        navbarToggler.addEventListener('click', function(e) {
-            e.preventDefault();
-            collapseInstance.toggle();
-        });
-    });
-</script>
+<!-- Include the Bootstrap JS bundle (includes Popper) so that the toggler works -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
