@@ -231,10 +231,21 @@ error_reporting(0);
                 eventFeeSpan.textContent = "PHP " + fee.toFixed(2);
                 paymentModal.show();
 
-                try {
-                    // Initiate the payment record
-                    const response = await fetch(
-                        'backend/routes/event_registration.php?action=initiate_payment', {
+                // Initiate the payment record (if not already done)
+                await fetch('backend/routes/event_registration.php?action=initiate_payment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        event_id: eventId
+                    })
+                });
+
+                // Start polling for payment status every 5 seconds.
+                const pollInterval = setInterval(async () => {
+                    const pollResponse = await fetch(
+                        'backend/routes/event_registration.php?action=check_payment_status', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
@@ -243,63 +254,21 @@ error_reporting(0);
                                 event_id: eventId
                             })
                         });
-                    const data = await response.json();
-
-                    if (data.status) {
-                        // Immediately update the button to "Pending Payment"
-                        registerBtn.innerHTML = `Pending Payment`;
-                        registerBtn.classList.remove('btn-success');
-                        registerBtn.classList.add('btn-warning');
-                        registerBtn.disabled = true;
-
-                        // Optionally display a message or toast:
-                        // alert(data.message);
-
-                        // Now start polling for payment status every 5 seconds.
-                        const pollInterval = setInterval(async () => {
-                            const pollResponse = await fetch(
-                                'backend/routes/event_registration.php?action=check_payment_status', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json'
-                                    },
-                                    body: JSON.stringify({
-                                        event_id: eventId
-                                    })
-                                }
-                            );
-                            const pollData = await pollResponse.json();
-
-                            // If payment is completed, clear the interval and update the button to "Joined"
-                            if (pollData.payment_completed) {
-                                clearInterval(pollInterval);
-
-                                registerBtn.innerHTML =
-                                    `Joined <i class="fas fa-check ms-2"></i>`;
-                                registerBtn.classList.remove('btn-warning');
-                                registerBtn.classList.add('btn-secondary');
-                                registerBtn.disabled = true;
-
-                                // Optionally, display a success alert
-                                alert(pollData.message);
-                            }
-                        }, 5000);
-                    } else {
-                        // If initiate_payment returned an error, show the original button again
-                        alert(data.message || 'Failed to initiate payment');
+                    const pollData = await pollResponse.json();
+                    if (pollData.payment_completed) {
+                        clearInterval(pollInterval);
+                        // Update button state once payment is completed
                         registerBtn.innerHTML =
-                            `Register Now <i class="fas fa-arrow-right ms-2"></i>`;
-                        registerBtn.disabled = false;
+                            `Joined <i class="fas fa-check ms-2"></i>`;
+                        registerBtn.classList.remove('btn-success');
+                        registerBtn.classList.add('btn-secondary');
+                        registerBtn.disabled = true;
+                        // Optionally, display a success alert
+                        alert(pollData.message);
                     }
-                } catch (err) {
-                    console.error('initiate_payment error:', err);
-                    alert('Error initiating payment');
-                    registerBtn.innerHTML = `Register Now <i class="fas fa-arrow-right ms-2"></i>`;
-                    registerBtn.disabled = false;
-                }
-                return; // Important so we don't also execute the "free event" logic
+                }, 5000);
+                return;
             }
-
 
             // For free events (fee == 0), proceed to register immediately.
             try {
