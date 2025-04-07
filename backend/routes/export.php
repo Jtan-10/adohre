@@ -309,7 +309,7 @@ try {
             ['Total Users', $metrics['total_users'] ?? 0],
             ['Active Members', $metrics['active_members'] ?? 0],
             ['Upcoming Events', $metrics['upcoming_events'] ?? 0],
-            ['Total Revenue', '₱' . number_format($metrics['total_revenue'] ?? 0, 2)]
+            ['Total Revenue', 'PHP ' . number_format($metrics['total_revenue'] ?? 0, 2)]
         ];
         
         $colors = [
@@ -365,7 +365,7 @@ try {
                 foreach ($rows as $key => $value) {
                     // Format value based on type
                     if (strpos($key, 'revenue') !== false && $value) {
-                        $formattedValue = '₱' . number_format($value, 2);
+                        $formattedValue = 'PHP ' . number_format($value, 2);
                     } else {
                         $formattedValue = $value ?? 'N/A';
                     }
