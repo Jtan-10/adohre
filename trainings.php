@@ -216,11 +216,12 @@
                 <div class="modal-body">
                     <p>This training requires a fee of <span id="trainingFee"></span>.</p>
                     <p>Please proceed to your <strong>Profile &amp; Payments</strong> tab to complete your payment.</p>
-                    <p>Once your payment status is updated to <em>New</em> (and later to <em>Completed</em>), you will
-                        be registered for the training.</p>
+                    <p>After reviewing the fee details, click <strong>Ok, Got It</strong> to proceed.</p>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Ok, Got It</button>
+                    <!-- "Ok, Got It" button used to push the payment record -->
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal" id="okGotItBtn">Ok, Got
+                        It</button>
                 </div>
             </div>
         </div>
@@ -311,8 +312,12 @@
         const role = <?php echo json_encode($_SESSION['role']); ?>; // e.g., 'trainer' or 'user'
         let trainingsData = [];
         const trainingsList = document.getElementById('trainingsList');
-        const paymentModal = new bootstrap.Modal(document.getElementById('paymentModal'));
+        const paymentModalInstance = new bootstrap.Modal(document.getElementById('paymentModal'));
         const trainingFeeSpan = document.getElementById('trainingFee');
+
+        // Global variables to store the training ID and button reference for payment initiation.
+        let currentTrainingForPayment = null;
+        let currentButtonForPayment = null;
 
         // Event delegation for training card buttons
         trainingsList.addEventListener('click', function(e) {
@@ -346,38 +351,29 @@
         // Updated renderTrainings() function with tabs for upcoming and past trainings
         function renderTrainings(trainings) {
             const now = new Date();
-            // Filter trainings based on the schedule date
             const upcomingTrainings = trainings.filter(training => new Date(training.schedule) >= now);
             const pastTrainings = trainings.filter(training => new Date(training.schedule) < now);
-
-            // Build upcoming trainings HTML with decrypted image source and fee handling
             const upcomingHtml = upcomingTrainings.map(training => {
                 let joinBtn = '';
                 if (training.joined) {
-                    // Already joined
-                    joinBtn = `<button class="btn btn-secondary btn-sm" disabled>
-                                        Joined <i class="fas fa-check me-2"></i>
+                    // Payment complete – show "View Training" button
+                    joinBtn = `<button class="btn btn-primary btn-sm view-training-btn" data-training-id="${training.training_id}">
+                                        <i class="fas fa-eye me-2"></i>View Training
                                    </button>`;
                 } else if (training.pending_payment) {
-                    // Payment is initiated but not completed
-                    joinBtn = `<button class="btn btn-warning btn-sm" disabled>
-                                        Pending Payment
-                                   </button>`;
+                    joinBtn =
+                    `<button class="btn btn-warning btn-sm" disabled>Pending Payment</button>`;
                 } else {
-                    // Not joined, no pending payment
                     if (parseFloat(training.fee) > 0) {
-                        // Paid training
                         joinBtn = `<button class="btn btn-success btn-sm join-training-btn" data-training-id="${training.training_id}" data-fee="${training.fee}">
-                                        Register Now <i class="fas fa-arrow-right me-2"></i>
+                                            Register Now <i class="fas fa-arrow-right me-2"></i>
                                        </button>`;
                     } else {
-                        // Free training
                         joinBtn = `<button class="btn btn-success btn-sm join-training-btn" data-training-id="${training.training_id}" data-fee="0">
-                                        Join Training <i class="fas fa-arrow-right me-2"></i>
+                                            Join Training <i class="fas fa-arrow-right me-2"></i>
                                        </button>`;
                     }
                 }
-
                 const dateStr = new Date(training.schedule).toLocaleString('en-US', {
                     month: 'long',
                     day: 'numeric',
@@ -386,42 +382,39 @@
                     minute: 'numeric',
                     hour12: true
                 });
-
                 return `
-                    <div class="col-12">
-                      <div class="training-card card">
-                        <div class="row g-0">
-                          <div class="col-md-4">
-                            <img src="${training.image ? '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image) : 'assets/default-training.jpg'}" 
-                                 class="img-fluid training-image" 
-                                 alt="${training.title}">
-                          </div>
-                          <div class="col-md-8 p-3">
-                            <div class="training-badge">
-                              <i class="fas fa-chalkboard-teacher me-2"></i>
-                              ${training.modality || 'In-person'}
-                            </div>
-                            <h3 class="h5 fw-bold mb-2">${training.title}</h3>
-                            <div class="d-flex flex-column gap-2">
-                              <div class="d-flex align-items-center">
-                                <i class="fas fa-calendar-day text-primary me-2"></i>
-                                <span>${dateStr}</span>
+                        <div class="col-12">
+                          <div class="training-card card">
+                            <div class="row g-0">
+                              <div class="col-md-4">
+                                <img src="${training.image ? '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image) : 'assets/default-training.jpg'}" 
+                                     class="img-fluid training-image" 
+                                     alt="${training.title}">
                               </div>
-                              <div class="d-flex align-items-center">
-                                <i class="fas fa-user-friends text-primary me-2"></i>
-                                <span>${training.capacity} slots available</span>
+                              <div class="col-md-8 p-3">
+                                <div class="training-badge">
+                                  <i class="fas fa-chalkboard-teacher me-2"></i>
+                                  ${training.modality || 'In-person'}
+                                </div>
+                                <h3 class="h5 fw-bold mb-2">${training.title}</h3>
+                                <div class="d-flex flex-column gap-2">
+                                  <div class="d-flex align-items-center">
+                                    <i class="fas fa-calendar-day text-primary me-2"></i>
+                                    <span>${dateStr}</span>
+                                  </div>
+                                  <div class="d-flex align-items-center">
+                                    <i class="fas fa-user-friends text-primary me-2"></i>
+                                    <span>${training.capacity} slots available</span>
+                                  </div>
+                                </div>
+                                <div class="mt-3">
+                                  ${joinBtn}
+                                </div>
                               </div>
                             </div>
-                            <div class="mt-3">
-                              ${joinBtn}
-                            </div>
                           </div>
-                        </div>
-                      </div>
-                    </div>`;
+                        </div>`;
             }).join('');
-
-            // Build past trainings HTML (disable join functionality)
             const pastHtml = pastTrainings.map(training => {
                 const dateStr = new Date(training.schedule).toLocaleString('en-US', {
                     month: 'long',
@@ -432,137 +425,81 @@
                     hour12: true
                 });
                 return `
-                    <div class="col-12">
-                      <div class="training-card card">
-                        <div class="row g-0">
-                          <div class="col-md-4">
-                            <img src="${training.image ? '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image) : 'assets/default-training.jpg'}" 
-                                 class="img-fluid training-image" 
-                                 alt="${training.title}">
-                          </div>
-                          <div class="col-md-8 p-3">
-                            <div class="training-badge">
-                              <i class="fas fa-chalkboard-teacher me-2"></i>
-                              ${training.modality || 'In-person'}
-                            </div>
-                            <h3 class="h5 fw-bold mb-2">${training.title}</h3>
-                            <div class="d-flex flex-column gap-2">
-                              <div class="d-flex align-items-center">
-                                <i class="fas fa-calendar-day text-primary me-2"></i>
-                                <span>${dateStr}</span>
+                        <div class="col-12">
+                          <div class="training-card card">
+                            <div class="row g-0">
+                              <div class="col-md-4">
+                                <img src="${training.image ? '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image) : 'assets/default-training.jpg'}" 
+                                     class="img-fluid training-image" 
+                                     alt="${training.title}">
                               </div>
-                              <div class="d-flex align-items-center">
-                                <i class="fas fa-user-friends text-primary me-2"></i>
-                                <span>${training.capacity} slots available</span>
+                              <div class="col-md-8 p-3">
+                                <div class="training-badge">
+                                  <i class="fas fa-chalkboard-teacher me-2"></i>
+                                  ${training.modality || 'In-person'}
+                                </div>
+                                <h3 class="h5 fw-bold mb-2">${training.title}</h3>
+                                <div class="d-flex flex-column gap-2">
+                                  <div class="d-flex align-items-center">
+                                    <i class="fas fa-calendar-day text-primary me-2"></i>
+                                    <span>${dateStr}</span>
+                                  </div>
+                                  <div class="d-flex align-items-center">
+                                    <i class="fas fa-user-friends text-primary me-2"></i>
+                                    <span>${training.capacity} slots available</span>
+                                  </div>
+                                </div>
+                                <div class="mt-3">
+                                  <button class="btn btn-secondary" disabled>Past Training</button>
+                                </div>
                               </div>
                             </div>
-                            <div class="mt-3">
-                              <button class="btn btn-secondary" disabled>Past Training</button>
-                            </div>
                           </div>
-                        </div>
-                      </div>
-                    </div>`;
+                        </div>`;
             }).join('');
-
-            // Render both tabs: Upcoming and Past Trainings
             trainingsList.innerHTML = `
-                <ul class="nav nav-tabs" id="trainingsTab" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="upcoming-tab" data-bs-toggle="tab" data-bs-target="#upcomingTrainings" type="button" role="tab">
-                            Upcoming Trainings
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="past-tab" data-bs-toggle="tab" data-bs-target="#pastTrainings" type="button" role="tab">
-                            Past Trainings
-                        </button>
-                    </li>
-                </ul>
-                <div class="tab-content mt-3">
-                    <div class="tab-pane fade show active" id="upcomingTrainings" role="tabpanel">
-                        <div class="row g-4">
-                            ${upcomingHtml || '<p class="text-center text-muted">No upcoming trainings</p>'}
+                    <ul class="nav nav-tabs" id="trainingsTab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="upcoming-tab" data-bs-toggle="tab" data-bs-target="#upcomingTrainings" type="button" role="tab">
+                                Upcoming Trainings
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="past-tab" data-bs-toggle="tab" data-bs-target="#pastTrainings" type="button" role="tab">
+                                Past Trainings
+                            </button>
+                        </li>
+                    </ul>
+                    <div class="tab-content mt-3">
+                        <div class="tab-pane fade show active" id="upcomingTrainings" role="tabpanel">
+                            <div class="row g-4">
+                                ${upcomingHtml || '<p class="text-center text-muted">No upcoming trainings</p>'}
+                            </div>
                         </div>
-                    </div>
-                    <div class="tab-pane fade" id="pastTrainings" role="tabpanel">
-                        <div class="row g-4">
-                            ${pastHtml || '<p class="text-center text-muted">No past trainings</p>'}
+                        <div class="tab-pane fade" id="pastTrainings" role="tabpanel">
+                            <div class="row g-4">
+                                ${pastHtml || '<p class="text-center text-muted">No past trainings</p>'}
+                            </div>
                         </div>
-                    </div>
-                </div>
-                `;
+                    </div>`;
         }
 
+        // Updated joinTraining function for paid trainings using "Ok, Got It" to push payment
         async function joinTraining(trainingId, button, fee) {
-            // If training has a fee > 0, show the payment modal and initiate a payment record
             if (parseFloat(fee) > 0) {
                 trainingFeeSpan.textContent = "PHP " + parseFloat(fee).toFixed(2);
-                paymentModal.show();
-
-                try {
-                    // Initiate the payment record
-                    const response = await fetch(
-                        '/capstone-php/backend/routes/training_registration.php?action=initiate_payment', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                training_id: trainingId
-                            })
-                        });
-                    const data = await response.json();
-                    if (data.status) {
-                        // Immediately update the button to "Pending Payment"
-                        button.innerHTML = `Pending Payment`;
-                        button.classList.remove('btn-success');
-                        button.classList.add('btn-warning');
-                        button.disabled = true;
-
-                        // Start polling for payment status every 5 seconds.
-                        const pollInterval = setInterval(async () => {
-                            const pollResponse = await fetch(
-                                '/capstone-php/backend/routes/training_registration.php?action=check_payment_status', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json'
-                                    },
-                                    body: JSON.stringify({
-                                        training_id: trainingId
-                                    })
-                                });
-                            const pollData = await pollResponse.json();
-                            if (pollData.payment_completed) {
-                                clearInterval(pollInterval);
-                                // Update button state once payment is completed
-                                button.innerHTML = `Joined <i class="fas fa-check me-2"></i>`;
-                                button.classList.remove('btn-warning');
-                                button.classList.add('btn-secondary');
-                                button.disabled = true;
-                                alert(pollData.message);
-                            }
-                        }, 5000);
-                    } else {
-                        alert(data.message || 'Failed to initiate payment');
-                        button.innerHTML = `Register Now <i class="fas fa-arrow-right me-2"></i>`;
-                        button.disabled = false;
-                    }
-                } catch (err) {
-                    console.error('initiate_payment error:', err);
-                    alert('Error initiating payment');
-                    button.innerHTML = `Register Now <i class="fas fa-arrow-right me-2"></i>`;
-                    button.disabled = false;
-                }
+                // Store current training and button globally for later use
+                currentTrainingForPayment = trainingId;
+                currentButtonForPayment = button;
+                // Show payment modal (do not push payment yet)
+                paymentModalInstance.show();
                 return;
             }
-
             // For free trainings (fee == 0), proceed to register immediately.
             try {
                 button.innerHTML =
                     `<span class="spinner-border spinner-border-sm" role="status"></span> Joining...`;
                 button.disabled = true;
-
                 const response = await fetch(
                     '/capstone-php/backend/routes/training_registration.php?action=join_training', {
                         method: 'POST',
@@ -588,11 +525,76 @@
             }
         }
 
+        // Attach event listener to the "Ok, Got It" button in the payment modal
+        document.getElementById('okGotItBtn').addEventListener('click', async function() {
+            if (!currentTrainingForPayment) return;
+            try {
+                const response = await fetch(
+                    '/capstone-php/backend/routes/training_registration.php?action=initiate_payment', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            training_id: currentTrainingForPayment
+                        })
+                    });
+                const data = await response.json();
+                if (data.status) {
+                    // Update stored button to "Pending Payment"
+                    currentButtonForPayment.innerHTML = `Pending Payment`;
+                    currentButtonForPayment.classList.remove('btn-success');
+                    currentButtonForPayment.classList.add('btn-warning');
+                    currentButtonForPayment.disabled = true;
+                    // Start polling for payment status every 5 seconds.
+                    const pollInterval = setInterval(async () => {
+                        const pollResponse = await fetch(
+                            '/capstone-php/backend/routes/training_registration.php?action=check_payment_status', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    training_id: currentTrainingForPayment
+                                })
+                            });
+                        const pollData = await pollResponse.json();
+                        if (pollData.payment_completed) {
+                            clearInterval(pollInterval);
+                            // Instead of "Joined", show "View Training" so users can click to see details.
+                            currentButtonForPayment.innerHTML =
+                                `<i class="fas fa-eye me-2"></i>View Training`;
+                            currentButtonForPayment.classList.remove('btn-warning');
+                            currentButtonForPayment.classList.add('btn-primary',
+                                'view-training-btn');
+                            currentButtonForPayment.disabled = false;
+                            alert(pollData.message);
+                            currentTrainingForPayment = null;
+                            currentButtonForPayment = null;
+                        }
+                    }, 5000);
+                } else {
+                    alert(data.message || 'Failed to initiate payment');
+                    currentButtonForPayment.innerHTML =
+                        `Register Now <i class="fas fa-arrow-right me-2"></i>`;
+                    currentButtonForPayment.disabled = false;
+                    currentTrainingForPayment = null;
+                    currentButtonForPayment = null;
+                }
+            } catch (err) {
+                console.error('initiate_payment error:', err);
+                alert('Error initiating payment');
+                currentButtonForPayment.innerHTML =
+                    `Register Now <i class="fas fa-arrow-right me-2"></i>`;
+                currentButtonForPayment.disabled = false;
+                currentTrainingForPayment = null;
+                currentButtonForPayment = null;
+            }
+        });
+
         function showTrainingModal(training) {
             if (!training) return;
-            // Populate modal details
             document.getElementById('trainingModalLabel').textContent = training.title;
-            // Update modal image source to use decryption endpoint if available
             document.getElementById('trainingModalImage').src = training.image ?
                 '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image) :
                 'assets/default-training.jpg';
@@ -603,15 +605,9 @@
             document.getElementById('trainingModalModality').textContent = training.modality || 'Not provided';
             document.getElementById('trainingModalModalityDetails').textContent = training.modality_details ||
                 'Not provided';
-
-            // Store the current training id in a global variable
             window.currentTrainingId = training.training_id;
-
-            // Show modal
             let modal = new bootstrap.Modal(document.getElementById('trainingModal'));
             modal.show();
-
-            // For participants, fetch the assessment form link
             if (role !== 'trainer') {
                 fetch(
                         `/capstone-php/backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${training.training_id}`)
@@ -693,15 +689,14 @@
 
         function showError(message) {
             trainingsList.innerHTML = `
-                <div class="col-12 text-center text-danger">
-                    <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
-                    <p>${message}</p>
-                </div>
-            `;
+                    <div class="col-12 text-center text-danger">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                        <p>${message}</p>
+                    </div>
+                `;
         }
     });
     </script>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous">
     </script>

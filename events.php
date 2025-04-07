@@ -12,7 +12,6 @@ error_reporting(0);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Updated Content Security Policy for production -->
-
     <title>Events - ADOHRE</title>
     <link rel="icon" href="assets/logo.png" type="image/jpg" />
     <!-- Bootstrap CSS -->
@@ -146,15 +145,13 @@ error_reporting(0);
     <header>
         <?php include('header.php'); ?>
         <?php
-    if (!isset($_SESSION['user_id'])) {
-      header("Location: login.php");
-      exit;
-    }
-    ?>
+            if (!isset($_SESSION['user_id'])) {
+              header("Location: login.php");
+              exit;
+            }
+        ?>
     </header>
-
     <?php include('sidebar.php'); ?>
-
     <main class="container mt-4 mb-4">
         <div class="row g-4">
             <!-- Events Section -->
@@ -168,7 +165,6 @@ error_reporting(0);
                     </div>
                 </div>
             </div>
-
             <!-- Announcements Section -->
             <div class="col-lg-4">
                 <div class="announcements-container">
@@ -180,7 +176,6 @@ error_reporting(0);
             </div>
         </div>
     </main>
-
     <?php include('footer.php'); ?>
 
     <!-- Payment Modal -->
@@ -194,11 +189,12 @@ error_reporting(0);
                 <div class="modal-body">
                     <p>This event requires a fee of <span id="eventFee"></span>.</p>
                     <p>Please proceed to your <strong>Profile &amp; Payments</strong> tab to complete your payment.</p>
-                    <p>Once your payment status is updated to <em>New</em> (and later to <em>Completed</em>), you will
-                        be registered for the event.</p>
+                    <p>After reviewing the fee details, click <strong>Ok, Got It</strong> to proceed.</p>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Ok, Got It</button>
+                    <!-- "Ok, Got It" button used to push the payment record -->
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal" id="okGotItBtn">Ok, Got
+                        It</button>
                 </div>
             </div>
         </div>
@@ -211,12 +207,15 @@ error_reporting(0);
 
     <script>
     document.addEventListener("DOMContentLoaded", function() {
-        // Securely output the user ID
         const userId = <?php echo json_encode($_SESSION['user_id']); ?>;
         const eventsList = document.getElementById('eventsList');
         let eventsData = [];
-        const paymentModal = new bootstrap.Modal(document.getElementById('paymentModal'));
+        const paymentModalInstance = new bootstrap.Modal(document.getElementById('paymentModal'));
         const eventFeeSpan = document.getElementById('eventFee');
+
+        // Global variables to store the current event and button for payment initiation.
+        let currentEventForPayment = null;
+        let currentButtonForPayment = null;
 
         // Event delegation for dynamic buttons
         eventsList.addEventListener('click', async (e) => {
@@ -226,71 +225,14 @@ error_reporting(0);
             const eventId = registerBtn.dataset.eventId;
             const fee = parseFloat(registerBtn.dataset.fee);
 
-            // If fee > 0, show the payment modal and initiate payment record
+            // If fee > 0, show the payment modal (but do not push payment yet)
             if (fee > 0) {
                 eventFeeSpan.textContent = "PHP " + fee.toFixed(2);
-                paymentModal.show();
-
-                try {
-                    // Initiate the payment record
-                    const response = await fetch(
-                        'backend/routes/event_registration.php?action=initiate_payment', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                event_id: eventId
-                            })
-                        });
-                    const data = await response.json();
-
-                    if (data.status) {
-                        // Immediately update the button to "Pending Payment"
-                        registerBtn.innerHTML = `Pending Payment`;
-                        registerBtn.classList.remove('btn-success');
-                        registerBtn.classList.add('btn-warning');
-                        registerBtn.disabled = true;
-
-                        // Start polling for payment status every 5 seconds.
-                        const pollInterval = setInterval(async () => {
-                            const pollResponse = await fetch(
-                                'backend/routes/event_registration.php?action=check_payment_status', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json'
-                                    },
-                                    body: JSON.stringify({
-                                        event_id: eventId
-                                    })
-                                });
-                            const pollData = await pollResponse.json();
-
-                            if (pollData.payment_completed) {
-                                clearInterval(pollInterval);
-                                // Update button state once payment is completed
-                                registerBtn.innerHTML =
-                                    `Joined <i class="fas fa-check ms-2"></i>`;
-                                registerBtn.classList.remove('btn-warning');
-                                registerBtn.classList.add('btn-secondary');
-                                registerBtn.disabled = true;
-                                // Optionally, display a success alert
-                                alert(pollData.message);
-                            }
-                        }, 5000);
-                    } else {
-                        alert(data.message || 'Failed to initiate payment');
-                        registerBtn.innerHTML =
-                            `Register Now <i class="fas fa-arrow-right ms-2"></i>`;
-                        registerBtn.disabled = false;
-                    }
-                } catch (err) {
-                    console.error('initiate_payment error:', err);
-                    alert('Error initiating payment');
-                    registerBtn.innerHTML = `Register Now <i class="fas fa-arrow-right ms-2"></i>`;
-                    registerBtn.disabled = false;
-                }
-                return; // Stop further execution for paid events
+                // Store current event and button for later use
+                currentEventForPayment = eventId;
+                currentButtonForPayment = registerBtn;
+                paymentModalInstance.show();
+                return;
             }
 
             // For free events (fee == 0), proceed to register immediately.
@@ -298,7 +240,6 @@ error_reporting(0);
                 registerBtn.innerHTML =
                     `<span class="spinner-border spinner-border-sm" role="status"></span> Joining...`;
                 registerBtn.disabled = true;
-
                 const response = await fetch(
                     'backend/routes/event_registration.php?action=join_event', {
                         method: 'POST',
@@ -309,16 +250,12 @@ error_reporting(0);
                             event_id: eventId
                         })
                     });
-
                 const data = await response.json();
-
                 if (data.status) {
-                    // Permanently update button state for joined events
                     registerBtn.innerHTML = `Joined <i class="fas fa-check ms-2"></i>`;
                     registerBtn.classList.remove('btn-success');
                     registerBtn.classList.add('btn-secondary');
                     registerBtn.disabled = true;
-
                     // Update local data
                     const eventIndex = eventsData.findIndex(e => e.event_id == eventId);
                     if (eventIndex > -1) {
@@ -338,6 +275,73 @@ error_reporting(0);
                     `Register Now <i class="fas fa-arrow-right ms-2"></i>` :
                     `Join Now <i class="fas fa-arrow-right ms-2"></i>`;
                 registerBtn.disabled = false;
+            }
+        });
+
+        // Attach event listener to the "Ok, Got It" button in the payment modal
+        document.getElementById('okGotItBtn').addEventListener('click', async function() {
+            if (!currentEventForPayment) return;
+            try {
+                const response = await fetch(
+                    'backend/routes/event_registration.php?action=initiate_payment', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            event_id: currentEventForPayment
+                        })
+                    });
+                const data = await response.json();
+                if (data.status) {
+                    // Update stored button to "Pending Payment"
+                    currentButtonForPayment.innerHTML = `Pending Payment`;
+                    currentButtonForPayment.classList.remove('btn-success');
+                    currentButtonForPayment.classList.add('btn-warning');
+                    currentButtonForPayment.disabled = true;
+                    // Start polling for payment status every 5 seconds.
+                    const pollInterval = setInterval(async () => {
+                        const pollResponse = await fetch(
+                            'backend/routes/event_registration.php?action=check_payment_status', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    event_id: currentEventForPayment
+                                })
+                            });
+                        const pollData = await pollResponse.json();
+                        if (pollData.payment_completed) {
+                            clearInterval(pollInterval);
+                            // Instead of "Joined", you can show "View Event" if desired.
+                            currentButtonForPayment.innerHTML =
+                                `View Event <i class="fas fa-eye ms-2"></i>`;
+                            currentButtonForPayment.classList.remove('btn-warning');
+                            currentButtonForPayment.classList.add('btn-primary',
+                                'view-event-btn');
+                            currentButtonForPayment.disabled = false;
+                            alert(pollData.message);
+                            currentEventForPayment = null;
+                            currentButtonForPayment = null;
+                        }
+                    }, 5000);
+                } else {
+                    alert(data.message || 'Failed to initiate payment');
+                    currentButtonForPayment.innerHTML =
+                        `Register Now <i class="fas fa-arrow-right ms-2"></i>`;
+                    currentButtonForPayment.disabled = false;
+                    currentEventForPayment = null;
+                    currentButtonForPayment = null;
+                }
+            } catch (err) {
+                console.error('initiate_payment error:', err);
+                alert('Error initiating payment');
+                currentButtonForPayment.innerHTML =
+                    `Register Now <i class="fas fa-arrow-right ms-2"></i>`;
+                currentButtonForPayment.disabled = false;
+                currentEventForPayment = null;
+                currentButtonForPayment = null;
             }
         });
 
@@ -363,8 +367,6 @@ error_reporting(0);
             const now = new Date();
             const upcomingEvents = events.filter(event => new Date(event.date) >= now);
             const pastEvents = events.filter(event => new Date(event.date) < now);
-
-            // Build upcoming events HTML
             const upcomingHtml = upcomingEvents.map(event => {
                 const eventDate = new Date(event.date);
                 const dateStr = eventDate.toLocaleString('en-US', {
@@ -377,40 +379,27 @@ error_reporting(0);
                 });
                 let joinBtn;
                 if (event.joined) {
-                    // Already joined
                     joinBtn = `
-                        <button class="btn btn-secondary btn-sm join-event-btn" 
-                                data-event-id="${event.event_id}" 
-                                disabled>
+                        <button class="btn btn-secondary btn-sm join-event-btn" data-event-id="${event.event_id}" disabled>
                         Joined <i class="fas fa-check ms-2"></i>
                         </button>
                     `;
                 } else if (event.pending_payment) {
-                    // Payment is initiated (status = 'New') but not completed
                     joinBtn = `
-                        <button class="btn btn-warning btn-sm join-event-btn" 
-                                data-event-id="${event.event_id}" 
-                                disabled>
+                        <button class="btn btn-warning btn-sm join-event-btn" data-event-id="${event.event_id}" disabled>
                         Pending Payment
                         </button>
                     `;
                 } else {
-                    // Not joined, no pending payment
                     if (parseFloat(event.fee) > 0) {
-                        // Paid event
                         joinBtn = `
-                        <button class="btn btn-success btn-sm join-event-btn" 
-                                data-event-id="${event.event_id}" 
-                                data-fee="${event.fee}">
+                        <button class="btn btn-success btn-sm join-event-btn" data-event-id="${event.event_id}" data-fee="${event.fee}">
                             Register Now <i class="fas fa-arrow-right ms-2"></i>
                         </button>
                         `;
                     } else {
-                        // Free event
                         joinBtn = `
-                        <button class="btn btn-success btn-sm join-event-btn" 
-                                data-event-id="${event.event_id}" 
-                                data-fee="0">
+                        <button class="btn btn-success btn-sm join-event-btn" data-event-id="${event.event_id}" data-fee="0">
                             Join Now <i class="fas fa-arrow-right ms-2"></i>
                         </button>
                         `;
@@ -440,8 +429,6 @@ error_reporting(0);
               </div>
             </div>`;
             }).join('');
-
-            // Build past events HTML (join not available)
             const pastHtml = pastEvents.map(event => {
                 const eventDate = new Date(event.date);
                 const dateStr = eventDate.toLocaleString('en-US', {
@@ -477,8 +464,6 @@ error_reporting(0);
               </div>
             </div>`;
             }).join('');
-
-            // Render both tabs: Upcoming and Past events
             eventsList.innerHTML = `
           <ul class="nav nav-tabs" id="eventsTab" role="tablist">
             <li class="nav-item" role="presentation">
@@ -511,7 +496,6 @@ error_reporting(0);
         function renderAnnouncements(announcements) {
             const announcementsList = document.getElementById('announcementsList');
             const html = announcements.map(announcement => {
-                // Format the created_at timestamp as desired
                 const formattedDate = new Date(announcement.created_at).toLocaleString('en-US', {
                     month: 'long',
                     day: 'numeric',
@@ -535,7 +519,6 @@ error_reporting(0);
             </div>
           `;
             }).join('');
-
             announcementsList.innerHTML = html || '<p class="text-center text-muted">No announcements</p>';
         }
 
