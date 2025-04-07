@@ -275,6 +275,22 @@ if (isset($_SESSION['user_id'])) {
             toggleSpecifyInput("key_expertise", "others_expertise_specify");
             toggleSpecifyInput("specific_field", "others_specific_field_specify");
             toggleSpecifyInput("committees", "others_committee_specify");
+
+            // Inside the DOMContentLoaded event handler, after obtaining videoInput and faceValidationModalEl
+            const faceValidationModalEl = document.getElementById('faceValidationModal');
+            faceValidationModalEl.addEventListener('shown.bs.modal', async () => {
+                if (!videoInput.srcObject) {
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({
+                            video: true
+                        });
+                        videoInput.srcObject = stream;
+                    } catch (error) {
+                        console.error("Webcam access error:", error);
+                        alert('Unable to access webcam. Please allow camera permissions or use HTTPS.');
+                    }
+                }
+            });
         });
     </script>
     <script nonce="<?php echo $csp_nonce; ?>">
