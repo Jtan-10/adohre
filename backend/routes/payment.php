@@ -66,15 +66,22 @@ if (!function_exists('embedDataInPng')) {
 }
 
 if ($method === 'GET') {
-    // Default action is to get all payments
     $action = isset($_GET['action']) ? $_GET['action'] : 'get_all_payments';
 
     if ($action === 'get_all_payments') {
         $payments = [];
-        // Retrieve all payments with corresponding user details, including mode_of_payment
-        $query = "SELECT p.payment_id, p.user_id, p.payment_type, p.amount, p.status, p.payment_date, p.due_date, p.reference_number, p.image, p.mode_of_payment, u.first_name, u.last_name, u.email
+        // Updated query: join events and trainings to retrieve a title when applicable.
+        $query = "SELECT p.payment_id, p.user_id, p.payment_type, p.amount, p.status, p.payment_date, p.due_date, p.reference_number, p.image, p.mode_of_payment,
+                         u.first_name, u.last_name, u.email,
+                         CASE 
+                             WHEN p.payment_type = 'Event Registration' THEN e.title
+                             WHEN p.payment_type = 'Training Registration' THEN t.title
+                             ELSE NULL
+                         END AS title
                   FROM payments p 
                   JOIN users u ON p.user_id = u.user_id 
+                  LEFT JOIN events e ON (p.payment_type = 'Event Registration' AND p.event_id = e.event_id)
+                  LEFT JOIN trainings t ON (p.payment_type = 'Training Registration' AND p.training_id = t.training_id)
                   ORDER BY p.payment_date DESC";
         $result = $conn->query($query);
         if ($result) {
@@ -89,14 +96,13 @@ if ($method === 'GET') {
             exit;
         }
     } elseif ($action === 'get_pending_payments') {
-        // Get user_id from GET parameter
         $user_id = isset($_GET['user_id']) ? intval($_GET['user_id']) : 0;
         if ($user_id <= 0) {
             echo json_encode(['status' => false, 'message' => 'Invalid user ID']);
             exit;
         }
         $payments = [];
-        // Retrieve only pending payments for the given user
+        // Here, pending payments are those with status 'Pending'
         $query = "SELECT * FROM payments WHERE user_id = ? AND status = 'Pending' ORDER BY due_date ASC";
         $stmt = $conn->prepare($query);
         if ($stmt === false) {
@@ -118,7 +124,6 @@ if ($method === 'GET') {
         ]);
         exit;
     } elseif ($action === 'get_payments') {
-        // New branch for filtering by status
         $user_id = isset($_GET['user_id']) ? intval($_GET['user_id']) : 0;
         $status = isset($_GET['status']) ? $_GET['status'] : 'New';
         if ($user_id <= 0) {
@@ -126,7 +131,18 @@ if ($method === 'GET') {
             exit;
         }
         $payments = [];
-        $query = "SELECT * FROM payments WHERE user_id = ? AND status = ? ORDER BY due_date ASC";
+        // Updated query: join events/trainings for title data
+        $query = "SELECT p.*, 
+                         CASE 
+                             WHEN p.payment_type = 'Event Registration' THEN e.title
+                             WHEN p.payment_type = 'Training Registration' THEN t.title
+                             ELSE NULL
+                         END AS title
+                  FROM payments p
+                  LEFT JOIN events e ON (p.payment_type = 'Event Registration' AND p.event_id = e.event_id)
+                  LEFT JOIN trainings t ON (p.payment_type = 'Training Registration' AND p.training_id = t.training_id)
+                  WHERE p.user_id = ? AND p.status = ?
+                  ORDER BY p.due_date ASC";
         $stmt = $conn->prepare($query);
         if ($stmt === false) {
             error_log("Database error in get_payments: " . $conn->error);
@@ -149,7 +165,6 @@ if ($method === 'GET') {
 } elseif ($method === 'POST') {
     $action = isset($_GET['action']) ? $_GET['action'] : 'push_payment';
 
-    // New branch: update payment fee details
     if ($action === 'update_payment_fee') {
         // Retrieve and validate required fields for fee update
         $payment_id = isset($_POST['payment_id']) ? trim($_POST['payment_id']) : '';
@@ -351,8 +366,7 @@ if ($method === 'GET') {
             exit();
         }
     } else {
-        // New Payment Push branch
-        // Required input from admin: user_id, payment_type, amount.
+        // New Payment Push branch (for admin usage)
         $user_id      = isset($_POST['user_id']) ? trim($_POST['user_id']) : '';
         $payment_type = isset($_POST['payment_type']) ? trim($_POST['payment_type']) : '';
         $amount       = isset($_POST['amount']) ? trim($_POST['amount']) : '';
@@ -421,7 +435,6 @@ if ($method === 'GET') {
         }
         $stmt->bind_param("isdsssss", $user_id, $payment_type, $amount, $status, $payment_date, $due_date, $reference_number, $image);
         if ($stmt->execute()) {
-            // Audit log the creation of a new payment record.
             recordAuditLog($_SESSION['user_id'], 'New Payment Created', "Payment created with type: $payment_type, amount: $amount, due date: $due_date");
             echo json_encode(['status' => true, 'message' => 'Payment pushed successfully.']);
             exit();
@@ -448,12 +461,9 @@ if ($method === 'GET') {
     }
     $stmt->bind_param("si", $newStatus, $payment_id);
     if ($stmt->execute()) {
-        // Audit log the payment status update.
         recordAuditLog($_SESSION['user_id'], 'Update Payment Status', "Payment ID $payment_id updated to status: $newStatus");
 
-        // If the new status is "Completed", update the member's membership_status to "active"
         if (strtolower($newStatus) === 'completed') {
-            // Retrieve the user_id from the payments table for the given payment_id
             $stmtUser = $conn->prepare("SELECT user_id FROM payments WHERE payment_id = ?");
             $stmtUser->bind_param("i", $payment_id);
             $stmtUser->execute();
@@ -461,7 +471,6 @@ if ($method === 'GET') {
             if ($resultUser->num_rows === 1) {
                 $row = $resultUser->fetch_assoc();
                 $user_id = $row['user_id'];
-                // Update the membership_status to 'active' in the members table
                 $stmtUpdateMember = $conn->prepare("UPDATE members SET membership_status = 'active' WHERE user_id = ?");
                 $stmtUpdateMember->bind_param("i", $user_id);
                 $stmtUpdateMember->execute();
@@ -481,3 +490,4 @@ if ($method === 'GET') {
     echo json_encode(['status' => false, 'message' => 'Unsupported request method']);
     exit();
 }
+?>

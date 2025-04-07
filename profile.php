@@ -87,21 +87,31 @@ header("X-Content-Type-Options: nosniff");
         const userId = <?php echo json_encode($_SESSION['user_id']); ?>;
         // Global function to show payment details in a modal
         window.viewPaymentDetails = function(payment) {
-            // Update receipt image: pass the stored image URL through the decryption endpoint
+            // Build the receipt HTML
             const receiptHTML = payment.image ?
                 `<img src="backend/routes/decrypt_image.php?image_url=${encodeURIComponent(payment.image)}" alt="Receipt" style="max-width: 100%;">` :
                 'N/A';
+
+            // If the payment is for Event or Training Registration, try to show the title (if provided)
+            let titleHTML = '';
+            if (payment.payment_type === 'Event Registration' && payment.event_title) {
+                titleHTML = `<p><strong>Event:</strong> ${payment.event_title}</p>`;
+            } else if (payment.payment_type === 'Training Registration' && payment.training_title) {
+                titleHTML = `<p><strong>Training:</strong> ${payment.training_title}</p>`;
+            }
+
             const detailsHTML = `
-      <p><strong>Payment ID:</strong> ${payment.payment_id}</p>
-      <p><strong>Type:</strong> ${payment.payment_type}</p>
-      <p><strong>Amount:</strong> ${payment.amount}</p>
-      <p><strong>Status:</strong> ${payment.status}</p>
-      <p><strong>Due Date:</strong> ${payment.due_date}</p>
-      <p><strong>Payment Date:</strong> ${payment.payment_date ? payment.payment_date : 'N/A'}</p>
-      <p><strong>Reference Number:</strong> ${payment.reference_number ? payment.reference_number : 'N/A'}</p>
-      <p><strong>Mode of Payment:</strong> ${payment.mode_of_payment ? payment.mode_of_payment : 'N/A'}</p>
-      <p><strong>Receipt:</strong> ${receiptHTML}</p>
-    `;
+                <p><strong>Payment ID:</strong> ${payment.payment_id}</p>
+                <p><strong>Type:</strong> ${payment.payment_type}</p>
+                ${titleHTML}
+                <p><strong>Amount:</strong> ${payment.amount}</p>
+                <p><strong>Status:</strong> ${payment.status}</p>
+                <p><strong>Due Date:</strong> ${payment.due_date}</p>
+                <p><strong>Payment Date:</strong> ${payment.payment_date ? payment.payment_date : 'N/A'}</p>
+                <p><strong>Reference Number:</strong> ${payment.reference_number ? payment.reference_number : 'N/A'}</p>
+                <p><strong>Mode of Payment:</strong> ${payment.mode_of_payment ? payment.mode_of_payment : 'N/A'}</p>
+                <p><strong>Receipt:</strong> ${receiptHTML}</p>
+                `;
             document.getElementById('paymentDetailsBody').innerHTML = detailsHTML;
             const modal = new bootstrap.Modal(document.getElementById('paymentDetailsModal'));
             modal.show();
@@ -124,25 +134,12 @@ header("X-Content-Type-Options: nosniff");
                     if (data.status) {
                         let paymentsHTML = '';
                         data.payments.forEach(payment => {
-                            // Determine details based on payment type:
-                            let detailText = '';
-                            if (payment.payment_type === 'Event Registration') {
-                                // If event title is provided, display it; otherwise, show event ID.
-                                detailText = payment.event_title ? payment.event_title :
-                                    'Event ID: ' + payment.event_id;
-                            } else if (payment.payment_type === 'Training Registration') {
-                                detailText = payment.training_title ? payment.training_title :
-                                    'Training ID: ' + payment.training_id;
-                            } else {
-                                detailText = 'N/A';
-                            }
                             paymentsHTML += `
                         <tr>
                             <td>${payment.payment_id}</td>
                             <td>${payment.payment_type}</td>
                             <td>${payment.amount}</td>
                             <td>${payment.status}</td>
-                            <td>${detailText}</td>
                             <td>
                                 <button class="btn btn-info btn-sm" onclick='viewPaymentDetails(${JSON.stringify(payment)})'>View Details</button>
                                 ${payment.status === "New" ? `<button class="btn btn-success btn-sm" onclick="openPayFeeModal(${payment.payment_id})">Pay Fees</button>` : ''}
@@ -151,7 +148,7 @@ header("X-Content-Type-Options: nosniff");
                     `;
                         });
                         document.getElementById('pendingPaymentsTable').innerHTML = paymentsHTML ||
-                            '<tr><td colspan="6">No payments found</td></tr>';
+                            '<tr><td colspan="5">No payments found</td></tr>';
                     } else {
                         document.getElementById('paymentInfo').innerHTML =
                             `<p>${data.message || 'Failed to load payment info.'}</p>`;
@@ -163,6 +160,7 @@ header("X-Content-Type-Options: nosniff");
                         `<p>Error loading payment information.</p>`;
                 });
         }
+
 
         // Load payments when the Payments tab is clicked
         document.getElementById('payments-tab').addEventListener('click', function() {
