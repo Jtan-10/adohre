@@ -266,18 +266,25 @@ error_reporting(0);
             // Build upcoming events HTML
             const upcomingHtml = upcomingEvents.map(event => {
                 const eventDate = new Date(event.date);
-                const dateStr = eventDate.toLocaleDateString();
+                const dateStr = eventDate.toLocaleString('en-US', {
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: 'numeric',
+                    minute: 'numeric',
+                    hour12: true
+                });
                 const joinBtn = `<button class="btn ${event.joined ? 'btn-secondary' : 'btn-success'} btn-sm join-event-btn" 
-                    data-event-id="${event.event_id}"
-                    ${event.joined ? 'disabled' : ''}>
-                    ${event.joined ? 'Joined <i class="fas fa-check ms-2"></i>' : 'Join Now <i class="fas fa-arrow-right ms-2"></i>'}
-                </button>`;
+            data-event-id="${event.event_id}"
+            ${event.joined ? 'disabled' : ''}>
+            ${event.joined ? 'Joined <i class="fas fa-check ms-2"></i>' : 'Join Now <i class="fas fa-arrow-right ms-2"></i>'}
+        </button>`;
                 return `
             <div class="col-12">
                 <div class="event-card">
                     <img src="${ event.image ? '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(event.image) : 'assets/default-event.jpg' }" 
-     class="card-img-top" 
-     alt="${event.title}">
+                         class="card-img-top" 
+                         alt="${event.title}">
                     <div class="event-card-body">
                         <div class="event-date">
                             <i class="fas fa-calendar-alt me-2"></i>
@@ -300,14 +307,21 @@ error_reporting(0);
             // Build past events HTML (join not available)
             const pastHtml = pastEvents.map(event => {
                 const eventDate = new Date(event.date);
-                const dateStr = eventDate.toLocaleDateString();
+                const dateStr = eventDate.toLocaleString('en-US', {
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: 'numeric',
+                    minute: 'numeric',
+                    hour12: true
+                });
                 const pastBtn = `<button class="btn btn-secondary btn-sm" disabled>Past Event</button>`;
                 return `
             <div class="col-12">
                 <div class="event-card">
                     <img src="${ event.image ? '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(event.image) : 'assets/default-event.jpg' }" 
-     class="card-img-top" 
-     alt="${event.title}">
+                         class="card-img-top" 
+                         alt="${event.title}">
                     <div class="event-card-body">
                         <div class="event-date">
                             <i class="fas fa-calendar-alt me-2"></i>
@@ -353,7 +367,7 @@ error_reporting(0);
            </div>
          </div>
        </div>
-       `;
+    `;
         }
         // --- End updated renderEvents() ---
 
