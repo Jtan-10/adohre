@@ -34,12 +34,28 @@
     </form>
     <hr>
 
-    <!-- Events List -->
-    <h4>Upcoming / Current Events</h4>
-    <div id="currentEventsList"></div>
-
-    <h4>Past Events</h4>
-    <div id="pastEventsList"></div>
+    <!-- Tab Navigation for Events List -->
+    <ul class="nav nav-tabs" id="eventsTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="upcoming-tab" data-bs-toggle="tab" data-bs-target="#upcoming"
+                type="button" role="tab">
+                Upcoming Events
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="past-tab" data-bs-toggle="tab" data-bs-target="#past" type="button" role="tab">
+                Past Events
+            </button>
+        </li>
+    </ul>
+    <div class="tab-content mt-3">
+        <div class="tab-pane fade show active" id="upcoming" role="tabpanel">
+            <div id="currentEventsList"></div>
+        </div>
+        <div class="tab-pane fade" id="past" role="tabpanel">
+            <div id="pastEventsList"></div>
+        </div>
+    </div>
 </div>
 
 <!-- Updated inline script with matching nonce -->
