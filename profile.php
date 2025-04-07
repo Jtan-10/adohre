@@ -92,26 +92,31 @@ header("X-Content-Type-Options: nosniff");
                 `<img src="backend/routes/decrypt_image.php?image_url=${encodeURIComponent(payment.image)}" alt="Receipt" style="max-width: 100%;">` :
                 'N/A';
 
-            // If the payment is for Event or Training Registration, try to show the title (if provided)
+            // If the payment is for Event or Training Registration, show the title property
             let titleHTML = '';
-            if (payment.payment_type === 'Event Registration' && payment.event_title) {
-                titleHTML = `<p><strong>Event:</strong> ${payment.event_title}</p>`;
-            } else if (payment.payment_type === 'Training Registration' && payment.training_title) {
-                titleHTML = `<p><strong>Training:</strong> ${payment.training_title}</p>`;
+            if (
+                (payment.payment_type === 'Event Registration' || payment.payment_type ===
+                    'Training Registration') &&
+                payment.title
+            ) {
+                // Dynamically label it "Event" or "Training" in the details
+                const label = payment.payment_type === 'Event Registration' ? 'Event' : 'Training';
+                titleHTML = `<p><strong>${label}:</strong> ${payment.title}</p>`;
             }
 
             const detailsHTML = `
-                <p><strong>Payment ID:</strong> ${payment.payment_id}</p>
-                <p><strong>Type:</strong> ${payment.payment_type}</p>
-                ${titleHTML}
-                <p><strong>Amount:</strong> ${payment.amount}</p>
-                <p><strong>Status:</strong> ${payment.status}</p>
-                <p><strong>Due Date:</strong> ${payment.due_date}</p>
-                <p><strong>Payment Date:</strong> ${payment.payment_date ? payment.payment_date : 'N/A'}</p>
-                <p><strong>Reference Number:</strong> ${payment.reference_number ? payment.reference_number : 'N/A'}</p>
-                <p><strong>Mode of Payment:</strong> ${payment.mode_of_payment ? payment.mode_of_payment : 'N/A'}</p>
-                <p><strong>Receipt:</strong> ${receiptHTML}</p>
-                `;
+        <p><strong>Payment ID:</strong> ${payment.payment_id}</p>
+        <p><strong>Type:</strong> ${payment.payment_type}</p>
+        ${titleHTML}
+        <p><strong>Amount:</strong> ${payment.amount}</p>
+        <p><strong>Status:</strong> ${payment.status}</p>
+        <p><strong>Due Date:</strong> ${payment.due_date}</p>
+        <p><strong>Payment Date:</strong> ${payment.payment_date ? payment.payment_date : 'N/A'}</p>
+        <p><strong>Reference Number:</strong> ${payment.reference_number ? payment.reference_number : 'N/A'}</p>
+        <p><strong>Mode of Payment:</strong> ${payment.mode_of_payment ? payment.mode_of_payment : 'N/A'}</p>
+        <p><strong>Receipt:</strong> ${receiptHTML}</p>
+    `;
+
             document.getElementById('paymentDetailsBody').innerHTML = detailsHTML;
             const modal = new bootstrap.Modal(document.getElementById('paymentDetailsModal'));
             modal.show();
