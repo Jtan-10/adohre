@@ -226,13 +226,12 @@ error_reporting(0);
             const eventId = registerBtn.dataset.eventId;
             const fee = parseFloat(registerBtn.dataset.fee);
 
-            // If fee > 0, open modal instructing user to pay first.
+            // If fee > 0, show the payment modal and initiate payment record
             if (fee > 0) {
                 eventFeeSpan.textContent = "PHP " + fee.toFixed(2);
                 paymentModal.show();
 
-                // Optionally, you can trigger the backend to push a payment record
-                // Here’s an example call (if not already done upon button click):
+                // Initiate the payment record (if not already done)
                 await fetch('backend/routes/event_registration.php?action=initiate_payment', {
                     method: 'POST',
                     headers: {
@@ -242,6 +241,32 @@ error_reporting(0);
                         event_id: eventId
                     })
                 });
+
+                // Start polling for payment status every 5 seconds.
+                const pollInterval = setInterval(async () => {
+                    const pollResponse = await fetch(
+                        'backend/routes/event_registration.php?action=check_payment_status', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                event_id: eventId
+                            })
+                        });
+                    const pollData = await pollResponse.json();
+                    if (pollData.payment_completed) {
+                        clearInterval(pollInterval);
+                        // Update button state once payment is completed
+                        registerBtn.innerHTML =
+                            `Joined <i class="fas fa-check ms-2"></i>`;
+                        registerBtn.classList.remove('btn-success');
+                        registerBtn.classList.add('btn-secondary');
+                        registerBtn.disabled = true;
+                        // Optionally, display a success alert
+                        alert(pollData.message);
+                    }
+                }, 5000);
                 return;
             }
 

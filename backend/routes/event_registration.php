@@ -14,8 +14,8 @@ if (!isset($_SESSION['user_id'])) {
 
 try {
     $input = json_decode(file_get_contents('php://input'), true);
-    // Validate event_id for join_event and initiate_payment actions
-    if (isset($_GET['action']) && in_array($_GET['action'], ['join_event', 'initiate_payment'])) {
+    // Validate event_id for join_event, initiate_payment, and check_payment_status actions
+    if (isset($_GET['action']) && in_array($_GET['action'], ['join_event', 'initiate_payment', 'check_payment_status'])) {
         if (!isset($input['event_id']) || filter_var($input['event_id'], FILTER_VALIDATE_INT) === false) {
             echo json_encode(['status' => false, 'message' => 'Invalid event ID.']);
             exit;
@@ -179,6 +179,41 @@ try {
             echo json_encode(['status' => false, 'message' => 'Failed to initiate payment.']);
         }
         $stmtPayment->close();
+    } elseif ($action === 'check_payment_status') {
+        // Polling endpoint to check if a payment has been completed
+        $userId = $_SESSION['user_id'];
+        $eventId = (int)$input['event_id'];
+
+        // Retrieve the payment record with status "Completed" (if it exists)
+        $stmt = $conn->prepare("SELECT * FROM payments WHERE user_id = ? AND event_id = ? AND status = 'Completed'");
+        $stmt->bind_param("ii", $userId, $eventId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        if ($result->num_rows > 0) {
+            // If payment is completed, ensure the user is registered for the event.
+            $checkReg = $conn->prepare("SELECT * FROM event_registrations WHERE user_id = ? AND event_id = ?");
+            $checkReg->bind_param("ii", $userId, $eventId);
+            $checkReg->execute();
+            $resReg = $checkReg->get_result();
+            if ($resReg->num_rows === 0) {
+                // Create event registration
+                $insertReg = $conn->prepare("INSERT INTO event_registrations (user_id, event_id) VALUES (?, ?)");
+                $insertReg->bind_param("ii", $userId, $eventId);
+                $insertReg->execute();
+            }
+            echo json_encode([
+                'status' => true,
+                'payment_completed' => true,
+                'message' => 'Payment completed. You are now joined to the event.'
+            ]);
+        } else {
+            echo json_encode([
+                'status' => true,
+                'payment_completed' => false,
+                'message' => 'Payment not completed yet.'
+            ]);
+        }
     } elseif ($action === 'get_joined_events') {
         $userId = $_SESSION['user_id'];
         $query = "SELECT e.event_id, e.title, e.description, e.date, e.location, e.image
