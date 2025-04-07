@@ -311,29 +311,39 @@ if (isset($_SESSION['user_id'])) {
             await faceapi.nets.faceRecognitionNet.loadFromUri('backend/models/weights');
         }
 
-        // Load the stored face descriptor from the stored face image URL (from session)
+        // Modified loadReferenceDescriptor function
         async function loadReferenceDescriptor() {
-            const storedFaceImg = document.getElementById('storedFacePreview');
-            if (!storedFaceImg.src) {
-                console.warn("No stored face reference.");
+            if (!userFaceImageUrl) {
+                console.warn("No stored face image URL for this user.");
                 return;
             }
+            const decryptUrl = `backend/routes/decrypt_image.php?face_url=${encodeURIComponent(userFaceImageUrl)}`;
+            // Use the storedFacePreview element and wait for it to be fully loaded with valid dimensions
+            storedFacePreview.src = decryptUrl;
             await new Promise((resolve, reject) => {
-                storedFaceImg.onload = resolve;
-                storedFaceImg.onerror = reject;
+                if (storedFacePreview.complete && storedFacePreview.naturalWidth !== 0) {
+                    resolve();
+                } else {
+                    storedFacePreview.onload = resolve;
+                    storedFacePreview.onerror = reject;
+                }
             });
-            const detection = await faceapi
-                .detectSingleFace(storedFaceImg, new faceapi.TinyFaceDetectorOptions({
-                    inputSize: 416,
-                    scoreThreshold: 0.5
-                }))
-                .withFaceLandmarks()
-                .withFaceDescriptor();
-            if (detection) {
+            try {
+                const detection = await faceapi
+                    .detectSingleFace(storedFacePreview, new faceapi.TinyFaceDetectorOptions({
+                        inputSize: 416,
+                        scoreThreshold: 0.5
+                    }))
+                    .withFaceLandmarks()
+                    .withFaceDescriptor();
+                if (!detection) {
+                    console.error('No face detected in the reference image.');
+                    return;
+                }
                 referenceDescriptor = detection.descriptor;
-                console.log("Reference descriptor loaded in membership form.");
-            } else {
-                console.error("No face detected in stored reference image.");
+                console.log("Reference descriptor loaded.");
+            } catch (error) {
+                console.error("Error detecting face in reference image:", error);
             }
         }
 
