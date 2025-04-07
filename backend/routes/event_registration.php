@@ -22,7 +22,7 @@ try {
         }
     }
     $action = isset($_GET['action']) ? $_GET['action'] : null;
-    
+
     if ($action === 'join_event') {
         $userId = $_SESSION['user_id'];
         $eventId = (int)$input['event_id'];
@@ -180,39 +180,53 @@ try {
         }
         $stmtPayment->close();
     } elseif ($action === 'check_payment_status') {
-        // Polling endpoint to check if a payment has been completed
         $userId = $_SESSION['user_id'];
         $eventId = (int)$input['event_id'];
 
-        // Retrieve the payment record with status "Completed" (if it exists)
         $stmt = $conn->prepare("SELECT * FROM payments WHERE user_id = ? AND event_id = ? AND status = 'Completed'");
+        if (!$stmt) {
+            echo json_encode(['status' => false, 'message' => 'DB prepare error: ' . $conn->error]);
+            exit;
+        }
         $stmt->bind_param("ii", $userId, $eventId);
-        $stmt->execute();
+        if (!$stmt->execute()) {
+            echo json_encode(['status' => false, 'message' => 'DB execute error: ' . $stmt->error]);
+            exit;
+        }
         $result = $stmt->get_result();
-        
+
         if ($result->num_rows > 0) {
-            // If payment is completed, ensure the user is registered for the event.
             $checkReg = $conn->prepare("SELECT * FROM event_registrations WHERE user_id = ? AND event_id = ?");
+            if (!$checkReg) {
+                echo json_encode(['status' => false, 'message' => 'DB prepare error: ' . $conn->error]);
+                exit;
+            }
             $checkReg->bind_param("ii", $userId, $eventId);
             $checkReg->execute();
             $resReg = $checkReg->get_result();
             if ($resReg->num_rows === 0) {
-                // Create event registration
                 $insertReg = $conn->prepare("INSERT INTO event_registrations (user_id, event_id) VALUES (?, ?)");
+                if (!$insertReg) {
+                    echo json_encode(['status' => false, 'message' => 'DB prepare error: ' . $conn->error]);
+                    exit;
+                }
                 $insertReg->bind_param("ii", $userId, $eventId);
                 $insertReg->execute();
+                $insertReg->close();
             }
             echo json_encode([
                 'status' => true,
                 'payment_completed' => true,
                 'message' => 'Payment completed. You are now joined to the event.'
             ]);
+            exit;
         } else {
             echo json_encode([
                 'status' => true,
                 'payment_completed' => false,
                 'message' => 'Payment not completed yet.'
             ]);
+            exit;
         }
     } elseif ($action === 'get_joined_events') {
         $userId = $_SESSION['user_id'];
@@ -239,7 +253,8 @@ try {
     echo json_encode(['status' => false, 'message' => 'An error occurred.']);
 }
 
-function recordAuditLog($userId, $action, $details) {
+function recordAuditLog($userId, $action, $details)
+{
     // Assumes there is an audit_log table with columns: user_id, action, details, created_at
     global $conn;
     $query = "INSERT INTO audit_logs (user_id, action, details, created_at) VALUES (?, ?, ?, NOW())";
@@ -248,4 +263,3 @@ function recordAuditLog($userId, $action, $details) {
     $stmt->execute();
     $stmt->close();
 }
-?>
