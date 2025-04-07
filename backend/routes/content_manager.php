@@ -97,7 +97,7 @@ try {
             ORDER BY e.date DESC
         ";
 
-        // Use a prepared statement to bind the user id twice.
+        // Bind the user id twice.
         $stmt = $conn->prepare($eventsQuery);
         $stmt->bind_param("ii", $user_id, $user_id);
         $stmt->execute();
@@ -253,26 +253,26 @@ try {
         if ($action === 'add_event') {
             // New: retrieve fee; default to 0 if not provided
             $fee = isset($_POST['fee']) && is_numeric($_POST['fee']) ? floatval($_POST['fee']) : 0.00;
-
+            
             // Insert new event with fee column included
             $stmt = $conn->prepare("INSERT INTO events (title, description, date, location, fee, image) VALUES (?, ?, ?, ?, ?, ?)");
             $stmt->bind_param('ssssds', $title, $description, $date, $location, $fee, $relativeImagePath);
             $stmt->execute();
-
+        
             // Audit log for event addition
             recordAuditLog($userId, "Add Event", "Event '$title' added.");
             echo json_encode(['status' => true, 'message' => 'Event added successfully.']);
         } elseif ($action === 'update_event') {
             // New: retrieve fee; default to 0 if not provided
             $fee = isset($_POST['fee']) && is_numeric($_POST['fee']) ? floatval($_POST['fee']) : 0.00;
-
+            
             // Update existing event; if no new image provided, the old image remains.
             $stmt = $conn->prepare(
                 "UPDATE events SET title = ?, description = ?, date = ?, location = ?, fee = ?, image = IFNULL(?, image) WHERE event_id = ?"
             );
             $stmt->bind_param('ssssdsi', $title, $description, $date, $location, $fee, $relativeImagePath, $event_id);
             $stmt->execute();
-
+        
             // Audit log for event update
             recordAuditLog($userId, "Update Event", "Event ID $event_id updated with title '$title'.");
             echo json_encode(['status' => true, 'message' => 'Event updated successfully.']);
@@ -284,7 +284,7 @@ try {
         // ----------------------------
         $event_id = $_POST['id'];
         $userId = $_SESSION['user_id'];
-
+    
         // Retrieve the event record to check for an existing image.
         $stmt = $conn->prepare("SELECT image FROM events WHERE event_id = ?");
         $stmt->bind_param('i', $event_id);
@@ -314,12 +314,12 @@ try {
             }
         }
         $stmt->close();
-
+    
         // Now delete the event record from the database.
         $stmt = $conn->prepare("DELETE FROM events WHERE event_id = ?");
         $stmt->bind_param('i', $event_id);
         $stmt->execute();
-
+    
         // Audit log for event deletion.
         recordAuditLog($userId, "Delete Event", "Event ID $event_id deleted.");
         echo json_encode(['status' => true, 'message' => 'Event deleted successfully.']);
@@ -495,7 +495,7 @@ try {
             $stmt = $conn->prepare("INSERT INTO trainings (title, description, schedule, capacity, fee, image, modality, modality_details, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->bind_param('sssidsssi', $title, $description, $schedule, $capacity, $fee, $relativeImagePath, $modality, $modality_details, $trainer_id);
             $stmt->execute();
-
+        
             recordAuditLog($trainer_id, "Add Training", "Training '$title' added.");
             echo json_encode(['status' => true, 'message' => 'Training added successfully.']);
         } elseif ($action === 'update_training') {
@@ -504,7 +504,7 @@ try {
             $stmt = $conn->prepare("UPDATE trainings SET title = ?, description = ?, schedule = ?, capacity = ?, fee = ?, image = IFNULL(?, image), modality = ?, modality_details = ? WHERE training_id = ?");
             $stmt->bind_param('sssidsssi', $title, $description, $schedule, $capacity, $fee, $relativeImagePath, $modality, $modality_details, $training_id);
             $stmt->execute();
-
+        
             recordAuditLog($_SESSION['user_id'], "Update Training", "Training ID $training_id updated with title '$title'.");
             echo json_encode(['status' => true, 'message' => 'Training updated successfully.']);
             exit();
@@ -512,7 +512,7 @@ try {
     } elseif ($action === 'delete_training') {
         ensureAuthenticated();
         $training_id = $_POST['id'];
-
+        
         // Check if there is an existing image and delete it from S3
         $stmtCheck = $conn->prepare("SELECT image FROM trainings WHERE training_id = ?");
         $stmtCheck->bind_param("i", $training_id);
@@ -521,7 +521,6 @@ try {
         if ($resultCheck->num_rows > 0) {
             $existingTraining = $resultCheck->fetch_assoc();
             if (!empty($existingTraining['image'])) {
-                // Remove the proxy prefix and decode the URL to obtain the original S3 key
                 $existingS3Key = urldecode(str_replace('/s3proxy/', '', $existingTraining['image']));
                 try {
                     $s3->deleteObject([
@@ -571,3 +570,4 @@ try {
         'message' => 'Internal Server Error.'
     ]);
 }
+?>

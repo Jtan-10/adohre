@@ -351,116 +351,149 @@
             const pastTrainings = trainings.filter(training => new Date(training.schedule) < now);
 
             // Build upcoming trainings HTML with decrypted image source and fee handling
-            const upcomingHtml = upcomingTrainings.map(training => `
-            <div class="col-12">
-              <div class="training-card card">
-                <div class="row g-0">
-                  <div class="col-md-4">
-                    <img src="${training.image ? '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image) : 'assets/default-training.jpg'}" 
-                         class="img-fluid training-image" 
-                         alt="${training.title}">
-                  </div>
-                  <div class="col-md-8 p-3">
-                    <div class="training-badge">
-                      <i class="fas fa-chalkboard-teacher me-2"></i>
-                      ${training.modality || 'In-person'}
-                    </div>
-                    <h3 class="h5 fw-bold mb-2">${training.title}</h3>
-                    <div class="d-flex flex-column gap-2">
-                      <div class="d-flex align-items-center">
-                        <i class="fas fa-calendar-day text-primary me-2"></i>
-                        <span>${new Date(training.schedule).toLocaleString()}</span>
+            const upcomingHtml = upcomingTrainings.map(training => {
+                let joinBtn = '';
+                if (training.joined) {
+                    // Already joined
+                    joinBtn = `<button class="btn btn-secondary btn-sm" disabled>
+                                        Joined <i class="fas fa-check me-2"></i>
+                                   </button>`;
+                } else if (training.pending_payment) {
+                    // Payment is initiated but not completed
+                    joinBtn = `<button class="btn btn-warning btn-sm" disabled>
+                                        Pending Payment
+                                   </button>`;
+                } else {
+                    // Not joined, no pending payment
+                    if (parseFloat(training.fee) > 0) {
+                        // Paid training
+                        joinBtn = `<button class="btn btn-success btn-sm join-training-btn" data-training-id="${training.training_id}" data-fee="${training.fee}">
+                                        Register Now <i class="fas fa-arrow-right me-2"></i>
+                                       </button>`;
+                    } else {
+                        // Free training
+                        joinBtn = `<button class="btn btn-success btn-sm join-training-btn" data-training-id="${training.training_id}" data-fee="0">
+                                        Join Training <i class="fas fa-arrow-right me-2"></i>
+                                       </button>`;
+                    }
+                }
+
+                const dateStr = new Date(training.schedule).toLocaleString('en-US', {
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: 'numeric',
+                    minute: 'numeric',
+                    hour12: true
+                });
+
+                return `
+                    <div class="col-12">
+                      <div class="training-card card">
+                        <div class="row g-0">
+                          <div class="col-md-4">
+                            <img src="${training.image ? '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image) : 'assets/default-training.jpg'}" 
+                                 class="img-fluid training-image" 
+                                 alt="${training.title}">
+                          </div>
+                          <div class="col-md-8 p-3">
+                            <div class="training-badge">
+                              <i class="fas fa-chalkboard-teacher me-2"></i>
+                              ${training.modality || 'In-person'}
+                            </div>
+                            <h3 class="h5 fw-bold mb-2">${training.title}</h3>
+                            <div class="d-flex flex-column gap-2">
+                              <div class="d-flex align-items-center">
+                                <i class="fas fa-calendar-day text-primary me-2"></i>
+                                <span>${dateStr}</span>
+                              </div>
+                              <div class="d-flex align-items-center">
+                                <i class="fas fa-user-friends text-primary me-2"></i>
+                                <span>${training.capacity} slots available</span>
+                              </div>
+                            </div>
+                            <div class="mt-3">
+                              ${joinBtn}
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <div class="d-flex align-items-center">
-                        <i class="fas fa-user-friends text-primary me-2"></i>
-                        <span>${training.capacity} slots available</span>
-                      </div>
-                    </div>
-                    <div class="mt-3">
-                      ${training.joined == 1 
-                        ? `<button class="btn btn-primary view-training-btn" data-training-id="${training.training_id}">
-                             <i class="fas fa-eye me-2"></i>View Training
-                           </button>`
-                        : (parseFloat(training.fee) > 0 
-                           ? `<button class="btn btn-success join-training-btn" data-training-id="${training.training_id}" data-fee="${training.fee}">
-                             Register Now <i class="fas fa-arrow-right me-2"></i>
-                           </button>`
-                           : `<button class="btn btn-success join-training-btn" data-training-id="${training.training_id}" data-fee="0">
-                             Join Training <i class="fas fa-arrow-right me-2"></i>
-                           </button>`)
-                      }
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-        `).join('');
+                    </div>`;
+            }).join('');
 
             // Build past trainings HTML (disable join functionality)
-            const pastHtml = pastTrainings.map(training => `
-            <div class="col-12">
-              <div class="training-card card">
-                <div class="row g-0">
-                  <div class="col-md-4">
-                    <img src="${training.image ? '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image) : 'assets/default-training.jpg'}" 
-                         class="img-fluid training-image" 
-                         alt="${training.title}">
-                  </div>
-                  <div class="col-md-8 p-3">
-                    <div class="training-badge">
-                      <i class="fas fa-chalkboard-teacher me-2"></i>
-                      ${training.modality || 'In-person'}
-                    </div>
-                    <h3 class="h5 fw-bold mb-2">${training.title}</h3>
-                    <div class="d-flex flex-column gap-2">
-                      <div class="d-flex align-items-center">
-                        <i class="fas fa-calendar-day text-primary me-2"></i>
-                        <span>${new Date(training.schedule).toLocaleString()}</span>
+            const pastHtml = pastTrainings.map(training => {
+                const dateStr = new Date(training.schedule).toLocaleString('en-US', {
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: 'numeric',
+                    minute: 'numeric',
+                    hour12: true
+                });
+                return `
+                    <div class="col-12">
+                      <div class="training-card card">
+                        <div class="row g-0">
+                          <div class="col-md-4">
+                            <img src="${training.image ? '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image) : 'assets/default-training.jpg'}" 
+                                 class="img-fluid training-image" 
+                                 alt="${training.title}">
+                          </div>
+                          <div class="col-md-8 p-3">
+                            <div class="training-badge">
+                              <i class="fas fa-chalkboard-teacher me-2"></i>
+                              ${training.modality || 'In-person'}
+                            </div>
+                            <h3 class="h5 fw-bold mb-2">${training.title}</h3>
+                            <div class="d-flex flex-column gap-2">
+                              <div class="d-flex align-items-center">
+                                <i class="fas fa-calendar-day text-primary me-2"></i>
+                                <span>${dateStr}</span>
+                              </div>
+                              <div class="d-flex align-items-center">
+                                <i class="fas fa-user-friends text-primary me-2"></i>
+                                <span>${training.capacity} slots available</span>
+                              </div>
+                            </div>
+                            <div class="mt-3">
+                              <button class="btn btn-secondary" disabled>Past Training</button>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <div class="d-flex align-items-center">
-                        <i class="fas fa-user-friends text-primary me-2"></i>
-                        <span>${training.capacity} slots available</span>
-                      </div>
-                    </div>
-                    <div class="mt-3">
-                      <button class="btn btn-secondary" disabled>Past Training</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-        `).join('');
+                    </div>`;
+            }).join('');
 
             // Render both tabs: Upcoming and Past Trainings
             trainingsList.innerHTML = `
-           <ul class="nav nav-tabs" id="trainingsTab" role="tablist">
-             <li class="nav-item" role="presentation">
-               <button class="nav-link active" id="upcoming-tab" data-bs-toggle="tab" data-bs-target="#upcomingTrainings" type="button" role="tab">
-                 Upcoming Trainings
-               </button>
-             </li>
-             <li class="nav-item" role="presentation">
-               <button class="nav-link" id="past-tab" data-bs-toggle="tab" data-bs-target="#pastTrainings" type="button" role="tab">
-                 Past Trainings
-               </button>
-             </li>
-           </ul>
-           <div class="tab-content mt-3">
-             <div class="tab-pane fade show active" id="upcomingTrainings" role="tabpanel">
-               <div class="row g-4">
-                 ${upcomingHtml || '<p class="text-center text-muted">No upcoming trainings</p>'}
-               </div>
-             </div>
-             <div class="tab-pane fade" id="pastTrainings" role="tabpanel">
-               <div class="row g-4">
-                 ${pastHtml || '<p class="text-center text-muted">No past trainings</p>'}
-               </div>
-             </div>
-           </div>
-        `;
+                <ul class="nav nav-tabs" id="trainingsTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="upcoming-tab" data-bs-toggle="tab" data-bs-target="#upcomingTrainings" type="button" role="tab">
+                            Upcoming Trainings
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="past-tab" data-bs-toggle="tab" data-bs-target="#pastTrainings" type="button" role="tab">
+                            Past Trainings
+                        </button>
+                    </li>
+                </ul>
+                <div class="tab-content mt-3">
+                    <div class="tab-pane fade show active" id="upcomingTrainings" role="tabpanel">
+                        <div class="row g-4">
+                            ${upcomingHtml || '<p class="text-center text-muted">No upcoming trainings</p>'}
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="pastTrainings" role="tabpanel">
+                        <div class="row g-4">
+                            ${pastHtml || '<p class="text-center text-muted">No past trainings</p>'}
+                        </div>
+                    </div>
+                </div>
+                `;
         }
 
-        // Updated joinTraining function to mimic events.php functionality.
         async function joinTraining(trainingId, button, fee) {
             // If training has a fee > 0, show the payment modal and initiate a payment record
             if (parseFloat(fee) > 0) {
@@ -660,11 +693,11 @@
 
         function showError(message) {
             trainingsList.innerHTML = `
-            <div class="col-12 text-center text-danger">
-                <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
-                <p>${message}</p>
-            </div>
-        `;
+                <div class="col-12 text-center text-danger">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                    <p>${message}</p>
+                </div>
+            `;
         }
     });
     </script>
