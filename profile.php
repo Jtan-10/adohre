@@ -421,6 +421,8 @@ header("X-Content-Type-Options: nosniff");
                         stream.getTracks().forEach(track => track.stop());
                         video.srcObject = null;
                     }
+                    // Enable the close button so that the hidden.bs.modal event triggers regeneration
+                    document.getElementById('faceValidationCloseBtn').disabled = false;
                     // Automatically close the Face Validation modal
                     const modal = bootstrap.Modal.getInstance(document.getElementById(
                         'faceValidationModal'));
