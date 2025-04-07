@@ -5,6 +5,42 @@ if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 $csp_nonce = base64_encode(random_bytes(16));
+
+// ***** NEW: Check if user already has a membership application record *****
+if (isset($_SESSION['user_id'])) {
+    require_once 'backend/db/db_connect.php';
+    $user_id = $_SESSION['user_id'];
+    $stmt = $conn->prepare("SELECT application_id FROM membership_applications WHERE user_id = ?");
+    if ($stmt) {
+        $stmt->bind_param("i", $user_id);
+        $stmt->execute();
+        $stmt->store_result();
+        if ($stmt->num_rows > 0) {
+            // User already submitted a membership application – show message and stop further processing.
+            echo "<!DOCTYPE html>
+<html lang='en'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Membership Application</title>
+    <link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css'>
+</head>
+<body>
+    <div class='container mt-5'>
+        <h1 class='text-center'>Membership Application</h1>
+        <div class='alert alert-info text-center'>
+            You have already submitted your membership application. Thank you.
+        </div>
+    </div>
+</body>
+</html>";
+            exit;
+        }
+        $stmt->close();
+    }
+    $conn->close();
+}
+// ***** END OF NEW CHECK *****
 ?>
 <!DOCTYPE html>
 <html lang="en">
