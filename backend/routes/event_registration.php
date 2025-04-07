@@ -205,15 +205,7 @@ try {
         
         $status = 'New';
         // Bind parameters: user_id (i), event_id (i), fee (d), status (s), due_date (s)
-        $stmtPayment->bind_param("iids s", $userId, $eventId, $fee, $status, $due_date);
-        // Note: If your PHP version does not support named spaces in bind_param,
-        // you can remove the extra space. The proper call is:
-        // $stmtPayment->bind_param("iids s", $userId, $eventId, $fee, $status, $due_date);
-        // However, if you face issues, please adjust accordingly.
-        // For example, you might need: $stmtPayment->bind_param("iids s", $userId, $eventId, $fee, $status, $due_date);
-        
-        // Using the correct syntax:
-        $stmtPayment->bind_param("iids s", $userId, $eventId, $fee, $status, $due_date);
+        $stmtPayment->bind_param("iidss", $userId, $eventId, $fee, $status, $due_date);
         
         if (!$stmtPayment->execute()) {
             echo json_encode(['status' => false, 'message' => 'Failed to initiate payment: ' . $stmtPayment->error]);
