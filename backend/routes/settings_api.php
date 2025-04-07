@@ -385,7 +385,7 @@ switch ($action) {
             $tempRestoreEscaped = escapeshellarg($tempRestore);
 
             // Use the full path to the mysql client
-            $mysqlPath = '/opt/lampp/bin/mysql';
+            $mysqlPath = '/opt/bitnami/mariadb/bin/mysql';
             $command = "sh -c '" . $mysqlPath . " --host={$dbHostEscaped} --user={$dbUserEscaped} --password={$dbPassEscaped} {$dbNameEscaped} < {$tempRestoreEscaped}'";
             error_log("Restore command: $command");
 
