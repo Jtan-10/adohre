@@ -53,32 +53,35 @@ if (isset($_SESSION['user_id'])) {
     <script nonce="<?php echo $csp_nonce; ?>"
         src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <!-- Added: Load face-api.js library -->
+    <script nonce="<?php echo $csp_nonce; ?>"
+        src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <style>
-    body {
-        background-color: #f8f9fa;
-    }
+        body {
+            background-color: #f8f9fa;
+        }
 
-    .form-section {
-        margin-bottom: 30px;
-        padding: 20px;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        background-color: #fff;
-    }
+        .form-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #fff;
+        }
 
-    .form-title {
-        font-size: 1.25rem;
-        font-weight: bold;
-        margin-bottom: 15px;
-    }
+        .form-title {
+            font-size: 1.25rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
     </style>
 </head>
 
 <body>
     <?php if (isset($_GET['warning']) && $_GET['warning'] == 1): ?>
-    <div class="alert alert-warning text-center" role="alert">
-        You must complete the membership form in order to activate your membership.
-    </div>
+        <div class="alert alert-warning text-center" role="alert">
+            You must complete the membership form in order to activate your membership.
+        </div>
     <?php endif; ?>
 
     <div class="container my-5">
@@ -223,234 +226,234 @@ if (isset($_SESSION['user_id'])) {
     <!-- Load OCR Script externally -->
     <script nonce="<?php echo $csp_nonce; ?>" src="OCR_membership_form.php"></script>
     <script nonce="<?php echo $csp_nonce; ?>">
-    const canvas = document.getElementById("signature-canvas");
-    const signaturePad = new SignaturePad(canvas);
+        const canvas = document.getElementById("signature-canvas");
+        const signaturePad = new SignaturePad(canvas);
 
-    function resizeCanvas() {
-        const ratio = Math.max(window.devicePixelRatio || 1, 1);
-        canvas.width = canvas.offsetWidth * ratio;
-        canvas.height = canvas.offsetHeight * ratio;
-        canvas.getContext("2d").scale(ratio, ratio);
-        signaturePad.clear();
-    }
-    window.addEventListener("resize", resizeCanvas);
-    resizeCanvas();
-
-    document.getElementById("clear-signature").addEventListener("click", function() {
-        signaturePad.clear();
-        document.getElementById("signature").value = "";
-    });
-    </script>
-    <script nonce="<?php echo $csp_nonce; ?>">
-    // Enable/Disable "Others (Specify)" Textboxes Based on Selection
-    document.addEventListener("DOMContentLoaded", function() {
-        /**
-         * Function to toggle the "Specify" input box based on the "Others" radio button selection.
-         * @param {string} radioName - The name attribute of the radio group.
-         * @param {string} inputId - The ID of the text input box to enable/disable.
-         */
-        function toggleSpecifyInput(radioName, inputId) {
-            const radios = document.querySelectorAll(`input[name="${radioName}"]`);
-            const input = document.getElementById(inputId);
-
-            radios.forEach(radio => {
-                radio.addEventListener("change", function() {
-                    const isOthersSelected = document.getElementById(`others_${radioName}`)
-                        ?.checked;
-                    if (isOthersSelected) {
-                        input.disabled = false; // Enable if "Others" is selected
-                    } else {
-                        input.disabled = true; // Disable otherwise
-                        input.value = ""; // Clear when disabled
-                    }
-                });
-            });
-        }
-
-        // Apply toggle logic for each section
-        toggleSpecifyInput("current_engagement", "others_engagement_specify");
-        toggleSpecifyInput("key_expertise", "others_expertise_specify");
-        toggleSpecifyInput("specific_field", "others_specific_field_specify");
-        toggleSpecifyInput("committees", "others_committee_specify");
-    });
-    </script>
-    <script nonce="<?php echo $csp_nonce; ?>">
-    // Face Validation and Form Submission logic
-    // Global variable to track whether face validation has been completed
-    let faceValidated = false;
-    const membershipForm = document.getElementById('membership-form');
-    const validateFaceBtn = document.getElementById('validateFaceBtn');
-    const videoInput = document.getElementById('videoInput');
-    const userFaceCanvas = document.getElementById('userFaceCanvas');
-    const faceValidationResult = document.getElementById('faceValidationResult');
-    let referenceDescriptor = null; // Will hold the descriptor from the stored face image
-
-    // Load face-api.js models
-    async function loadFaceModels() {
-        await faceapi.nets.tinyFaceDetector.loadFromUri('backend/models/weights');
-        await faceapi.nets.faceLandmark68Net.loadFromUri('backend/models/weights');
-        await faceapi.nets.faceRecognitionNet.loadFromUri('backend/models/weights');
-    }
-    loadFaceModels();
-
-    // Load the stored face descriptor from the stored face image URL (from session)
-    async function loadReferenceDescriptor() {
-        const storedFaceImg = document.getElementById('storedFacePreview');
-        if (!storedFaceImg.src) {
-            console.warn("No stored face reference.");
-            return;
-        }
-        await new Promise((resolve, reject) => {
-            storedFaceImg.onload = resolve;
-            storedFaceImg.onerror = reject;
-        });
-        const detection = await faceapi
-            .detectSingleFace(storedFaceImg, new faceapi.TinyFaceDetectorOptions({
-                inputSize: 416,
-                scoreThreshold: 0.5
-            }))
-            .withFaceLandmarks()
-            .withFaceDescriptor();
-        if (detection) {
-            referenceDescriptor = detection.descriptor;
-            console.log("Reference descriptor loaded in membership form.");
-        } else {
-            console.error("No face detected in stored reference image.");
-        }
-    }
-    loadReferenceDescriptor();
-
-    // Handler for face validation
-    validateFaceBtn.addEventListener('click', async function() {
-        faceValidationResult.innerText = '';
-        userFaceCanvas.width = videoInput.videoWidth;
-        userFaceCanvas.height = videoInput.videoHeight;
-        const ctx = userFaceCanvas.getContext('2d');
-        ctx.drawImage(videoInput, 0, 0, userFaceCanvas.width, userFaceCanvas.height);
-        const detection = await faceapi
-            .detectSingleFace(userFaceCanvas, new faceapi.TinyFaceDetectorOptions({
-                inputSize: 416,
-                scoreThreshold: 0.5
-            }))
-            .withFaceLandmarks()
-            .withFaceDescriptor();
-        if (!detection) {
-            faceValidationResult.innerText = 'No face detected. Please try again.';
-            return;
-        }
-        if (!referenceDescriptor) {
-            faceValidationResult.innerText = 'No stored reference available.';
-            return;
-        }
-        const distance = faceapi.euclideanDistance(detection.descriptor, referenceDescriptor);
-        console.log('Face distance:', distance);
-        const threshold = 0.6;
-        if (distance < threshold) {
-            faceValidationResult.innerText = 'Face matched successfully!';
-            // Stop the webcam stream
-            if (videoInput.srcObject) {
-                videoInput.srcObject.getTracks().forEach(track => track.stop());
-                videoInput.srcObject = null;
-            }
-            // Hide the Face Validation modal
-            const faceModal = bootstrap.Modal.getInstance(document.getElementById('faceValidationModal'));
-            if (faceModal) faceModal.hide();
-            faceValidated = true;
-            // Programmatically submit the form now that face is validated
-            membershipForm.submit();
-        } else {
-            faceValidationResult.innerText = 'Face did not match. Please try again.';
-        }
-    });
-
-    // Intercept form submission to ensure face validation is done
-    membershipForm.addEventListener('submit', function(e) {
-        // Check if signature is provided
-        if (signaturePad.isEmpty()) {
-            alert("Please provide your signature.");
-            e.preventDefault();
-            return;
-        }
-        // If face validation hasn't yet been completed, prevent final submission and show face validation modal
-        if (!faceValidated) {
-            e.preventDefault();
-            const faceValidationModal = new bootstrap.Modal(document.getElementById('faceValidationModal'));
-            faceValidationModal.show();
-            return;
-        }
-        // Otherwise, the form will submit as usual.
-    });
-    </script>
-    <script nonce="<?php echo $csp_nonce; ?>">
-    // Form submission for membership application
-    document.querySelector('#membership-form').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        const submitButton = document.querySelector('#submit-btn');
-        submitButton.disabled = true;
-        submitButton.textContent = 'Submitting...';
-
-        // Save signature if not empty
-        if (!signaturePad.isEmpty()) {
-            const signatureData = signaturePad.toDataURL();
-            document.getElementById('signature').value = signatureData;
+        function resizeCanvas() {
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            canvas.width = canvas.offsetWidth * ratio;
+            canvas.height = canvas.offsetHeight * ratio;
+            canvas.getContext("2d").scale(ratio, ratio);
             signaturePad.clear();
-        } else {
-            alert("Please provide your signature.");
-            e.preventDefault();
-            submitButton.disabled = false;
-            submitButton.textContent = 'Submit Application';
-            return;
         }
+        window.addEventListener("resize", resizeCanvas);
+        resizeCanvas();
 
-        const formData = new FormData(this);
-
-        try {
-            const response = await fetch(this.action, {
-                method: 'POST',
-                body: formData
-            });
-
-            const result = await response.json();
-
-            if (result.status) {
-                alert(result.message);
-                this.reset();
-            } else {
-                alert('Error: ' + result.message);
-            }
-        } catch (error) {
-            alert('An unexpected error occurred. Please try again.');
-        } finally {
-            submitButton.disabled = false;
-            submitButton.textContent = 'Submit Application';
-        }
-    });
+        document.getElementById("clear-signature").addEventListener("click", function() {
+            signaturePad.clear();
+            document.getElementById("signature").value = "";
+        });
     </script>
     <script nonce="<?php echo $csp_nonce; ?>">
-    // Enable/Disable "Others (Specify)" Textboxes Based on Selection (if any)
-    document.addEventListener("DOMContentLoaded", function() {
-        function toggleSpecifyInput(radioName, inputId) {
-            const radios = document.querySelectorAll(`input[name="${radioName}"]`);
-            const input = document.getElementById(inputId);
+        // Enable/Disable "Others (Specify)" Textboxes Based on Selection
+        document.addEventListener("DOMContentLoaded", function() {
+            /**
+             * Function to toggle the "Specify" input box based on the "Others" radio button selection.
+             * @param {string} radioName - The name attribute of the radio group.
+             * @param {string} inputId - The ID of the text input box to enable/disable.
+             */
+            function toggleSpecifyInput(radioName, inputId) {
+                const radios = document.querySelectorAll(`input[name="${radioName}"]`);
+                const input = document.getElementById(inputId);
 
-            radios.forEach(radio => {
-                radio.addEventListener("change", function() {
-                    const isOthersSelected = document.getElementById(`others_${radioName}`)
-                        ?.checked;
-                    if (isOthersSelected) {
-                        input.disabled = false;
-                    } else {
-                        input.disabled = true;
-                        input.value = "";
-                    }
+                radios.forEach(radio => {
+                    radio.addEventListener("change", function() {
+                        const isOthersSelected = document.getElementById(`others_${radioName}`)
+                            ?.checked;
+                        if (isOthersSelected) {
+                            input.disabled = false; // Enable if "Others" is selected
+                        } else {
+                            input.disabled = true; // Disable otherwise
+                            input.value = ""; // Clear when disabled
+                        }
+                    });
                 });
-            });
+            }
+
+            // Apply toggle logic for each section
+            toggleSpecifyInput("current_engagement", "others_engagement_specify");
+            toggleSpecifyInput("key_expertise", "others_expertise_specify");
+            toggleSpecifyInput("specific_field", "others_specific_field_specify");
+            toggleSpecifyInput("committees", "others_committee_specify");
+        });
+    </script>
+    <script nonce="<?php echo $csp_nonce; ?>">
+        // Face Validation and Form Submission logic
+        // Global variable to track whether face validation has been completed
+        let faceValidated = false;
+        const membershipForm = document.getElementById('membership-form');
+        const validateFaceBtn = document.getElementById('validateFaceBtn');
+        const videoInput = document.getElementById('videoInput');
+        const userFaceCanvas = document.getElementById('userFaceCanvas');
+        const faceValidationResult = document.getElementById('faceValidationResult');
+        let referenceDescriptor = null; // Will hold the descriptor from the stored face image
+
+        // Load face-api.js models
+        async function loadFaceModels() {
+            await faceapi.nets.tinyFaceDetector.loadFromUri('backend/models/weights');
+            await faceapi.nets.faceLandmark68Net.loadFromUri('backend/models/weights');
+            await faceapi.nets.faceRecognitionNet.loadFromUri('backend/models/weights');
         }
-        toggleSpecifyInput("current_engagement", "others_engagement_specify");
-        toggleSpecifyInput("key_expertise", "others_expertise_specify");
-        toggleSpecifyInput("specific_field", "others_specific_field_specify");
-        toggleSpecifyInput("committees", "others_committee_specify");
-    });
+        loadFaceModels();
+
+        // Load the stored face descriptor from the stored face image URL (from session)
+        async function loadReferenceDescriptor() {
+            const storedFaceImg = document.getElementById('storedFacePreview');
+            if (!storedFaceImg.src) {
+                console.warn("No stored face reference.");
+                return;
+            }
+            await new Promise((resolve, reject) => {
+                storedFaceImg.onload = resolve;
+                storedFaceImg.onerror = reject;
+            });
+            const detection = await faceapi
+                .detectSingleFace(storedFaceImg, new faceapi.TinyFaceDetectorOptions({
+                    inputSize: 416,
+                    scoreThreshold: 0.5
+                }))
+                .withFaceLandmarks()
+                .withFaceDescriptor();
+            if (detection) {
+                referenceDescriptor = detection.descriptor;
+                console.log("Reference descriptor loaded in membership form.");
+            } else {
+                console.error("No face detected in stored reference image.");
+            }
+        }
+        loadReferenceDescriptor();
+
+        // Handler for face validation
+        validateFaceBtn.addEventListener('click', async function() {
+            faceValidationResult.innerText = '';
+            userFaceCanvas.width = videoInput.videoWidth;
+            userFaceCanvas.height = videoInput.videoHeight;
+            const ctx = userFaceCanvas.getContext('2d');
+            ctx.drawImage(videoInput, 0, 0, userFaceCanvas.width, userFaceCanvas.height);
+            const detection = await faceapi
+                .detectSingleFace(userFaceCanvas, new faceapi.TinyFaceDetectorOptions({
+                    inputSize: 416,
+                    scoreThreshold: 0.5
+                }))
+                .withFaceLandmarks()
+                .withFaceDescriptor();
+            if (!detection) {
+                faceValidationResult.innerText = 'No face detected. Please try again.';
+                return;
+            }
+            if (!referenceDescriptor) {
+                faceValidationResult.innerText = 'No stored reference available.';
+                return;
+            }
+            const distance = faceapi.euclideanDistance(detection.descriptor, referenceDescriptor);
+            console.log('Face distance:', distance);
+            const threshold = 0.6;
+            if (distance < threshold) {
+                faceValidationResult.innerText = 'Face matched successfully!';
+                // Stop the webcam stream
+                if (videoInput.srcObject) {
+                    videoInput.srcObject.getTracks().forEach(track => track.stop());
+                    videoInput.srcObject = null;
+                }
+                // Hide the Face Validation modal
+                const faceModal = bootstrap.Modal.getInstance(document.getElementById('faceValidationModal'));
+                if (faceModal) faceModal.hide();
+                faceValidated = true;
+                // Programmatically submit the form now that face is validated
+                membershipForm.submit();
+            } else {
+                faceValidationResult.innerText = 'Face did not match. Please try again.';
+            }
+        });
+
+        // Intercept form submission to ensure face validation is done
+        membershipForm.addEventListener('submit', function(e) {
+            // Check if signature is provided
+            if (signaturePad.isEmpty()) {
+                alert("Please provide your signature.");
+                e.preventDefault();
+                return;
+            }
+            // If face validation hasn't yet been completed, prevent final submission and show face validation modal
+            if (!faceValidated) {
+                e.preventDefault();
+                const faceValidationModal = new bootstrap.Modal(document.getElementById('faceValidationModal'));
+                faceValidationModal.show();
+                return;
+            }
+            // Otherwise, the form will submit as usual.
+        });
+    </script>
+    <script nonce="<?php echo $csp_nonce; ?>">
+        // Form submission for membership application
+        document.querySelector('#membership-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const submitButton = document.querySelector('#submit-btn');
+            submitButton.disabled = true;
+            submitButton.textContent = 'Submitting...';
+
+            // Save signature if not empty
+            if (!signaturePad.isEmpty()) {
+                const signatureData = signaturePad.toDataURL();
+                document.getElementById('signature').value = signatureData;
+                signaturePad.clear();
+            } else {
+                alert("Please provide your signature.");
+                e.preventDefault();
+                submitButton.disabled = false;
+                submitButton.textContent = 'Submit Application';
+                return;
+            }
+
+            const formData = new FormData(this);
+
+            try {
+                const response = await fetch(this.action, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.status) {
+                    alert(result.message);
+                    this.reset();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                alert('An unexpected error occurred. Please try again.');
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = 'Submit Application';
+            }
+        });
+    </script>
+    <script nonce="<?php echo $csp_nonce; ?>">
+        // Enable/Disable "Others (Specify)" Textboxes Based on Selection (if any)
+        document.addEventListener("DOMContentLoaded", function() {
+            function toggleSpecifyInput(radioName, inputId) {
+                const radios = document.querySelectorAll(`input[name="${radioName}"]`);
+                const input = document.getElementById(inputId);
+
+                radios.forEach(radio => {
+                    radio.addEventListener("change", function() {
+                        const isOthersSelected = document.getElementById(`others_${radioName}`)
+                            ?.checked;
+                        if (isOthersSelected) {
+                            input.disabled = false;
+                        } else {
+                            input.disabled = true;
+                            input.value = "";
+                        }
+                    });
+                });
+            }
+            toggleSpecifyInput("current_engagement", "others_engagement_specify");
+            toggleSpecifyInput("key_expertise", "others_expertise_specify");
+            toggleSpecifyInput("specific_field", "others_specific_field_specify");
+            toggleSpecifyInput("committees", "others_committee_specify");
+        });
     </script>
 </body>
 
