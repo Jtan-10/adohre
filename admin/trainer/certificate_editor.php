@@ -17,6 +17,13 @@ if (!isset($_SESSION['role']) || ($_SESSION['role'] !== 'trainer' && $_SESSION['
     exit();
 }
 
+// Determine back link dynamically based on role
+if ($_SESSION['role'] === 'admin') {
+    $backLink = "../assessments.php"; // Admins go to the outside assessments page.
+} else {
+    $backLink = "assessments.php"; // Trainers go to the assessments page in the same folder.
+}
+
 // Validate the training_id
 if (!isset($_GET['training_id'])) {
     echo "Training ID not provided.";
@@ -58,39 +65,39 @@ $stmt->close();
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style nonce="<?= $cspNonce ?>">
-    /* Container for the Fabric canvas (A4 landscape: 1123px x 792px) */
-    #canvas-container {
-        width: 100%;
-        max-width: 1123px;
-        aspect-ratio: 1123 / 792;
-        margin: 20px auto;
-        position: relative;
-        border: 1px solid #ccc;
-    }
+        /* Container for the Fabric canvas (A4 landscape: 1123px x 792px) */
+        #canvas-container {
+            width: 100%;
+            max-width: 1123px;
+            aspect-ratio: 1123 / 792;
+            margin: 20px auto;
+            position: relative;
+            border: 1px solid #ccc;
+        }
 
-    #certificateCanvas {
-        width: 100%;
-        height: auto;
-        display: block;
-    }
+        #certificateCanvas {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
 
-    /* Design Selector */
-    #designSelector {
-        display: flex;
-        overflow-x: auto;
-        gap: 10px;
-        margin-bottom: 20px;
-    }
+        /* Design Selector */
+        #designSelector {
+            display: flex;
+            overflow-x: auto;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
 
-    #designSelector img {
-        width: 150px;
-        cursor: pointer;
-        border: 2px solid transparent;
-    }
+        #designSelector img {
+            width: 150px;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
 
-    #designSelector img.selected {
-        border-color: #28a745;
-    }
+        #designSelector img.selected {
+            border-color: #28a745;
+        }
     </style>
     <!-- Fabric.js -->
     <script src="https://cdn.jsdelivr.net/npm/fabric@4.6.0/dist/fabric.min.js" nonce="<?= $cspNonce ?>"></script>
@@ -192,9 +199,9 @@ $stmt->close();
                     <label for="previewUserId" class="form-label">Preview As (Participant)</label>
                     <select id="previewUserId" name="preview_user_id" class="form-select">
                         <?php foreach ($participants as $p): ?>
-                        <option value="<?= $p['user_id']; ?>">
-                            <?= htmlspecialchars($p['first_name'] . ' ' . $p['last_name']); ?>
-                        </option>
+                            <option value="<?= $p['user_id']; ?>">
+                                <?= htmlspecialchars($p['first_name'] . ' ' . $p['last_name']); ?>
+                            </option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -203,412 +210,414 @@ $stmt->close();
                         Layouts</button>
                 </div>
             </div>
-            <a href="assessments.php" class="btn btn-info mt-3">Back to Assessments and Evaluation</a>
         </form>
+        <div class="container mt-3">
+            <a href="<?= htmlspecialchars($backLink) ?>" class="btn btn-info">Back to Assessments and Evaluation</a>
+        </div>
     </div>
 
     <!-- Main Editor Script (inline, with nonce) -->
     <script nonce="<?= $cspNonce ?>">
-    // Production-ready inline script
+        // Production-ready inline script
 
-    const TRAINING_ID = <?= json_encode($training_id, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
-    const DEFAULT_WIDTH = 1123;
-    const DEFAULT_HEIGHT = 792;
-    const canvas = new fabric.Canvas('certificateCanvas', {
-        width: DEFAULT_WIDTH,
-        height: DEFAULT_HEIGHT
-    });
-    const container = document.getElementById('canvas-container');
-    container.style.width = DEFAULT_WIDTH + 'px';
-    container.style.height = DEFAULT_HEIGHT + 'px';
-
-    // Basic placeholders
-    const trainingTitlePlaceholder = new fabric.IText('[Training Title]', {
-        left: canvas.width / 2,
-        top: 50,
-        fontFamily: 'Arial',
-        fill: '#000',
-        fontSize: 28,
-        originX: 'center',
-        selectable: true
-    });
-    canvas.add(trainingTitlePlaceholder);
-
-    const datePlaceholder = new fabric.IText('[Date]', {
-        left: 50,
-        top: canvas.height - 70,
-        fontFamily: 'Arial',
-        fill: '#000',
-        fontSize: 24,
-        selectable: true
-    });
-    datePlaceholder.text = new Date().toISOString().split('T')[0];
-    canvas.add(datePlaceholder);
-
-    const namePlaceholder = new fabric.IText('[Name]', {
-        left: canvas.width / 2,
-        top: 220,
-        fontFamily: 'Arial',
-        fill: '#000',
-        fontSize: 36,
-        originX: 'center',
-        textAlign: 'center',
-        selectable: true,
-        placeholderType: 'name'
-    });
-    canvas.add(namePlaceholder);
-
-    const bodyPlaceholder = new fabric.IText('Lorem ipsum dolor sit amet, consectetur adipiscing elit.', {
-        left: canvas.width / 2,
-        top: 300,
-        fontFamily: 'Arial',
-        fill: '#000',
-        fontSize: 18,
-        originX: 'center',
-        textAlign: 'center',
-        selectable: true
-    });
-    canvas.add(bodyPlaceholder);
-
-    function updateNamePlaceholder() {
-        const select = document.getElementById('previewUserId');
-        if (!select || select.selectedIndex < 0) {
-            // In production, avoid logging detailed errors.
-            // console.error("No participant selected in dropdown");
-            return;
-        }
-
-        // Get the selected participant's name.
-        const selectedText = select.options[select.selectedIndex].text;
-        // Optionally sanitize selectedText here if needed.
-
-        // Uncomment the following line if you need minimal debug output in development:
-        // console.log("Updating name placeholder to:", selectedText);
-
-        let namePlaceholders = [];
-
-        // Method 1: Find by placeholderType property.
-        canvas.getObjects('i-text').forEach(function(obj) {
-            if (obj.placeholderType === 'name') {
-                // console.log("Found placeholder by placeholderType:", obj);
-                namePlaceholders.push(obj);
-            }
+        const TRAINING_ID = <?= json_encode($training_id, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+        const DEFAULT_WIDTH = 1123;
+        const DEFAULT_HEIGHT = 792;
+        const canvas = new fabric.Canvas('certificateCanvas', {
+            width: DEFAULT_WIDTH,
+            height: DEFAULT_HEIGHT
         });
+        const container = document.getElementById('canvas-container');
+        container.style.width = DEFAULT_WIDTH + 'px';
+        container.style.height = DEFAULT_HEIGHT + 'px';
 
-        // Method 2: Find by text content.
-        if (namePlaceholders.length === 0) {
-            canvas.getObjects('i-text').forEach(function(obj) {
-                if (obj.text && (
-                        obj.text === '[Name]' ||
-                        obj.text.includes('[Name]') ||
-                        (obj.originalText && obj.originalText.includes('[Name]'))
-                    )) {
-                    // console.log("Found placeholder by text content:", obj);
-                    obj.placeholderType = 'name';
-                    obj.originalText = obj.originalText || obj.text;
-                    namePlaceholders.push(obj);
-                }
-            });
-        }
-
-        // Method 3: Find by a name-like regex pattern.
-        if (namePlaceholders.length === 0) {
-            canvas.getObjects('i-text').forEach(function(obj) {
-                if (obj.text && /^[A-Z][a-z]+ [A-Z][a-z]+/.test(obj.text)) {
-                    // console.log("Found placeholder by name pattern:", obj);
-                    obj.placeholderType = 'name';
-                    obj.originalText = obj.originalText || obj.text;
-                    namePlaceholders.push(obj);
-                }
-            });
-        }
-
-        // Method 4: Use prominence (position and font size).
-        if (namePlaceholders.length === 0) {
-            let prominentObjects = [];
-            canvas.getObjects('i-text').forEach(function(obj) {
-                let score = 0;
-                if (obj.originX === 'center') score += 5;
-                if (obj.top > canvas.height * 0.2 && obj.top < canvas.height * 0.7) score += 3;
-                score += Math.min(10, obj.fontSize / 5);
-                prominentObjects.push({
-                    obj,
-                    score
-                });
-            });
-            prominentObjects.sort((a, b) => b.score - a.score);
-            if (prominentObjects.length > 0) {
-                const topObj = prominentObjects[0].obj;
-                // console.log("Found placeholder by prominence (score=" + prominentObjects[0].score + "):", topObj);
-                topObj.placeholderType = 'name';
-                topObj.originalText = topObj.originalText || topObj.text;
-                namePlaceholders.push(topObj);
-            }
-        }
-
-        // Update all found placeholders with the selected participant's name.
-        if (namePlaceholders.length > 0) {
-            namePlaceholders.forEach(function(obj) {
-                if (!obj.originalText) {
-                    obj.originalText = obj.text;
-                }
-                // console.log("Setting placeholder text from:", obj.text, "to:", selectedText);
-                obj.set('text', selectedText);
-            });
-            canvas.renderAll();
-            // console.log("Updated", namePlaceholders.length, "name placeholder(s)");
-        } else {
-            // Optionally, handle the case when no placeholder is found.
-            // console.warn("No name placeholder found in the canvas!");
-        }
-    }
-
-
-    // Participant navigation event listeners
-    document.getElementById('previewUserId').addEventListener('change', updateNamePlaceholder);
-    document.getElementById('prevCertBtn').addEventListener('click', () => {
-        const select = document.getElementById('previewUserId');
-        const idx = select.selectedIndex;
-        select.selectedIndex = idx > 0 ? idx - 1 : select.options.length - 1;
-        updateNamePlaceholder();
-    });
-    document.getElementById('nextCertBtn').addEventListener('click', () => {
-        const select = document.getElementById('previewUserId');
-        const idx = select.selectedIndex;
-        select.selectedIndex = idx < select.options.length - 1 ? idx + 1 : 0;
-        updateNamePlaceholder();
-    });
-
-    // Background upload
-    document.getElementById('bgImage').addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = function(evt) {
-            fabric.Image.fromURL(evt.target.result, function(img) {
-                img.scaleX = DEFAULT_WIDTH / img.width;
-                img.scaleY = DEFAULT_HEIGHT / img.height;
-                canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
-                    originX: 'left',
-                    originY: 'top'
-                });
-            });
-        };
-        reader.readAsDataURL(file);
-    });
-
-    // Design thumbnails
-    document.querySelectorAll('#designSelector img').forEach(thumb => {
-        thumb.addEventListener('click', function() {
-            document.querySelectorAll('#designSelector img').forEach(img => img.classList.remove(
-                'selected'));
-            this.classList.add('selected');
-            const bgUrl = this.src;
-            document.getElementById('selectedDesign').value = bgUrl;
-            fabric.Image.fromURL(bgUrl, function(img) {
-                img.scaleX = DEFAULT_WIDTH / img.width;
-                img.scaleY = DEFAULT_HEIGHT / img.height;
-                canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
-                    originX: 'left',
-                    originY: 'top'
-                });
-            });
+        // Basic placeholders
+        const trainingTitlePlaceholder = new fabric.IText('[Training Title]', {
+            left: canvas.width / 2,
+            top: 50,
+            fontFamily: 'Arial',
+            fill: '#000',
+            fontSize: 28,
+            originX: 'center',
+            selectable: true
         });
-    });
+        canvas.add(trainingTitlePlaceholder);
 
-    // Add Text
-    document.getElementById('addTextBtn').addEventListener('click', () => {
-        const textObj = new fabric.IText('Your Text Here', {
-            left: 100,
-            top: 100,
+        const datePlaceholder = new fabric.IText('[Date]', {
+            left: 50,
+            top: canvas.height - 70,
+            fontFamily: 'Arial',
+            fill: '#000',
+            fontSize: 24,
+            selectable: true
+        });
+        datePlaceholder.text = new Date().toISOString().split('T')[0];
+        canvas.add(datePlaceholder);
+
+        const namePlaceholder = new fabric.IText('[Name]', {
+            left: canvas.width / 2,
+            top: 220,
             fontFamily: 'Arial',
             fill: '#000',
             fontSize: 36,
+            originX: 'center',
+            textAlign: 'center',
+            selectable: true,
+            placeholderType: 'name'
+        });
+        canvas.add(namePlaceholder);
+
+        const bodyPlaceholder = new fabric.IText('Lorem ipsum dolor sit amet, consectetur adipiscing elit.', {
+            left: canvas.width / 2,
+            top: 300,
+            fontFamily: 'Arial',
+            fill: '#000',
+            fontSize: 18,
+            originX: 'center',
+            textAlign: 'center',
             selectable: true
         });
-        canvas.add(textObj);
-    });
+        canvas.add(bodyPlaceholder);
 
-    // Clear Canvas
-    document.getElementById('clearCanvasBtn').addEventListener('click', () => {
-        const bg = canvas.backgroundImage;
-        canvas.clear();
-        if (bg) {
-            canvas.setBackgroundImage(bg, canvas.renderAll.bind(canvas));
-        }
-        canvas.add(trainingTitlePlaceholder, datePlaceholder, namePlaceholder, bodyPlaceholder);
-        canvas.renderAll();
-    });
+        function updateNamePlaceholder() {
+            const select = document.getElementById('previewUserId');
+            if (!select || select.selectedIndex < 0) {
+                // In production, avoid logging detailed errors.
+                // console.error("No participant selected in dropdown");
+                return;
+            }
 
-    // Change Font Family
-    document.getElementById('fontFamilySelect').addEventListener('change', function() {
-        const newFont = this.value;
-        const activeObj = canvas.getActiveObject();
-        if (activeObj && (activeObj.type === 'i-text' || activeObj.type === 'textbox')) {
-            activeObj.set({
-                fontFamily: newFont
+            // Get the selected participant's name.
+            const selectedText = select.options[select.selectedIndex].text;
+            // Optionally sanitize selectedText here if needed.
+
+            // Uncomment the following line if you need minimal debug output in development:
+            // console.log("Updating name placeholder to:", selectedText);
+
+            let namePlaceholders = [];
+
+            // Method 1: Find by placeholderType property.
+            canvas.getObjects('i-text').forEach(function(obj) {
+                if (obj.placeholderType === 'name') {
+                    // console.log("Found placeholder by placeholderType:", obj);
+                    namePlaceholders.push(obj);
+                }
             });
-            canvas.renderAll();
-        }
-    });
 
-    // Add Line
-    document.getElementById('addLineBtn').addEventListener('click', () => {
-        const lineColor = document.getElementById('lineColor').value;
-        const line = new fabric.Line([50, 50, 300, 50], {
-            stroke: lineColor,
-            strokeWidth: 2,
-            selectable: true
-        });
-        canvas.add(line);
-    });
-
-    // Change Text Color
-    document.getElementById('changeTextColorBtn').addEventListener('click', () => {
-        const activeObj = canvas.getActiveObject();
-        if (activeObj && (activeObj.type === 'i-text' || activeObj.type === 'textbox')) {
-            activeObj.set({
-                fill: document.getElementById('textColorPicker').value
-            });
-            canvas.renderAll();
-        } else {
-            alert("Please select a text object first.");
-        }
-    });
-
-    // Change Line Thickness
-    document.getElementById('changeLineThicknessBtn').addEventListener('click', () => {
-        const thickness = parseFloat(document.getElementById('lineThickness').value);
-        const activeObj = canvas.getActiveObject();
-        if (activeObj && activeObj.type === 'line') {
-            activeObj.set({
-                strokeWidth: thickness
-            });
-            canvas.renderAll();
-        } else {
-            alert("Please select a line object first.");
-        }
-    });
-
-    // Delete Object
-    document.getElementById('deleteObjectBtn').addEventListener('click', () => {
-        const activeObj = canvas.getActiveObject();
-        if (activeObj) {
-            canvas.remove(activeObj);
-            canvas.renderAll();
-        } else {
-            alert("Please select an object to delete.");
-        }
-    });
-
-    // Add Another Image
-    document.getElementById('addImageInput').addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = function(evt) {
-            fabric.Image.fromURL(evt.target.result, function(img) {
-                img.set({
-                    left: canvas.width / 2 - img.width / 2,
-                    top: canvas.height / 2 - img.height / 2
+            // Method 2: Find by text content.
+            if (namePlaceholders.length === 0) {
+                canvas.getObjects('i-text').forEach(function(obj) {
+                    if (obj.text && (
+                            obj.text === '[Name]' ||
+                            obj.text.includes('[Name]') ||
+                            (obj.originalText && obj.originalText.includes('[Name]'))
+                        )) {
+                        // console.log("Found placeholder by text content:", obj);
+                        obj.placeholderType = 'name';
+                        obj.originalText = obj.originalText || obj.text;
+                        namePlaceholders.push(obj);
+                    }
                 });
-                canvas.add(img);
+            }
+
+            // Method 3: Find by a name-like regex pattern.
+            if (namePlaceholders.length === 0) {
+                canvas.getObjects('i-text').forEach(function(obj) {
+                    if (obj.text && /^[A-Z][a-z]+ [A-Z][a-z]+/.test(obj.text)) {
+                        // console.log("Found placeholder by name pattern:", obj);
+                        obj.placeholderType = 'name';
+                        obj.originalText = obj.originalText || obj.text;
+                        namePlaceholders.push(obj);
+                    }
+                });
+            }
+
+            // Method 4: Use prominence (position and font size).
+            if (namePlaceholders.length === 0) {
+                let prominentObjects = [];
+                canvas.getObjects('i-text').forEach(function(obj) {
+                    let score = 0;
+                    if (obj.originX === 'center') score += 5;
+                    if (obj.top > canvas.height * 0.2 && obj.top < canvas.height * 0.7) score += 3;
+                    score += Math.min(10, obj.fontSize / 5);
+                    prominentObjects.push({
+                        obj,
+                        score
+                    });
+                });
+                prominentObjects.sort((a, b) => b.score - a.score);
+                if (prominentObjects.length > 0) {
+                    const topObj = prominentObjects[0].obj;
+                    // console.log("Found placeholder by prominence (score=" + prominentObjects[0].score + "):", topObj);
+                    topObj.placeholderType = 'name';
+                    topObj.originalText = topObj.originalText || topObj.text;
+                    namePlaceholders.push(topObj);
+                }
+            }
+
+            // Update all found placeholders with the selected participant's name.
+            if (namePlaceholders.length > 0) {
+                namePlaceholders.forEach(function(obj) {
+                    if (!obj.originalText) {
+                        obj.originalText = obj.text;
+                    }
+                    // console.log("Setting placeholder text from:", obj.text, "to:", selectedText);
+                    obj.set('text', selectedText);
+                });
                 canvas.renderAll();
-            });
-        };
-        reader.readAsDataURL(file);
-    });
-
-    // Save This Layout (for current participant)
-    document.getElementById('saveThisLayoutBtn').addEventListener('click', () => {
-        const previewUserId = document.getElementById('previewUserId').value;
-        if (!previewUserId) {
-            alert("No participant selected.");
-            return;
+                // console.log("Updated", namePlaceholders.length, "name placeholder(s)");
+            } else {
+                // Optionally, handle the case when no placeholder is found.
+                // console.warn("No name placeholder found in the canvas!");
+            }
         }
-        const layoutImage = canvas.toDataURL('image/png', 1.0);
-        const canvasJSON = JSON.stringify(canvas.toJSON());
 
-        const formData = new FormData(document.getElementById('certificateForm'));
-        formData.delete('add_image');
-        formData.append('final_image', layoutImage);
-        formData.append('canvas_json', canvasJSON);
-        formData.append('preview_user_id', previewUserId);
-        formData.append('action', 'save_certificate_layout_single');
 
-        fetch('../../backend/models/generate_certificate.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(resp => resp.json())
-            .then(data => {
-                if (data.status) {
-                    alert('Layout saved for the selected participant.');
-                } else {
-                    alert('Error: ' + (data.message || 'Unknown'));
-                }
-            })
-            .catch(() => alert('Failed to save layout.'));
-    });
+        // Participant navigation event listeners
+        document.getElementById('previewUserId').addEventListener('change', updateNamePlaceholder);
+        document.getElementById('prevCertBtn').addEventListener('click', () => {
+            const select = document.getElementById('previewUserId');
+            const idx = select.selectedIndex;
+            select.selectedIndex = idx > 0 ? idx - 1 : select.options.length - 1;
+            updateNamePlaceholder();
+        });
+        document.getElementById('nextCertBtn').addEventListener('click', () => {
+            const select = document.getElementById('previewUserId');
+            const idx = select.selectedIndex;
+            select.selectedIndex = idx < select.options.length - 1 ? idx + 1 : 0;
+            updateNamePlaceholder();
+        });
 
-    // Save All Layouts (for every participant)
-    document.getElementById('saveAllLayoutsBtn').addEventListener('click', () => {
-        const btn = document.getElementById('saveAllLayoutsBtn');
-        const originalText = btn.innerHTML;
-        btn.innerHTML = 'Saving...';
-        btn.disabled = true;
+        // Background upload
+        document.getElementById('bgImage').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                fabric.Image.fromURL(evt.target.result, function(img) {
+                    img.scaleX = DEFAULT_WIDTH / img.width;
+                    img.scaleY = DEFAULT_HEIGHT / img.height;
+                    canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
+                        originX: 'left',
+                        originY: 'top'
+                    });
+                });
+            };
+            reader.readAsDataURL(file);
+        });
 
-        const layoutImage = canvas.toDataURL('image/png', 1.0);
-        const canvasJSON = JSON.stringify(canvas.toJSON());
-        const formData = new FormData(document.getElementById('certificateForm'));
-        formData.delete('add_image');
-        formData.append('final_image', layoutImage);
-        formData.append('canvas_json', canvasJSON);
-        formData.append('action', 'save_certificate_layout_all');
-
-        fetch('../../backend/models/generate_certificate.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(resp => resp.json())
-            .then(data => {
-                if (data.status) {
-                    alert('Layouts saved for all participants.');
-                } else {
-                    alert('Error: ' + (data.message || 'Unknown'));
-                }
-            })
-            .catch(() => alert('Failed to save layouts.'))
-            .finally(() => {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
+        // Design thumbnails
+        document.querySelectorAll('#designSelector img').forEach(thumb => {
+            thumb.addEventListener('click', function() {
+                document.querySelectorAll('#designSelector img').forEach(img => img.classList.remove(
+                    'selected'));
+                this.classList.add('selected');
+                const bgUrl = this.src;
+                document.getElementById('selectedDesign').value = bgUrl;
+                fabric.Image.fromURL(bgUrl, function(img) {
+                    img.scaleX = DEFAULT_WIDTH / img.width;
+                    img.scaleY = DEFAULT_HEIGHT / img.height;
+                    canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
+                        originX: 'left',
+                        originY: 'top'
+                    });
+                });
             });
-    });
+        });
 
-    // Load saved layout JSON if available
-    window.addEventListener('load', () => {
-        fetch(
-                `../../backend/models/generate_certificate.php?action=load_certificate_layout&training_id=${TRAINING_ID}`
-            )
-            .then(response => response.text())
-            .then(text => {
-                try {
-                    const data = JSON.parse(text);
-                    if (data.status && data.data && data.data.canvas_json) {
-                        const jsonObj = JSON.parse(data.data.canvas_json);
-                        canvas.loadFromJSON(jsonObj, () => {
-                            updateNamePlaceholder();
-                            canvas.renderAll();
-                        });
+        // Add Text
+        document.getElementById('addTextBtn').addEventListener('click', () => {
+            const textObj = new fabric.IText('Your Text Here', {
+                left: 100,
+                top: 100,
+                fontFamily: 'Arial',
+                fill: '#000',
+                fontSize: 36,
+                selectable: true
+            });
+            canvas.add(textObj);
+        });
+
+        // Clear Canvas
+        document.getElementById('clearCanvasBtn').addEventListener('click', () => {
+            const bg = canvas.backgroundImage;
+            canvas.clear();
+            if (bg) {
+                canvas.setBackgroundImage(bg, canvas.renderAll.bind(canvas));
+            }
+            canvas.add(trainingTitlePlaceholder, datePlaceholder, namePlaceholder, bodyPlaceholder);
+            canvas.renderAll();
+        });
+
+        // Change Font Family
+        document.getElementById('fontFamilySelect').addEventListener('change', function() {
+            const newFont = this.value;
+            const activeObj = canvas.getActiveObject();
+            if (activeObj && (activeObj.type === 'i-text' || activeObj.type === 'textbox')) {
+                activeObj.set({
+                    fontFamily: newFont
+                });
+                canvas.renderAll();
+            }
+        });
+
+        // Add Line
+        document.getElementById('addLineBtn').addEventListener('click', () => {
+            const lineColor = document.getElementById('lineColor').value;
+            const line = new fabric.Line([50, 50, 300, 50], {
+                stroke: lineColor,
+                strokeWidth: 2,
+                selectable: true
+            });
+            canvas.add(line);
+        });
+
+        // Change Text Color
+        document.getElementById('changeTextColorBtn').addEventListener('click', () => {
+            const activeObj = canvas.getActiveObject();
+            if (activeObj && (activeObj.type === 'i-text' || activeObj.type === 'textbox')) {
+                activeObj.set({
+                    fill: document.getElementById('textColorPicker').value
+                });
+                canvas.renderAll();
+            } else {
+                alert("Please select a text object first.");
+            }
+        });
+
+        // Change Line Thickness
+        document.getElementById('changeLineThicknessBtn').addEventListener('click', () => {
+            const thickness = parseFloat(document.getElementById('lineThickness').value);
+            const activeObj = canvas.getActiveObject();
+            if (activeObj && activeObj.type === 'line') {
+                activeObj.set({
+                    strokeWidth: thickness
+                });
+                canvas.renderAll();
+            } else {
+                alert("Please select a line object first.");
+            }
+        });
+
+        // Delete Object
+        document.getElementById('deleteObjectBtn').addEventListener('click', () => {
+            const activeObj = canvas.getActiveObject();
+            if (activeObj) {
+                canvas.remove(activeObj);
+                canvas.renderAll();
+            } else {
+                alert("Please select an object to delete.");
+            }
+        });
+
+        // Add Another Image
+        document.getElementById('addImageInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                fabric.Image.fromURL(evt.target.result, function(img) {
+                    img.set({
+                        left: canvas.width / 2 - img.width / 2,
+                        top: canvas.height / 2 - img.height / 2
+                    });
+                    canvas.add(img);
+                    canvas.renderAll();
+                });
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // Save This Layout (for current participant)
+        document.getElementById('saveThisLayoutBtn').addEventListener('click', () => {
+            const previewUserId = document.getElementById('previewUserId').value;
+            if (!previewUserId) {
+                alert("No participant selected.");
+                return;
+            }
+            const layoutImage = canvas.toDataURL('image/png', 1.0);
+            const canvasJSON = JSON.stringify(canvas.toJSON());
+
+            const formData = new FormData(document.getElementById('certificateForm'));
+            formData.delete('add_image');
+            formData.append('final_image', layoutImage);
+            formData.append('canvas_json', canvasJSON);
+            formData.append('preview_user_id', previewUserId);
+            formData.append('action', 'save_certificate_layout_single');
+
+            fetch('../../backend/models/generate_certificate.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(resp => resp.json())
+                .then(data => {
+                    if (data.status) {
+                        alert('Layout saved for the selected participant.');
                     } else {
+                        alert('Error: ' + (data.message || 'Unknown'));
+                    }
+                })
+                .catch(() => alert('Failed to save layout.'));
+        });
+
+        // Save All Layouts (for every participant)
+        document.getElementById('saveAllLayoutsBtn').addEventListener('click', () => {
+            const btn = document.getElementById('saveAllLayoutsBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = 'Saving...';
+            btn.disabled = true;
+
+            const layoutImage = canvas.toDataURL('image/png', 1.0);
+            const canvasJSON = JSON.stringify(canvas.toJSON());
+            const formData = new FormData(document.getElementById('certificateForm'));
+            formData.delete('add_image');
+            formData.append('final_image', layoutImage);
+            formData.append('canvas_json', canvasJSON);
+            formData.append('action', 'save_certificate_layout_all');
+
+            fetch('../../backend/models/generate_certificate.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(resp => resp.json())
+                .then(data => {
+                    if (data.status) {
+                        alert('Layouts saved for all participants.');
+                    } else {
+                        alert('Error: ' + (data.message || 'Unknown'));
+                    }
+                })
+                .catch(() => alert('Failed to save layouts.'))
+                .finally(() => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                });
+        });
+
+        // Load saved layout JSON if available
+        window.addEventListener('load', () => {
+            fetch(
+                    `../../backend/models/generate_certificate.php?action=load_certificate_layout&training_id=${TRAINING_ID}`
+                )
+                .then(response => response.text())
+                .then(text => {
+                    try {
+                        const data = JSON.parse(text);
+                        if (data.status && data.data && data.data.canvas_json) {
+                            const jsonObj = JSON.parse(data.data.canvas_json);
+                            canvas.loadFromJSON(jsonObj, () => {
+                                updateNamePlaceholder();
+                                canvas.renderAll();
+                            });
+                        } else {
+                            updateNamePlaceholder();
+                        }
+                    } catch (e) {
                         updateNamePlaceholder();
                     }
-                } catch (e) {
-                    updateNamePlaceholder();
-                }
-            })
-            .catch(() => updateNamePlaceholder());
-    });
+                })
+                .catch(() => updateNamePlaceholder());
+        });
     </script>
 
     <!-- Minimal Bootstrap JS again if needed -->
