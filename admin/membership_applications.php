@@ -263,6 +263,8 @@ require_once 'admin_header.php';
           <p><strong>Special Skills:</strong> ${app.special_skills || 'N/A'}</p>
           <p><strong>Hobbies:</strong> ${app.hobbies || 'N/A'}</p>
           <p><strong>Committees:</strong> ${app.committees || 'N/A'}</p>
+          <p><strong>Valid ID:</strong> <img src="${app.valid_id}" alt="Valid ID" style="max-width:100%; height:auto;"></p>
+          <p><strong>Face Image:</strong> <img src="${app.face_image}" alt="Face Image" style="max-width:100%; height:auto;"></p>
           <p><strong>Signature:</strong> <img src="${app.signature}" alt="Signature" style="max-width: 100%; height: auto;"></p>
         `;
                 const modal = new bootstrap.Modal(document.querySelector('#detailsModal'));
