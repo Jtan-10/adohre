@@ -399,12 +399,14 @@ if (isset($_SESSION['user_id'])) {
                     videoInput.srcObject.getTracks().forEach(track => track.stop());
                     videoInput.srcObject = null;
                 }
-                // Hide the Face Validation modal
+                // Automatically close the Face Validation modal
                 const faceModal = bootstrap.Modal.getInstance(document.getElementById('faceValidationModal'));
                 if (faceModal) faceModal.hide();
                 faceValidated = true;
-                // Programmatically submit the form now that face is validated
-                membershipForm.submit();
+                // Instead of membershipForm.submit(), dispatch a submit event so the fetch handler runs
+                membershipForm.dispatchEvent(new Event('submit', {
+                    cancelable: true
+                }));
             } else {
                 faceValidationResult.innerText = 'Face did not match. Please try again.';
             }
