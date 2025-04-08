@@ -240,6 +240,11 @@ require_once 'admin_header.php';
                 const response = await axios.get(`${apiUrl}?id=${id}`);
                 const app = response.data;
                 const detailsBody = document.querySelector('#details-body');
+                // Build image URLs using the decrypt endpoint if values exist
+                const validIdUrl = app.valid_id ?
+                    `backend/routes/decrypt_image.php?face_url=${encodeURIComponent(app.valid_id)}` : '';
+                const faceImageUrl = app.face_image ?
+                    `backend/routes/decrypt_image.php?face_url=${encodeURIComponent(app.face_image)}` : '';
                 detailsBody.innerHTML = `
           <p><strong>Name:</strong> ${app.name}</p>
           <p><strong>Date of Birth:</strong> ${app.dob}</p>
@@ -263,8 +268,8 @@ require_once 'admin_header.php';
           <p><strong>Special Skills:</strong> ${app.special_skills || 'N/A'}</p>
           <p><strong>Hobbies:</strong> ${app.hobbies || 'N/A'}</p>
           <p><strong>Committees:</strong> ${app.committees || 'N/A'}</p>
-          <p><strong>Valid ID:</strong> <img src="${app.valid_id}" alt="Valid ID" style="max-width:100%; height:auto;"></p>
-          <p><strong>Face Image:</strong> <img src="${app.face_image}" alt="Face Image" style="max-width:100%; height:auto;"></p>
+          <p><strong>Valid ID:</strong> ${validIdUrl ? `<img src="${validIdUrl}" alt="Valid ID" style="max-width:100%; height:auto;">` : 'N/A'}</p>
+          <p><strong>Face Image:</strong> ${faceImageUrl ? `<img src="${faceImageUrl}" alt="Face Image" style="max-width:100%; height:auto;">` : 'N/A'}</p>
           <p><strong>Signature:</strong> <img src="${app.signature}" alt="Signature" style="max-width: 100%; height: auto;"></p>
         `;
                 const modal = new bootstrap.Modal(document.querySelector('#detailsModal'));
