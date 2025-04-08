@@ -304,6 +304,9 @@ if (isset($_SESSION['user_id'])) {
         const faceValidationResult = document.getElementById('faceValidationResult');
         let referenceDescriptor = null; // Will hold the descriptor from the stored face image
 
+        // Declare userFaceImageUrl before calling loadReferenceDescriptor
+        const userFaceImageUrl = "<?php echo $userFaceImageUrl; ?>";
+
         // Load face-api.js models
         async function loadFaceModels() {
             await faceapi.nets.tinyFaceDetector.loadFromUri('backend/models/weights');
