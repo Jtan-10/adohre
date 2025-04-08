@@ -156,7 +156,7 @@ include('sidebar.php');
 
         <section class="faq-item">
             <h3>Who can I contact for more information?</h3>
-            <p>You can reach us via email at [your email here], call us at [your contact number here], or visit our
+            <p>You can reach us via email at adohre366@gmail.com, or visit our
                 official website at adohre.site for more details.</p>
         </section>
     </main>
