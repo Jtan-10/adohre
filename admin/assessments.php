@@ -3,8 +3,8 @@ define('APP_INIT', true); // Added to enable proper access.
 // admin/assessments.php
 
 // Disable error reporting for production
-//error_reporting(E_ALL);
-//ini_set('display_errors', 1');
+// error_reporting(E_ALL);
+// ini_set('display_errors', 1');
 error_reporting(0);
 ini_set('display_errors', 0);
 
@@ -60,9 +60,7 @@ while ($row = $result->fetch_assoc()) {
 
 <body>
     <div class="d-flex">
-
         <?php require_once 'admin_sidebar.php'; ?>
-
         <main class="container mt-4 mb-4">
             <h1 class="text-center">Assessments and Evaluation Management</h1>
 
@@ -72,6 +70,7 @@ while ($row = $result->fetch_assoc()) {
                 <form id="assessmentForm">
                     <!-- CSRF Token Field -->
                     <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+
                     <div class="mb-3">
                         <label for="assessmentTraining" class="form-label">Select Training</label>
                         <select id="assessmentTraining" name="training_id" class="form-control" required>
@@ -85,25 +84,37 @@ while ($row = $result->fetch_assoc()) {
                             ?>
                         </select>
                     </div>
+
                     <div class="mb-3">
                         <label for="assessmentFormLink" class="form-label">Assessment and Evaluation Form Link</label>
                         <input type="url" id="assessmentFormLink" name="form_link" class="form-control"
                             placeholder="Enter the URL of your assessment form" required>
                     </div>
+
+                    <!-- New Field for Manual Google Sheet ID Entry -->
+                    <div class="mb-3">
+                        <label for="assessmentSheetId" class="form-label">Google Sheet ID</label>
+                        <input type="text" id="assessmentSheetId" name="sheet_id" class="form-control"
+                            placeholder="Enter the Google Sheet ID where responses are stored" required>
+                    </div>
+
                     <!-- Preview Section: shows the embedded form -->
                     <div id="formPreviewContainer" class="form-section" style="display: none;">
                         <h5>Form Preview</h5>
                         <iframe id="formPreview" src="" width="100%" height="500" frameborder="0"></iframe>
                     </div>
+
                     <!-- New Analytics Section: displays Google Form analytics -->
                     <div class="form-section" id="analyticsSection" style="display: none;">
-                        <h3>Google Form Analytics</h3>
+                        <h3>Google Sheet Analytics</h3>
                         <div id="analyticsData">
                             <p>Loading analytics...</p>
                         </div>
                     </div>
+
                     <!-- Hidden field for assessment id (if editing an existing one) -->
                     <input type="hidden" id="assessmentId" name="assessment_id">
+
                     <button type="submit" class="btn btn-success">Release Assessment and Evaluation Form</button>
                     <button type="button" class="btn btn-warning" id="configureCertificateBtn">Configure
                         Certificate</button>
@@ -130,7 +141,8 @@ while ($row = $result->fetch_assoc()) {
                         <div class="modal-body">
                             <p>Batch release certificates for participants who have completed the assessments and
                                 evaluation.
-                                Certificates will be sent to their registered emails.</p>
+                                Certificates will be sent to their registered emails.
+                            </p>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -141,16 +153,20 @@ while ($row = $result->fetch_assoc()) {
             </div>
         </main>
     </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script nonce="<?= $cspNonce ?>">
     document.addEventListener('DOMContentLoaded', function() {
         const linkInput = document.getElementById('assessmentFormLink');
+        const sheetInput = document.getElementById('assessmentSheetId');
         const previewContainer = document.getElementById('formPreviewContainer');
         const previewFrame = document.getElementById('formPreview');
         const trainingSelect = document.getElementById('assessmentTraining');
         const participantsList = document.getElementById('participantsList');
+        const analyticsContainer = document.getElementById('analyticsSection');
+        const analyticsData = document.getElementById('analyticsData');
 
-        // Update preview and fetch analytics when the assessment form link changes.
+        // When the form link changes, update the preview.
         linkInput.addEventListener('input', function() {
             let link = linkInput.value.trim();
             if (link) {
@@ -159,14 +175,17 @@ while ($row = $result->fetch_assoc()) {
                 }
                 previewFrame.src = link;
                 previewContainer.style.display = 'block';
-                fetchFormAnalytics(link);
             } else {
                 previewContainer.style.display = 'none';
-                document.getElementById('analyticsSection').style.display = 'none';
             }
         });
 
-        // When a training is selected, fetch the assessment form link, participants, and analytics.
+        // When the Google Sheet ID changes, attempt to fetch analytics.
+        sheetInput.addEventListener('input', function() {
+            fetchFormAnalytics();
+        });
+
+        // When a training is selected, fetch the assessment form link and participants.
         trainingSelect.addEventListener('change', function() {
             const trainingId = trainingSelect.value;
             if (trainingId) {
@@ -175,16 +194,16 @@ while ($row = $result->fetch_assoc()) {
             } else {
                 participantsList.innerHTML = '';
                 linkInput.value = '';
+                sheetInput.value = '';
                 previewContainer.style.display = 'none';
-                document.getElementById('analyticsSection').style.display = 'none';
+                analyticsContainer.style.display = 'none';
             }
         });
 
         // Fetch the assessment form link for the selected training.
         function fetchAssessmentForm(trainingId) {
             fetch(
-                    `/capstone-php/backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${trainingId}`
-                )
+                    `/capstone-php/backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${trainingId}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.status && data.form_link) {
@@ -195,40 +214,35 @@ while ($row = $result->fetch_assoc()) {
                         }
                         previewFrame.src = link;
                         previewContainer.style.display = 'block';
-                        // Fetch analytics for the current form link
-                        fetchFormAnalytics(link);
+                        // Optionally, if you store the sheet ID along with the form link, you can set it here.
                     } else {
                         linkInput.value = '';
                         previewContainer.style.display = 'none';
-                        document.getElementById('analyticsSection').style.display = 'none';
                     }
                 })
                 .catch(err => {
                     console.error(err);
                     linkInput.value = '';
                     previewContainer.style.display = 'none';
-                    document.getElementById('analyticsSection').style.display = 'none';
                 });
         }
 
-        // Function to fetch Google Form analytics based on the form link.
-        function fetchFormAnalytics(formLink) {
-            const analyticsContainer = document.getElementById('analyticsSection');
-            const analyticsData = document.getElementById('analyticsData');
-            // Only proceed if the link is a Google Form
-            if (!formLink.includes("docs.google.com/forms")) {
+        // Function to fetch Google Sheet analytics based on the manually provided Sheet ID.
+        function fetchFormAnalytics() {
+            const sheetId = sheetInput.value.trim();
+            if (!sheetId) {
                 analyticsContainer.style.display = 'none';
                 return;
             }
+            // Build the analytics endpoint URL using the provided sheet_id parameter.
             let analyticsUrl =
-                `/capstone-php/backend/routes/analytics.php?action=get_analytics&form_link=${encodeURIComponent(formLink)}`;
+                `/capstone-php/backend/routes/google_analytics.php?action=get_analytics&sheet_id=${encodeURIComponent(sheetId)}`;
             fetch(analyticsUrl)
                 .then(response => response.json())
                 .then(data => {
                     if (data.status && data.analytics) {
                         let outputHtml =
                             `<p><strong>Total Responses:</strong> ${data.analytics.total_responses}</p>`;
-                        // Optionally show additional metrics if available, e.g., average score.
                         if (data.analytics.avg_score !== undefined) {
                             outputHtml +=
                                 `<p><strong>Average Score:</strong> ${data.analytics.avg_score}</p>`;
@@ -273,32 +287,31 @@ while ($row = $result->fetch_assoc()) {
         // Fetch participants for the selected training.
         function fetchParticipants(trainingId) {
             fetch(
-                    `/capstone-php/backend/routes/assessment_manager.php?action=fetch_participants&training_id=${trainingId}`
-                )
+                    `/capstone-php/backend/routes/assessment_manager.php?action=fetch_participants&training_id=${trainingId}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.status) {
                         let html = `<table class="table">
-                          <thead>
-                            <tr>
-                              <th>Name</th>
-                              <th>Assessment Status</th>
-                              <th>Certificate Status</th>
-                              <th>Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>`;
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Assessment Status</th>
+                                        <th>Certificate Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
                         data.participants.forEach(participant => {
                             html += `<tr>
-                          <td>${participant.first_name} ${participant.last_name}</td>
-                          <td>${participant.assessment_status}</td>
-                          <td>${participant.certificate_status || 'Not Released'}</td>
-                          <td>
-                            <button class="btn btn-sm btn-primary release-certificate" data-userid="${participant.user_id}" data-trainingid="${participant.training_id}">
-                              Release Certificate
-                            </button>
-                          </td>
-                        </tr>`;
+                                    <td>${participant.first_name} ${participant.last_name}</td>
+                                    <td>${participant.assessment_status}</td>
+                                    <td>${participant.certificate_status || 'Not Released'}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary release-certificate" data-userid="${participant.user_id}" data-trainingid="${participant.training_id}">
+                                            Release Certificate
+                                        </button>
+                                    </td>
+                                </tr>`;
                         });
                         html += `</tbody></table>`;
                         participantsList.innerHTML = html;
@@ -309,7 +322,7 @@ while ($row = $result->fetch_assoc()) {
                                 const userId = this.getAttribute('data-userid');
                                 const trainingId = this.getAttribute('data-trainingid');
                                 if (confirm('Release certificate for this participant?')) {
-                                    fetch('../../backend/routes/generate_certificate.php', {
+                                    fetch('../backend/routes/generate_certificate.php', {
                                             method: 'POST',
                                             headers: {
                                                 'Content-Type': 'application/json'
@@ -379,14 +392,12 @@ while ($row = $result->fetch_assoc()) {
             }
             const csrfToken = document.querySelector('input[name="csrf_token"]').value;
             fetch(
-                    `../backend/routes/assessment_manager.php?action=fetch_participants&training_id=${encodeURIComponent(trainingId)}&csrf_token=${encodeURIComponent(csrfToken)}`
-                )
+                    `../backend/routes/assessment_manager.php?action=fetch_participants&training_id=${encodeURIComponent(trainingId)}&csrf_token=${encodeURIComponent(csrfToken)}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.status) {
-                        const userIds = data.participants
-                            .filter(p => !p.certificate_status || p.certificate_status ===
-                                'Not Released')
+                        const userIds = data.participants.filter(p => !p.certificate_status || p
+                                .certificate_status === 'Not Released')
                             .map(p => p.user_id);
                         if (userIds.length === 0) {
                             alert('No certificates to release.');
@@ -414,7 +425,6 @@ while ($row = $result->fetch_assoc()) {
                         alert('Certificates released successfully.');
                         bootstrap.Modal.getInstance(document.getElementById('batchReleaseModal'))
                             .hide();
-                        // Optionally refresh the participants list here.
                     } else {
                         alert('Error: ' + (result.message || 'Unknown error occurred'));
                     }
