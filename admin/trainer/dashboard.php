@@ -38,42 +38,42 @@ $trainerId = $_SESSION['user_id'];
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
     <style>
-        .form-section {
-            margin: 20px 0;
-            padding: 15px;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            background: #f9f9f9;
-        }
+    .form-section {
+        margin: 20px 0;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        background: #f9f9f9;
+    }
 
-        .content-item {
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            padding: 10px;
-            margin-bottom: 10px;
-            background: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
+    .content-item {
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 10px;
+        margin-bottom: 10px;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
 
-        .content-item div {
-            margin-right: 10px;
-        }
+    .content-item div {
+        margin-right: 10px;
+    }
 
-        .training-image {
-            max-height: 100px;
-            margin-right: 10px;
-        }
+    .training-image {
+        max-height: 100px;
+        margin-right: 10px;
+    }
 
-        .hamburger-placeholder {
-            width: 40px;
-            display: inline-block;
-        }
+    .hamburger-placeholder {
+        width: 40px;
+        display: inline-block;
+    }
 
-        .nav-btn {
-            margin-bottom: 20px;
-        }
+    .nav-btn {
+        margin-bottom: 20px;
+    }
     </style>
 </head>
 
@@ -85,7 +85,7 @@ $trainerId = $_SESSION['user_id'];
             <!-- Navigation Button to Assessments Page -->
             <div class="text-center nav-btn">
                 <a href="assessments.php" class="btn btn-info">
-                    <i class="bi bi-card-checklist"></i> Manage Assessments
+                    <i class="bi bi-card-checklist"></i> Manage Assessments and Evaluation
                 </a>
             </div>
 
@@ -151,75 +151,75 @@ $trainerId = $_SESSION['user_id'];
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Add nonce to inline script to satisfy CSP -->
     <script nonce="<?php echo $cspNonce; ?>">
-        // Function to escape HTML special characters for XSS prevention
-        function escapeHtml(text) {
-            if (!text) return '';
-            return text.toString()
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
-        }
+    // Function to escape HTML special characters for XSS prevention
+    function escapeHtml(text) {
+        if (!text) return '';
+        return text.toString()
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
 
-        document.addEventListener('DOMContentLoaded', function() {
-            // Store trainer's user ID (from PHP)
-            const trainerId = <?php echo json_encode($trainerId); ?>;
+    document.addEventListener('DOMContentLoaded', function() {
+        // Store trainer's user ID (from PHP)
+        const trainerId = <?php echo json_encode($trainerId); ?>;
 
-            // Fetch and display only trainings created by this trainer
-            fetchTrainings();
+        // Fetch and display only trainings created by this trainer
+        fetchTrainings();
 
-            // Handle form submission for creating/updating training
-            document.getElementById('trainingForm').addEventListener('submit', function(e) {
-                e.preventDefault();
-                const formData = new FormData(this);
-                const trainingId = document.getElementById('trainingId').value;
-                const actionType = trainingId ? 'update_training' : 'add_training';
-                formData.append('action', actionType);
+        // Handle form submission for creating/updating training
+        document.getElementById('trainingForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const trainingId = document.getElementById('trainingId').value;
+            const actionType = trainingId ? 'update_training' : 'add_training';
+            formData.append('action', actionType);
 
-                fetch('../../backend/routes/content_manager.php', {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.text())
-                    .then(text => {
-                        let data;
-                        try {
-                            data = JSON.parse(text);
-                        } catch (e) {
-                            alert("Failed to parse server response: " + text);
-                            return;
-                        }
-                        if (data.status) {
-                            alert(data.message);
-                            document.getElementById('trainingForm').reset();
-                            document.getElementById('trainingId').value = '';
-                            fetchTrainings();
-                        } else {
-                            alert('Error: ' + data.message);
-                        }
-                    })
-                    .catch(err => {
-                        alert('Failed to connect to the server.');
-                    });
-            });
+            fetch('../../backend/routes/content_manager.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.text())
+                .then(text => {
+                    let data;
+                    try {
+                        data = JSON.parse(text);
+                    } catch (e) {
+                        alert("Failed to parse server response: " + text);
+                        return;
+                    }
+                    if (data.status) {
+                        alert(data.message);
+                        document.getElementById('trainingForm').reset();
+                        document.getElementById('trainingId').value = '';
+                        fetchTrainings();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(err => {
+                    alert('Failed to connect to the server.');
+                });
+        });
 
-            // Updated fetchTrainings() function (copied from trainings.php and filtered for logged in trainer)
-            function fetchTrainings() {
-                fetch('../../backend/routes/content_manager.php?action=fetch')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.status) {
-                            let now = new Date();
-                            // Filter trainings for the logged in trainer
-                            let myTrainings = data.trainings.filter(training => parseInt(training
-                                .created_by) === parseInt(trainerId));
-                            let upcomingTrainings = myTrainings.filter(training => new Date(training
-                                .schedule) >= now);
-                            let pastTrainings = myTrainings.filter(training => new Date(training.schedule) <
-                                now);
+        // Updated fetchTrainings() function (copied from trainings.php and filtered for logged in trainer)
+        function fetchTrainings() {
+            fetch('../../backend/routes/content_manager.php?action=fetch')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status) {
+                        let now = new Date();
+                        // Filter trainings for the logged in trainer
+                        let myTrainings = data.trainings.filter(training => parseInt(training
+                            .created_by) === parseInt(trainerId));
+                        let upcomingTrainings = myTrainings.filter(training => new Date(training
+                            .schedule) >= now);
+                        let pastTrainings = myTrainings.filter(training => new Date(training.schedule) <
+                            now);
 
-                            let subTabs = `
+                        let subTabs = `
                                 <ul class="nav nav-tabs" id="subTabs" role="tablist">
                                     <li class="nav-item" role="presentation">
                                         <button class="nav-link active" id="upcoming-tab" data-bs-toggle="tab" data-bs-target="#upcoming" type="button" role="tab">
@@ -234,7 +234,7 @@ $trainerId = $_SESSION['user_id'];
                                 </ul>
                             `;
 
-                            let upcomingHtml = upcomingTrainings.map(training => `
+                        let upcomingHtml = upcomingTrainings.map(training => `
                                 <div class="card mb-3">
                                     <div class="row g-0">
                                         <div class="col-md-4">
@@ -259,7 +259,7 @@ $trainerId = $_SESSION['user_id'];
                                 </div>
                             `).join('');
 
-                            let pastHtml = pastTrainings.map(training => `
+                        let pastHtml = pastTrainings.map(training => `
                                 <div class="card mb-3">
                                     <div class="row g-0">
                                         <div class="col-md-4">
@@ -284,7 +284,7 @@ $trainerId = $_SESSION['user_id'];
                                 </div>
                             `).join('');
 
-                            document.getElementById('trainingsList').innerHTML = `
+                        document.getElementById('trainingsList').innerHTML = `
                                 ${ subTabs }
                                 <div class="tab-content mt-3">
                                     <div class="tab-pane fade show active" id="upcoming" role="tabpanel">
@@ -296,79 +296,79 @@ $trainerId = $_SESSION['user_id'];
                                 </div>
                             `;
 
-                            // Attach event listeners to edit and delete buttons
-                            document.querySelectorAll('.edit-training').forEach(btn => {
-                                btn.addEventListener('click', function() {
-                                    let id = this.getAttribute('data-id');
-                                    editTraining(id);
-                                });
+                        // Attach event listeners to edit and delete buttons
+                        document.querySelectorAll('.edit-training').forEach(btn => {
+                            btn.addEventListener('click', function() {
+                                let id = this.getAttribute('data-id');
+                                editTraining(id);
                             });
-                            document.querySelectorAll('.delete-training').forEach(btn => {
-                                btn.addEventListener('click', function() {
-                                    let id = this.getAttribute('data-id');
-                                    deleteTraining(id);
-                                });
+                        });
+                        document.querySelectorAll('.delete-training').forEach(btn => {
+                            btn.addEventListener('click', function() {
+                                let id = this.getAttribute('data-id');
+                                deleteTraining(id);
                             });
-                        } else {
-                            document.getElementById('trainingsList').innerHTML = '<p>No trainings found.</p>';
-                        }
-                    })
-                    .catch(err => console.error(err));
-            }
+                        });
+                    } else {
+                        document.getElementById('trainingsList').innerHTML = '<p>No trainings found.</p>';
+                    }
+                })
+                .catch(err => console.error(err));
+        }
 
-            // Load training data into the form for editing
-            function editTraining(id) {
-                fetch(`../../backend/routes/content_manager.php?action=get_training&id=${id}`)
+        // Load training data into the form for editing
+        function editTraining(id) {
+            fetch(`../../backend/routes/content_manager.php?action=get_training&id=${id}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status) {
+                        let training = data.training;
+                        document.getElementById('trainingId').value = training.training_id;
+                        document.getElementById('trainingTitle').value = training.title;
+                        document.getElementById('trainingDescription').value = training.description;
+                        // Convert schedule to datetime-local format (replace space with 'T')
+                        document.getElementById('trainingSchedule').value = training.schedule.replace(' ',
+                            'T');
+                        document.getElementById('trainingCapacity').value = training.capacity;
+                        // New: set the fee field value
+                        document.getElementById('trainingFee').value = training.fee || '0.00';
+                        document.getElementById('trainingModality').value = training.modality || '';
+                        document.getElementById('trainingModalityDetails').value = training
+                            .modality_details || '';
+                    } else {
+                        alert('Error fetching training details.');
+                    }
+                })
+                .catch(err => {
+                    alert('Failed to connect to the server.');
+                });
+        }
+
+        // Delete training function
+        function deleteTraining(id) {
+            if (confirm('Are you sure you want to delete this training?')) {
+                const formData = new FormData();
+                formData.append('action', 'delete_training');
+                formData.append('id', id);
+                fetch('../../backend/routes/content_manager.php', {
+                        method: 'POST',
+                        body: formData
+                    })
                     .then(response => response.json())
                     .then(data => {
                         if (data.status) {
-                            let training = data.training;
-                            document.getElementById('trainingId').value = training.training_id;
-                            document.getElementById('trainingTitle').value = training.title;
-                            document.getElementById('trainingDescription').value = training.description;
-                            // Convert schedule to datetime-local format (replace space with 'T')
-                            document.getElementById('trainingSchedule').value = training.schedule.replace(' ',
-                                'T');
-                            document.getElementById('trainingCapacity').value = training.capacity;
-                            // New: set the fee field value
-                            document.getElementById('trainingFee').value = training.fee || '0.00';
-                            document.getElementById('trainingModality').value = training.modality || '';
-                            document.getElementById('trainingModalityDetails').value = training
-                                .modality_details || '';
+                            alert(data.message);
+                            fetchTrainings();
                         } else {
-                            alert('Error fetching training details.');
+                            alert('Error: ' + data.message);
                         }
                     })
                     .catch(err => {
                         alert('Failed to connect to the server.');
                     });
             }
-
-            // Delete training function
-            function deleteTraining(id) {
-                if (confirm('Are you sure you want to delete this training?')) {
-                    const formData = new FormData();
-                    formData.append('action', 'delete_training');
-                    formData.append('id', id);
-                    fetch('../../backend/routes/content_manager.php', {
-                            method: 'POST',
-                            body: formData
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.status) {
-                                alert(data.message);
-                                fetchTrainings();
-                            } else {
-                                alert('Error: ' + data.message);
-                            }
-                        })
-                        .catch(err => {
-                            alert('Failed to connect to the server.');
-                        });
-                }
-            }
-        });
+        }
+    });
     </script>
 </body>
 

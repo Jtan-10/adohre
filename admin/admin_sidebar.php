@@ -86,7 +86,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
             <i class="bi bi-mortarboard"></i> <span>Trainings</span>
         </a>
         <a href="assessments.php" class="nav-link <?php echo $currentPage === 'assessments.php' ? 'active' : ''; ?>">
-            <i class="bi bi-card-checklist"></i> <span>Assessments</span>
+            <i class="bi bi-card-checklist"></i> <span>Assessments and Evaluation</span>
         </a>
         <a href="membership_applications.php"
             class="nav-link <?php echo $currentPage === 'membership_applications.php' ? 'active' : ''; ?>">

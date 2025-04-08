@@ -84,13 +84,13 @@ header("Referrer-Policy: strict-origin-when-cross-origin");
 
 <body>
     <main class="container mt-4 mb-4">
-        <h1 class="text-center">Assessments Management</h1>
+        <h1 class="text-center">Assessments and Evaluation Management</h1>
         <div class="text-center nav-btn">
             <a href="dashboard.php" class="btn btn-info">Back to Trainings</a>
         </div>
         <!-- Assessment Form: Trainer inputs the URL of the assessment form -->
         <div class="form-section">
-            <h3>Release Assessment to Participants</h3>
+            <h3>Release Assessment and Evaluation to Participants</h3>
             <form id="assessmentForm" method="POST">
                 <!-- CSRF Protection -->
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
@@ -110,7 +110,7 @@ header("Referrer-Policy: strict-origin-when-cross-origin");
                     </select>
                 </div>
                 <div class="mb-3">
-                    <label for="assessmentFormLink" class="form-label">Assessment Form Link</label>
+                    <label for="assessmentFormLink" class="form-label">Assessment and Evaluation Form Link</label>
                     <input type="url" id="assessmentFormLink" name="form_link" class="form-control"
                         placeholder="Enter the URL of your assessment form" pattern="https?://.+"
                         title="Please enter a valid URL starting with http:// or https://" required>
@@ -122,7 +122,7 @@ header("Referrer-Policy: strict-origin-when-cross-origin");
                 </div>
                 <!-- Hidden field for assessment id (if editing an existing one) -->
                 <input type="hidden" id="assessmentId" name="assessment_id">
-                <button type="submit" class="btn btn-success">Release Assessment</button>
+                <button type="submit" class="btn btn-success">Release Assessment and Evaluation</button>
                 <!-- New Buttons -->
                 <button type="button" class="btn btn-warning" id="configureCertificateBtn">Configure
                     Certificate</button>
@@ -146,7 +146,8 @@ header("Referrer-Policy: strict-origin-when-cross-origin");
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <p>Batch release certificates for participants who have completed the assessments only. Certificates
+                    <p>Batch release certificates for participants who have completed the assessments and evaluation
+                        only. Certificates
                         will be sent to their registered emails.</p>
                 </div>
                 <div class="modal-footer">

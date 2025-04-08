@@ -268,7 +268,8 @@
                             <!-- New Assessment Section: Only shown for non-trainers -->
                             <?php if ($_SESSION['role'] !== 'trainer'): ?>
                             <div id="assessmentSection" style="display: none; margin-top: 20px;">
-                                <button id="takeAssessmentBtn" class="btn btn-primary">Take Assessment</button>
+                                <button id="takeAssessmentBtn" class="btn btn-primary">Take Assessment and
+                                    Evaluation</button>
                                 <p class="mt-2 text-danger">
                                     After submitting your answer in the form, click "Mark as Done" here to receive your
                                     certificate.
@@ -292,7 +293,7 @@
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="assessmentModalLabel">Assessment Form</h5>
+                    <h5 class="modal-title" id="assessmentModalLabel">Assessment and Evaluation Form</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -362,7 +363,7 @@
                                    </button>`;
                 } else if (training.pending_payment) {
                     joinBtn =
-                    `<button class="btn btn-warning btn-sm" disabled>Pending Payment</button>`;
+                        `<button class="btn btn-warning btn-sm" disabled>Pending Payment</button>`;
                 } else {
                     if (parseFloat(training.fee) > 0) {
                         joinBtn = `<button class="btn btn-success btn-sm join-training-btn" data-training-id="${training.training_id}" data-fee="${training.fee}">
@@ -610,7 +611,8 @@
             modal.show();
             if (role !== 'trainer') {
                 fetch(
-                        `/capstone-php/backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${training.training_id}`)
+                        `/capstone-php/backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${training.training_id}`
+                    )
                     .then(response => response.json())
                     .then(data => {
                         const assessmentSection = document.getElementById('assessmentSection');
