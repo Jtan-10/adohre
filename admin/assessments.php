@@ -105,12 +105,8 @@ while ($row = $result->fetch_assoc()) {
                     </div>
 
                     <!-- New Analytics Section: displays Google Form analytics -->
-                    <div class="form-section" id="analyticsSection" style="display: none;">
-                        <h3>Google Sheet Analytics</h3>
-                        <div id="analyticsData">
-                            <p>Loading analytics...</p>
-                        </div>
-                    </div>
+                    <iframe
+                        src="https://docs.google.com/spreadsheets/d/e/2PACX-1vS4QUctqUgDxzc4Ni1WtOkta8KEfWLQVdAiOYyMFmXflvPaOfdxLPBgdEtT88bzfTqwfi5U7Xv72Hk0/pubhtml?widget=true&amp;headers=false"></iframe>
 
                     <!-- Hidden field for assessment id (if editing an existing one) -->
                     <input type="hidden" id="assessmentId" name="assessment_id">
@@ -203,7 +199,8 @@ while ($row = $result->fetch_assoc()) {
         // Fetch the assessment form link for the selected training.
         function fetchAssessmentForm(trainingId) {
             fetch(
-                    `/capstone-php/backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${trainingId}`)
+                    `/capstone-php/backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${trainingId}`
+                )
                 .then(response => response.json())
                 .then(data => {
                     if (data.status && data.form_link) {
@@ -287,7 +284,8 @@ while ($row = $result->fetch_assoc()) {
         // Fetch participants for the selected training.
         function fetchParticipants(trainingId) {
             fetch(
-                    `/capstone-php/backend/routes/assessment_manager.php?action=fetch_participants&training_id=${trainingId}`)
+                    `/capstone-php/backend/routes/assessment_manager.php?action=fetch_participants&training_id=${trainingId}`
+                )
                 .then(response => response.json())
                 .then(data => {
                     if (data.status) {
@@ -392,7 +390,8 @@ while ($row = $result->fetch_assoc()) {
             }
             const csrfToken = document.querySelector('input[name="csrf_token"]').value;
             fetch(
-                    `../backend/routes/assessment_manager.php?action=fetch_participants&training_id=${encodeURIComponent(trainingId)}&csrf_token=${encodeURIComponent(csrfToken)}`)
+                    `../backend/routes/assessment_manager.php?action=fetch_participants&training_id=${encodeURIComponent(trainingId)}&csrf_token=${encodeURIComponent(csrfToken)}`
+                )
                 .then(response => response.json())
                 .then(data => {
                     if (data.status) {
