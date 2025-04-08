@@ -55,6 +55,32 @@ while ($row = $result->fetch_assoc()) {
     table {
         margin-top: 15px;
     }
+
+    /* Styling for the Google Sheet Analytics card */
+    .sheet-card {
+        margin-top: 20px;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #fff;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .sheet-card-header {
+        background: #f1f1f1;
+        padding: 10px 15px;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .sheet-card-body {
+        padding: 15px;
+    }
+
+    .sheet-iframe {
+        width: 100%;
+        height: 500px;
+        border: 0;
+    }
     </style>
 </head>
 
@@ -91,22 +117,23 @@ while ($row = $result->fetch_assoc()) {
                             placeholder="Enter the URL of your assessment form" required>
                     </div>
 
-                    <!-- New Field for Manual Google Sheet ID Entry -->
-                    <div class="mb-3">
-                        <label for="assessmentSheetId" class="form-label">Google Sheet ID</label>
-                        <input type="text" id="assessmentSheetId" name="sheet_id" class="form-control"
-                            placeholder="Enter the Google Sheet ID where responses are stored" required>
-                    </div>
-
                     <!-- Preview Section: shows the embedded form -->
                     <div id="formPreviewContainer" class="form-section" style="display: none;">
                         <h5>Form Preview</h5>
                         <iframe id="formPreview" src="" width="100%" height="500" frameborder="0"></iframe>
                     </div>
 
-                    <!-- New Analytics Section: displays Google Form analytics -->
-                    <iframe
-                        src="https://docs.google.com/spreadsheets/d/e/2PACX-1vS4QUctqUgDxzc4Ni1WtOkta8KEfWLQVdAiOYyMFmXflvPaOfdxLPBgdEtT88bzfTqwfi5U7Xv72Hk0/pubhtml?widget=true&amp;headers=false"></iframe>
+                    <!-- Google Sheet Analytics Section -->
+                    <div class="sheet-card">
+                        <div class="sheet-card-header">
+                            <h5 class="mb-0">Google Sheet Analytics</h5>
+                        </div>
+                        <div class="sheet-card-body">
+                            <!-- Replace the iframe src with your public Google Sheet URL as needed -->
+                            <iframe class="sheet-iframe"
+                                src="https://docs.google.com/spreadsheets/d/e/2PACX-1vS4QUctqUgDxzc4Ni1WtOkta8KEfWLQVdAiOYyMFmXflvPaOfdxLPBgdEtT88bzfTqwfi5U7Xv72Hk0/pubhtml?widget=true&amp;headers=false"></iframe>
+                        </div>
+                    </div>
 
                     <!-- Hidden field for assessment id (if editing an existing one) -->
                     <input type="hidden" id="assessmentId" name="assessment_id">
@@ -154,13 +181,10 @@ while ($row = $result->fetch_assoc()) {
     <script nonce="<?= $cspNonce ?>">
     document.addEventListener('DOMContentLoaded', function() {
         const linkInput = document.getElementById('assessmentFormLink');
-        const sheetInput = document.getElementById('assessmentSheetId');
         const previewContainer = document.getElementById('formPreviewContainer');
         const previewFrame = document.getElementById('formPreview');
         const trainingSelect = document.getElementById('assessmentTraining');
         const participantsList = document.getElementById('participantsList');
-        const analyticsContainer = document.getElementById('analyticsSection');
-        const analyticsData = document.getElementById('analyticsData');
 
         // When the form link changes, update the preview.
         linkInput.addEventListener('input', function() {
@@ -176,11 +200,6 @@ while ($row = $result->fetch_assoc()) {
             }
         });
 
-        // When the Google Sheet ID changes, attempt to fetch analytics.
-        sheetInput.addEventListener('input', function() {
-            fetchFormAnalytics();
-        });
-
         // When a training is selected, fetch the assessment form link and participants.
         trainingSelect.addEventListener('change', function() {
             const trainingId = trainingSelect.value;
@@ -190,17 +209,14 @@ while ($row = $result->fetch_assoc()) {
             } else {
                 participantsList.innerHTML = '';
                 linkInput.value = '';
-                sheetInput.value = '';
                 previewContainer.style.display = 'none';
-                analyticsContainer.style.display = 'none';
             }
         });
 
         // Fetch the assessment form link for the selected training.
         function fetchAssessmentForm(trainingId) {
             fetch(
-                    `/capstone-php/backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${trainingId}`
-                )
+                    `/capstone-php/backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${trainingId}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.status && data.form_link) {
@@ -211,7 +227,6 @@ while ($row = $result->fetch_assoc()) {
                         }
                         previewFrame.src = link;
                         previewContainer.style.display = 'block';
-                        // Optionally, if you store the sheet ID along with the form link, you can set it here.
                     } else {
                         linkInput.value = '';
                         previewContainer.style.display = 'none';
@@ -221,40 +236,6 @@ while ($row = $result->fetch_assoc()) {
                     console.error(err);
                     linkInput.value = '';
                     previewContainer.style.display = 'none';
-                });
-        }
-
-        // Function to fetch Google Sheet analytics based on the manually provided Sheet ID.
-        function fetchFormAnalytics() {
-            const sheetId = sheetInput.value.trim();
-            if (!sheetId) {
-                analyticsContainer.style.display = 'none';
-                return;
-            }
-            // Build the analytics endpoint URL using the provided sheet_id parameter.
-            let analyticsUrl =
-                `/capstone-php/backend/routes/google_analytics.php?action=get_analytics&sheet_id=${encodeURIComponent(sheetId)}`;
-            fetch(analyticsUrl)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status && data.analytics) {
-                        let outputHtml =
-                            `<p><strong>Total Responses:</strong> ${data.analytics.total_responses}</p>`;
-                        if (data.analytics.avg_score !== undefined) {
-                            outputHtml +=
-                                `<p><strong>Average Score:</strong> ${data.analytics.avg_score}</p>`;
-                        }
-                        analyticsData.innerHTML = outputHtml;
-                        analyticsContainer.style.display = 'block';
-                    } else {
-                        analyticsData.innerHTML = `<p>No analytics data available.</p>`;
-                        analyticsContainer.style.display = 'block';
-                    }
-                })
-                .catch(err => {
-                    console.error(err);
-                    analyticsData.innerHTML = `<p>Error fetching analytics data.</p>`;
-                    analyticsContainer.style.display = 'block';
                 });
         }
 
@@ -284,32 +265,31 @@ while ($row = $result->fetch_assoc()) {
         // Fetch participants for the selected training.
         function fetchParticipants(trainingId) {
             fetch(
-                    `/capstone-php/backend/routes/assessment_manager.php?action=fetch_participants&training_id=${trainingId}`
-                )
+                    `/capstone-php/backend/routes/assessment_manager.php?action=fetch_participants&training_id=${trainingId}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.status) {
                         let html = `<table class="table">
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Assessment Status</th>
-                                        <th>Certificate Status</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>`;
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Assessment Status</th>
+                                            <th>Certificate Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>`;
                         data.participants.forEach(participant => {
                             html += `<tr>
-                                    <td>${participant.first_name} ${participant.last_name}</td>
-                                    <td>${participant.assessment_status}</td>
-                                    <td>${participant.certificate_status || 'Not Released'}</td>
-                                    <td>
-                                        <button class="btn btn-sm btn-primary release-certificate" data-userid="${participant.user_id}" data-trainingid="${participant.training_id}">
-                                            Release Certificate
-                                        </button>
-                                    </td>
-                                </tr>`;
+                                        <td>${participant.first_name} ${participant.last_name}</td>
+                                        <td>${participant.assessment_status}</td>
+                                        <td>${participant.certificate_status || 'Not Released'}</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-primary release-certificate" data-userid="${participant.user_id}" data-trainingid="${participant.training_id}">
+                                                Release Certificate
+                                            </button>
+                                        </td>
+                                    </tr>`;
                         });
                         html += `</tbody></table>`;
                         participantsList.innerHTML = html;
@@ -347,7 +327,6 @@ while ($row = $result->fetch_assoc()) {
                                 }
                             });
                         });
-
                     } else {
                         participantsList.innerHTML = '<p>No participants found for this training.</p>';
                     }
@@ -390,8 +369,7 @@ while ($row = $result->fetch_assoc()) {
             }
             const csrfToken = document.querySelector('input[name="csrf_token"]').value;
             fetch(
-                    `../backend/routes/assessment_manager.php?action=fetch_participants&training_id=${encodeURIComponent(trainingId)}&csrf_token=${encodeURIComponent(csrfToken)}`
-                )
+                    `../backend/routes/assessment_manager.php?action=fetch_participants&training_id=${encodeURIComponent(trainingId)}&csrf_token=${encodeURIComponent(csrfToken)}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.status) {
