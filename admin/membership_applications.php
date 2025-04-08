@@ -100,23 +100,23 @@ require_once 'admin_header.php';
 
     <!-- Inline JS: in production consider moving these scripts into an external file -->
     <script nonce="<?= $cspNonce ?>">
-    const apiUrl = '../backend/routes/membership_applications.php';
-    const paymentApiUrl = '../backend/routes/payment.php';
+        const apiUrl = '../backend/routes/membership_applications.php';
+        const paymentApiUrl = '../backend/routes/payment.php';
 
-    // Fetch applications
-    async function fetchApplications(status = '') {
-        try {
-            const response = await axios.get(apiUrl, {
-                params: {
-                    status
-                }
-            });
-            const applications = response.data;
-            const tableBody = document.querySelector('#applications-table tbody');
-            tableBody.innerHTML = '';
-            applications.forEach(app => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
+        // Fetch applications
+        async function fetchApplications(status = '') {
+            try {
+                const response = await axios.get(apiUrl, {
+                    params: {
+                        status
+                    }
+                });
+                const applications = response.data;
+                const tableBody = document.querySelector('#applications-table tbody');
+                tableBody.innerHTML = '';
+                applications.forEach(app => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
                     <td>${app.name}</td>
                     <td>${app.email}</td>
                     <td>${app.created_at}</td>
@@ -134,118 +134,119 @@ require_once 'admin_header.php';
                       <button class="btn btn-danger btn-sm delete-btn" data-id="${app.application_id}">Delete</button>
                     </td>
                 `;
-                tableBody.appendChild(row);
-            });
-        } catch (err) {
-            showMessage('Error fetching applications.', 'danger');
-            console.error(err);
+                    tableBody.appendChild(row);
+                });
+            } catch (err) {
+                showMessage('Error fetching applications.', 'danger');
+                console.error(err);
+            }
         }
-    }
 
-    // Remove inline event handlers by using event delegation on the table body:
-    document.querySelector('#applications-table tbody').addEventListener('click', function(e) {
-        if (e.target.matches('.view-btn')) {
-            viewApplication(e.target.dataset.id);
-        } else if (e.target.matches('.details-btn')) {
-            viewDetails(e.target.dataset.id);
-        } else if (e.target.matches('.delete-btn')) {
-            deleteApplication(e.target.dataset.id);
-        }
-    });
+        // Remove inline event handlers by using event delegation on the table body:
+        document.querySelector('#applications-table tbody').addEventListener('click', function(e) {
+            if (e.target.matches('.view-btn')) {
+                viewApplication(e.target.dataset.id);
+            } else if (e.target.matches('.details-btn')) {
+                viewDetails(e.target.dataset.id);
+            } else if (e.target.matches('.delete-btn')) {
+                deleteApplication(e.target.dataset.id);
+            }
+        });
 
-    // View Application (for update)
-    async function viewApplication(id) {
-        try {
-            const response = await axios.get(`${apiUrl}?id=${id}`);
-            const app = response.data;
-            document.querySelector('#application-id').value = app.application_id;
-            // Store user_id in hidden field for later payment push
-            document.querySelector('#app-user_id').value = app.user_id;
-            document.querySelector('#application-details').innerHTML = `
+        // View Application (for update)
+        async function viewApplication(id) {
+            try {
+                const response = await axios.get(`${apiUrl}?id=${id}`);
+                const app = response.data;
+                document.querySelector('#application-id').value = app.application_id;
+                // Store user_id in hidden field for later payment push
+                document.querySelector('#app-user_id').value = app.user_id;
+                document.querySelector('#application-details').innerHTML = `
           <p><strong>Name:</strong> ${app.name}</p>
           <p><strong>Email:</strong> ${app.email}</p>
           <p><strong>Submitted On:</strong> ${app.created_at}</p>
           <p><strong>Status:</strong> ${app.status}</p>
         `;
-            document.querySelector('#status').value = app.status;
-            const modal = new bootstrap.Modal(document.querySelector('#applicationModal'));
-            modal.show();
-        } catch (err) {
-            showMessage('Error fetching application details.', 'danger');
-            console.error(err);
-        }
-    }
-
-    // Update Application and push payments if approved
-    document.querySelector('#update-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        try {
-            const id = document.querySelector('#application-id').value;
-            const newStatus = document.querySelector('#status').value;
-            const userId = document.querySelector('#app-user_id').value;
-
-            // Update the application via POST
-            await axios.post(apiUrl, {
-                id,
-                status: newStatus
-            });
-
-            // If the application is approved, push two payments.
-            // We send an empty due_date value as the backend will automatically generate it.
-            if (newStatus === 'Approved') {
-                // Payment 1: Membership Fee ₱300
-                await axios.post(paymentApiUrl, createPaymentFormData({
-                    user_id: userId,
-                    payment_type: 'Membership Fee',
-                    amount: 300,
-                    due_date: '', // Backend will override this
-                    reference_number: '', // Initially NULL
-                    status: 'New'
-                }));
-
-                // Payment 2: Annual Fee ₱200
-                await axios.post(paymentApiUrl, createPaymentFormData({
-                    user_id: userId,
-                    payment_type: 'Annual Fee',
-                    amount: 200,
-                    due_date: '',
-                    reference_number: '',
-                    status: 'New'
-                }));
+                document.querySelector('#status').value = app.status;
+                const modal = new bootstrap.Modal(document.querySelector('#applicationModal'));
+                modal.show();
+            } catch (err) {
+                showMessage('Error fetching application details.', 'danger');
+                console.error(err);
             }
-            showMessage('Application updated successfully!', 'success');
-            fetchApplications();
-            bootstrap.Modal.getInstance(document.querySelector('#applicationModal')).hide();
-        } catch (err) {
-            showMessage('Error updating application.', 'danger');
-            console.error(err);
         }
-    });
 
-    // Helper to create FormData for payment push
-    function createPaymentFormData(paymentData) {
-        const formData = new FormData();
-        formData.append('user_id', paymentData.user_id);
-        formData.append('payment_type', paymentData.payment_type);
-        formData.append('amount', paymentData.amount);
-        formData.append('due_date', paymentData.due_date);
-        formData.append('reference_number', paymentData.reference_number);
-        formData.append('status', paymentData.status);
-        return formData;
-    }
+        // Update Application and push payments if approved
+        document.querySelector('#update-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                const id = document.querySelector('#application-id').value;
+                const newStatus = document.querySelector('#status').value;
+                const userId = document.querySelector('#app-user_id').value;
 
-    // View Details
-    async function viewDetails(id) {
-        try {
-            const response = await axios.get(`${apiUrl}?id=${id}`);
-            const app = response.data;
-            const detailsBody = document.querySelector('#details-body');
-            // Build image URLs using the decrypt endpoint if values exist
-            const validIdUrl = app.valid_id ?
-                `../backend/routes/decrypt_image.php?face_url=${encodeURIComponent(app.valid_id)}` : '';
-            const faceImageUrl = app.face_image ?
-                `../backend/routes/decrypt_image.php?face_url=${encodeURIComponent(app.face_image)}` : '';
-            detailsBody.innerHTML = `
+                // Update the application via POST
+                await axios.post(apiUrl, {
+                    id,
+                    status: newStatus
+                });
+
+                // If the application is approved, push two payments.
+                // We send an empty due_date value as the backend will automatically generate it.
+                if (newStatus === 'Approved') {
+                    // Payment 1: Membership Fee ₱300
+                    await axios.post(paymentApiUrl, createPaymentFormData({
+                        user_id: userId,
+                        payment_type: 'Membership Fee',
+                        amount: 300,
+                        due_date: '', // Backend will override this
+                        reference_number: '', // Initially NULL
+                        status: 'New'
+                    }));
+
+                    // Payment 2: Annual Fee ₱200
+                    await axios.post(paymentApiUrl, createPaymentFormData({
+                        user_id: userId,
+                        payment_type: 'Annual Fee',
+                        amount: 200,
+                        due_date: '',
+                        reference_number: '',
+                        status: 'New'
+                    }));
+                }
+                showMessage('Application updated successfully!', 'success');
+                fetchApplications();
+                bootstrap.Modal.getInstance(document.querySelector('#applicationModal')).hide();
+            } catch (err) {
+                showMessage('Error updating application.', 'danger');
+                console.error(err);
+            }
+        });
+
+        // Helper to create FormData for payment push
+        function createPaymentFormData(paymentData) {
+            const formData = new FormData();
+            formData.append('user_id', paymentData.user_id);
+            formData.append('payment_type', paymentData.payment_type);
+            formData.append('amount', paymentData.amount);
+            formData.append('due_date', paymentData.due_date);
+            formData.append('reference_number', paymentData.reference_number);
+            formData.append('status', paymentData.status);
+            return formData;
+        }
+
+        // View Details
+        async function viewDetails(id) {
+            try {
+                const response = await axios.get(`${apiUrl}?id=${id}`);
+                const app = response.data;
+                const detailsBody = document.querySelector('#details-body');
+                // Build image URLs using the decrypt endpoint if values exist.
+                // Note: using app.valid_id_url for the Valid ID since that is your column name.
+                const validIdUrl = app.valid_id_url ?
+                    `../backend/routes/decrypt_image.php?face_url=${encodeURIComponent(app.valid_id_url)}` : '';
+                const faceImageUrl = app.face_image ?
+                    `../backend/routes/decrypt_image.php?face_url=${encodeURIComponent(app.face_image)}` : '';
+                detailsBody.innerHTML = `
           <p><strong>Name:</strong> ${app.name}</p>
           <p><strong>Date of Birth:</strong> ${app.dob}</p>
           <p><strong>Sex:</strong> ${app.sex}</p>
@@ -272,50 +273,50 @@ require_once 'admin_header.php';
           <p><strong>Face Image:</strong> ${faceImageUrl ? `<img src="${faceImageUrl}" alt="Face Image" style="max-width:100%; height:auto;">` : 'N/A'}</p>
           <p><strong>Signature:</strong> <img src="${app.signature}" alt="Signature" style="max-width: 100%; height: auto;"></p>
         `;
-            const modal = new bootstrap.Modal(document.querySelector('#detailsModal'));
-            modal.show();
-        } catch (err) {
-            showMessage('Error fetching application details.', 'danger');
-            console.error(err);
-        }
-    }
-
-    // Delete Application
-    async function deleteApplication(id) {
-        if (confirm('Are you sure you want to delete this application?')) {
-            try {
-                await axios.delete(apiUrl, {
-                    data: {
-                        id
-                    }
-                });
-                showMessage('Application deleted successfully!', 'success');
-                fetchApplications();
+                const modal = new bootstrap.Modal(document.querySelector('#detailsModal'));
+                modal.show();
             } catch (err) {
-                showMessage('Error deleting application.', 'danger');
+                showMessage('Error fetching application details.', 'danger');
                 console.error(err);
             }
         }
-    }
 
-    // Filter Applications
-    document.querySelector('#filter-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const status = document.querySelector('#statusFilter').value;
-        fetchApplications(status);
-    });
+        // Delete Application
+        async function deleteApplication(id) {
+            if (confirm('Are you sure you want to delete this application?')) {
+                try {
+                    await axios.delete(apiUrl, {
+                        data: {
+                            id
+                        }
+                    });
+                    showMessage('Application deleted successfully!', 'success');
+                    fetchApplications();
+                } catch (err) {
+                    showMessage('Error deleting application.', 'danger');
+                    console.error(err);
+                }
+            }
+        }
 
-    // Show Message
-    function showMessage(message, type) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `alert alert-${type} mt-3`;
-        messageDiv.textContent = message;
-        document.querySelector('.container').prepend(messageDiv);
-        setTimeout(() => messageDiv.remove(), 3000);
-    }
+        // Filter Applications
+        document.querySelector('#filter-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const status = document.querySelector('#statusFilter').value;
+            fetchApplications(status);
+        });
 
-    // Initial Fetch
-    fetchApplications();
+        // Show Message
+        function showMessage(message, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `alert alert-${type} mt-3`;
+            messageDiv.textContent = message;
+            document.querySelector('.container').prepend(messageDiv);
+            setTimeout(() => messageDiv.remove(), 3000);
+        }
+
+        // Initial Fetch
+        fetchApplications();
     </script>
 </body>
 
