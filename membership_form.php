@@ -405,6 +405,7 @@ if (isset($_SESSION['user_id'])) {
                 faceValidated = true;
                 // Instead of membershipForm.submit(), dispatch a submit event so the fetch handler runs
                 membershipForm.dispatchEvent(new Event('submit', {
+                    bubbles: true,
                     cancelable: true
                 }));
             } else {
