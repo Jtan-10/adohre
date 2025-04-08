@@ -6,6 +6,9 @@ if (empty($_SESSION['csrf_token'])) {
 }
 $csp_nonce = base64_encode(random_bytes(16));
 
+// Define $userFaceImageUrl from session
+$userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : '';
+
 // ***** NEW: Check if user already has a membership application record *****
 if (isset($_SESSION['user_id'])) {
     require_once 'backend/db/db_connect.php';
