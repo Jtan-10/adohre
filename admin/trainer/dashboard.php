@@ -111,6 +111,12 @@ $trainerId = $_SESSION['user_id'];
                         <input type="number" id="trainingCapacity" name="capacity" class="form-control" value="50"
                             required>
                     </div>
+                    <!-- New Fee Field -->
+                    <div class="mb-3">
+                        <label for="trainingFee" class="form-label">Training Fee</label>
+                        <input type="number" step="0.01" id="trainingFee" name="fee" class="form-control" value="0.00"
+                            required>
+                    </div>
                     <div class="mb-3">
                         <label for="trainingImage" class="form-label">Training Image</label>
                         <input type="file" id="trainingImage" name="image" class="form-control" accept="image/*">
@@ -198,58 +204,105 @@ $trainerId = $_SESSION['user_id'];
                     });
             });
 
-            // Fetch trainings from the backend
+            // Updated fetchTrainings() function (copied from trainings.php and filtered for logged in trainer)
             function fetchTrainings() {
                 fetch('../../backend/routes/content_manager.php?action=fetch')
                     .then(response => response.json())
                     .then(data => {
                         if (data.status) {
-                            // Filter trainings: only include those created by the logged-in trainer.
-                            let myTrainings = data.trainings.filter(training => {
-                                return parseInt(training.created_by) === parseInt(trainerId);
-                            });
+                            let now = new Date();
+                            // Filter trainings for the logged in trainer
+                            let myTrainings = data.trainings.filter(training => parseInt(training
+                                .created_by) === parseInt(trainerId));
+                            let upcomingTrainings = myTrainings.filter(training => new Date(training
+                                .schedule) >= now);
+                            let pastTrainings = myTrainings.filter(training => new Date(training.schedule) <
+                                now);
 
-                            let html = '';
-                            if (myTrainings.length > 0) {
-                                html += `<div class="card mb-4">
-                         <div class="card-header">
-                           <h5>My Trainings</h5>
-                         </div>
-                         <div class="card-body">`;
-                                myTrainings.forEach(training => {
-                                    html += `
-                  <div class="content-item">
-                    <div style="flex:1;">
-                      <img src="${training.image ? escapeHtml(training.image) : 'assets/default-training.jpeg'}" alt="${escapeHtml(training.title)}" class="img-thumbnail training-image">
-                      <h6>${escapeHtml(training.title)}</h6>
-                      <p>${escapeHtml(training.description)}</p>
-                      <p><strong>Schedule:</strong> ${escapeHtml(new Date(training.schedule).toLocaleString())}</p>
-                      <p><strong>Capacity:</strong> ${escapeHtml(training.capacity)}</p>
-                      <p><strong>Modality:</strong> ${escapeHtml(training.modality || 'N/A')}</p>
-                      <p><strong>Modality Details:</strong> ${escapeHtml(training.modality_details || 'N/A')}</p>
-                    </div>
-                    <div>
-                      <button class="btn btn-sm btn-primary edit-training" data-id="${escapeHtml(training.training_id)}">Edit</button>
-                      <button class="btn btn-sm btn-danger delete-training" data-id="${escapeHtml(training.training_id)}">Delete</button>
-                    </div>
-                  </div>
-                `;
-                                });
-                                html += `</div></div>`;
-                            } else {
-                                html = '<p>No trainings found.</p>';
-                            }
-                            document.getElementById('trainingsList').innerHTML = html;
+                            let subTabs = `
+                                <ul class="nav nav-tabs" id="subTabs" role="tablist">
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link active" id="upcoming-tab" data-bs-toggle="tab" data-bs-target="#upcoming" type="button" role="tab">
+                                            Upcoming Trainings
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="past-tab" data-bs-toggle="tab" data-bs-target="#past" type="button" role="tab">
+                                            Past Trainings
+                                        </button>
+                                    </li>
+                                </ul>
+                            `;
 
-                            // Attach event listeners to edit buttons
+                            let upcomingHtml = upcomingTrainings.map(training => `
+                                <div class="card mb-3">
+                                    <div class="row g-0">
+                                        <div class="col-md-4">
+                                            <img src="../../backend/routes/decrypt_image.php?image_url=${ encodeURIComponent(training.image || '/capstone-php/assets/default-training.jpeg') }" class="card-img-top" alt="Training image">
+                                        </div>
+                                        <div class="col-md-8">
+                                            <div class="card-body">
+                                                <h5 class="card-title">${ escapeHtml(training.title) }</h5>
+                                                <p class="card-text">${ escapeHtml(training.description) }</p>
+                                                <p><strong>Schedule:</strong> ${ new Date(training.schedule).toLocaleString() }</p>
+                                                <p><strong>Capacity:</strong> ${ escapeHtml(training.capacity) }</p>
+                                                <p><strong>Fee:</strong> ${ training.fee && parseFloat(training.fee) > 0 ? '₱' + training.fee : 'Free' }</p>
+                                                <p><strong>Modality:</strong> ${ escapeHtml(training.modality || 'N/A') }</p>
+                                                <p><strong>Modality Details:</strong> ${ escapeHtml(training.modality_details || 'N/A') }</p>
+                                                <div>
+                                                    <button class="btn btn-primary btn-sm edit-training" data-id="${ escapeHtml(training.training_id) }">Edit</button>
+                                                    <button class="btn btn-danger btn-sm delete-training" data-id="${ escapeHtml(training.training_id) }">Delete</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('');
+
+                            let pastHtml = pastTrainings.map(training => `
+                                <div class="card mb-3">
+                                    <div class="row g-0">
+                                        <div class="col-md-4">
+                                            <img src="../../backend/routes/decrypt_image.php?image_url=${ encodeURIComponent(training.image || '/capstone-php/assets/default-training.jpeg') }" class="card-img-top" alt="Training image">
+                                        </div>
+                                        <div class="col-md-8">
+                                            <div class="card-body">
+                                                <h5 class="card-title">${ escapeHtml(training.title) }</h5>
+                                                <p class="card-text">${ escapeHtml(training.description) }</p>
+                                                <p><strong>Schedule:</strong> ${ new Date(training.schedule).toLocaleString() }</p>
+                                                <p><strong>Capacity:</strong> ${ escapeHtml(training.capacity) }</p>
+                                                <p><strong>Fee:</strong> ${ training.fee && parseFloat(training.fee) > 0 ? '₱' + training.fee : 'Free' }</p>
+                                                <p><strong>Modality:</strong> ${ escapeHtml(training.modality || 'N/A') }</p>
+                                                <p><strong>Modality Details:</strong> ${ escapeHtml(training.modality_details || 'N/A') }</p>
+                                                <div>
+                                                    <button class="btn btn-primary btn-sm edit-training" data-id="${ escapeHtml(training.training_id) }">Edit</button>
+                                                    <button class="btn btn-danger btn-sm delete-training" data-id="${ escapeHtml(training.training_id) }">Delete</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('');
+
+                            document.getElementById('trainingsList').innerHTML = `
+                                ${ subTabs }
+                                <div class="tab-content mt-3">
+                                    <div class="tab-pane fade show active" id="upcoming" role="tabpanel">
+                                        ${ upcomingHtml || '<p class="text-center text-muted">No upcoming trainings</p>' }
+                                    </div>
+                                    <div class="tab-pane fade" id="past" role="tabpanel">
+                                        ${ pastHtml || '<p class="text-center text-muted">No past trainings</p>' }
+                                    </div>
+                                </div>
+                            `;
+
+                            // Attach event listeners to edit and delete buttons
                             document.querySelectorAll('.edit-training').forEach(btn => {
                                 btn.addEventListener('click', function() {
                                     let id = this.getAttribute('data-id');
                                     editTraining(id);
                                 });
                             });
-
-                            // Attach event listeners to delete buttons
                             document.querySelectorAll('.delete-training').forEach(btn => {
                                 btn.addEventListener('click', function() {
                                     let id = this.getAttribute('data-id');
@@ -277,6 +330,8 @@ $trainerId = $_SESSION['user_id'];
                             document.getElementById('trainingSchedule').value = training.schedule.replace(' ',
                                 'T');
                             document.getElementById('trainingCapacity').value = training.capacity;
+                            // New: set the fee field value
+                            document.getElementById('trainingFee').value = training.fee || '0.00';
                             document.getElementById('trainingModality').value = training.modality || '';
                             document.getElementById('trainingModalityDetails').value = training
                                 .modality_details || '';
