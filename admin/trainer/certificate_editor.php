@@ -11,8 +11,8 @@ session_start();
 require_once __DIR__ . '/../admin_header.php';
 require_once '../../backend/db/db_connect.php';
 
-// Ensure the user is a trainer
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'trainer') {
+// Allow both trainers and admins to access
+if (!isset($_SESSION['role']) || ($_SESSION['role'] !== 'trainer' && $_SESSION['role'] !== 'admin')) {
     header('Location: /capstone-php/index.php');
     exit();
 }
