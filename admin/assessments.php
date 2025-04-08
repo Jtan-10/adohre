@@ -44,17 +44,17 @@ while ($row = $result->fetch_assoc()) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
     <style>
-        .form-section {
-            margin: 20px 0;
-            padding: 15px;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            background: #f9f9f9;
-        }
+    .form-section {
+        margin: 20px 0;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        background: #f9f9f9;
+    }
 
-        table {
-            margin-top: 15px;
-        }
+    table {
+        margin-top: 15px;
+    }
     </style>
 </head>
 
@@ -94,6 +94,13 @@ while ($row = $result->fetch_assoc()) {
                     <div id="formPreviewContainer" class="form-section" style="display: none;">
                         <h5>Form Preview</h5>
                         <iframe id="formPreview" src="" width="100%" height="500" frameborder="0"></iframe>
+                    </div>
+                    <!-- New Analytics Section: displays Google Form analytics -->
+                    <div class="form-section" id="analyticsSection" style="display: none;">
+                        <h3>Google Form Analytics</h3>
+                        <div id="analyticsData">
+                            <p>Loading analytics...</p>
+                        </div>
                     </div>
                     <!-- Hidden field for assessment id (if editing an existing one) -->
                     <input type="hidden" id="assessmentId" name="assessment_id">
@@ -136,100 +143,142 @@ while ($row = $result->fetch_assoc()) {
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script nonce="<?= $cspNonce ?>">
-        document.addEventListener('DOMContentLoaded', function() {
-            const linkInput = document.getElementById('assessmentFormLink');
-            const previewContainer = document.getElementById('formPreviewContainer');
-            const previewFrame = document.getElementById('formPreview');
-            const trainingSelect = document.getElementById('assessmentTraining');
-            const participantsList = document.getElementById('participantsList');
+    document.addEventListener('DOMContentLoaded', function() {
+        const linkInput = document.getElementById('assessmentFormLink');
+        const previewContainer = document.getElementById('formPreviewContainer');
+        const previewFrame = document.getElementById('formPreview');
+        const trainingSelect = document.getElementById('assessmentTraining');
+        const participantsList = document.getElementById('participantsList');
 
-            // Update preview when the assessment form link changes.
-            linkInput.addEventListener('input', function() {
-                let link = linkInput.value.trim();
-                if (link) {
-                    if (link.indexOf('docs.google.com/forms') !== -1 && link.indexOf('hl=') === -1) {
-                        link += (link.indexOf('?') === -1) ? '?hl=en' : '&hl=en';
-                    }
-                    previewFrame.src = link;
-                    previewContainer.style.display = 'block';
-                } else {
-                    previewContainer.style.display = 'none';
+        // Update preview and fetch analytics when the assessment form link changes.
+        linkInput.addEventListener('input', function() {
+            let link = linkInput.value.trim();
+            if (link) {
+                if (link.indexOf('docs.google.com/forms') !== -1 && link.indexOf('hl=') === -1) {
+                    link += (link.indexOf('?') === -1) ? '?hl=en' : '&hl=en';
                 }
-            });
+                previewFrame.src = link;
+                previewContainer.style.display = 'block';
+                fetchFormAnalytics(link);
+            } else {
+                previewContainer.style.display = 'none';
+                document.getElementById('analyticsSection').style.display = 'none';
+            }
+        });
 
-            // When a training is selected, fetch the assessment form link and participants.
-            trainingSelect.addEventListener('change', function() {
-                const trainingId = trainingSelect.value;
-                if (trainingId) {
-                    fetchAssessmentForm(trainingId);
-                    fetchParticipants(trainingId);
-                } else {
-                    participantsList.innerHTML = '';
-                    linkInput.value = '';
-                    previewContainer.style.display = 'none';
-                }
-            });
+        // When a training is selected, fetch the assessment form link, participants, and analytics.
+        trainingSelect.addEventListener('change', function() {
+            const trainingId = trainingSelect.value;
+            if (trainingId) {
+                fetchAssessmentForm(trainingId);
+                fetchParticipants(trainingId);
+            } else {
+                participantsList.innerHTML = '';
+                linkInput.value = '';
+                previewContainer.style.display = 'none';
+                document.getElementById('analyticsSection').style.display = 'none';
+            }
+        });
 
-            // Fetch the assessment form link for the selected training.
-            function fetchAssessmentForm(trainingId) {
-                fetch(
-                        `/capstone-php/backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${trainingId}`
-                    )
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.status && data.form_link) {
-                            linkInput.value = data.form_link;
-                            let link = data.form_link;
-                            if (link.indexOf('docs.google.com/forms') !== -1 && link.indexOf('hl=') === -
-                                1) {
-                                link += (link.indexOf('?') === -1) ? '?hl=en' : '&hl=en';
-                            }
-                            previewFrame.src = link;
-                            previewContainer.style.display = 'block';
-                        } else {
-                            linkInput.value = '';
-                            previewContainer.style.display = 'none';
+        // Fetch the assessment form link for the selected training.
+        function fetchAssessmentForm(trainingId) {
+            fetch(
+                    `/capstone-php/backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${trainingId}`
+                )
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status && data.form_link) {
+                        linkInput.value = data.form_link;
+                        let link = data.form_link;
+                        if (link.indexOf('docs.google.com/forms') !== -1 && link.indexOf('hl=') === -1) {
+                            link += (link.indexOf('?') === -1) ? '?hl=en' : '&hl=en';
                         }
-                    })
-                    .catch(err => {
-                        console.error(err);
+                        previewFrame.src = link;
+                        previewContainer.style.display = 'block';
+                        // Fetch analytics for the current form link
+                        fetchFormAnalytics(link);
+                    } else {
                         linkInput.value = '';
                         previewContainer.style.display = 'none';
-                    });
+                        document.getElementById('analyticsSection').style.display = 'none';
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    linkInput.value = '';
+                    previewContainer.style.display = 'none';
+                    document.getElementById('analyticsSection').style.display = 'none';
+                });
+        }
+
+        // Function to fetch Google Form analytics based on the form link.
+        function fetchFormAnalytics(formLink) {
+            const analyticsContainer = document.getElementById('analyticsSection');
+            const analyticsData = document.getElementById('analyticsData');
+            // Only proceed if the link is a Google Form
+            if (!formLink.includes("docs.google.com/forms")) {
+                analyticsContainer.style.display = 'none';
+                return;
             }
-
-            // Handle Assessment Form submission (release assessment form).
-            document.getElementById('assessmentForm').addEventListener('submit', function(e) {
-                e.preventDefault();
-                const formData = new FormData(this);
-                formData.append('action', 'save_assessment_form');
-                fetch('/capstone-php/backend/routes/assessment_manager.php', {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.status) {
-                            alert('Assessment form released successfully!');
-                        } else {
-                            alert('Error: ' + data.message);
+            let analyticsUrl =
+                `/capstone-php/backend/routes/analytics.php?action=get_analytics&form_link=${encodeURIComponent(formLink)}`;
+            fetch(analyticsUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status && data.analytics) {
+                        let outputHtml =
+                            `<p><strong>Total Responses:</strong> ${data.analytics.total_responses}</p>`;
+                        // Optionally show additional metrics if available, e.g., average score.
+                        if (data.analytics.avg_score !== undefined) {
+                            outputHtml +=
+                                `<p><strong>Average Score:</strong> ${data.analytics.avg_score}</p>`;
                         }
-                    })
-                    .catch(err => {
-                        console.error(err);
-                        alert('Failed to connect to the server.');
-                    });
-            });
+                        analyticsData.innerHTML = outputHtml;
+                        analyticsContainer.style.display = 'block';
+                    } else {
+                        analyticsData.innerHTML = `<p>No analytics data available.</p>`;
+                        analyticsContainer.style.display = 'block';
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    analyticsData.innerHTML = `<p>Error fetching analytics data.</p>`;
+                    analyticsContainer.style.display = 'block';
+                });
+        }
 
-            // Fetch participants for the selected training.
-            function fetchParticipants(trainingId) {
-                fetch(
-                        `/capstone-php/backend/routes/assessment_manager.php?action=fetch_participants&training_id=${trainingId}`
-                    )
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.status) {
-                            let html = `<table class="table">
+        // Handle Assessment Form submission (release assessment form).
+        document.getElementById('assessmentForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            formData.append('action', 'save_assessment_form');
+            fetch('/capstone-php/backend/routes/assessment_manager.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status) {
+                        alert('Assessment form released successfully!');
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('Failed to connect to the server.');
+                });
+        });
+
+        // Fetch participants for the selected training.
+        function fetchParticipants(trainingId) {
+            fetch(
+                    `/capstone-php/backend/routes/assessment_manager.php?action=fetch_participants&training_id=${trainingId}`
+                )
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status) {
+                        let html = `<table class="table">
                           <thead>
                             <tr>
                               <th>Name</th>
@@ -239,8 +288,8 @@ while ($row = $result->fetch_assoc()) {
                             </tr>
                           </thead>
                           <tbody>`;
-                            data.participants.forEach(participant => {
-                                html += `<tr>
+                        data.participants.forEach(participant => {
+                            html += `<tr>
                           <td>${participant.first_name} ${participant.last_name}</td>
                           <td>${participant.assessment_status}</td>
                           <td>${participant.certificate_status || 'Not Released'}</td>
@@ -250,132 +299,132 @@ while ($row = $result->fetch_assoc()) {
                             </button>
                           </td>
                         </tr>`;
-                            });
-                            html += `</tbody></table>`;
-                            participantsList.innerHTML = html;
+                        });
+                        html += `</tbody></table>`;
+                        participantsList.innerHTML = html;
 
-                            // Attach event listeners for individual "Release Certificate" buttons.
-                            document.querySelectorAll('.release-certificate').forEach(btn => {
-                                btn.addEventListener('click', function() {
-                                    const userId = this.getAttribute('data-userid');
-                                    const trainingId = this.getAttribute('data-trainingid');
-                                    if (confirm('Release certificate for this participant?')) {
-                                        fetch('../../backend/routes/generate_certificate.php', {
-                                                method: 'POST',
-                                                headers: {
-                                                    'Content-Type': 'application/json'
-                                                },
-                                                body: JSON.stringify({
-                                                    action: 'release_certificate',
-                                                    user_id: userId,
-                                                    training_id: trainingId
-                                                })
+                        // Attach event listeners for individual "Release Certificate" buttons.
+                        document.querySelectorAll('.release-certificate').forEach(btn => {
+                            btn.addEventListener('click', function() {
+                                const userId = this.getAttribute('data-userid');
+                                const trainingId = this.getAttribute('data-trainingid');
+                                if (confirm('Release certificate for this participant?')) {
+                                    fetch('../../backend/routes/generate_certificate.php', {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/json'
+                                            },
+                                            body: JSON.stringify({
+                                                action: 'release_certificate',
+                                                user_id: userId,
+                                                training_id: trainingId
                                             })
-                                            .then(response => response.json())
-                                            .then(result => {
-                                                if (result.status) {
-                                                    alert('Certificate released.');
-                                                    fetchParticipants(trainingId);
-                                                } else {
-                                                    alert('Error: ' + result.message);
-                                                }
-                                            })
-                                            .catch(err => {
-                                                console.error(err);
-                                                alert('Failed to release certificate.');
-                                            });
-                                    }
-                                });
+                                        })
+                                        .then(response => response.json())
+                                        .then(result => {
+                                            if (result.status) {
+                                                alert('Certificate released.');
+                                                fetchParticipants(trainingId);
+                                            } else {
+                                                alert('Error: ' + result.message);
+                                            }
+                                        })
+                                        .catch(err => {
+                                            console.error(err);
+                                            alert('Failed to release certificate.');
+                                        });
+                                }
                             });
+                        });
 
-                        } else {
-                            participantsList.innerHTML = '<p>No participants found for this training.</p>';
-                        }
-                    })
-                    .catch(err => {
-                        console.error(err);
-                        alert('Failed to fetch participants.');
-                    });
+                    } else {
+                        participantsList.innerHTML = '<p>No participants found for this training.</p>';
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('Failed to fetch participants.');
+                });
+        }
+
+        // Configure Certificate button event.
+        document.getElementById('configureCertificateBtn').addEventListener('click', function() {
+            const trainingId = document.getElementById('assessmentTraining').value;
+            if (!trainingId) {
+                alert('Please select a training first.');
+                return;
             }
-
-            // Configure Certificate button event
-            document.getElementById('configureCertificateBtn').addEventListener('click', function() {
-                const trainingId = document.getElementById('assessmentTraining').value;
-                if (!trainingId) {
-                    alert('Please select a training first.');
-                    return;
-                }
-                const csrfToken = document.querySelector('input[name="csrf_token"]').value;
-                window.location.href =
-                    `trainer/certificate_editor.php?training_id=${encodeURIComponent(trainingId)}&csrf_token=${encodeURIComponent(csrfToken)}`;
-            });
-
-            // Batch Release Certificates button event
-            document.getElementById('batchReleaseBtn').addEventListener('click', function() {
-                const trainingId = document.getElementById('assessmentTraining').value;
-                if (!trainingId) {
-                    alert('Please select a training first.');
-                    return;
-                }
-                const batchModal = new bootstrap.Modal(document.getElementById('batchReleaseModal'));
-                batchModal.show();
-            });
-
-            // Confirm Batch Release event
-            document.getElementById('confirmBatchRelease').addEventListener('click', function() {
-                const trainingId = document.getElementById('assessmentTraining').value;
-                if (!trainingId) {
-                    alert('Please select a training first.');
-                    return;
-                }
-                const csrfToken = document.querySelector('input[name="csrf_token"]').value;
-                fetch(
-                        `../backend/routes/assessment_manager.php?action=fetch_participants&training_id=${encodeURIComponent(trainingId)}&csrf_token=${encodeURIComponent(csrfToken)}`
-                    )
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.status) {
-                            const userIds = data.participants
-                                .filter(p => !p.certificate_status || p.certificate_status ===
-                                    'Not Released')
-                                .map(p => p.user_id);
-                            if (userIds.length === 0) {
-                                alert('No certificates to release.');
-                                return;
-                            }
-                            return fetch('../backend/models/generate_certificate.php', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify({
-                                    action: 'batch_release_certificates',
-                                    training_id: trainingId,
-                                    user_ids: userIds,
-                                    csrf_token: csrfToken
-                                })
-                            });
-                        } else {
-                            throw new Error(data.message || 'Unknown error fetching participants.');
-                        }
-                    })
-                    .then(response => response.json())
-                    .then(result => {
-                        if (result.status) {
-                            alert('Certificates released successfully.');
-                            bootstrap.Modal.getInstance(document.getElementById('batchReleaseModal'))
-                                .hide();
-                            // Optionally refresh the participants list here.
-                        } else {
-                            alert('Error: ' + (result.message || 'Unknown error occurred'));
-                        }
-                    })
-                    .catch(err => {
-                        console.error(err);
-                        alert('Failed to release certificates. Please try again later.');
-                    });
-            });
+            const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+            window.location.href =
+                `trainer/certificate_editor.php?training_id=${encodeURIComponent(trainingId)}&csrf_token=${encodeURIComponent(csrfToken)}`;
         });
+
+        // Batch Release Certificates button event.
+        document.getElementById('batchReleaseBtn').addEventListener('click', function() {
+            const trainingId = document.getElementById('assessmentTraining').value;
+            if (!trainingId) {
+                alert('Please select a training first.');
+                return;
+            }
+            const batchModal = new bootstrap.Modal(document.getElementById('batchReleaseModal'));
+            batchModal.show();
+        });
+
+        // Confirm Batch Release event.
+        document.getElementById('confirmBatchRelease').addEventListener('click', function() {
+            const trainingId = document.getElementById('assessmentTraining').value;
+            if (!trainingId) {
+                alert('Please select a training first.');
+                return;
+            }
+            const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+            fetch(
+                    `../backend/routes/assessment_manager.php?action=fetch_participants&training_id=${encodeURIComponent(trainingId)}&csrf_token=${encodeURIComponent(csrfToken)}`
+                )
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status) {
+                        const userIds = data.participants
+                            .filter(p => !p.certificate_status || p.certificate_status ===
+                                'Not Released')
+                            .map(p => p.user_id);
+                        if (userIds.length === 0) {
+                            alert('No certificates to release.');
+                            return;
+                        }
+                        return fetch('../backend/models/generate_certificate.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                action: 'batch_release_certificates',
+                                training_id: trainingId,
+                                user_ids: userIds,
+                                csrf_token: csrfToken
+                            })
+                        });
+                    } else {
+                        throw new Error(data.message || 'Unknown error fetching participants.');
+                    }
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.status) {
+                        alert('Certificates released successfully.');
+                        bootstrap.Modal.getInstance(document.getElementById('batchReleaseModal'))
+                            .hide();
+                        // Optionally refresh the participants list here.
+                    } else {
+                        alert('Error: ' + (result.message || 'Unknown error occurred'));
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('Failed to release certificates. Please try again later.');
+                });
+        });
+    });
     </script>
 </body>
 
