@@ -356,20 +356,18 @@ try {
             $row = 0;
             $maxCols = 1; // two charts per row
 
+            // Inside the loop over $charts in the PDF generation block:
             foreach ($charts as $title => $chartKey) {
                 // Calculate X and Y positions for this chart block
                 $x = $marginLeft + ($col * ($chartWidth + $colSpacing));
                 $y = $marginTop + ($row * ($blockHeight + $rowSpacing));
 
                 // Check if the entire block (title + chart) will overflow the page
-                // If so, start a new page and reset row/column counters
                 if (($y + $blockHeight) > ($pdf->getPageHeight() - 20)) {
                     $pdf->AddPage();
-                    // You can adjust the top margin for new pages as needed
                     $marginTop = 20;
                     $row = 0;
                     $col = 0;
-                    // Recompute x, y after resetting row/col
                     $x = $marginLeft;
                     $y = $marginTop;
                 }
@@ -379,34 +377,27 @@ try {
                 $pdf->SetFont('helvetica', 'B', 11);
                 $pdf->Cell($chartWidth, $headingHeight, $title, 0, 2, 'L');
 
-                // Print the chart image (or placeholder) at y + headingHeight
+                // Position for the chart image after the title
                 $chartY = $y + $headingHeight;
                 if (isset($_POST[$chartKey]) && !empty($_POST[$chartKey])) {
                     $postedData = $_POST[$chartKey];
 
+                    // Check if the posted data is a valid PNG base64 image
                     if (preg_match('/^data:image\/png;base64,/', $postedData)) {
                         try {
                             // Remove the data URI prefix and decode
                             $base64Image = str_replace('data:image/png;base64,', '', $postedData);
-                            $imageData   = base64_decode($base64Image);
+                            $imageData = base64_decode($base64Image);
 
                             if ($imageData !== false && strlen($imageData) > 0) {
-                                // Save to a temporary file first to avoid memory issues
-                                $tempFile = tempnam(sys_get_temp_dir(), 'chart_');
-                                file_put_contents($tempFile, $imageData);
-                                
-                                // Use the temporary file for the image
-                                $pdf->Image($tempFile, $x, $chartY, $chartWidth, $chartHeight, 'PNG');
-                                
-                                // Clean up the temporary file
-                                unlink($tempFile);
+                                // Use the inline image method (no temporary file needed)
+                                $pdf->Image('@' . $imageData, $x, $chartY, $chartWidth, $chartHeight, 'PNG');
                             } else {
                                 $pdf->SetXY($x, $chartY);
                                 $pdf->SetFont('helvetica', '', 9);
                                 $pdf->Cell($chartWidth, 5, 'Image decoding failed', 0, 1, 'L');
                             }
                         } catch (Exception $e) {
-                            // Log the actual error for debugging
                             error_log("Chart processing error: " . $e->getMessage());
                             $pdf->SetXY($x, $chartY);
                             $pdf->SetFont('helvetica', '', 9);
@@ -418,7 +409,7 @@ try {
                         $pdf->Cell($chartWidth, 5, 'Invalid image format', 0, 1, 'L');
                     }
                 } else {
-                    // If no data is available, show a placeholder box
+                    // No chart data available; show a placeholder
                     $pdf->SetXY($x, $chartY);
                     $pdf->SetDrawColor(200, 200, 200);
                     $pdf->SetFillColor(245, 245, 245);
@@ -432,6 +423,7 @@ try {
                     $row++;
                 }
             }
+
         }
 
         // ----------------------
