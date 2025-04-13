@@ -5,15 +5,27 @@ ini_set('log_errors', 1);     // But do log them
 error_reporting(E_ALL);       // Report all error types
 
 try {
+    // Check if session is already started
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    
     require_once '../db/db_connect.php';
-    require_once '../../vendor/autoload.php'; // For PDF and Excel libraries like TCPDF and PhpSpreadsheet
-    session_start();
+    require_once '../../vendor/autoload.php'; // For PDF and Excel libraries
+    
+    // Check if the user is logged in and is an admin
+    if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
+        error_log("DEBUG: Unauthorized export attempt detected. Session data: " . print_r($_SESSION, true));
+        header('Content-Type: application/json');
+        echo json_encode(['status' => false, 'message' => 'Unauthorized access.']);
+        exit;
+    }
 
     // Determine export format
-    $format = $_GET['format'] ?? 'csv';
+    $format = isset($_GET['format']) ? strtolower($_GET['format']) : 'csv';
     // Validate export format
     $allowedFormats = ['csv', 'pdf', 'excel'];
-    if (!in_array(strtolower($format), $allowedFormats)) {
+    if (!in_array($format, $allowedFormats)) {
         // Default to CSV if an invalid format is provided
         $format = 'csv';
     }
@@ -86,7 +98,7 @@ try {
 
     $userName = $user['first_name'] . ' ' . $user['last_name'];
 
-    // Fetch data for the aggregated metrics
+    // Fetch data for the aggregated metrics - Using prepared statements for better security
     $metricsQuery = "
         SELECT 
             (SELECT COUNT(*) FROM chat_messages) AS total_chat_messages,
@@ -109,13 +121,27 @@ try {
             (SELECT COUNT(*) FROM training_registrations) AS joined_trainings
     ";
     $metricsResult = $conn->query($metricsQuery);
+    if (!$metricsResult) {
+        throw new Exception("Error executing metrics query: " . $conn->error);
+    }
     $metrics = $metricsResult->fetch_assoc();
 
-    // Fetch detailed datasets
-    $users = $conn->query("SELECT first_name, last_name, email, role FROM users")->fetch_all(MYSQLI_ASSOC);
-    $events = $conn->query("SELECT title, date, location FROM events")->fetch_all(MYSQLI_ASSOC);
-    $trainings = $conn->query("SELECT title, schedule, capacity FROM trainings")->fetch_all(MYSQLI_ASSOC);
-    $announcements = $conn->query("SELECT text, created_at FROM announcements")->fetch_all(MYSQLI_ASSOC);
+    // Fetch detailed datasets using prepared statements for safety
+    $usersStmt = $conn->prepare("SELECT first_name, last_name, email, role FROM users LIMIT 100");
+    $usersStmt->execute();
+    $users = $usersStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+    $eventsStmt = $conn->prepare("SELECT title, date, location FROM events LIMIT 100");
+    $eventsStmt->execute();
+    $events = $eventsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+    $trainingsStmt = $conn->prepare("SELECT title, schedule, capacity FROM trainings LIMIT 100");
+    $trainingsStmt->execute();
+    $trainings = $trainingsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+    $announcementsStmt = $conn->prepare("SELECT text, created_at FROM announcements LIMIT 100");
+    $announcementsStmt->execute();
+    $announcements = $announcementsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
     // Create filtered datasets based on active filters
     $datasets = [];
@@ -151,18 +177,18 @@ try {
         $datasets['announcements'] = $announcements;
     }
 
-    // Record an audit log for the export event.
+    // Record an audit log for the export event
     recordAuditLog($userId, "Export Report", "User exported filtered report in " . strtoupper($format) . " format.");
 
     if ($format === 'csv') {
         header('Content-Type: text/csv');
-        header('Content-Disposition: attachment; filename="report.csv"');
+        header('Content-Disposition: attachment; filename="adohre_report_' . date('Y-m-d') . '.csv"');
         $output = fopen('php://output', 'w');
 
         // Add a detailed header
         fputcsv($output, ['ADOHRE System Report']);
         fputcsv($output, ['Generated on: ' . date('Y-m-d H:i:s')]);
-        fputcsv($output, ['Exported by: ' . $userName . ' (' . $userRole . ')']);
+        fputcsv($output, ['Exported by: ' . htmlspecialchars($userName) . ' (' . htmlspecialchars($userRole) . ')']);
         fputcsv($output, []); // Blank line
 
         foreach ($datasets as $section => $rows) {
@@ -194,7 +220,11 @@ try {
                 if (!empty($rows)) {
                     fputcsv($output, array_keys($rows[0])); // Column headers
                     foreach ($rows as $row) {
-                        fputcsv($output, $row);
+                        // Sanitize data before output
+                        $sanitizedRow = array_map(function($value) {
+                            return htmlspecialchars($value ?? 'N/A', ENT_QUOTES, 'UTF-8');
+                        }, $row);
+                        fputcsv($output, $sanitizedRow);
                     }
                 } else {
                     fputcsv($output, ['No data available']);
@@ -213,6 +243,7 @@ try {
         header("Cache-Control: no-cache, must-revalidate");
         header("Pragma: no-cache");
         header('Content-Type: application/pdf');
+        header('Content-Disposition: attachment; filename="adohre_report_' . date('Y-m-d') . '.pdf"');
 
         // ----------------------------------------------------------------------
         // 1) Define a custom TCPDF class for a custom footer (or header if needed)
@@ -266,7 +297,7 @@ try {
             $pdf->setFilterInfo($footerText);
         }
         $pdf->SetCreator(PDF_CREATOR);
-        $pdf->SetAuthor($userName);
+        $pdf->SetAuthor(htmlspecialchars($userName));
         $pdf->SetTitle('ADOHRE Detailed Report');
         $pdf->SetSubject('System Report');
         $pdf->SetKeywords('report, PDF');
@@ -294,7 +325,7 @@ try {
         $pdf->SetY(100);
         $pdf->SetFont('helvetica', '', 11);
         $pdf->Cell(0, 8, 'Generated on: ' . date('Y-m-d H:i:s'), 0, 1, 'C');
-        $pdf->Cell(0, 8, 'Exported by: ' . $userName . ' (' . $userRole . ')', 0, 1, 'C');
+        $pdf->Cell(0, 8, 'Exported by: ' . htmlspecialchars($userName) . ' (' . htmlspecialchars($userRole) . ')', 0, 1, 'C');
 
         $pdf->SetY(150);
         $pdf->SetFont('helvetica', 'I', 10);
@@ -346,7 +377,7 @@ try {
                 $charts['New Users Trend'] = 'newUsersChart';
             }
 
-            // Layout settings for a 2×3 grid
+            // Layout settings
             $chartWidth     = 130;  // chart display width (mm)
             $chartHeight    = 100;  // chart display height (mm)
             $headingHeight  = 8;    // approximate height for chart title
@@ -358,7 +389,7 @@ try {
 
             $col = 0;
             $row = 0;
-            $maxCols = 1; // two charts per row
+            $maxCols = 1; // One chart per row for better display
 
             // Inside the loop over $charts in the PDF generation block:
             foreach ($charts as $title => $chartKey) {
@@ -427,7 +458,6 @@ try {
                     $row++;
                 }
             }
-
         }
 
         // ----------------------
@@ -505,7 +535,14 @@ try {
                     
                     $pdf->SetFillColor($colors[$i][0], $colors[$i][1], $colors[$i][2]);
                     $pdf->SetDrawColor(180, 180, 180);
-                    $pdf->RoundedRect($x, $y, $boxWidth, $boxHeight, 3.50, '1111', 'DF');
+                    
+                    // Check if RoundedRect method exists (some TCPDF versions don't include it)
+                    if (method_exists($pdf, 'RoundedRect')) {
+                        $pdf->RoundedRect($x, $y, $boxWidth, $boxHeight, 3.50, '1111', 'DF');
+                    } else {
+                        // Fallback to regular rectangle if RoundedRect doesn't exist
+                        $pdf->Rect($x, $y, $boxWidth, $boxHeight, 'DF');
+                    }
                     
                     // Title
                     $pdf->SetXY($x + 5, $y + 5);
@@ -602,7 +639,32 @@ try {
                 }
                 
                 $html .= '</tbody></table>';
-                $pdf->writeHTML($html, true, false, true, false, '');
+                
+                // Check if writeHTML method exists (to handle different TCPDF installations)
+                if (method_exists($pdf, 'writeHTML')) {
+                    $pdf->writeHTML($html, true, false, true, false, '');
+                } else {
+                    // Fallback to basic table if writeHTML doesn't exist
+                    $pdf->SetFont('helvetica', '', 9);
+                    $pdf->Cell(0, 10, 'Advanced table rendering not available.', 0, 1, 'C');
+                    
+                    // Create a simpler table
+                    $colWidths = array_fill(0, count(array_keys($rows[0])), 40);
+                    
+                    // Headers
+                    foreach (array_keys($rows[0]) as $i => $header) {
+                        $pdf->Cell($colWidths[$i], 10, ucfirst($header), 1, 0, 'C');
+                    }
+                    $pdf->Ln();
+                    
+                    // Data rows
+                    foreach ($rows as $row) {
+                        foreach ($row as $i => $value) {
+                            $pdf->Cell($colWidths[$i], 10, substr($value ?? 'N/A', 0, 20), 1, 0, 'L');
+                        }
+                        $pdf->Ln();
+                    }
+                }
             } else {
                 $pdf->SetFont('helvetica', 'I', 10);
                 $pdf->Cell(0, 10, 'No data available for this section', 0, 1, 'C');
@@ -626,7 +688,7 @@ try {
         $pdf->Cell(40, 5, 'Date and Time:', 0, 0, 'L');
         $pdf->Cell(0, 5, date('Y-m-d H:i:s'), 0, 1, 'L');
         $pdf->Cell(40, 5, 'Generated By:', 0, 0, 'L');
-        $pdf->Cell(0, 5, $userName . ' (' . $userRole . ')', 0, 1, 'L');
+        $pdf->Cell(0, 5, htmlspecialchars($userName) . ' (' . htmlspecialchars($userRole) . ')', 0, 1, 'L');
         $pdf->Cell(40, 5, 'Document Format:', 0, 0, 'L');
         $pdf->Cell(0, 5, 'PDF Export', 0, 1, 'L');
         
@@ -642,11 +704,11 @@ try {
         }
 
         // Output the PDF
-        $pdf->Output('ADOHRE_Report.pdf', 'I');
+        $pdf->Output('ADOHRE_Report_' . date('Y-m-d') . '.pdf', 'I');
         exit;
     } elseif ($format === 'excel') {
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        header('Content-Disposition: attachment; filename="report.xlsx"');
+        header('Content-Disposition: attachment; filename="adohre_report_' . date('Y-m-d') . '.xlsx"');
         
         // Excel Export using PhpSpreadsheet
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
@@ -660,7 +722,7 @@ try {
         $row++;
         $sheet->setCellValue("A{$row}", 'Generated on: ' . date('Y-m-d H:i:s'));
         $row++;
-        $sheet->setCellValue("A{$row}", 'Exported by: ' . $userName . ' (' . $userRole . ')');
+        $sheet->setCellValue("A{$row}", 'Exported by: ' . htmlspecialchars($userName) . ' (' . htmlspecialchars($userRole) . ')');
         $row++;
         
         // Include information about applied filters
@@ -734,7 +796,9 @@ try {
                     foreach ($rows as $rowData) {
                         $col = 'A';
                         foreach ($rowData as $value) {
-                            $sheet->setCellValue("{$col}{$row}", $value);
+                            // Sanitize data before adding to the spreadsheet
+                            $sanitizedValue = htmlspecialchars($value ?? 'N/A', ENT_QUOTES, 'UTF-8');
+                            $sheet->setCellValue("{$col}{$row}", $sanitizedValue);
                             $col++;
                         }
                         $row++;
@@ -768,7 +832,14 @@ try {
                 ],
             ],
         ];
-        $sheet->getStyle('A1:E' . ($row - 1))->applyFromArray($styleArray);
+        
+        // Apply styling to the data area, but handle possible exceptions
+        try {
+            $sheet->getStyle('A1:E' . ($row - 1))->applyFromArray($styleArray);
+        } catch (Exception $e) {
+            // Log the styling error but continue with export
+            error_log("Excel styling error: " . $e->getMessage());
+        }
 
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
         $writer->save('php://output');
@@ -797,10 +868,15 @@ try {
 // Helper function to record audit logs
 function recordAuditLog($userId, $action, $details) {
     global $conn;
-    $query = "INSERT INTO audit_logs (user_id, action, details, ip_address, created_at) VALUES (?, ?, ?, ?, NOW())";
-    $stmt = $conn->prepare($query);
-    $ipAddress = $_SERVER['REMOTE_ADDR'] ?? 'Unknown';
-    $stmt->bind_param("isss", $userId, $action, $details, $ipAddress);
-    return $stmt->execute();
+    try {
+        $query = "INSERT INTO audit_logs (user_id, action, details, ip_address, created_at) VALUES (?, ?, ?, ?, NOW())";
+        $stmt = $conn->prepare($query);
+        $ipAddress = $_SERVER['REMOTE_ADDR'] ?? 'Unknown';
+        $stmt->bind_param("isss", $userId, $action, $details, $ipAddress);
+        return $stmt->execute();
+    } catch (Exception $e) {
+        error_log("Error recording audit log: " . $e->getMessage());
+        // Continue execution even if audit logging fails
+        return false;
+    }
 }
-?>
