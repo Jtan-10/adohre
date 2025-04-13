@@ -89,6 +89,9 @@ try {
     // Fetch data for the aggregated metrics
     $metricsQuery = "
         SELECT 
+            (SELECT COUNT(*) FROM chat_messages) AS total_chat_messages,
+            (SELECT COUNT(*) FROM consultations) AS total_consultations,
+            (SELECT COUNT(*) FROM certificates) AS total_certificates,
             (SELECT COUNT(*) FROM membership_applications) AS membership_applications,
             (SELECT COUNT(*) FROM users) AS total_users,
             (SELECT COUNT(*) FROM users WHERE role = 'admin') AS admin_count,
