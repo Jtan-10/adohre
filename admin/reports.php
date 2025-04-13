@@ -265,6 +265,14 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                                     <td>Total Certificates</td>
                                     <td id="totalCertificatesTable">...</td>
                                 </tr>
+                                <tr>
+                                    <td>Total News</td>
+                                    <td id="totalNewsTable">...</td>
+                                </tr>
+                                <tr>
+                                    <td>Total Payments</td>
+                                    <td id="totalPaymentsTable">...</td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -476,7 +484,9 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                             .total_consultations || 0;
                         document.getElementById('totalCertificatesTable').innerText = data.data
                             .total_certificates || 0;
-
+                        document.getElementById('totalNewsTable').innerText = data.data.total_news || 0;
+                        document.getElementById('totalPaymentsTable').innerText = data.data
+                            .total_payments || 0;
                         // Function to get or destroy an existing chart instance
                         function getOrDestroyChart(ctx) {
                             try {
@@ -855,7 +865,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                 } else {
                     console.warn("No visible charts to export to PDF");
                     alert(
-                        "No charts are currently visible to export. Please adjust your filters to include at least one chart section.");
+                        "No charts are currently visible to export. Please adjust your filters to include at least one chart section."
+                    );
                 }
 
             } catch (e) {

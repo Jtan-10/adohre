@@ -118,7 +118,9 @@ try {
             (SELECT COUNT(*) FROM trainings) AS total_trainings,
             (SELECT SUM(amount) FROM payments) AS total_revenue,
             (SELECT COUNT(*) FROM event_registrations) AS joined_events,
-            (SELECT COUNT(*) FROM training_registrations) AS joined_trainings
+            (SELECT COUNT(*) FROM training_registrations) AS joined_trainings,
+            (SELECT COUNT(*) FROM news) AS total_news,
+            (SELECT COUNT(*) FROM payments) AS total_payments
     ";
     $metricsResult = $conn->query($metricsQuery);
     if (!$metricsResult) {
@@ -175,6 +177,19 @@ try {
     
     if (shouldIncludeSection('announcements-table')) {
         $datasets['announcements'] = $announcements;
+    }
+    
+    // Include additional analytics data
+    if (shouldIncludeSection('additional-analytics')) {
+        // Create a formatted additional analytics dataset
+        $additionalAnalytics = [
+            ['Metric' => 'Total Chat Messages', 'Value' => $metrics['total_chat_messages'] ?? 0],
+            ['Metric' => 'Total Consultations', 'Value' => $metrics['total_consultations'] ?? 0],
+            ['Metric' => 'Total Certificates', 'Value' => $metrics['total_certificates'] ?? 0],
+            ['Metric' => 'Total News', 'Value' => $metrics['total_news'] ?? 0],
+            ['Metric' => 'Total Payments', 'Value' => $metrics['total_payments'] ?? 0]
+        ];
+        $datasets['additional_analytics'] = $additionalAnalytics;
     }
 
     // Record an audit log for the export event
