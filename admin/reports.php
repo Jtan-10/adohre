@@ -54,6 +54,37 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
         background-color: #fff;
         /* white background */
     }
+
+    /* Filter section styling */
+    .filter-section {
+        background-color: #fff;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .filter-section .form-check {
+        margin-right: 15px;
+    }
+
+    .filter-section h5 {
+        margin-bottom: 15px;
+        color: #495057;
+    }
+
+    .section-toggle {
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .section-toggle:hover {
+        color: #0d6efd;
+    }
+
+    .hidden-section {
+        display: none;
+    }
     </style>
 </head>
 
@@ -73,15 +104,104 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                 </div>
             </div>
 
+            <!-- Filter Section -->
+            <div class="filter-section mb-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-funnel-fill me-2"></i>Filter Reports</h5>
+                    <button class="btn btn-sm btn-outline-secondary" id="toggleAllFilters">
+                        <i class="bi bi-check2-all me-1"></i>Select All
+                    </button>
+                </div>
+                <hr>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <strong class="d-block mb-2">Chart Sections:</strong>
+                            <div class="d-flex flex-wrap">
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input section-filter" type="checkbox" value="user-stats"
+                                        id="filterUserStats" checked>
+                                    <label class="form-check-label" for="filterUserStats">User Statistics</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input section-filter" type="checkbox" value="event-stats"
+                                        id="filterEventStats" checked>
+                                    <label class="form-check-label" for="filterEventStats">Event Statistics</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input section-filter" type="checkbox"
+                                        value="training-stats" id="filterTrainingStats" checked>
+                                    <label class="form-check-label" for="filterTrainingStats">Training
+                                        Statistics</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input section-filter" type="checkbox" value="revenue-stats"
+                                        id="filterRevenueStats" checked>
+                                    <label class="form-check-label" for="filterRevenueStats">Revenue Statistics</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input section-filter" type="checkbox"
+                                        value="registration-overview" id="filterRegistrationOverview" checked>
+                                    <label class="form-check-label" for="filterRegistrationOverview">Registration
+                                        Overview</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input section-filter" type="checkbox"
+                                        value="new-users-trend" id="filterNewUsersTrend" checked>
+                                    <label class="form-check-label" for="filterNewUsersTrend">New Users Trend</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <strong class="d-block mb-2">Table Sections:</strong>
+                            <div class="d-flex flex-wrap">
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input section-filter" type="checkbox"
+                                        value="additional-analytics" id="filterAdditionalAnalytics" checked>
+                                    <label class="form-check-label" for="filterAdditionalAnalytics">Additional
+                                        Analytics</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input section-filter" type="checkbox" value="users-table"
+                                        id="filterUsersTable" checked>
+                                    <label class="form-check-label" for="filterUsersTable">Users Table</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input section-filter" type="checkbox" value="events-table"
+                                        id="filterEventsTable" checked>
+                                    <label class="form-check-label" for="filterEventsTable">Events Table</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input section-filter" type="checkbox"
+                                        value="trainings-table" id="filterTrainingsTable" checked>
+                                    <label class="form-check-label" for="filterTrainingsTable">Trainings Table</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input section-filter" type="checkbox"
+                                        value="announcements-table" id="filterAnnouncementsTable" checked>
+                                    <label class="form-check-label" for="filterAnnouncementsTable">Announcements
+                                        Table</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-end mt-2">
+                    <button class="btn btn-primary" id="applyFilters">Apply Filters</button>
+                </div>
+            </div>
+
             <!-- Charts Section -->
-            <div class="row mb-4">
+            <div class="row mb-4" id="user-stats-section">
                 <div class="col-md-6">
                     <div class="card p-3">
                         <h5>User Statistics</h5>
                         <canvas id="userChart"></canvas>
                     </div>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-6" id="event-stats-section">
                     <div class="card p-3">
                         <h5>Event Statistics</h5>
                         <canvas id="eventChart"></canvas>
@@ -90,13 +210,13 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
             </div>
 
             <div class="row mb-4">
-                <div class="col-md-6">
+                <div class="col-md-6" id="training-stats-section">
                     <div class="card p-3">
                         <h5>Training Statistics</h5>
                         <canvas id="trainingChart"></canvas>
                     </div>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-6" id="revenue-stats-section">
                     <div class="card p-3">
                         <h5>Revenue Statistics</h5>
                         <canvas id="revenueChart"></canvas>
@@ -105,7 +225,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
             </div>
 
             <!-- New Registrations Chart Section -->
-            <div class="row mb-4">
+            <div class="row mb-4" id="registration-overview-section">
                 <div class="col-md-12">
                     <div class="card p-3">
                         <h5>Registrations Overview</h5>
@@ -116,13 +236,13 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 
             <!-- New Breakdown Section -->
             <div class="row mb-4">
-                <div class="col-md-6">
+                <div class="col-md-6" id="new-users-trend-section">
                     <div class="card p-3">
                         <h5>New Users Trend (Last 6 Months)</h5>
                         <canvas id="newUsersChart"></canvas>
                     </div>
                 </div>
-                <div class="col-md-6 analytics-breakdown">
+                <div class="col-md-6 analytics-breakdown" id="additional-analytics-section">
                     <div class="card p-3">
                         <h5>Additional Analytics</h5>
                         <table class="table table-striped">
@@ -153,7 +273,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 
             <!-- Summary Tables -->
             <div class="row mb-4">
-                <div class="col-md-6">
+                <div class="col-md-6" id="users-table-section">
                     <div class="card p-3">
                         <h5>Users</h5>
                         <table class="table table-striped">
@@ -172,7 +292,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                         </table>
                     </div>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-6" id="events-table-section">
                     <div class="card p-3">
                         <h5>Events</h5>
                         <table class="table table-striped">
@@ -193,7 +313,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
             </div>
 
             <div class="row mb-4">
-                <div class="col-md-6">
+                <div class="col-md-6" id="trainings-table-section">
                     <div class="card p-3">
                         <h5>Trainings</h5>
                         <table class="table table-striped">
@@ -211,7 +331,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                         </table>
                     </div>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-6" id="announcements-table-section">
                     <div class="card p-3">
                         <h5>Announcements</h5>
                         <table class="table table-striped">
@@ -247,6 +367,70 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 
     document.addEventListener('DOMContentLoaded', function() {
         console.log("DEBUG: DOMContentLoaded event fired.");
+
+        // Filter management
+        let activeFilters = {
+            'user-stats': true,
+            'event-stats': true,
+            'training-stats': true,
+            'revenue-stats': true,
+            'registration-overview': true,
+            'new-users-trend': true,
+            'additional-analytics': true,
+            'users-table': true,
+            'events-table': true,
+            'trainings-table': true,
+            'announcements-table': true
+        };
+
+        // Toggle all filters
+        const toggleAllBtn = document.getElementById('toggleAllFilters');
+        let allSelected = true; // Start with all selected
+
+        toggleAllBtn.addEventListener('click', function() {
+            allSelected = !allSelected;
+            document.querySelectorAll('.section-filter').forEach(checkbox => {
+                checkbox.checked = allSelected;
+            });
+
+            // Update button text
+            this.innerHTML = allSelected ?
+                '<i class="bi bi-check2-all me-1"></i>Select All' :
+                '<i class="bi bi-square me-1"></i>Select All';
+        });
+
+        // Apply filters button
+        document.getElementById('applyFilters').addEventListener('click', function() {
+            // Update activeFilters based on checkbox states
+            document.querySelectorAll('.section-filter').forEach(checkbox => {
+                activeFilters[checkbox.value] = checkbox.checked;
+            });
+
+            // Show/hide sections based on filter settings
+            for (const [section, isVisible] of Object.entries(activeFilters)) {
+                const sectionElement = document.getElementById(`${section}-section`);
+                if (sectionElement) {
+                    sectionElement.style.display = isVisible ? 'block' : 'none';
+                }
+            }
+
+            // Refresh the charts that are visible
+            if (activeFilters['user-stats']) updateChart('userChart');
+            if (activeFilters['event-stats']) updateChart('eventChart');
+            if (activeFilters['training-stats']) updateChart('trainingChart');
+            if (activeFilters['revenue-stats']) updateChart('revenueChart');
+            if (activeFilters['registration-overview']) updateChart('registrationsChart');
+            if (activeFilters['new-users-trend']) updateChart('newUsersChart');
+        });
+
+        // Helper function to get the current active filters
+        function getActiveFilters() {
+            let filters = [];
+            document.querySelectorAll('.section-filter:checked').forEach(checkbox => {
+                filters.push(checkbox.value);
+            });
+            return filters;
+        }
 
         try {
             // Fetch analytics data and populate tables and charts
@@ -306,187 +490,232 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                             }
                         }
 
-                        // New Users Trend Chart
-                        try {
-                            const newUsersCtx = document.getElementById('newUsersChart').getContext('2d');
-                            getOrDestroyChart(newUsersCtx);
-                            const newUsersData = data.data.new_users || [];
-                            new Chart(newUsersCtx, {
-                                type: 'line',
-                                data: {
-                                    labels: newUsersData.map(item => item.month),
-                                    datasets: [{
-                                        label: 'New Users',
-                                        data: newUsersData.map(item => item.new_users),
-                                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                                        borderColor: 'rgba(54, 162, 235, 1)',
-                                        borderWidth: 1,
-                                        fill: true,
-                                    }]
-                                },
-                                options: {
-                                    scales: {
-                                        y: {
-                                            beginAtZero: true
-                                        }
-                                    }
-                                }
-                            });
-                            console.log("DEBUG: Rendered New Users Trend Chart.");
-                        } catch (e) {
-                            console.error("Error rendering New Users Trend Chart:", e);
-                        }
-
-                        // User Chart (Doughnut)
-                        try {
-                            const userCtx = document.getElementById('userChart').getContext('2d');
-                            getOrDestroyChart(userCtx);
-                            new Chart(userCtx, {
-                                type: 'doughnut',
-                                data: {
-                                    labels: ['Total Users', 'Active Members', 'Admins', 'Members'],
-                                    datasets: [{
-                                        data: [
-                                            data.data.total_users,
-                                            data.data.active_members,
-                                            data.data.admin_count,
-                                            data.data.member_count
-                                        ],
-                                        backgroundColor: ['#36a2eb', '#4bc0c0', '#ff6384',
-                                            '#9966ff'
-                                        ],
-                                    }],
-                                },
-                            });
-                            console.log("DEBUG: Rendered User Chart.");
-                        } catch (e) {
-                            console.error("Error rendering User Chart:", e);
-                        }
-
-                        // Event Chart (Bar)
-                        try {
-                            const eventCtx = document.getElementById('eventChart').getContext('2d');
-                            getOrDestroyChart(eventCtx);
-                            new Chart(eventCtx, {
-                                type: 'bar',
-                                data: {
-                                    labels: ['Upcoming Events', 'Finished Events', 'Total Events'],
-                                    datasets: [{
-                                        label: 'Events',
-                                        data: [
-                                            data.data.upcoming_events,
-                                            data.data.finished_events,
-                                            data.data.total_events
-                                        ],
-                                        backgroundColor: ['#ff9f40', '#ff6384', '#36a2eb'],
-                                    }],
-                                },
-                                options: {
-                                    scales: {
-                                        y: {
-                                            beginAtZero: true
-                                        }
-                                    }
-                                }
-                            });
-                            console.log("DEBUG: Rendered Event Chart.");
-                        } catch (e) {
-                            console.error("Error rendering Event Chart:", e);
-                        }
-
-                        // Training Chart (Bar)
-                        try {
-                            const trainingCtx = document.getElementById('trainingChart').getContext('2d');
-                            getOrDestroyChart(trainingCtx);
-                            new Chart(trainingCtx, {
-                                type: 'bar',
-                                data: {
-                                    labels: ['Upcoming Trainings', 'Finished Trainings',
-                                        'Total Trainings'
-                                    ],
-                                    datasets: [{
-                                        label: 'Trainings',
-                                        data: [
-                                            data.data.upcoming_trainings,
-                                            data.data.finished_trainings,
-                                            data.data.total_trainings
-                                        ],
-                                        backgroundColor: ['#4bc0c0', '#9966ff', '#ffcd56'],
-                                    }],
-                                },
-                                options: {
-                                    scales: {
-                                        y: {
-                                            beginAtZero: true
-                                        }
-                                    }
-                                }
-                            });
-                            console.log("DEBUG: Rendered Training Chart.");
-                        } catch (e) {
-                            console.error("Error rendering Training Chart:", e);
-                        }
-
-                        // Revenue Chart (Pie)
-                        try {
-                            const revenueCtx = document.getElementById('revenueChart').getContext('2d');
-                            getOrDestroyChart(revenueCtx);
-                            new Chart(revenueCtx, {
-                                type: 'pie',
-                                data: {
-                                    labels: ['Total Revenue'],
-                                    datasets: [{
-                                        data: [data.data.total_revenue],
-                                        backgroundColor: ['#ffcd56'],
-                                    }],
-                                },
-                            });
-                            console.log("DEBUG: Rendered Revenue Chart.");
-                        } catch (e) {
-                            console.error("Error rendering Revenue Chart:", e);
-                        }
-
-                        // Registrations Overview Chart (Bar)
-                        try {
-                            const registrationsCtx = document.getElementById('registrationsChart')
-                                .getContext('2d');
-                            getOrDestroyChart(registrationsCtx);
-                            new Chart(registrationsCtx, {
-                                type: 'bar',
-                                data: {
-                                    labels: ['Joined Events', 'Joined Trainings',
-                                        'Membership Applications'
-                                    ],
-                                    datasets: [{
-                                        label: 'Registrations',
-                                        data: [
-                                            data.data.joined_events,
-                                            data.data.joined_trainings,
-                                            data.data.membership_applications,
-                                        ],
-                                        backgroundColor: ['#36a2eb', '#4bc0c0', '#ff6384'],
-                                    }],
-                                },
-                                options: {
-                                    scales: {
-                                        y: {
-                                            beginAtZero: true
-                                        }
-                                    },
-                                    plugins: {
-                                        legend: {
-                                            display: true
+                        // Store chart creation functions for later use
+                        const chartFunctions = {
+                            newUsersChart: function() {
+                                try {
+                                    const newUsersCtx = document.getElementById('newUsersChart')
+                                        .getContext('2d');
+                                    getOrDestroyChart(newUsersCtx);
+                                    const newUsersData = data.data.new_users || [];
+                                    new Chart(newUsersCtx, {
+                                        type: 'line',
+                                        data: {
+                                            labels: newUsersData.map(item => item.month),
+                                            datasets: [{
+                                                label: 'New Users',
+                                                data: newUsersData.map(item => item
+                                                    .new_users),
+                                                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                                                borderColor: 'rgba(54, 162, 235, 1)',
+                                                borderWidth: 1,
+                                                fill: true,
+                                            }]
                                         },
-                                        title: {
-                                            display: false
+                                        options: {
+                                            scales: {
+                                                y: {
+                                                    beginAtZero: true
+                                                }
+                                            }
                                         }
-                                    }
+                                    });
+                                    console.log("DEBUG: Rendered New Users Trend Chart.");
+                                } catch (e) {
+                                    console.error("Error rendering New Users Trend Chart:", e);
                                 }
-                            });
-                            console.log("DEBUG: Rendered Registrations Overview Chart.");
-                        } catch (e) {
-                            console.error("Error rendering Registrations Overview Chart:", e);
+                            },
+                            userChart: function() {
+                                try {
+                                    const userCtx = document.getElementById('userChart').getContext(
+                                        '2d');
+                                    getOrDestroyChart(userCtx);
+                                    new Chart(userCtx, {
+                                        type: 'doughnut',
+                                        data: {
+                                            labels: ['Total Users', 'Active Members',
+                                                'Admins', 'Members'
+                                            ],
+                                            datasets: [{
+                                                data: [
+                                                    data.data.total_users,
+                                                    data.data.active_members,
+                                                    data.data.admin_count,
+                                                    data.data.member_count
+                                                ],
+                                                backgroundColor: ['#36a2eb',
+                                                    '#4bc0c0', '#ff6384',
+                                                    '#9966ff'
+                                                ],
+                                            }],
+                                        },
+                                    });
+                                    console.log("DEBUG: Rendered User Chart.");
+                                } catch (e) {
+                                    console.error("Error rendering User Chart:", e);
+                                }
+                            },
+                            eventChart: function() {
+                                try {
+                                    const eventCtx = document.getElementById('eventChart')
+                                        .getContext('2d');
+                                    getOrDestroyChart(eventCtx);
+                                    new Chart(eventCtx, {
+                                        type: 'bar',
+                                        data: {
+                                            labels: ['Upcoming Events', 'Finished Events',
+                                                'Total Events'
+                                            ],
+                                            datasets: [{
+                                                label: 'Events',
+                                                data: [
+                                                    data.data.upcoming_events,
+                                                    data.data.finished_events,
+                                                    data.data.total_events
+                                                ],
+                                                backgroundColor: ['#ff9f40',
+                                                    '#ff6384', '#36a2eb'
+                                                ],
+                                            }],
+                                        },
+                                        options: {
+                                            scales: {
+                                                y: {
+                                                    beginAtZero: true
+                                                }
+                                            }
+                                        }
+                                    });
+                                    console.log("DEBUG: Rendered Event Chart.");
+                                } catch (e) {
+                                    console.error("Error rendering Event Chart:", e);
+                                }
+                            },
+                            trainingChart: function() {
+                                try {
+                                    const trainingCtx = document.getElementById('trainingChart')
+                                        .getContext('2d');
+                                    getOrDestroyChart(trainingCtx);
+                                    new Chart(trainingCtx, {
+                                        type: 'bar',
+                                        data: {
+                                            labels: ['Upcoming Trainings',
+                                                'Finished Trainings',
+                                                'Total Trainings'
+                                            ],
+                                            datasets: [{
+                                                label: 'Trainings',
+                                                data: [
+                                                    data.data
+                                                    .upcoming_trainings,
+                                                    data.data
+                                                    .finished_trainings,
+                                                    data.data.total_trainings
+                                                ],
+                                                backgroundColor: ['#4bc0c0',
+                                                    '#9966ff', '#ffcd56'
+                                                ],
+                                            }],
+                                        },
+                                        options: {
+                                            scales: {
+                                                y: {
+                                                    beginAtZero: true
+                                                }
+                                            }
+                                        }
+                                    });
+                                    console.log("DEBUG: Rendered Training Chart.");
+                                } catch (e) {
+                                    console.error("Error rendering Training Chart:", e);
+                                }
+                            },
+                            revenueChart: function() {
+                                try {
+                                    const revenueCtx = document.getElementById('revenueChart')
+                                        .getContext('2d');
+                                    getOrDestroyChart(revenueCtx);
+                                    new Chart(revenueCtx, {
+                                        type: 'pie',
+                                        data: {
+                                            labels: ['Total Revenue'],
+                                            datasets: [{
+                                                data: [data.data.total_revenue],
+                                                backgroundColor: ['#ffcd56'],
+                                            }],
+                                        },
+                                    });
+                                    console.log("DEBUG: Rendered Revenue Chart.");
+                                } catch (e) {
+                                    console.error("Error rendering Revenue Chart:", e);
+                                }
+                            },
+                            registrationsChart: function() {
+                                try {
+                                    const registrationsCtx = document.getElementById(
+                                            'registrationsChart')
+                                        .getContext('2d');
+                                    getOrDestroyChart(registrationsCtx);
+                                    new Chart(registrationsCtx, {
+                                        type: 'bar',
+                                        data: {
+                                            labels: ['Joined Events', 'Joined Trainings',
+                                                'Membership Applications'
+                                            ],
+                                            datasets: [{
+                                                label: 'Registrations',
+                                                data: [
+                                                    data.data.joined_events,
+                                                    data.data.joined_trainings,
+                                                    data.data
+                                                    .membership_applications,
+                                                ],
+                                                backgroundColor: ['#36a2eb',
+                                                    '#4bc0c0', '#ff6384'
+                                                ],
+                                            }],
+                                        },
+                                        options: {
+                                            scales: {
+                                                y: {
+                                                    beginAtZero: true
+                                                }
+                                            },
+                                            plugins: {
+                                                legend: {
+                                                    display: true
+                                                },
+                                                title: {
+                                                    display: false
+                                                }
+                                            }
+                                        }
+                                    });
+                                    console.log("DEBUG: Rendered Registrations Overview Chart.");
+                                } catch (e) {
+                                    console.error("Error rendering Registrations Overview Chart:",
+                                        e);
+                                }
+                            }
+                        };
+
+                        // Function to update a specific chart if it's visible
+                        function updateChart(chartId) {
+                            const canvas = document.getElementById(chartId);
+                            if (canvas && canvas.closest('[id$="-section"]').style.display !== 'none') {
+                                if (chartFunctions[chartId]) {
+                                    chartFunctions[chartId]();
+                                }
+                            }
                         }
+
+                        // Initial chart rendering
+                        chartFunctions.newUsersChart();
+                        chartFunctions.userChart();
+                        chartFunctions.eventChart();
+                        chartFunctions.trainingChart();
+                        chartFunctions.revenueChart();
+                        chartFunctions.registrationsChart();
                     } else {
                         console.error("DEBUG: Analytics data fetch returned status false.");
                         alert('Failed to fetch analytics data.');
@@ -499,16 +728,19 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
             console.error("Unhandled error during DOMContentLoaded processing:", e);
         }
 
-        // Set up export buttons
-
-        // For CSV and Excel, we use window.open as before.
+        // Export buttons - updated to include filter selection
         document.getElementById('exportCSV').addEventListener('click', () => {
             console.log("DEBUG: Export CSV button clicked.");
-            window.open('../backend/routes/export.php?format=csv', '_blank');
+            const filters = getActiveFilters();
+            window.open(`../backend/routes/export.php?format=csv&filters=${filters.join(',')}`,
+                '_blank');
         });
+
         document.getElementById('exportExcel').addEventListener('click', () => {
             console.log("DEBUG: Export Excel button clicked.");
-            window.open('../backend/routes/export.php?format=excel', '_blank');
+            const filters = getActiveFilters();
+            window.open(`../backend/routes/export.php?format=excel&filters=${filters.join(',')}`,
+                '_blank');
         });
 
         // Update Export PDF button: capture chart canvases as images and submit via a hidden form
@@ -530,25 +762,47 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                 form.action = '../backend/routes/export.php?format=pdf';
                 form.target = '_blank'; // This will open the PDF in a new tab
 
+                // Add filters to the form
+                const filtersInput = document.createElement('input');
+                filtersInput.type = 'hidden';
+                filtersInput.name = 'filters';
+                filtersInput.value = getActiveFilters().join(',');
+                form.appendChild(filtersInput);
+
                 // Process each canvas and add to form
                 canvasIds.forEach(id => {
-                    const canvas = document.getElementById(id);
-                    if (canvas) {
-                        try {
-                            // Get image data with maximum quality
-                            const imgData = canvas.toDataURL('image/png', 1.0);
-                            console.log(
-                                `DEBUG: Captured image for ${id}, data length: ${imgData.length}`
-                            );
+                    // Only include canvases that are currently visible/active
+                    const canvasElement = document.getElementById(id);
+                    if (canvasElement) {
+                        const sectionId = id.replace('Chart', '-stats-section');
+                        // Special handling for some charts with different section IDs
+                        const sectionElement =
+                            id === 'registrationsChart' ? document.getElementById(
+                                'registration-overview-section') :
+                            id === 'newUsersChart' ? document.getElementById(
+                                'new-users-trend-section') :
+                            document.getElementById(sectionId);
 
-                            // Create input for this chart
-                            const input = document.createElement('input');
-                            input.type = 'hidden';
-                            input.name = id;
-                            input.value = imgData;
-                            form.appendChild(input);
-                        } catch (canvasErr) {
-                            console.error(`Error capturing ${id}:`, canvasErr);
+                        const isVisible = sectionElement ?
+                            window.getComputedStyle(sectionElement).display !== 'none' : false;
+
+                        if (isVisible) {
+                            try {
+                                // Get image data with maximum quality
+                                const imgData = canvasElement.toDataURL('image/png', 1.0);
+                                console.log(
+                                    `DEBUG: Captured image for ${id}, data length: ${imgData.length}`
+                                );
+
+                                // Create input for this chart
+                                const input = document.createElement('input');
+                                input.type = 'hidden';
+                                input.name = id;
+                                input.value = imgData;
+                                form.appendChild(input);
+                            } catch (canvasErr) {
+                                console.error(`Error capturing ${id}:`, canvasErr);
+                            }
                         }
                     } else {
                         console.error(`Canvas with id ${id} not found.`);

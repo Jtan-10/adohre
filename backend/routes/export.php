@@ -12,6 +12,43 @@ if (!in_array(strtolower($format), $allowedFormats)) {
     $format = 'csv';
 }
 
+// Get filters from the request parameters
+$requestFilters = [];
+if (isset($_GET['filters']) && !empty($_GET['filters'])) {
+    $requestFilters = explode(',', $_GET['filters']);
+} elseif (isset($_POST['filters']) && !empty($_POST['filters'])) {
+    $requestFilters = explode(',', $_POST['filters']);
+}
+
+// Define all available sections for filtering
+$allSections = [
+    'user-stats',
+    'event-stats',
+    'training-stats',
+    'revenue-stats',
+    'registration-overview',
+    'new-users-trend',
+    'additional-analytics',
+    'users-table',
+    'events-table',
+    'trainings-table',
+    'announcements-table'
+];
+
+// If no filters specified, include all sections by default
+if (empty($requestFilters)) {
+    $activeFilters = $allSections;
+} else {
+    // Ensure we only include valid filters
+    $activeFilters = array_intersect($requestFilters, $allSections);
+}
+
+// Helper function to check if a section should be included
+function shouldIncludeSection($sectionKey) {
+    global $activeFilters;
+    return in_array($sectionKey, $activeFilters);
+}
+
 try {
     // Ensure user is logged in
     if (!isset($_SESSION['user_id']) || !isset($_SESSION['role'])) {
@@ -64,16 +101,42 @@ try {
     $trainings = $conn->query("SELECT title, schedule, capacity FROM trainings")->fetch_all(MYSQLI_ASSOC);
     $announcements = $conn->query("SELECT text, created_at FROM announcements")->fetch_all(MYSQLI_ASSOC);
 
-    $datasets = [
-        'metrics' => $metrics,
-        'users' => $users,
-        'events' => $events,
-        'trainings' => $trainings,
-        'announcements' => $announcements,
-    ];
+    // Create filtered datasets based on active filters
+    $datasets = [];
+    
+    // Only include metrics if at least one of the chart sections is active
+    $chartSections = ['user-stats', 'event-stats', 'training-stats', 'revenue-stats', 'registration-overview', 'new-users-trend'];
+    $includeMetrics = false;
+    foreach ($chartSections as $section) {
+        if (shouldIncludeSection($section)) {
+            $includeMetrics = true;
+            break;
+        }
+    }
+    
+    if ($includeMetrics) {
+        $datasets['metrics'] = $metrics;
+    }
+    
+    // Include other datasets based on active filters
+    if (shouldIncludeSection('users-table')) {
+        $datasets['users'] = $users;
+    }
+    
+    if (shouldIncludeSection('events-table')) {
+        $datasets['events'] = $events;
+    }
+    
+    if (shouldIncludeSection('trainings-table')) {
+        $datasets['trainings'] = $trainings;
+    }
+    
+    if (shouldIncludeSection('announcements-table')) {
+        $datasets['announcements'] = $announcements;
+    }
 
     // Record an audit log for the export event.
-    recordAuditLog($userId, "Export Report", "User exported report in " . strtoupper($format) . " format.");
+    recordAuditLog($userId, "Export Report", "User exported filtered report in " . strtoupper($format) . " format.");
 
     if ($format === 'csv') {
         header('Content-Type: text/csv');
@@ -89,8 +152,27 @@ try {
         foreach ($datasets as $section => $rows) {
             fputcsv($output, [ucfirst($section)]); // Section header
             if ($section === 'metrics') {
+                // Filter metrics based on active filters
+                $metricsMapping = [
+                    'user-stats' => ['total_users', 'active_members', 'admin_count', 'member_count'],
+                    'event-stats' => ['upcoming_events', 'finished_events', 'total_events'],
+                    'training-stats' => ['upcoming_trainings', 'finished_trainings', 'total_trainings'],
+                    'revenue-stats' => ['total_revenue'],
+                    'registration-overview' => ['joined_events', 'joined_trainings', 'membership_applications'],
+                    'additional-analytics' => ['total_chat_messages', 'total_consultations', 'total_certificates']
+                ];
+                
+                $includedMetrics = [];
+                foreach ($metricsMapping as $sectionKey => $metricKeys) {
+                    if (shouldIncludeSection($sectionKey)) {
+                        $includedMetrics = array_merge($includedMetrics, $metricKeys);
+                    }
+                }
+                
                 foreach ($rows as $key => $value) {
-                    fputcsv($output, [ucfirst(str_replace('_', ' ', $key)), $value]);
+                    if (in_array($key, $includedMetrics)) {
+                        fputcsv($output, [ucfirst(str_replace('_', ' ', $key)), $value]);
+                    }
                 }
             } else {
                 if (!empty($rows)) {
@@ -175,179 +257,249 @@ try {
         $pdf->Cell(0, 8, 'Please handle with appropriate care', 0, 1, 'C');
 
         // ---------------------------------------------------
-        // 4) Charts Overview Section (Improved Formatting)
+        // 4) Charts Overview Section (with Filtering)
         // ---------------------------------------------------
-        $pdf->AddPage();
-        $pdf->SetFont('helvetica', 'B', 16);
-        $pdf->SetFillColor(240, 240, 240);
-        $pdf->Cell(0, 10, 'Reports Charts Overview', 0, 1, 'C', true);
-        $pdf->Ln(5);
+        $includeChartPage = false;
+        foreach (['user-stats', 'event-stats', 'training-stats', 'revenue-stats', 'registration-overview', 'new-users-trend'] as $section) {
+            if (shouldIncludeSection($section)) {
+                $includeChartPage = true;
+                break;
+            }
+        }
+        
+        if ($includeChartPage) {
+            $pdf->AddPage();
+            $pdf->SetFont('helvetica', 'B', 16);
+            $pdf->SetFillColor(240, 240, 240);
+            $pdf->Cell(0, 10, 'Reports Charts Overview', 0, 1, 'C', true);
+            $pdf->Ln(5);
 
-        // Charts to display (map them to your $_POST data keys)
-        $charts = [
-            'User Statistics'        => 'userChart',
-            'Event Statistics'       => 'eventChart',
-            'Training Statistics'    => 'trainingChart',
-            'Revenue Statistics'     => 'revenueChart',
-            'Registrations Overview' => 'registrationsChart',
-            'New Users Trend'        => 'newUsersChart',
-        ];
-
-        // Layout settings for a 2×3 grid
-        $chartWidth     = 130;  // chart display width (mm)
-        $chartHeight    = 100;  // chart display height (mm)
-        $headingHeight  = 8;   // approximate height for chart title
-        $blockHeight    = $headingHeight + $chartHeight; // total vertical space for each "title + chart"
-        $colSpacing     = 10;
-        $rowSpacing     = 15;
-        $marginLeft     = 35;
-        $marginTop      = $pdf->GetY() + 5;
-
-        $col = 0;
-        $row = 0;
-        $maxCols = 1; // two charts per row
-
-        foreach ($charts as $title => $chartKey) {
-            // Calculate X and Y positions for this chart block
-            $x = $marginLeft + ($col * ($chartWidth + $colSpacing));
-            $y = $marginTop + ($row * ($blockHeight + $rowSpacing));
-
-            // Check if the entire block (title + chart) will overflow the page
-            // If so, start a new page and reset row/column counters
-            if (($y + $blockHeight) > ($pdf->getPageHeight() - 20)) {
-                $pdf->AddPage();
-                // You can adjust the top margin for new pages as needed
-                $marginTop = 20;
-                $row = 0;
-                $col = 0;
-                // Recompute x, y after resetting row/col
-                $x = $marginLeft;
-                $y = $marginTop;
+            // Charts to display (map them to your $_POST data keys) - with filtering
+            $charts = [];
+            
+            if (shouldIncludeSection('user-stats')) {
+                $charts['User Statistics'] = 'userChart';
+            }
+            
+            if (shouldIncludeSection('event-stats')) {
+                $charts['Event Statistics'] = 'eventChart';
+            }
+            
+            if (shouldIncludeSection('training-stats')) {
+                $charts['Training Statistics'] = 'trainingChart';
+            }
+            
+            if (shouldIncludeSection('revenue-stats')) {
+                $charts['Revenue Statistics'] = 'revenueChart';
+            }
+            
+            if (shouldIncludeSection('registration-overview')) {
+                $charts['Registrations Overview'] = 'registrationsChart';
+            }
+            
+            if (shouldIncludeSection('new-users-trend')) {
+                $charts['New Users Trend'] = 'newUsersChart';
             }
 
-            // Print the chart title
-            $pdf->SetXY($x, $y);
-            $pdf->SetFont('helvetica', 'B', 11);
-            $pdf->Cell($chartWidth, $headingHeight, $title, 0, 2, 'L');
+            // Layout settings for a 2×3 grid
+            $chartWidth     = 130;  // chart display width (mm)
+            $chartHeight    = 100;  // chart display height (mm)
+            $headingHeight  = 8;    // approximate height for chart title
+            $blockHeight    = $headingHeight + $chartHeight; // total vertical space for each "title + chart"
+            $colSpacing     = 10;
+            $rowSpacing     = 15;
+            $marginLeft     = 35;
+            $marginTop      = $pdf->GetY() + 5;
 
-            // Print the chart image (or placeholder) at y + headingHeight
-            $chartY = $y + $headingHeight;
-            if (isset($_POST[$chartKey]) && !empty($_POST[$chartKey])) {
-                $postedData = $_POST[$chartKey];
+            $col = 0;
+            $row = 0;
+            $maxCols = 1; // two charts per row
 
-                if (preg_match('/^data:image\/png;base64,/', $postedData)) {
-                    try {
-                        // Remove the data URI prefix and decode
-                        $base64Image = str_replace('data:image/png;base64,', '', $postedData);
-                        $imageData   = base64_decode($base64Image);
+            foreach ($charts as $title => $chartKey) {
+                // Calculate X and Y positions for this chart block
+                $x = $marginLeft + ($col * ($chartWidth + $colSpacing));
+                $y = $marginTop + ($row * ($blockHeight + $rowSpacing));
 
-                        if ($imageData !== false && strlen($imageData) > 0) {
-                            // Inline method: prefix with '@' so TCPDF can render directly
-                            $chartImage = '@' . $imageData;
-                            // Render the image using inline data
-                            //  - Adjust the DPI (last parameter) if needed
-                            $pdf->Image($chartImage, $x, $chartY, $chartWidth, $chartHeight, 'PNG', '', 'T', true, 300);
-                        } else {
+                // Check if the entire block (title + chart) will overflow the page
+                // If so, start a new page and reset row/column counters
+                if (($y + $blockHeight) > ($pdf->getPageHeight() - 20)) {
+                    $pdf->AddPage();
+                    // You can adjust the top margin for new pages as needed
+                    $marginTop = 20;
+                    $row = 0;
+                    $col = 0;
+                    // Recompute x, y after resetting row/col
+                    $x = $marginLeft;
+                    $y = $marginTop;
+                }
+
+                // Print the chart title
+                $pdf->SetXY($x, $y);
+                $pdf->SetFont('helvetica', 'B', 11);
+                $pdf->Cell($chartWidth, $headingHeight, $title, 0, 2, 'L');
+
+                // Print the chart image (or placeholder) at y + headingHeight
+                $chartY = $y + $headingHeight;
+                if (isset($_POST[$chartKey]) && !empty($_POST[$chartKey])) {
+                    $postedData = $_POST[$chartKey];
+
+                    if (preg_match('/^data:image\/png;base64,/', $postedData)) {
+                        try {
+                            // Remove the data URI prefix and decode
+                            $base64Image = str_replace('data:image/png;base64,', '', $postedData);
+                            $imageData   = base64_decode($base64Image);
+
+                            if ($imageData !== false && strlen($imageData) > 0) {
+                                // Inline method: prefix with '@' so TCPDF can render directly
+                                $chartImage = '@' . $imageData;
+                                // Render the image using inline data
+                                //  - Adjust the DPI (last parameter) if needed
+                                $pdf->Image($chartImage, $x, $chartY, $chartWidth, $chartHeight, 'PNG', '', 'T', true, 300);
+                            } else {
+                                $pdf->SetXY($x, $chartY);
+                                $pdf->SetFont('helvetica', '', 9);
+                                $pdf->Cell($chartWidth, 5, 'Image decoding failed', 0, 1, 'L');
+                            }
+                        } catch (Exception $e) {
                             $pdf->SetXY($x, $chartY);
                             $pdf->SetFont('helvetica', '', 9);
-                            $pdf->Cell($chartWidth, 5, 'Image decoding failed', 0, 1, 'L');
+                            $pdf->Cell($chartWidth, 5, 'Error processing chart', 0, 1, 'L');
                         }
-                    } catch (Exception $e) {
+                    } else {
                         $pdf->SetXY($x, $chartY);
                         $pdf->SetFont('helvetica', '', 9);
-                        $pdf->Cell($chartWidth, 5, 'Error processing chart', 0, 1, 'L');
+                        $pdf->Cell($chartWidth, 5, 'Invalid image format', 0, 1, 'L');
                     }
                 } else {
+                    // If no data is available, show a placeholder box
                     $pdf->SetXY($x, $chartY);
-                    $pdf->SetFont('helvetica', '', 9);
-                    $pdf->Cell($chartWidth, 5, 'Invalid image format', 0, 1, 'L');
+                    $pdf->SetDrawColor(200, 200, 200);
+                    $pdf->SetFillColor(245, 245, 245);
+                    $pdf->Cell($chartWidth, $chartHeight, 'Chart data not available', 1, 0, 'C', true);
                 }
-            } else {
-                // If no data is available, show a placeholder box
-                $pdf->SetXY($x, $chartY);
-                $pdf->SetDrawColor(200, 200, 200);
-                $pdf->SetFillColor(245, 245, 245);
-                $pdf->Cell($chartWidth, $chartHeight, 'Chart data not available', 1, 0, 'C', true);
-            }
 
-            // Move to the next column, or wrap to the next row if needed
-            $col++;
-            if ($col >= $maxCols) {
-                $col = 0;
-                $row++;
+                // Move to the next column, or wrap to the next row if needed
+                $col++;
+                if ($col >= $maxCols) {
+                    $col = 0;
+                    $row++;
+                }
             }
         }
 
         // ----------------------
-        // Executive Summary
+        // Executive Summary (only if we have metrics included)
         // ----------------------
-        $pdf->AddPage();
-        $pdf->SetFont('helvetica', 'B', 16);
-        $pdf->SetFillColor(240, 240, 240);
-        $pdf->Cell(0, 10, 'Executive Summary', 0, 1, 'C', true);
-        $pdf->Ln(5);
-        
-        // Brief summary paragraph
-        $pdf->SetFont('helvetica', '', 11);
-        $pdf->MultiCell(0, 6, 'This report provides a comprehensive overview of system metrics and activities. The data covers various aspects including user statistics, events, trainings, announcements, and financial metrics.', 0, 'L');
-        $pdf->Ln(5);
-        
-        // Key metrics highlights
-        $pdf->SetFont('helvetica', 'B', 12);
-        $pdf->Cell(0, 8, 'Key Metrics Highlights', 0, 1, 'L');
-        $pdf->Ln(2);
-        
-        // Highlight boxes for key metrics
-        $boxWidth = 85;
-        $boxHeight = 40;
-        $spacing = 10;
-        $startX = ($pdf->getPageWidth() - 2*$boxWidth - $spacing) / 2;
-        $startY = $pdf->GetY();
-        
-        // Define key metrics to highlight
-        $keyMetrics = [
-            ['Total Users', $metrics['total_users'] ?? 0],
-            ['Active Members', $metrics['active_members'] ?? 0],
-            ['Upcoming Events', $metrics['upcoming_events'] ?? 0],
-            ['Total Revenue', 'PHP ' . number_format($metrics['total_revenue'] ?? 0, 2)]
-        ];
-        
-        $colors = [
-            [230, 230, 250], // Light lavender
-            [220, 240, 220], // Light green
-            [240, 230, 220], // Light orange
-            [230, 240, 250]  // Light blue
-        ];
-        
-        // Draw metric boxes
-        for ($i = 0; $i < 4; $i++) {
-            $col = $i % 2;
-            $row = floor($i / 2);
-            
-            $x = $startX + $col * ($boxWidth + $spacing);
-            $y = $startY + $row * ($boxHeight + 5);
-            
-            $pdf->SetFillColor($colors[$i][0], $colors[$i][1], $colors[$i][2]);
-            $pdf->SetDrawColor(180, 180, 180);
-            $pdf->RoundedRect($x, $y, $boxWidth, $boxHeight, 3.50, '1111', 'DF');
-            
-            // Title
-            $pdf->SetXY($x + 5, $y + 5);
-            $pdf->SetFont('helvetica', 'B', 10);
-            $pdf->Cell($boxWidth - 10, 8, $keyMetrics[$i][0], 0, 1, 'C');
-            
-            // Value
-            $pdf->SetXY($x + 5, $y + 18);
+        if (isset($datasets['metrics'])) {
+            $pdf->AddPage();
             $pdf->SetFont('helvetica', 'B', 16);
-            $pdf->Cell($boxWidth - 10, 10, $keyMetrics[$i][1], 0, 1, 'C');
+            $pdf->SetFillColor(240, 240, 240);
+            $pdf->Cell(0, 10, 'Executive Summary', 0, 1, 'C', true);
+            $pdf->Ln(5);
+            
+            // Brief summary paragraph
+            $pdf->SetFont('helvetica', '', 11);
+            $pdf->MultiCell(0, 6, 'This report provides a comprehensive overview of system metrics and activities based on the selected filters. The data covers various aspects including user statistics, events, trainings, announcements, and financial metrics.', 0, 'L');
+            $pdf->Ln(5);
+            
+            // Key metrics highlights - only show metrics from included sections
+            $pdf->SetFont('helvetica', 'B', 12);
+            $pdf->Cell(0, 8, 'Key Metrics Highlights', 0, 1, 'L');
+            $pdf->Ln(2);
+            
+            // Define key metrics to highlight based on active filters
+            $keyMetrics = [];
+            
+            if (shouldIncludeSection('user-stats')) {
+                $keyMetrics[] = ['Total Users', $metrics['total_users'] ?? 0];
+                $keyMetrics[] = ['Active Members', $metrics['active_members'] ?? 0];
+            }
+            
+            if (shouldIncludeSection('event-stats')) {
+                $keyMetrics[] = ['Upcoming Events', $metrics['upcoming_events'] ?? 0];
+            }
+            
+            if (shouldIncludeSection('revenue-stats')) {
+                $keyMetrics[] = ['Total Revenue', 'PHP ' . number_format($metrics['total_revenue'] ?? 0, 2)];
+            }
+            
+            // If we have less than 4 metrics due to filtering, add some from other sections
+            if (count($keyMetrics) < 4) {
+                if (shouldIncludeSection('training-stats') && count($keyMetrics) < 4) {
+                    $keyMetrics[] = ['Total Trainings', $metrics['total_trainings'] ?? 0];
+                }
+                
+                if (shouldIncludeSection('registration-overview') && count($keyMetrics) < 4) {
+                    $keyMetrics[] = ['Joined Events', $metrics['joined_events'] ?? 0];
+                }
+            }
+            
+            // Ensure we have at most 4 metrics
+            $keyMetrics = array_slice($keyMetrics, 0, 4);
+            
+            // Highlight boxes for key metrics (if we have any)
+            if (!empty($keyMetrics)) {
+                $boxWidth = 85;
+                $boxHeight = 40;
+                $spacing = 10;
+                $startX = ($pdf->getPageWidth() - 2*$boxWidth - $spacing) / 2;
+                $startY = $pdf->GetY();
+                
+                $colors = [
+                    [230, 230, 250], // Light lavender
+                    [220, 240, 220], // Light green
+                    [240, 230, 220], // Light orange
+                    [230, 240, 250]  // Light blue
+                ];
+                
+                // Draw metric boxes
+                for ($i = 0; $i < count($keyMetrics); $i++) {
+                    $col = $i % 2;
+                    $row = floor($i / 2);
+                    
+                    $x = $startX + $col * ($boxWidth + $spacing);
+                    $y = $startY + $row * ($boxHeight + 5);
+                    
+                    $pdf->SetFillColor($colors[$i][0], $colors[$i][1], $colors[$i][2]);
+                    $pdf->SetDrawColor(180, 180, 180);
+                    $pdf->RoundedRect($x, $y, $boxWidth, $boxHeight, 3.50, '1111', 'DF');
+                    
+                    // Title
+                    $pdf->SetXY($x + 5, $y + 5);
+                    $pdf->SetFont('helvetica', 'B', 10);
+                    $pdf->Cell($boxWidth - 10, 8, $keyMetrics[$i][0], 0, 1, 'C');
+                    
+                    // Value
+                    $pdf->SetXY($x + 5, $y + 18);
+                    $pdf->SetFont('helvetica', 'B', 16);
+                    $pdf->Cell($boxWidth - 10, 10, $keyMetrics[$i][1], 0, 1, 'C');
+                }
+                
+                $pdf->SetY($startY + 2*$boxHeight + 15);
+            }
         }
-        
-        $pdf->SetY($startY + 2*$boxHeight + 15);
 
         // ----------------------
-        // Detailed Datasets Section - IMPROVED FORMATTING
+        // Detailed Datasets Section - WITH FILTERING
         // ----------------------
         foreach ($datasets as $section => $rows) {
+            // Skip section if it shouldn't be included
+            if ($section === 'metrics') {
+                continue; // Metrics are handled in the Executive Summary
+            }
+            
+            // Map dataset to filter key
+            $sectionFilterMapping = [
+                'users' => 'users-table',
+                'events' => 'events-table',
+                'trainings' => 'trainings-table',
+                'announcements' => 'announcements-table'
+            ];
+            
+            if (isset($sectionFilterMapping[$section]) && !shouldIncludeSection($sectionFilterMapping[$section])) {
+                continue; // Skip this section as it's not in active filters
+            }
+            
             // Start each major section on a new page for cleaner layout
             $pdf->AddPage();
             $pdf->SetFont('helvetica', 'B', 16);
@@ -355,26 +507,53 @@ try {
             $pdf->Cell(0, 10, ucfirst($section) . ' Detail', 0, 1, 'C', true);
             $pdf->Ln(5);
             
-            if ($section === 'metrics') {
-                // Create a styled metrics table with alternating row colors
-                $pdf->SetFont('helvetica', 'B', 10);
-                $html = '<table border="0" cellpadding="5" cellspacing="0" width="100%" style="border-collapse: collapse;">';
-                $html .= '<thead><tr style="background-color:#4682B4; color: white;"><th width="60%">Metric</th><th width="40%">Value</th></tr></thead><tbody>';
+            if (!empty($rows)) {
+                // Build section description
+                $sectionDescriptions = [
+                    'users' => 'List of all system users with their roles and contact information.',
+                    'events' => 'All events with their scheduled dates and locations.',
+                    'trainings' => 'Training sessions with their schedules and capacity information.',
+                    'announcements' => 'System announcements with their creation timestamps.'
+                ];
                 
+                if (isset($sectionDescriptions[$section])) {
+                    $pdf->SetFont('helvetica', '', 10);
+                    $pdf->MultiCell(0, 5, $sectionDescriptions[$section], 0, 'L');
+                    $pdf->Ln(3);
+                }
+                
+                // Create styled table with improved formatting
+                $pdf->SetFont('helvetica', '', 9); // Smaller font for tables with potentially more data
+                
+                // Generate header colors based on section
+                switch($section) {
+                    case 'users': $headerColor = '#4682B4'; break;       // Blue
+                    case 'events': $headerColor = '#2E8B57'; break;      // Sea Green
+                    case 'trainings': $headerColor = '#8B4513'; break;   // Brown
+                    case 'announcements': $headerColor = '#4B0082'; break; // Indigo
+                    default: $headerColor = '#708090'; break;            // Slate Gray
+                }
+                
+                // Start HTML Table
+                $html = '<table border="0" cellpadding="4" cellspacing="0" width="100%" style="border-collapse: collapse;">';
+                $html .= '<thead><tr style="background-color:' . $headerColor . '; color: white;">';
+                
+                // Create table header with proper styling
+                foreach (array_keys($rows[0]) as $header) {
+                    $html .= '<th>' . htmlspecialchars(ucfirst($header)) . '</th>';
+                }
+                $html .= '</tr></thead><tbody>';
+                
+                // Create table rows with alternating background colors
                 $rowCount = 0;
-                foreach ($rows as $key => $value) {
-                    // Format value based on type
-                    if (strpos($key, 'revenue') !== false && $value) {
-                        $formattedValue = 'PHP ' . number_format($value, 2);
-                    } else {
-                        $formattedValue = $value ?? 'N/A';
-                    }
-                    
-                    // Alternate row colors
+                foreach ($rows as $row) {
                     $bgColor = ($rowCount % 2 === 0) ? '#f9f9f9' : '#ffffff';
                     $html .= '<tr style="background-color:' . $bgColor . ';">';
-                    $html .= '<td style="border-bottom: 1px solid #dddddd;">' . ucfirst(str_replace('_', ' ', $key)) . '</td>';
-                    $html .= '<td style="border-bottom: 1px solid #dddddd;">' . htmlspecialchars($formattedValue) . '</td>';
+                    
+                    foreach ($row as $value) {
+                        $html .= '<td style="border-bottom: 1px solid #dddddd;">' . htmlspecialchars($value ?? 'N/A') . '</td>';
+                    }
+                    
                     $html .= '</tr>';
                     $rowCount++;
                 }
@@ -382,63 +561,8 @@ try {
                 $html .= '</tbody></table>';
                 $pdf->writeHTML($html, true, false, true, false, '');
             } else {
-                if (!empty($rows)) {
-                    // Build section description
-                    $sectionDescriptions = [
-                        'users' => 'List of all system users with their roles and contact information.',
-                        'events' => 'All events with their scheduled dates and locations.',
-                        'trainings' => 'Training sessions with their schedules and capacity information.',
-                        'announcements' => 'System announcements with their creation timestamps.'
-                    ];
-                    
-                    if (isset($sectionDescriptions[$section])) {
-                        $pdf->SetFont('helvetica', '', 10);
-                        $pdf->MultiCell(0, 5, $sectionDescriptions[$section], 0, 'L');
-                        $pdf->Ln(3);
-                    }
-                    
-                    // Create styled table with improved formatting
-                    $pdf->SetFont('helvetica', '', 9); // Smaller font for tables with potentially more data
-                    
-                    // Generate header colors based on section
-                    switch($section) {
-                        case 'users': $headerColor = '#4682B4'; break;       // Blue
-                        case 'events': $headerColor = '#2E8B57'; break;      // Sea Green
-                        case 'trainings': $headerColor = '#8B4513'; break;   // Brown
-                        case 'announcements': $headerColor = '#4B0082'; break; // Indigo
-                        default: $headerColor = '#708090'; break;            // Slate Gray
-                    }
-                    
-                    // Start HTML Table
-                    $html = '<table border="0" cellpadding="4" cellspacing="0" width="100%" style="border-collapse: collapse;">';
-                    $html .= '<thead><tr style="background-color:' . $headerColor . '; color: white;">';
-                    
-                    // Create table header with proper styling
-                    foreach (array_keys($rows[0]) as $header) {
-                        $html .= '<th>' . htmlspecialchars(ucfirst($header)) . '</th>';
-                    }
-                    $html .= '</tr></thead><tbody>';
-                    
-                    // Create table rows with alternating background colors
-                    $rowCount = 0;
-                    foreach ($rows as $row) {
-                        $bgColor = ($rowCount % 2 === 0) ? '#f9f9f9' : '#ffffff';
-                        $html .= '<tr style="background-color:' . $bgColor . ';">';
-                        
-                        foreach ($row as $value) {
-                            $html .= '<td style="border-bottom: 1px solid #dddddd;">' . htmlspecialchars($value ?? 'N/A') . '</td>';
-                        }
-                        
-                        $html .= '</tr>';
-                        $rowCount++;
-                    }
-                    
-                    $html .= '</tbody></table>';
-                    $pdf->writeHTML($html, true, false, true, false, '');
-                } else {
-                    $pdf->SetFont('helvetica', 'I', 10);
-                    $pdf->Cell(0, 10, 'No data available for this section', 0, 1, 'C');
-                }
+                $pdf->SetFont('helvetica', 'I', 10);
+                $pdf->Cell(0, 10, 'No data available for this section', 0, 1, 'C');
             }
         }
 
@@ -450,7 +574,7 @@ try {
         $pdf->Ln(5);
         
         $pdf->SetFont('helvetica', '', 10);
-        $pdf->MultiCell(0, 5, 'This report was generated automatically from the ADOHRE system database. The information contained within represents a snapshot of system data at the time of export. For any questions regarding this report, please contact the system administrator.', 0, 'L');
+        $pdf->MultiCell(0, 5, 'This report was generated automatically from the ADOHRE system database based on your selected filters. The information contained within represents a snapshot of system data at the time of export. For any questions regarding this report, please contact the system administrator.', 0, 'L');
         $pdf->Ln(5);
         
         $pdf->SetFont('helvetica', 'B', 10);
@@ -462,6 +586,17 @@ try {
         $pdf->Cell(0, 5, $userName . ' (' . $userRole . ')', 0, 1, 'L');
         $pdf->Cell(40, 5, 'Document Format:', 0, 0, 'L');
         $pdf->Cell(0, 5, 'PDF Export', 0, 1, 'L');
+        
+        // Include a list of active filters
+        $pdf->Cell(40, 5, 'Applied Filters:', 0, 0, 'L');
+        if (!empty($activeFilters)) {
+            $filterNames = array_map(function($filter) {
+                return ucwords(str_replace('-', ' ', $filter));
+            }, $activeFilters);
+            $pdf->MultiCell(0, 5, implode(', ', $filterNames), 0, 'L');
+        } else {
+            $pdf->Cell(0, 5, 'All sections included', 0, 1, 'L');
+        }
 
         // Output the PDF
         $pdf->Output('ADOHRE_Report.pdf', 'I');
@@ -483,28 +618,76 @@ try {
         $sheet->setCellValue("A{$row}", 'Generated on: ' . date('Y-m-d H:i:s'));
         $row++;
         $sheet->setCellValue("A{$row}", 'Exported by: ' . $userName . ' (' . $userRole . ')');
+        $row++;
+        
+        // Include information about applied filters
+        $sheet->setCellValue("A{$row}", 'Applied Filters:');
+        if (!empty($activeFilters)) {
+            $filterNames = array_map(function($filter) {
+                return ucwords(str_replace('-', ' ', $filter));
+            }, $activeFilters);
+            $sheet->setCellValue("B{$row}", implode(', ', $filterNames));
+        } else {
+            $sheet->setCellValue("B{$row}", 'All sections included');
+        }
         $row += 2;
 
         foreach ($datasets as $section => $rows) {
+            // Add section title
             $sheet->setCellValue("A{$row}", ucfirst($section));
+            $sheet->getStyle("A{$row}")->getFont()->setBold(true);
             $row++;
+            
             if ($section === 'metrics') {
                 $sheet->setCellValue("A{$row}", 'Metric');
                 $sheet->setCellValue("B{$row}", 'Value');
+                $sheet->getStyle("A{$row}:B{$row}")->getFont()->setBold(true);
                 $row++;
+                
+                // Filter metrics based on active filters
+                $metricsMapping = [
+                    'user-stats' => ['total_users', 'active_members', 'admin_count', 'member_count'],
+                    'event-stats' => ['upcoming_events', 'finished_events', 'total_events'],
+                    'training-stats' => ['upcoming_trainings', 'finished_trainings', 'total_trainings'],
+                    'revenue-stats' => ['total_revenue'],
+                    'registration-overview' => ['joined_events', 'joined_trainings', 'membership_applications'],
+                    'additional-analytics' => ['total_chat_messages', 'total_consultations', 'total_certificates']
+                ];
+                
+                $includedMetrics = [];
+                foreach ($metricsMapping as $sectionKey => $metricKeys) {
+                    if (shouldIncludeSection($sectionKey)) {
+                        $includedMetrics = array_merge($includedMetrics, $metricKeys);
+                    }
+                }
+                
                 foreach ($rows as $key => $value) {
-                    $sheet->setCellValue("A{$row}", ucfirst(str_replace('_', ' ', $key)));
-                    $sheet->setCellValue("B{$row}", $value);
-                    $row++;
+                    if (in_array($key, $includedMetrics)) {
+                        $metricName = ucfirst(str_replace('_', ' ', $key));
+                        $sheet->setCellValue("A{$row}", $metricName);
+                        
+                        // Format revenue with currency
+                        if (strpos($key, 'revenue') !== false) {
+                            $sheet->setCellValue("B{$row}", $value);
+                            $sheet->getStyle("B{$row}")->getNumberFormat()->setFormatCode('PHP #,##0.00');
+                        } else {
+                            $sheet->setCellValue("B{$row}", $value);
+                        }
+                        $row++;
+                    }
                 }
             } else {
                 if (!empty($rows)) {
+                    // Add column headers
                     $col = 'A';
                     foreach (array_keys($rows[0]) as $header) {
                         $sheet->setCellValue("{$col}{$row}", ucfirst($header));
+                        $sheet->getStyle("{$col}{$row}")->getFont()->setBold(true);
                         $col++;
                     }
                     $row++;
+                    
+                    // Add data rows
                     foreach ($rows as $rowData) {
                         $col = 'A';
                         foreach ($rowData as $value) {
@@ -518,13 +701,31 @@ try {
                     $row++;
                 }
             }
-            $row++; // Add an empty row between sections
+            
+            // Add empty row between sections
+            $row++;
         }
 
         // Add a footer
         $sheet->setCellValue("A{$row}", 'End of Report');
         $sheet->mergeCells("A{$row}:C{$row}");
         $sheet->getStyle("A{$row}")->getFont()->setItalic(true);
+        
+        // Auto-size columns for better readability
+        foreach (range('A', 'E') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+        
+        // Apply some basic styling to the whole sheet
+        $styleArray = [
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                    'color' => ['rgb' => 'DDDDDD'],
+                ],
+            ],
+        ];
+        $sheet->getStyle('A1:E' . ($row - 1))->applyFromArray($styleArray);
 
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
         $writer->save('php://output');
@@ -539,4 +740,13 @@ try {
     exit;
 }
 
+// Helper function to record audit logs
+function recordAuditLog($userId, $action, $details) {
+    global $conn;
+    $query = "INSERT INTO audit_logs (user_id, action, details, ip_address, created_at) VALUES (?, ?, ?, ?, NOW())";
+    $stmt = $conn->prepare($query);
+    $ipAddress = $_SERVER['REMOTE_ADDR'] ?? 'Unknown';
+    $stmt->bind_param("isss", $userId, $action, $details, $ipAddress);
+    return $stmt->execute();
+}
 ?>
