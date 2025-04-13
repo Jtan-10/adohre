@@ -747,14 +747,31 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
         document.getElementById('exportPDF').addEventListener('click', function() {
             console.log("DEBUG: Export PDF button clicked.");
             try {
-                // Define the list of canvas IDs representing your charts
-                const canvasIds = [
-                    'userChart',
-                    'eventChart',
-                    'trainingChart',
-                    'revenueChart',
-                    'registrationsChart',
-                    'newUsersChart'
+                // Define the list of canvas IDs representing your charts with their corresponding section IDs
+                const chartConfig = [{
+                        chartId: 'userChart',
+                        sectionId: 'user-stats-section'
+                    },
+                    {
+                        chartId: 'eventChart',
+                        sectionId: 'event-stats-section'
+                    },
+                    {
+                        chartId: 'trainingChart',
+                        sectionId: 'training-stats-section'
+                    },
+                    {
+                        chartId: 'revenueChart',
+                        sectionId: 'revenue-stats-section'
+                    },
+                    {
+                        chartId: 'registrationsChart',
+                        sectionId: 'registration-overview-section'
+                    },
+                    {
+                        chartId: 'newUsersChart',
+                        sectionId: 'new-users-trend-section'
+                    }
                 ];
 
                 const form = document.createElement('form');
@@ -769,43 +786,51 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                 filtersInput.value = getActiveFilters().join(',');
                 form.appendChild(filtersInput);
 
-                // Process each canvas and add to form
-                canvasIds.forEach(id => {
+                // Process each canvas and add to form if it's visible
+                let chartCount = 0;
+                chartConfig.forEach(({
+                    chartId,
+                    sectionId
+                }) => {
                     // Only include canvases that are currently visible/active
-                    const canvasElement = document.getElementById(id);
-                    if (canvasElement) {
-                        const sectionId = id.replace('Chart', '-stats-section');
-                        // Special handling for some charts with different section IDs
-                        const sectionElement =
-                            id === 'registrationsChart' ? document.getElementById(
-                                'registration-overview-section') :
-                            id === 'newUsersChart' ? document.getElementById(
-                                'new-users-trend-section') :
-                            document.getElementById(sectionId);
+                    const canvasElement = document.getElementById(chartId);
+                    const sectionElement = document.getElementById(sectionId);
 
-                        const isVisible = sectionElement ?
-                            window.getComputedStyle(sectionElement).display !== 'none' : false;
+                    if (canvasElement && sectionElement) {
+                        const isVisible = window.getComputedStyle(sectionElement).display !==
+                            'none';
 
                         if (isVisible) {
                             try {
-                                // Get image data with maximum quality
-                                const imgData = canvasElement.toDataURL('image/png', 1.0);
-                                console.log(
-                                    `DEBUG: Captured image for ${id}, data length: ${imgData.length}`
-                                );
+                                console.log(`DEBUG: Processing visible chart: ${chartId}`);
+                                // Make sure the chart is rendered
+                                if (typeof Chart !== 'undefined' && Chart.getChart(
+                                        canvasElement)) {
+                                    // Get image data with 0.8 quality (good balance between quality and size)
+                                    const imgData = canvasElement.toDataURL('image/png', 0.8);
+                                    console.log(
+                                        `DEBUG: Captured image for ${chartId}, data length: ${imgData.length}`
+                                    );
 
-                                // Create input for this chart
-                                const input = document.createElement('input');
-                                input.type = 'hidden';
-                                input.name = id;
-                                input.value = imgData;
-                                form.appendChild(input);
+                                    // Create input for this chart
+                                    const input = document.createElement('input');
+                                    input.type = 'hidden';
+                                    input.name = chartId;
+                                    input.value = imgData;
+                                    form.appendChild(input);
+                                    chartCount++;
+                                } else {
+                                    console.warn(`Chart instance not found for ${chartId}`);
+                                }
                             } catch (canvasErr) {
-                                console.error(`Error capturing ${id}:`, canvasErr);
+                                console.error(`Error capturing ${chartId}:`, canvasErr);
                             }
+                        } else {
+                            console.log(`Skipping hidden chart: ${chartId}`);
                         }
                     } else {
-                        console.error(`Canvas with id ${id} not found.`);
+                        console.error(
+                            `Canvas or section with id ${chartId}/${sectionId} not found.`);
                     }
                 });
 
@@ -816,15 +841,22 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                 timestampInput.value = Date.now();
                 form.appendChild(timestampInput);
 
-                // Append form to the body and submit it
-                document.body.appendChild(form);
-                console.log("DEBUG: Submitting PDF export form with chart data.");
-                form.submit();
+                // Only submit if we have at least one chart
+                if (chartCount > 0) {
+                    // Append form to the body and submit it
+                    document.body.appendChild(form);
+                    console.log(`DEBUG: Submitting PDF export form with ${chartCount} charts.`);
+                    form.submit();
 
-                // Remove the form after submission
-                setTimeout(() => {
-                    document.body.removeChild(form);
-                }, 1000);
+                    // Remove the form after submission
+                    setTimeout(() => {
+                        document.body.removeChild(form);
+                    }, 1000);
+                } else {
+                    console.warn("No visible charts to export to PDF");
+                    alert(
+                        "No charts are currently visible to export. Please adjust your filters to include at least one chart section.");
+                }
 
             } catch (e) {
                 console.error("Error during PDF export:", e);

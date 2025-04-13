@@ -1,15 +1,27 @@
 <?php
-require_once '../db/db_connect.php';
-require_once '../../vendor/autoload.php'; // For PDF and Excel libraries like TCPDF and PhpSpreadsheet
-session_start();
+// Enable error reporting for debugging
+ini_set('display_errors', 0); // Don't show errors to users
+ini_set('log_errors', 1);     // But do log them
+error_reporting(E_ALL);       // Report all error types
 
-// Determine export format
-$format = $_GET['format'] ?? 'csv';
-// Validate export format
-$allowedFormats = ['csv', 'pdf', 'excel'];
-if (!in_array(strtolower($format), $allowedFormats)) {
-    // Default to CSV if an invalid format is provided
-    $format = 'csv';
+try {
+    require_once '../db/db_connect.php';
+    require_once '../../vendor/autoload.php'; // For PDF and Excel libraries like TCPDF and PhpSpreadsheet
+    session_start();
+
+    // Determine export format
+    $format = $_GET['format'] ?? 'csv';
+    // Validate export format
+    $allowedFormats = ['csv', 'pdf', 'excel'];
+    if (!in_array(strtolower($format), $allowedFormats)) {
+        // Default to CSV if an invalid format is provided
+        $format = 'csv';
+    }
+} catch (Exception $e) {
+    error_log("Export initialization error: " . $e->getMessage());
+    header('Content-Type: application/json');
+    echo json_encode(['status' => false, 'message' => 'Error initializing export process.']);
+    exit;
 }
 
 // Get filters from the request parameters
@@ -202,13 +214,26 @@ try {
         // 1) Define a custom TCPDF class for a custom footer (or header if needed)
         // ----------------------------------------------------------------------
         class CustomPDF extends \TCPDF {
+            protected $filterInfo;
+            
+            public function setFilterInfo($filterInfo) {
+                $this->filterInfo = $filterInfo;
+            }
+            
             public function Footer() {
                 $this->SetY(-15);
                 $this->SetFont('helvetica', 'I', 8);
+                
+                // Add filter information to footer if available
+                $footerText = 'ADOHRE System Report - Page '.$this->getAliasNumPage().'/'.$this->getAliasNbPages();
+                if (!empty($this->filterInfo)) {
+                    $footerText .= ' | Filtered: ' . $this->filterInfo;
+                }
+                
                 $this->Cell(
                     0,
                     10,
-                    'ADOHRE System Report - Page '.$this->getAliasNumPage().'/'.$this->getAliasNbPages(),
+                    $footerText,
                     0,
                     false,
                     'C'
@@ -220,6 +245,22 @@ try {
         // 2) Instantiate ONLY the CustomPDF object one time
         // ---------------------------------------------------
         $pdf = new CustomPDF('P', 'mm', 'A4', true, 'UTF-8', false);
+        
+        // Add filter information to the PDF footer
+        if (!empty($activeFilters)) {
+            $filterNames = array_map(function($filter) {
+                return ucwords(str_replace('-', ' ', $filter));
+            }, $activeFilters);
+            
+            // Limit to first 3 filters to avoid too long footer
+            if (count($filterNames) > 3) {
+                $footerText = implode(', ', array_slice($filterNames, 0, 3)) . '...';
+            } else {
+                $footerText = implode(', ', $filterNames);
+            }
+            
+            $pdf->setFilterInfo($footerText);
+        }
         $pdf->SetCreator(PDF_CREATOR);
         $pdf->SetAuthor($userName);
         $pdf->SetTitle('ADOHRE Detailed Report');
@@ -350,17 +391,23 @@ try {
                             $imageData   = base64_decode($base64Image);
 
                             if ($imageData !== false && strlen($imageData) > 0) {
-                                // Inline method: prefix with '@' so TCPDF can render directly
-                                $chartImage = '@' . $imageData;
-                                // Render the image using inline data
-                                //  - Adjust the DPI (last parameter) if needed
-                                $pdf->Image($chartImage, $x, $chartY, $chartWidth, $chartHeight, 'PNG', '', 'T', true, 300);
+                                // Save to a temporary file first to avoid memory issues
+                                $tempFile = tempnam(sys_get_temp_dir(), 'chart_');
+                                file_put_contents($tempFile, $imageData);
+                                
+                                // Use the temporary file for the image
+                                $pdf->Image($tempFile, $x, $chartY, $chartWidth, $chartHeight, 'PNG');
+                                
+                                // Clean up the temporary file
+                                unlink($tempFile);
                             } else {
                                 $pdf->SetXY($x, $chartY);
                                 $pdf->SetFont('helvetica', '', 9);
                                 $pdf->Cell($chartWidth, 5, 'Image decoding failed', 0, 1, 'L');
                             }
                         } catch (Exception $e) {
+                            // Log the actual error for debugging
+                            error_log("Chart processing error: " . $e->getMessage());
                             $pdf->SetXY($x, $chartY);
                             $pdf->SetFont('helvetica', '', 9);
                             $pdf->Cell($chartWidth, 5, 'Error processing chart', 0, 1, 'L');
@@ -734,9 +781,20 @@ try {
         throw new Exception('Invalid format requested.');
     }
 } catch (Exception $e) {
-    // Log the actual error message internally
-    error_log("ERROR: " . $e->getMessage());
-    echo json_encode(['status' => false, 'message' => 'An error occurred. Please try again later.']);
+    // Log the detailed error information
+    error_log("EXPORT ERROR: " . $e->getMessage());
+    error_log("Stack trace: " . $e->getTraceAsString());
+    
+    // Set appropriate headers
+    header('Content-Type: application/json');
+    header("Cache-Control: no-cache, must-revalidate");
+    
+    // Return a user-friendly error message
+    echo json_encode([
+        'status' => false, 
+        'message' => 'An error occurred during export. Please try again or contact support if the issue persists.',
+        'error_code' => 'EXP' . date('YmdHis') // Unique error code for tracking
+    ]);
     exit;
 }
 
