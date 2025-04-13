@@ -89,6 +89,7 @@ try {
     // Fetch data for the aggregated metrics
     $metricsQuery = "
         SELECT 
+            (SELECT COUNT(*) FROM membership_applications) AS membership_applications,
             (SELECT COUNT(*) FROM users) AS total_users,
             (SELECT COUNT(*) FROM users WHERE role = 'admin') AS admin_count,
             (SELECT COUNT(*) FROM users WHERE role = 'member') AS member_count,
