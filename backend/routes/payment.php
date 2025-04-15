@@ -70,8 +70,11 @@ if ($method === 'GET') {
     $action = isset($_GET['action']) ? $_GET['action'] : 'get_all_payments';
 
     if ($action === 'get_all_payments') {
-        $payments = [];
-        // Updated query: separate archived and active payments
+        $payments = [
+            'active' => [],
+            'archived' => []
+        ];
+        // Correct query: Ensure proper separation of active and archived payments
         $query = "SELECT p.payment_id, p.user_id, p.payment_type, p.amount, p.status, 
                        p.payment_date, p.due_date, p.reference_number, p.image, p.mode_of_payment,
                        p.is_archived, p.archive_date,
@@ -86,13 +89,12 @@ if ($method === 'GET') {
                 LEFT JOIN events e ON (p.payment_type = 'Event Registration' AND p.event_id = e.event_id)
                 LEFT JOIN trainings t ON (p.payment_type = 'Training Registration' AND p.training_id = t.training_id)
                 ORDER BY 
-                    p.is_archived DESC, -- Archived payments come last
+                    p.is_archived ASC, -- Active payments come first
                     CASE WHEN p.payment_date IS NULL THEN 1 ELSE 0 END,
                     p.payment_date DESC";
         $result = $conn->query($query);
         if ($result) {
             while ($row = $result->fetch_assoc()) {
-                // Only include payments in the correct tab based on `is_archived`
                 if ($row['is_archived'] == 1) {
                     $payments['archived'][] = $row;
                 } else {
