@@ -374,7 +374,11 @@ $csrf_token = $_SESSION['csrf_token'];
                         });
 
                         data.payments.forEach(payment => {
-                            if (payment.is_archived === 1) { // Only archived payments
+                            // Ensure is_archived is treated as a boolean
+                            payment.is_archived = payment.is_archived === 1 || payment
+                                .is_archived === '1' || payment.is_archived === true;
+
+                            if (payment.is_archived) { // Only archived payments
                                 if (!archivedPaymentsByUser[payment.user_id]) {
                                     archivedPaymentsByUser[payment.user_id] = {
                                         user_id: payment.user_id,
@@ -428,57 +432,70 @@ $csrf_token = $_SESSION['csrf_token'];
 
             if (Object.keys(paymentsByUser).length === 0) {
                 tbody.innerHTML = `
-                    <tr>
-                        <td colspan="4" class="text-center py-4">
-                            <div class="text-muted">
-                                <i class="bi bi-credit-card fs-4 d-block mb-2"></i>
-                                No active payments found
-                            </div>
-                        </td>
-                    </tr>
-                `;
+        <tr>
+            <td colspan="4" class="text-center py-4">
+                <div class="text-muted">
+                    <i class="bi bi-credit-card fs-4 d-block mb-2"></i>
+                    No active payments found
+                </div>
+            </td>
+        </tr>
+    `;
                 return;
             }
 
             let filteredUsers = Object.values(paymentsByUser);
+
+            // Only include users with non-archived payments
+            filteredUsers = filteredUsers.filter(user => {
+                // Filter out users who only have archived payments
+                const activePayments = user.payments.filter(payment => !payment.is_archived);
+                return activePayments.length > 0;
+            });
+
             if (statusFilter !== 'all') {
                 filteredUsers = filteredUsers.filter(user => {
-                    return user.payments.some(payment => payment.status === statusFilter);
+                    // Only count non-archived payments with matching status
+                    return user.payments.some(payment =>
+                        payment.status === statusFilter && !payment.is_archived
+                    );
                 });
             }
 
             if (filteredUsers.length === 0) {
                 tbody.innerHTML = `
-                    <tr>
-                        <td colspan="4" class="text-center py-4">
-                            <div class="text-muted">
-                                <i class="bi bi-filter-circle fs-4 d-block mb-2"></i>
-                                No payments found with status: ${statusFilter}
-                            </div>
-                        </td>
-                    </tr>
-                `;
+        <tr>
+            <td colspan="4" class="text-center py-4">
+                <div class="text-muted">
+                    <i class="bi bi-filter-circle fs-4 d-block mb-2"></i>
+                    No payments found with status: ${statusFilter}
+                </div>
+            </td>
+        </tr>
+    `;
                 return;
             }
 
             filteredUsers.forEach(user => {
+                // Only include non-archived payments that match the status filter
                 const filteredPayments = user.payments.filter(payment => {
-                    return statusFilter === 'all' || payment.status === statusFilter;
+                    return !payment.is_archived && (statusFilter === 'all' || payment.status ===
+                        statusFilter);
                 });
 
                 if (filteredPayments.length === 0) return;
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td>${user.user_id}</td>
-                    <td>${user.first_name} ${user.last_name}</td>
-                    <td>${user.email}</td>
-                    <td>
-                        <button class="btn btn-primary btn-sm managePaymentsBtn" data-user-id="${user.user_id}">
-                            Manage <span class="badge bg-light text-dark">${filteredPayments.length}</span>
-                        </button>
-                    </td>
-                `;
+        <td>${user.user_id}</td>
+        <td>${user.first_name} ${user.last_name}</td>
+        <td>${user.email}</td>
+        <td>
+            <button class="btn btn-primary btn-sm managePaymentsBtn" data-user-id="${user.user_id}">
+                Manage <span class="badge bg-light text-dark">${filteredPayments.length}</span>
+            </button>
+        </td>
+    `;
                 tbody.appendChild(tr);
             });
 
@@ -558,9 +575,13 @@ $csrf_token = $_SESSION['csrf_token'];
             const tbody = document.querySelector('#userPaymentsTable tbody');
             tbody.innerHTML = '';
 
-            let allPayments = [...user.payments];
+            // Only include non-archived payments unless showArchived is true
+            let activePayments = user.payments.filter(payment => !payment.is_archived);
+            let allPayments = [...activePayments];
+
+            // Add archived payments only if showArchived is checked
             if (showArchived && archivedPaymentsByUser[userId]) {
-                allPayments = [...allPayments, ...archivedPaymentsByUser[userId].payments];
+                allPayments = [...activePayments, ...archivedPaymentsByUser[userId].payments];
             }
 
             if (allPayments.length === 0) {
@@ -572,7 +593,8 @@ $csrf_token = $_SESSION['csrf_token'];
                         No payments found
                     </div>
                 </td>
-            </tr>`;
+            </tr>
+        `;
                 return;
             }
 
@@ -588,13 +610,9 @@ $csrf_token = $_SESSION['csrf_token'];
                     tr.classList.add('archived-payment');
                 }
 
-                // Display the actual payment status regardless of archive status
+                // Just show the payment status badge (without archived badge)
                 const statusBadge =
                     `<span class="badge status-${payment.status.toLowerCase()}">${payment.status}</span>`;
-
-                // For archived payments, add an additional archived badge
-                const archivedBadge = payment.is_archived ?
-                    `<span class="badge status-archived ml-1">Archived</span>` : '';
 
                 let statusDropdown = '';
                 let actionsHTML = '';
@@ -620,8 +638,8 @@ $csrf_token = $_SESSION['csrf_token'];
                 `;
                     }
                 } else {
-                    // For archived payments, show the status badges instead of dropdown
-                    statusDropdown = `${statusBadge} ${archivedBadge}`;
+                    // For archived payments, show just the status badge (without 'Archived' text)
+                    statusDropdown = statusBadge;
 
                     actionsHTML = `
                 <button class="btn btn-info btn-sm viewPaymentDetailsBtn" data-payment='${encodeURIComponent(JSON.stringify(payment))}'>View</button>
@@ -647,7 +665,8 @@ $csrf_token = $_SESSION['csrf_token'];
             <td>${payment.amount}</td>
             <td>${statusDropdown}</td>
             <td>${formattedDate}</td>
-            <td>${actionsHTML}</td>       `;
+            <td>${actionsHTML}</td>
+        `;
                 tbody.appendChild(tr);
             });
 
