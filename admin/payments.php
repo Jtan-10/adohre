@@ -293,7 +293,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
         </div>
     </div>
 
-    <!-- Scripts -->
+    <!-- Original Scripts -->
     <script nonce="<?php echo $cspNonce; ?>">
     document.addEventListener('DOMContentLoaded', function() {
         // Global objects to store payments grouped by user
@@ -591,6 +591,14 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                 `;
                 tbody.appendChild(tr);
             });
+
+            document.querySelectorAll('.viewPaymentDetailsBtn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const paymentData = JSON.parse(decodeURIComponent(this.getAttribute(
+                        'data-payment')));
+                    showPaymentDetails(paymentData);
+                });
+            });
         }
 
         // Example alert/toast function
@@ -637,6 +645,359 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
         loadPayments();
     });
     </script>
+
+    <!-- Additional Functions and Event Listeners -->
+    <script nonce="<?php echo $cspNonce; ?>">
+    document.addEventListener('DOMContentLoaded', function() {
+        // For the checkbox to show archived payments in the user modal
+        document.getElementById('showArchivedUserPayments').addEventListener('change', function() {
+            const userId = document.getElementById('paymentModalLabel').getAttribute('data-user-id');
+            renderUserPaymentsTable(userId, this.checked);
+        });
+
+        // Define the viewArchivedPayments function globally
+        window.viewArchivedPayments = function(userId) {
+            const user = archivedPaymentsByUser[userId];
+            if (!user) return;
+
+            const modalLabel = document.getElementById('paymentModalLabel');
+            modalLabel.innerText =
+                `Archived Payments for ${user.first_name} ${user.last_name} (ID: ${user.user_id})`;
+            modalLabel.setAttribute('data-user-id', userId);
+            modalLabel.setAttribute('data-view-type', 'archived');
+
+            // Hide the show archived checkbox since we're already looking at archived payments
+            const showArchivedCheckbox = document.getElementById('showArchivedUserPayments');
+            showArchivedCheckbox.checked = true;
+            showArchivedCheckbox.parentElement.style.display = 'none';
+
+            renderArchivedUserPaymentsTable(userId);
+
+            const paymentModal = new bootstrap.Modal(document.getElementById('paymentModal'));
+            paymentModal.show();
+        };
+
+        // Function to render archived user payments
+        function renderArchivedUserPaymentsTable(userId) {
+            const user = archivedPaymentsByUser[userId];
+            if (!user) return;
+
+            const tbody = document.querySelector('#userPaymentsTable tbody');
+            tbody.innerHTML = '';
+
+            if (user.payments.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center py-4">
+                            <div class="text-muted">
+                                <i class="bi bi-archive-fill fs-4 d-block mb-2"></i>
+                                No archived payments found
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            user.payments.sort((a, b) => {
+                const dateA = a.payment_date ? new Date(a.payment_date) : new Date(0);
+                const dateB = b.payment_date ? new Date(b.payment_date) : new Date(0);
+                return dateB - dateA;
+            });
+
+            user.payments.forEach(payment => {
+                const tr = document.createElement('tr');
+                tr.classList.add('archived-payment');
+
+                const formattedDate = payment.payment_date ?
+                    new Intl.DateTimeFormat('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                    }).format(new Date(payment.payment_date)) :
+                    'N/A';
+
+                tr.innerHTML = `
+                    <td>${payment.payment_id}</td>
+                    <td>${payment.payment_type}</td>
+                    <td>${payment.amount}</td>
+                    <td><span class="badge status-${payment.status.toLowerCase()}">${payment.status}</span></td>
+                    <td>${formattedDate}</td>
+                    <td>
+                        <button class="btn btn-info btn-sm viewPaymentDetailsBtn" data-payment='${encodeURIComponent(
+                            JSON.stringify(payment)
+                        )}'>View</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Add event listeners for the view payment details buttons
+            document.querySelectorAll('#userPaymentsTable .viewPaymentDetailsBtn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const paymentData = JSON.parse(decodeURIComponent(this.getAttribute(
+                        'data-payment')));
+                    showPaymentDetails(paymentData);
+                });
+            });
+        }
+
+        // Function to show payment details in the modal
+        function showPaymentDetails(payment) {
+            const detailsBody = document.getElementById('paymentDetailsBody');
+
+            // Format payment date
+            const formattedPaymentDate = payment.payment_date ?
+                new Intl.DateTimeFormat('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                }).format(new Date(payment.payment_date)) :
+                'Not yet paid';
+
+            // Format due date
+            const formattedDueDate = payment.due_date ?
+                new Intl.DateTimeFormat('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                }).format(new Date(payment.due_date)) :
+                'No due date';
+
+            // Create the status badge with correct class
+            const statusClass = payment.is_archived ? 'archived' : payment.status.toLowerCase();
+            const statusText = payment.is_archived ? 'Archived' : payment.status;
+            const statusBadge = `<span class="badge status-${statusClass}">${statusText}</span>`;
+
+            // Build the HTML content
+            let html = `
+                <div class="mb-4">
+                    <h5 class="border-bottom pb-2">Payment Information</h5>
+                    <div class="row mb-2">
+                        <div class="col-md-5 fw-bold">Payment ID:</div>
+                        <div class="col-md-7">${payment.payment_id}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-5 fw-bold">Type:</div>
+                        <div class="col-md-7">${payment.payment_type}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-5 fw-bold">Amount:</div>
+                        <div class="col-md-7">${payment.amount}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-5 fw-bold">Status:</div>
+                        <div class="col-md-7">${statusBadge}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-5 fw-bold">Payment Date:</div>
+                        <div class="col-md-7">${formattedPaymentDate}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-5 fw-bold">Due Date:</div>
+                        <div class="col-md-7">${formattedDueDate}</div>
+                    </div>
+            `;
+
+            // Add payment method details if available
+            if (payment.mode_of_payment) {
+                html += `
+                    <div class="row mb-2">
+                        <div class="col-md-5 fw-bold">Payment Method:</div>
+                        <div class="col-md-7">${payment.mode_of_payment}</div>
+                    </div>
+                `;
+            }
+
+            // Add reference number if available
+            if (payment.reference_number) {
+                html += `
+                    <div class="row mb-2">
+                        <div class="col-md-5 fw-bold">Reference Number:</div>
+                        <div class="col-md-7">${payment.reference_number}</div>
+                    </div>
+                `;
+            }
+
+            // Add archive date if archived
+            if (payment.is_archived && payment.archive_date) {
+                const archiveDate = new Date(payment.archive_date);
+                const formattedArchiveDate = new Intl.DateTimeFormat('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                }).format(archiveDate);
+
+                html += `
+                    <div class="row mb-2">
+                        <div class="col-md-5 fw-bold">Archived Date:</div>
+                        <div class="col-md-7">${formattedArchiveDate}</div>
+                    </div>
+                `;
+            }
+
+            // If there's an image, add it
+            if (payment.image) {
+                html += `
+                    </div>
+                    <div class="mt-3">
+                        <h5 class="border-bottom pb-2">Payment Receipt</h5>
+                        <div class="text-center">
+                            <img src="${payment.image}" class="img-fluid mt-2" style="max-height: 300px;" alt="Payment Receipt">
+                        </div>
+                    </div>
+                `;
+            } else {
+                html += `</div>`;
+            }
+
+            detailsBody.innerHTML = html;
+
+            // Show the modal
+            const paymentDetailsModal = new bootstrap.Modal(document.getElementById('paymentDetailsModal'));
+            paymentDetailsModal.show();
+        }
+
+        // Add event listeners to handle payment status changes using delegation
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('viewPaymentDetailsBtn') || e.target.closest(
+                    '.viewPaymentDetailsBtn')) {
+                const button = e.target.classList.contains('viewPaymentDetailsBtn') ? e.target : e
+                    .target.closest('.viewPaymentDetailsBtn');
+                const paymentData = JSON.parse(decodeURIComponent(button.getAttribute('data-payment')));
+                showPaymentDetails(paymentData);
+            }
+        });
+
+        // Fix for the status badges in the renderUserPaymentsTable function
+        const originalRenderUserPaymentsTable = renderUserPaymentsTable;
+        window.renderUserPaymentsTable = function(userId, showArchived = false) {
+            const user = activePaymentsByUser[userId];
+            if (!user) return;
+
+            const tbody = document.querySelector('#userPaymentsTable tbody');
+            tbody.innerHTML = '';
+
+            let allPayments = [...user.payments];
+            if (showArchived && archivedPaymentsByUser[userId]) {
+                allPayments = [...allPayments, ...archivedPaymentsByUser[userId].payments];
+            }
+
+            if (allPayments.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center py-4">
+                            <div class="text-muted">
+                                <i class="bi bi-credit-card fs-4 d-block mb-2"></i>
+                                No payments found
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            allPayments.sort((a, b) => {
+                const dateA = a.payment_date ? new Date(a.payment_date) : new Date(0);
+                const dateB = b.payment_date ? new Date(b.payment_date) : new Date(0);
+                return dateB - dateA;
+            });
+
+            allPayments.forEach(payment => {
+                const tr = document.createElement('tr');
+                if (payment.is_archived) {
+                    tr.classList.add('archived-payment');
+                }
+
+                // Use the proper status class based on payment status or archived flag
+                let statusClass = payment.status.toLowerCase();
+                let statusText = payment.status;
+                if (payment.is_archived) {
+                    statusClass = 'archived';
+                    statusText = 'Archived';
+                }
+                const statusBadge =
+                `<span class="badge status-${statusClass}">${statusText}</span>`;
+
+                const formattedDate = payment.payment_date ?
+                    new Intl.DateTimeFormat('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                    }).format(new Date(payment.payment_date)) :
+                    'N/A';
+
+                tr.innerHTML = `
+                    <td>${payment.payment_id}</td>
+                    <td>${payment.payment_type}</td>
+                    <td>${payment.amount}</td>
+                    <td>${statusBadge}</td>
+                    <td>${formattedDate}</td>
+                    <td>
+                        <button class="btn btn-info btn-sm viewPaymentDetailsBtn" data-payment='${encodeURIComponent(
+                            JSON.stringify(payment)
+                        )}'>View</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Add event listeners for the view buttons
+            document.querySelectorAll('#userPaymentsTable .viewPaymentDetailsBtn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const paymentData = JSON.parse(decodeURIComponent(this.getAttribute(
+                        'data-payment')));
+                    showPaymentDetails(paymentData);
+                });
+            });
+        };
+    });
+
+    // Function to delete old archived payments
+    function deleteOldArchivedPayments(daysOld) {
+        if (!confirm(
+                `Are you sure you want to permanently delete archived payments older than ${daysOld} days? This action cannot be undone.`
+                )) {
+            return;
+        }
+
+        document.getElementById('loadingSpinner').style.display = 'flex';
+
+        fetch('../backend/routes/payment.php', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action: 'bulk_delete',
+                    days_old: daysOld
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loadingSpinner').style.display = 'none';
+                if (data.status) {
+                    showAlert(`${data.message}`, 'success');
+                    // Refresh the payments list
+                    loadPayments();
+                } else {
+                    showAlert(`Error: ${data.message}`, 'danger');
+                }
+            })
+            .catch(err => {
+                document.getElementById('loadingSpinner').style.display = 'none';
+                showAlert('A network error occurred', 'danger');
+                console.error(err);
+            });
+    }
+    </script>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 
