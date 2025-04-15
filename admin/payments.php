@@ -565,15 +565,15 @@ $csrf_token = $_SESSION['csrf_token'];
 
                 if (allPayments.length === 0) {
                     tbody.innerHTML = `
-                    <tr>
-                        <td colspan="6" class="text-center py-4">
-                            <div class="text-muted">
-                                <i class="bi bi-credit-card fs-4 d-block mb-2"></i>
-                                No payments found
-                            </div>
-                        </td>
-                    </tr>
-                `;
+                        <tr>
+                            <td colspan="6" class="text-center py-4">
+                                <div class="text-muted">
+                                    <i class="bi bi-credit-card fs-4 d-block mb-2"></i>
+                                    No payments found
+                                </div>
+                            </td>
+                        </tr>
+                    `;
                     return;
                 }
 
@@ -589,6 +589,7 @@ $csrf_token = $_SESSION['csrf_token'];
                         tr.classList.add('archived-payment');
                     }
 
+                    // Correctly display the status
                     let statusDisplayHTML = payment.is_archived ?
                         `<span class="badge status-archived">Archived</span>` :
                         `<span class="badge status-${payment.status.toLowerCase()}">${payment.status}</span>`;
@@ -597,27 +598,31 @@ $csrf_token = $_SESSION['csrf_token'];
                     let actionsHTML = '';
 
                     if (!payment.is_archived) {
-                        statusDropdown =
-                            `<select class="form-select form-select-sm" id="status_select_${payment.payment_id}">` +
-                            `<option value="New" ${payment.status === "New" ? "selected" : ""}>New</option>` +
-                            `<option value="Pending" ${payment.status === "Pending" ? "selected" : ""}>Pending</option>` +
-                            `<option value="Completed" ${payment.status === "Completed" ? "selected" : ""}>Completed</option>` +
-                            `<option value="Canceled" ${payment.status === "Canceled" ? "selected" : ""}>Canceled</option>` +
-                            `</select>`;
+                        statusDropdown = `
+                            <select class="form-select form-select-sm" id="status_select_${payment.payment_id}">
+                                <option value="New" ${payment.status === "New" ? "selected" : ""}>New</option>
+                                <option value="Pending" ${payment.status === "Pending" ? "selected" : ""}>Pending</option>
+                                <option value="Completed" ${payment.status === "Completed" ? "selected" : ""}>Completed</option>
+                                <option value="Canceled" ${payment.status === "Canceled" ? "selected" : ""}>Canceled</option>
+                            </select>
+                        `;
 
-                        actionsHTML =
-                            `<button class="btn btn-info btn-sm viewPaymentDetailsBtn" data-payment='${encodeURIComponent(JSON.stringify(payment))}'>View</button>` +
-                            ` <button class="btn btn-secondary btn-sm updatePaymentStatusBtn" data-payment-id="${payment.payment_id}">Update</button>`;
+                        actionsHTML = `
+                            <button class="btn btn-info btn-sm viewPaymentDetailsBtn" data-payment='${encodeURIComponent(JSON.stringify(payment))}'>View</button>
+                            <button class="btn btn-secondary btn-sm updatePaymentStatusBtn" data-payment-id="${payment.payment_id}">Update</button>
+                        `;
 
                         if (payment.status === "Completed") {
-                            actionsHTML +=
-                                ` <button class="btn btn-outline-secondary btn-sm archivePaymentBtn" data-payment-id="${payment.payment_id}">Archive</button>`;
+                            actionsHTML += `
+                                <button class="btn btn-outline-secondary btn-sm archivePaymentBtn" data-payment-id="${payment.payment_id}">Archive</button>
+                            `;
                         }
                     } else {
                         statusDropdown = statusDisplayHTML;
-                        actionsHTML =
-                            `<button class="btn btn-info btn-sm viewPaymentDetailsBtn" data-payment='${encodeURIComponent(JSON.stringify(payment))}'>View</button>` +
-                            ` <button class="btn btn-outline-warning btn-sm restorePaymentBtn" data-payment-id="${payment.payment_id}">Restore</button>`;
+                        actionsHTML = `
+                            <button class="btn btn-info btn-sm viewPaymentDetailsBtn" data-payment='${encodeURIComponent(JSON.stringify(payment))}'>View</button>
+                            <button class="btn btn-outline-warning btn-sm restorePaymentBtn" data-payment-id="${payment.payment_id}">Restore</button>
+                        `;
                     }
 
                     let formattedDate = 'N/A';
@@ -633,13 +638,13 @@ $csrf_token = $_SESSION['csrf_token'];
                     }
 
                     tr.innerHTML = `
-                    <td>${payment.payment_id}</td>
-                    <td>${payment.payment_type}</td>
-                    <td>${payment.amount}</td>
-                    <td>${statusDropdown}</td>
-                    <td>${formattedDate}</td>
-                    <td>${actionsHTML}</td>
-                `;
+                        <td>${payment.payment_id}</td>
+                        <td>${payment.payment_type}</td>
+                        <td>${payment.amount}</td>
+                        <td>${statusDropdown}</td>
+                        <td>${formattedDate}</td>
+                        <td>${actionsHTML}</td>
+                    `;
                     tbody.appendChild(tr);
                 });
 
