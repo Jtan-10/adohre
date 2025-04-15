@@ -547,7 +547,7 @@ $csrf_token = $_SESSION['csrf_token'];
             });
         }
 
-        // Render the user's payments table (active view)
+        // 1. Fix for renderUserPaymentsTable function
         function renderUserPaymentsTable(userId, showArchived = false) {
             const user = paymentsByUser[userId];
             if (!user) return;
@@ -572,8 +572,7 @@ $csrf_token = $_SESSION['csrf_token'];
                         No payments found
                     </div>
                 </td>
-            </tr>
-        `;
+            </tr>`;
                 return;
             }
 
@@ -589,14 +588,13 @@ $csrf_token = $_SESSION['csrf_token'];
                     tr.classList.add('archived-payment');
                 }
 
-                // FIX: Correctly display the status based on both archive status and payment status
-                let statusDisplayHTML = '';
-                if (payment.is_archived) {
-                    statusDisplayHTML = `<span class="badge status-archived">Archived</span>`;
-                } else {
-                    statusDisplayHTML =
-                        `<span class="badge status-${payment.status.toLowerCase()}">${payment.status}</span>`;
-                }
+                // Display the actual payment status regardless of archive status
+                const statusBadge =
+                    `<span class="badge status-${payment.status.toLowerCase()}">${payment.status}</span>`;
+
+                // For archived payments, add an additional archived badge
+                const archivedBadge = payment.is_archived ?
+                    `<span class="badge status-archived ml-1">Archived</span>` : '';
 
                 let statusDropdown = '';
                 let actionsHTML = '';
@@ -622,7 +620,9 @@ $csrf_token = $_SESSION['csrf_token'];
                 `;
                     }
                 } else {
-                    statusDropdown = statusDisplayHTML;
+                    // For archived payments, show the status badges instead of dropdown
+                    statusDropdown = `${statusBadge} ${archivedBadge}`;
+
                     actionsHTML = `
                 <button class="btn btn-info btn-sm viewPaymentDetailsBtn" data-payment='${encodeURIComponent(JSON.stringify(payment))}'>View</button>
                 <button class="btn btn-outline-warning btn-sm restorePaymentBtn" data-payment-id="${payment.payment_id}">Restore</button>
@@ -647,15 +647,14 @@ $csrf_token = $_SESSION['csrf_token'];
             <td>${payment.amount}</td>
             <td>${statusDropdown}</td>
             <td>${formattedDate}</td>
-            <td>${actionsHTML}</td>
-        `;
+            <td>${actionsHTML}</td>       `;
                 tbody.appendChild(tr);
             });
 
             attachPaymentButtonListeners();
         }
 
-        // Function to render archived payments in the modal (archived view)
+        // 2. Fix for renderArchivedPaymentsTable function
         function renderArchivedPaymentsTable(userId) {
             const user = archivedPaymentsByUser[userId];
             if (!user) return;
@@ -705,8 +704,11 @@ $csrf_token = $_SESSION['csrf_token'];
                 const today = new Date();
                 const archiveDate = new Date(payment.archive_date);
                 const daysSinceArchive = Math.floor((today - archiveDate) / (1000 * 60 * 60 * 24));
+
+                // Show both the payment status and the archived status
                 const statusBadge =
                     `<span class="badge status-${payment.status.toLowerCase()}">${payment.status}</span>`;
+                const archivedBadge = `<span class="badge status-archived ml-1">Archived</span>`;
 
                 tr.innerHTML = `
                     <td>${payment.payment_id}</td>
