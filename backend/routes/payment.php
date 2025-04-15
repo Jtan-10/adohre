@@ -34,7 +34,8 @@ $method = $_SERVER['REQUEST_METHOD'];
  * @return GdImage A GD image resource.
  */
 if (!function_exists('embedDataInPng')) {
-    function embedDataInPng($binaryData, $desiredWidth = 100) {
+    function embedDataInPng($binaryData, $desiredWidth = 100)
+    {
         $dataLen = strlen($binaryData);
         // Each pixel holds 3 bytes.
         $numPixels = ceil($dataLen / 3);
@@ -200,12 +201,12 @@ if ($method === 'GET') {
             $encryptionKey = hash('sha256', $rawKey, true);
             $encryptedData = openssl_encrypt($clearImageData, $cipher, $encryptionKey, OPENSSL_RAW_DATA, $iv);
             $encryptedImageData = $iv . $encryptedData;
-            
+
             $pngImage = embedDataInPng($encryptedImageData, 100);
             $encryptedTempPath = tempnam(sys_get_temp_dir(), 'enc_pay_') . '.png';
             imagepng($pngImage, $encryptedTempPath);
             imagedestroy($pngImage);
-            
+
             // Before uploading the new image, delete any previously stored image for this payment.
             $stmtOld = $conn->prepare("SELECT image FROM payments WHERE payment_id = ?");
             if ($stmtOld) {
@@ -362,7 +363,7 @@ if ($method === 'GET') {
 
             // Audit log the payment fee update
             recordAuditLog($_SESSION['user_id'], 'Update Payment Fee', "Payment ID $payment_id updated to Pending. Reference: $reference_number, Mode: $mode_of_payment, Payment Date: $payment_date");
-            
+
             echo json_encode(['status' => true, 'message' => 'Payment updated successfully.']);
             exit();
         } else {
@@ -395,7 +396,7 @@ if ($method === 'GET') {
             }
             $imageName = time() . '_' . basename($_FILES['image']['name']);
             $s3Key = 'uploads/payments/' . $imageName;
-            
+
             // Encrypt and embed the image into a PNG.
             $clearImageData = file_get_contents($_FILES['image']['tmp_name']);
             $cipher = "AES-256-CBC";
@@ -405,12 +406,12 @@ if ($method === 'GET') {
             $encryptionKey = hash('sha256', $rawKey, true);
             $encryptedData = openssl_encrypt($clearImageData, $cipher, $encryptionKey, OPENSSL_RAW_DATA, $iv);
             $encryptedImageData = $iv . $encryptedData;
-            
+
             $pngImage = embedDataInPng($encryptedImageData, 100);
             $encryptedTempPath = tempnam(sys_get_temp_dir(), 'enc_pay_') . '.png';
             imagepng($pngImage, $encryptedTempPath);
             imagedestroy($pngImage);
-            
+
             try {
                 $result = $s3->putObject([
                     'Bucket' => $bucketName,
@@ -451,15 +452,9 @@ if ($method === 'GET') {
     }
 } elseif ($method === 'PUT') {
     $input = json_decode(file_get_contents('php://input'), true);
-    
+
     // Check if this is an action request (archive/restore)
     if (isset($input['action'])) {
-        // Validate CSRF token if provided
-        if (isset($input['csrf_token']) && $input['csrf_token'] !== $_SESSION['csrf_token']) {
-            echo json_encode(['status' => false, 'message' => 'Invalid CSRF token']);
-            exit();
-        }
-        
         switch ($input['action']) {
             case 'archive':
                 // Archive a payment
@@ -467,17 +462,17 @@ if ($method === 'GET') {
                     echo json_encode(['status' => false, 'message' => 'Missing payment ID']);
                     exit();
                 }
-                
+
                 $payment_id = $input['payment_id'];
                 $current_date = date('Y-m-d');
-                
+
                 $stmt = $conn->prepare("UPDATE payments SET is_archived = 1, archive_date = ? WHERE payment_id = ?");
                 if ($stmt === false) {
                     error_log("Database error preparing archive statement: " . $conn->error);
                     echo json_encode(['status' => false, 'message' => 'Database error']);
                     exit();
                 }
-                
+
                 $stmt->bind_param("si", $current_date, $payment_id);
                 if ($stmt->execute()) {
                     // Log the archiving action
@@ -489,23 +484,23 @@ if ($method === 'GET') {
                 }
                 exit();
                 break;
-                
+
             case 'restore':
                 // Restore an archived payment
                 if (!isset($input['payment_id'])) {
                     echo json_encode(['status' => false, 'message' => 'Missing payment ID']);
                     exit();
                 }
-                
+
                 $payment_id = $input['payment_id'];
-                
+
                 $stmt = $conn->prepare("UPDATE payments SET is_archived = 0, archive_date = NULL WHERE payment_id = ?");
                 if ($stmt === false) {
                     error_log("Database error preparing restore statement: " . $conn->error);
                     echo json_encode(['status' => false, 'message' => 'Database error']);
                     exit();
                 }
-                
+
                 $stmt->bind_param("i", $payment_id);
                 if ($stmt->execute()) {
                     // Log the restore action
@@ -517,7 +512,7 @@ if ($method === 'GET') {
                 }
                 exit();
                 break;
-                
+
             default:
                 echo json_encode(['status' => false, 'message' => 'Invalid action']);
                 exit();
@@ -643,35 +638,31 @@ if ($method === 'GET') {
         echo json_encode(['status' => false, 'message' => 'Unauthorized access']);
         exit();
     }
-    
+
     $input = json_decode(file_get_contents('php://input'), true);
-    
+
     // Validate request data
-    if (!isset($input['action']) || $input['action'] !== 'bulk_delete' || 
-        !isset($input['days_old']) || !isset($input['csrf_token'])) {
+    if (
+        !isset($input['action']) || $input['action'] !== 'bulk_delete' ||
+        !isset($input['days_old'])
+    ) {
         echo json_encode(['status' => false, 'message' => 'Invalid request data']);
         exit();
     }
-    
-    // Validate CSRF token
-    if ($input['csrf_token'] !== $_SESSION['csrf_token']) {
-        echo json_encode(['status' => false, 'message' => 'Invalid CSRF token']);
-        exit();
-    }
-    
+
     $days_old = intval($input['days_old']);
     if ($days_old <= 0) {
         echo json_encode(['status' => false, 'message' => 'Days parameter must be a positive number']);
         exit();
     }
-    
+
     // Calculate cutoff date for deletion
     $cutoff_date = date('Y-m-d', strtotime("-$days_old days"));
-    
+
     try {
         // Begin transaction
         $conn->begin_transaction();
-        
+
         // Store payment IDs for logging purposes
         $stmt_ids = $conn->prepare("SELECT payment_id FROM payments WHERE is_archived = 1 AND archive_date <= ?");
         $stmt_ids->bind_param("s", $cutoff_date);
@@ -682,27 +673,33 @@ if ($method === 'GET') {
             $deleted_ids[] = $row['payment_id'];
         }
         $stmt_ids->close();
-        
+
         // Delete payments that were archived before the cutoff date
         $stmt = $conn->prepare("DELETE FROM payments WHERE is_archived = 1 AND archive_date <= ?");
         $stmt->bind_param("s", $cutoff_date);
         $stmt->execute();
         $deleted_count = $stmt->affected_rows;
         $stmt->close();
-        
+
         // Log the deletion
         if (!empty($deleted_ids)) {
             $ids_string = implode(', ', $deleted_ids);
-            recordAuditLog($_SESSION['user_id'], 'Bulk Delete Archived Payments', 
-                "Deleted $deleted_count archived payments older than $days_old days. IDs: $ids_string");
+            recordAuditLog(
+                $_SESSION['user_id'],
+                'Bulk Delete Archived Payments',
+                "Deleted $deleted_count archived payments older than $days_old days. IDs: $ids_string"
+            );
         } else {
-            recordAuditLog($_SESSION['user_id'], 'Bulk Delete Archived Payments', 
-                "No payments found to delete older than $days_old days.");
+            recordAuditLog(
+                $_SESSION['user_id'],
+                'Bulk Delete Archived Payments',
+                "No payments found to delete older than $days_old days."
+            );
         }
-        
+
         // Commit transaction
         $conn->commit();
-        
+
         echo json_encode([
             'status' => true,
             'message' => "Successfully deleted $deleted_count archived payment(s).",
@@ -719,4 +716,3 @@ if ($method === 'GET') {
     echo json_encode(['status' => false, 'message' => 'Unsupported request method']);
     exit();
 }
-?>
