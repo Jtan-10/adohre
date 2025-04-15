@@ -25,78 +25,78 @@ $csrf_token = $_SESSION['csrf_token'];
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
     <meta name="csrf-token" content="<?php echo htmlspecialchars($csrf_token, ENT_QUOTES, 'UTF-8'); ?>">
     <style>
-    /* Add a dark overlay to the manage modal when dimmed */
-    .modal-dimmed::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.6);
-        z-index: 1050;
-    }
+        /* Add a dark overlay to the manage modal when dimmed */
+        .modal-dimmed::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1050;
+        }
 
-    /* Add styles for archived payments */
-    .archived-payment {
-        background-color: #f8f9fa;
-        color: #6c757d;
-    }
+        /* Add styles for archived payments */
+        .archived-payment {
+            background-color: #f8f9fa;
+            color: #6c757d;
+        }
 
-    /* Badge styles */
-    .status-badge {
-        padding: 0.25em 0.6em;
-        font-size: 75%;
-        font-weight: 700;
-        border-radius: 0.25rem;
-    }
+        /* Badge styles */
+        .status-badge {
+            padding: 0.25em 0.6em;
+            font-size: 75%;
+            font-weight: 700;
+            border-radius: 0.25rem;
+        }
 
-    .status-new {
-        background-color: #0d6efd;
-        color: white;
-    }
+        .status-new {
+            background-color: #0d6efd;
+            color: white;
+        }
 
-    .status-pending {
-        background-color: #ffc107;
-        color: black;
-    }
+        .status-pending {
+            background-color: #ffc107;
+            color: black;
+        }
 
-    .status-completed {
-        background-color: #198754;
-        color: white;
-    }
+        .status-completed {
+            background-color: #198754;
+            color: white;
+        }
 
-    .status-canceled {
-        background-color: #dc3545;
-        color: white;
-    }
+        .status-canceled {
+            background-color: #dc3545;
+            color: white;
+        }
 
-    .status-archived {
-        background-color: #6c757d;
-        color: white;
-    }
+        .status-archived {
+            background-color: #6c757d;
+            color: white;
+        }
 
-    /* Add a spinner for loading states */
-    .spinner-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.5);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 2000;
-        display: none;
-    }
+        /* Add a spinner for loading states */
+        .spinner-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            display: none;
+        }
 
-    .spinner-container {
-        background-color: white;
-        padding: 20px;
-        border-radius: 5px;
-        text-align: center;
-    }
+        .spinner-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            text-align: center;
+        }
     </style>
 </head>
 
@@ -302,132 +302,132 @@ $csrf_token = $_SESSION['csrf_token'];
 
     <!-- Scripts -->
     <script nonce="<?php echo $cspNonce; ?>">
-    document.addEventListener('DOMContentLoaded', function() {
-        // Global objects to store payments grouped by user
-        let paymentsByUser = {};
-        let archivedPaymentsByUser = {};
-        let statusFilter = 'all';
-        let activeTab = 'active';
-        let totalArchivedCount = 0;
+        document.addEventListener('DOMContentLoaded', function() {
+            // Global objects to store payments grouped by user
+            let paymentsByUser = {};
+            let archivedPaymentsByUser = {};
+            let statusFilter = 'all';
+            let activeTab = 'active';
+            let totalArchivedCount = 0;
 
-        // Tab switching event listeners
-        document.getElementById('active-tab').addEventListener('click', function() {
-            activeTab = 'active';
-        });
+            // Tab switching event listeners
+            document.getElementById('active-tab').addEventListener('click', function() {
+                activeTab = 'active';
+            });
 
-        document.getElementById('archived-tab').addEventListener('click', function() {
-            activeTab = 'archived';
-            renderArchivedUsersTable();
-        });
+            document.getElementById('archived-tab').addEventListener('click', function() {
+                activeTab = 'archived';
+                renderArchivedUsersTable();
+            });
 
-        // Event listeners for filter controls
-        document.getElementById('statusFilter').addEventListener('change', function() {
-            statusFilter = this.value;
-            renderUsersTable();
-        });
+            // Event listeners for filter controls
+            document.getElementById('statusFilter').addEventListener('change', function() {
+                statusFilter = this.value;
+                renderUsersTable();
+            });
 
-        document.getElementById('refreshPayments').addEventListener('click', function() {
-            loadPayments();
-        });
+            document.getElementById('refreshPayments').addEventListener('click', function() {
+                loadPayments();
+            });
 
-        // Event listeners for archive tab controls
-        document.getElementById('refreshArchivedPayments').addEventListener('click', function() {
-            loadPayments();
-        });
+            // Event listeners for archive tab controls
+            document.getElementById('refreshArchivedPayments').addEventListener('click', function() {
+                loadPayments();
+            });
 
-        document.getElementById('deleteOldArchived').addEventListener('click', function() {
-            const daysOld = document.getElementById('archiveDaysFilter').value;
-            deleteOldArchivedPayments(daysOld);
-        });
+            document.getElementById('deleteOldArchived').addEventListener('click', function() {
+                const daysOld = document.getElementById('archiveDaysFilter').value;
+                deleteOldArchivedPayments(daysOld);
+            });
 
-        // Show or hide archived payments in the user payments modal when in active view
-        document.getElementById('showArchivedUserPayments').addEventListener('change', function() {
-            const showArchived = this.checked;
-            const userId = document.getElementById('paymentModalLabel').getAttribute('data-user-id');
-            const viewType = document.getElementById('paymentModalLabel').getAttribute(
-                'data-view-type') || 'active';
+            // Show or hide archived payments in the user payments modal when in active view
+            document.getElementById('showArchivedUserPayments').addEventListener('change', function() {
+                const showArchived = this.checked;
+                const userId = document.getElementById('paymentModalLabel').getAttribute('data-user-id');
+                const viewType = document.getElementById('paymentModalLabel').getAttribute(
+                    'data-view-type') || 'active';
 
-            if (userId && viewType === 'active') {
-                renderUserPaymentsTable(userId, showArchived);
-            }
-        });
+                if (userId && viewType === 'active') {
+                    renderUserPaymentsTable(userId, showArchived);
+                }
+            });
 
-        // Fetch all payments from the API and group them by user
-        function loadPayments() {
-            document.getElementById('loadingSpinner').style.display = 'flex';
-            totalArchivedCount = 0;
+            // Fetch all payments from the API and group them by user
+            function loadPayments() {
+                document.getElementById('loadingSpinner').style.display = 'flex';
+                totalArchivedCount = 0;
 
-            fetch('../backend/routes/payment.php?action=get_all_payments', {
-                    method: 'GET'
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status) {
-                        paymentsByUser = {};
-                        archivedPaymentsByUser = {};
+                fetch('../backend/routes/payment.php?action=get_all_payments', {
+                        method: 'GET'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status && Array.isArray(data.payments)) { // Ensure payments is an array
+                            paymentsByUser = {};
+                            archivedPaymentsByUser = {};
 
-                        // Sort payments by date (newest first)
-                        data.payments.sort((a, b) => {
-                            const dateA = a.payment_date ? new Date(a.payment_date) : new Date(0);
-                            const dateB = b.payment_date ? new Date(b.payment_date) : new Date(0);
-                            return dateB - dateA;
-                        });
+                            // Sort payments by date (newest first)
+                            data.payments.sort((a, b) => {
+                                const dateA = a.payment_date ? new Date(a.payment_date) : new Date(0);
+                                const dateB = b.payment_date ? new Date(b.payment_date) : new Date(0);
+                                return dateB - dateA;
+                            });
 
-                        data.payments.forEach(payment => {
-                            if (payment.is_archived) {
-                                if (!archivedPaymentsByUser[payment.user_id]) {
-                                    archivedPaymentsByUser[payment.user_id] = {
-                                        user_id: payment.user_id,
-                                        first_name: payment.first_name,
-                                        last_name: payment.last_name,
-                                        email: payment.email,
-                                        payments: []
-                                    };
+                            data.payments.forEach(payment => {
+                                if (payment.is_archived) {
+                                    if (!archivedPaymentsByUser[payment.user_id]) {
+                                        archivedPaymentsByUser[payment.user_id] = {
+                                            user_id: payment.user_id,
+                                            first_name: payment.first_name,
+                                            last_name: payment.last_name,
+                                            email: payment.email,
+                                            payments: []
+                                        };
+                                    }
+                                    archivedPaymentsByUser[payment.user_id].payments.push(payment);
+                                    totalArchivedCount++;
+                                } else {
+                                    if (!paymentsByUser[payment.user_id]) {
+                                        paymentsByUser[payment.user_id] = {
+                                            user_id: payment.user_id,
+                                            first_name: payment.first_name,
+                                            last_name: payment.last_name,
+                                            email: payment.email,
+                                            payments: []
+                                        };
+                                    }
+                                    paymentsByUser[payment.user_id].payments.push(payment);
                                 }
-                                archivedPaymentsByUser[payment.user_id].payments.push(payment);
-                                totalArchivedCount++;
+                            });
+
+                            document.getElementById('archivedCount').textContent =
+                                `${totalArchivedCount} archived payment${totalArchivedCount !== 1 ? 's' : ''}`;
+
+                            if (activeTab === 'active') {
+                                renderUsersTable();
                             } else {
-                                if (!paymentsByUser[payment.user_id]) {
-                                    paymentsByUser[payment.user_id] = {
-                                        user_id: payment.user_id,
-                                        first_name: payment.first_name,
-                                        last_name: payment.last_name,
-                                        email: payment.email,
-                                        payments: []
-                                    };
-                                }
-                                paymentsByUser[payment.user_id].payments.push(payment);
+                                renderArchivedUsersTable();
                             }
-                        });
-
-                        document.getElementById('archivedCount').textContent =
-                            `${totalArchivedCount} archived payment${totalArchivedCount !== 1 ? 's' : ''}`;
-
-                        if (activeTab === 'active') {
-                            renderUsersTable();
+                            document.getElementById('loadingSpinner').style.display = 'none';
                         } else {
-                            renderArchivedUsersTable();
+                            showAlert('Invalid data format received from the server.', 'danger');
                         }
                         document.getElementById('loadingSpinner').style.display = 'none';
-                    } else {
-                        showAlert(data.message, 'danger');
+                    })
+                    .catch(err => {
+                        showAlert('Error loading payments.', 'danger');
+                        console.error(err);
                         document.getElementById('loadingSpinner').style.display = 'none';
-                    }
-                })
-                .catch(err => {
-                    showAlert('Error loading payments.', 'danger');
-                    console.error(err);
-                    document.getElementById('loadingSpinner').style.display = 'none';
-                });
-        }
+                    });
+            }
 
-        // Render the active users table
-        function renderUsersTable() {
-            const tbody = document.querySelector('#usersTable tbody');
-            tbody.innerHTML = '';
+            // Render the active users table
+            function renderUsersTable() {
+                const tbody = document.querySelector('#usersTable tbody');
+                tbody.innerHTML = '';
 
-            if (Object.keys(paymentsByUser).length === 0) {
-                tbody.innerHTML = `
+                if (Object.keys(paymentsByUser).length === 0) {
+                    tbody.innerHTML = `
                     <tr>
                         <td colspan="4" class="text-center py-4">
                             <div class="text-muted">
@@ -437,18 +437,18 @@ $csrf_token = $_SESSION['csrf_token'];
                         </td>
                     </tr>
                 `;
-                return;
-            }
+                    return;
+                }
 
-            let filteredUsers = Object.values(paymentsByUser);
-            if (statusFilter !== 'all') {
-                filteredUsers = filteredUsers.filter(user => {
-                    return user.payments.some(payment => payment.status === statusFilter);
-                });
-            }
+                let filteredUsers = Object.values(paymentsByUser);
+                if (statusFilter !== 'all') {
+                    filteredUsers = filteredUsers.filter(user => {
+                        return user.payments.some(payment => payment.status === statusFilter);
+                    });
+                }
 
-            if (filteredUsers.length === 0) {
-                tbody.innerHTML = `
+                if (filteredUsers.length === 0) {
+                    tbody.innerHTML = `
                     <tr>
                         <td colspan="4" class="text-center py-4">
                             <div class="text-muted">
@@ -458,18 +458,18 @@ $csrf_token = $_SESSION['csrf_token'];
                         </td>
                     </tr>
                 `;
-                return;
-            }
+                    return;
+                }
 
-            filteredUsers.forEach(user => {
-                const filteredPayments = user.payments.filter(payment => {
-                    return statusFilter === 'all' || payment.status === statusFilter;
-                });
+                filteredUsers.forEach(user => {
+                    const filteredPayments = user.payments.filter(payment => {
+                        return statusFilter === 'all' || payment.status === statusFilter;
+                    });
 
-                if (filteredPayments.length === 0) return;
+                    if (filteredPayments.length === 0) return;
 
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
                     <td>${user.user_id}</td>
                     <td>${user.first_name} ${user.last_name}</td>
                     <td>${user.email}</td>
@@ -479,24 +479,24 @@ $csrf_token = $_SESSION['csrf_token'];
                         </button>
                     </td>
                 `;
-                tbody.appendChild(tr);
-            });
-
-            document.querySelectorAll('.managePaymentsBtn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const userId = btn.getAttribute('data-user-id');
-                    window.managePayments(userId);
+                    tbody.appendChild(tr);
                 });
-            });
-        }
 
-        // Render the archived users table
-        function renderArchivedUsersTable() {
-            const tbody = document.querySelector('#archivedUsersTable tbody');
-            tbody.innerHTML = '';
+                document.querySelectorAll('.managePaymentsBtn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const userId = btn.getAttribute('data-user-id');
+                        window.managePayments(userId);
+                    });
+                });
+            }
 
-            if (Object.keys(archivedPaymentsByUser).length === 0) {
-                tbody.innerHTML = `
+            // Render the archived users table
+            function renderArchivedUsersTable() {
+                const tbody = document.querySelector('#archivedUsersTable tbody');
+                tbody.innerHTML = '';
+
+                if (Object.keys(archivedPaymentsByUser).length === 0) {
+                    tbody.innerHTML = `
                     <tr>
                         <td colspan="6" class="text-center py-4">
                             <div class="text-muted">
@@ -506,25 +506,25 @@ $csrf_token = $_SESSION['csrf_token'];
                         </td>
                     </tr>
                 `;
-                return;
-            }
+                    return;
+                }
 
-            Object.values(archivedPaymentsByUser).forEach(user => {
-                let oldestArchiveDate = null;
-                user.payments.forEach(payment => {
-                    if (payment.archive_date) {
-                        const archiveDate = new Date(payment.archive_date);
-                        if (!oldestArchiveDate || archiveDate < oldestArchiveDate) {
-                            oldestArchiveDate = archiveDate;
+                Object.values(archivedPaymentsByUser).forEach(user => {
+                    let oldestArchiveDate = null;
+                    user.payments.forEach(payment => {
+                        if (payment.archive_date) {
+                            const archiveDate = new Date(payment.archive_date);
+                            if (!oldestArchiveDate || archiveDate < oldestArchiveDate) {
+                                oldestArchiveDate = archiveDate;
+                            }
                         }
-                    }
-                });
+                    });
 
-                const formattedOldestDate = oldestArchiveDate ?
-                    oldestArchiveDate.toISOString().split('T')[0] : 'Unknown';
+                    const formattedOldestDate = oldestArchiveDate ?
+                        oldestArchiveDate.toISOString().split('T')[0] : 'Unknown';
 
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
                     <td>${user.user_id}</td>
                     <td>${user.first_name} ${user.last_name}</td>
                     <td>${user.email}</td>
@@ -536,35 +536,35 @@ $csrf_token = $_SESSION['csrf_token'];
                         </button>
                     </td>
                 `;
-                tbody.appendChild(tr);
-            });
-
-            document.querySelectorAll('.viewArchivedBtn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const userId = btn.getAttribute('data-user-id');
-                    window.viewArchivedPayments(userId);
+                    tbody.appendChild(tr);
                 });
-            });
-        }
 
-        // Render the user's payments table (active view)
-        function renderUserPaymentsTable(userId, showArchived = false) {
-            const user = paymentsByUser[userId];
-            if (!user) return;
-
-            document.getElementById('paymentModalLabel').setAttribute('data-view-type', 'active');
-            document.getElementById('showArchivedUserPayments').parentElement.style.display = 'inline-block';
-
-            const tbody = document.querySelector('#userPaymentsTable tbody');
-            tbody.innerHTML = '';
-
-            let allPayments = [...user.payments];
-            if (showArchived && archivedPaymentsByUser[userId]) {
-                allPayments = [...allPayments, ...archivedPaymentsByUser[userId].payments];
+                document.querySelectorAll('.viewArchivedBtn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const userId = btn.getAttribute('data-user-id');
+                        window.viewArchivedPayments(userId);
+                    });
+                });
             }
 
-            if (allPayments.length === 0) {
-                tbody.innerHTML = `
+            // Render the user's payments table (active view)
+            function renderUserPaymentsTable(userId, showArchived = false) {
+                const user = paymentsByUser[userId];
+                if (!user) return;
+
+                document.getElementById('paymentModalLabel').setAttribute('data-view-type', 'active');
+                document.getElementById('showArchivedUserPayments').parentElement.style.display = 'inline-block';
+
+                const tbody = document.querySelector('#userPaymentsTable tbody');
+                tbody.innerHTML = '';
+
+                let allPayments = [...user.payments];
+                if (showArchived && archivedPaymentsByUser[userId]) {
+                    allPayments = [...allPayments, ...archivedPaymentsByUser[userId].payments];
+                }
+
+                if (allPayments.length === 0) {
+                    tbody.innerHTML = `
                     <tr>
                         <td colspan="6" class="text-center py-4">
                             <div class="text-muted">
@@ -574,65 +574,65 @@ $csrf_token = $_SESSION['csrf_token'];
                         </td>
                     </tr>
                 `;
-                return;
-            }
-
-            allPayments.sort((a, b) => {
-                const dateA = a.payment_date ? new Date(a.payment_date) : new Date(0);
-                const dateB = b.payment_date ? new Date(b.payment_date) : new Date(0);
-                return dateB - dateA;
-            });
-
-            allPayments.forEach(payment => {
-                const tr = document.createElement('tr');
-                if (payment.is_archived) {
-                    tr.classList.add('archived-payment');
+                    return;
                 }
 
-                let statusDisplayHTML = payment.is_archived ?
-                    `<span class="badge status-archived">Archived</span>` :
-                    `<span class="badge status-${payment.status.toLowerCase()}">${payment.status}</span>`;
+                allPayments.sort((a, b) => {
+                    const dateA = a.payment_date ? new Date(a.payment_date) : new Date(0);
+                    const dateB = b.payment_date ? new Date(b.payment_date) : new Date(0);
+                    return dateB - dateA;
+                });
 
-                let statusDropdown = '';
-                let actionsHTML = '';
-
-                if (!payment.is_archived) {
-                    statusDropdown =
-                        `<select class="form-select form-select-sm" id="status_select_${payment.payment_id}">` +
-                        `<option value="New" ${payment.status === "New" ? "selected" : ""}>New</option>` +
-                        `<option value="Pending" ${payment.status === "Pending" ? "selected" : ""}>Pending</option>` +
-                        `<option value="Completed" ${payment.status === "Completed" ? "selected" : ""}>Completed</option>` +
-                        `<option value="Canceled" ${payment.status === "Canceled" ? "selected" : ""}>Canceled</option>` +
-                        `</select>`;
-
-                    actionsHTML =
-                        `<button class="btn btn-info btn-sm viewPaymentDetailsBtn" data-payment='${encodeURIComponent(JSON.stringify(payment))}'>View</button>` +
-                        ` <button class="btn btn-secondary btn-sm updatePaymentStatusBtn" data-payment-id="${payment.payment_id}">Update</button>`;
-
-                    if (payment.status === "Completed") {
-                        actionsHTML +=
-                            ` <button class="btn btn-outline-secondary btn-sm archivePaymentBtn" data-payment-id="${payment.payment_id}">Archive</button>`;
+                allPayments.forEach(payment => {
+                    const tr = document.createElement('tr');
+                    if (payment.is_archived) {
+                        tr.classList.add('archived-payment');
                     }
-                } else {
-                    statusDropdown = statusDisplayHTML;
-                    actionsHTML =
-                        `<button class="btn btn-info btn-sm viewPaymentDetailsBtn" data-payment='${encodeURIComponent(JSON.stringify(payment))}'>View</button>` +
-                        ` <button class="btn btn-outline-warning btn-sm restorePaymentBtn" data-payment-id="${payment.payment_id}">Restore</button>`;
-                }
 
-                let formattedDate = 'N/A';
-                if (payment.payment_date) {
-                    const date = new Date(payment.payment_date);
-                    formattedDate = new Intl.DateTimeFormat('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    }).format(date);
-                }
+                    let statusDisplayHTML = payment.is_archived ?
+                        `<span class="badge status-archived">Archived</span>` :
+                        `<span class="badge status-${payment.status.toLowerCase()}">${payment.status}</span>`;
 
-                tr.innerHTML = `
+                    let statusDropdown = '';
+                    let actionsHTML = '';
+
+                    if (!payment.is_archived) {
+                        statusDropdown =
+                            `<select class="form-select form-select-sm" id="status_select_${payment.payment_id}">` +
+                            `<option value="New" ${payment.status === "New" ? "selected" : ""}>New</option>` +
+                            `<option value="Pending" ${payment.status === "Pending" ? "selected" : ""}>Pending</option>` +
+                            `<option value="Completed" ${payment.status === "Completed" ? "selected" : ""}>Completed</option>` +
+                            `<option value="Canceled" ${payment.status === "Canceled" ? "selected" : ""}>Canceled</option>` +
+                            `</select>`;
+
+                        actionsHTML =
+                            `<button class="btn btn-info btn-sm viewPaymentDetailsBtn" data-payment='${encodeURIComponent(JSON.stringify(payment))}'>View</button>` +
+                            ` <button class="btn btn-secondary btn-sm updatePaymentStatusBtn" data-payment-id="${payment.payment_id}">Update</button>`;
+
+                        if (payment.status === "Completed") {
+                            actionsHTML +=
+                                ` <button class="btn btn-outline-secondary btn-sm archivePaymentBtn" data-payment-id="${payment.payment_id}">Archive</button>`;
+                        }
+                    } else {
+                        statusDropdown = statusDisplayHTML;
+                        actionsHTML =
+                            `<button class="btn btn-info btn-sm viewPaymentDetailsBtn" data-payment='${encodeURIComponent(JSON.stringify(payment))}'>View</button>` +
+                            ` <button class="btn btn-outline-warning btn-sm restorePaymentBtn" data-payment-id="${payment.payment_id}">Restore</button>`;
+                    }
+
+                    let formattedDate = 'N/A';
+                    if (payment.payment_date) {
+                        const date = new Date(payment.payment_date);
+                        formattedDate = new Intl.DateTimeFormat('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        }).format(date);
+                    }
+
+                    tr.innerHTML = `
                     <td>${payment.payment_id}</td>
                     <td>${payment.payment_type}</td>
                     <td>${payment.amount}</td>
@@ -640,22 +640,22 @@ $csrf_token = $_SESSION['csrf_token'];
                     <td>${formattedDate}</td>
                     <td>${actionsHTML}</td>
                 `;
-                tbody.appendChild(tr);
-            });
+                    tbody.appendChild(tr);
+                });
 
-            attachPaymentButtonListeners();
-        }
+                attachPaymentButtonListeners();
+            }
 
-        // Function to render archived payments in the modal (archived view)
-        function renderArchivedPaymentsTable(userId) {
-            const user = archivedPaymentsByUser[userId];
-            if (!user) return;
+            // Function to render archived payments in the modal (archived view)
+            function renderArchivedPaymentsTable(userId) {
+                const user = archivedPaymentsByUser[userId];
+                if (!user) return;
 
-            const tbody = document.querySelector('#userPaymentsTable tbody');
-            tbody.innerHTML = '';
+                const tbody = document.querySelector('#userPaymentsTable tbody');
+                tbody.innerHTML = '';
 
-            if (user.payments.length === 0) {
-                tbody.innerHTML = `
+                if (user.payments.length === 0) {
+                    tbody.innerHTML = `
                     <tr>
                         <td colspan="6" class="text-center py-4">
                             <div class="text-muted">
@@ -665,41 +665,41 @@ $csrf_token = $_SESSION['csrf_token'];
                         </td>
                     </tr>
                 `;
-                return;
-            }
-
-            user.payments.sort((a, b) => {
-                const dateA = a.payment_date ? new Date(a.payment_date) : new Date(0);
-                const dateB = b.payment_date ? new Date(b.payment_date) : new Date(0);
-                return dateB - dateA;
-            });
-
-            user.payments.forEach(payment => {
-                const tr = document.createElement('tr');
-                tr.classList.add('archived-payment');
-
-                const formattedArchiveDate = payment.archive_date ?
-                    new Date(payment.archive_date).toLocaleDateString() : 'Unknown';
-
-                let formattedPaymentDate = 'N/A';
-                if (payment.payment_date) {
-                    const date = new Date(payment.payment_date);
-                    formattedPaymentDate = new Intl.DateTimeFormat('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    }).format(date);
+                    return;
                 }
 
-                const today = new Date();
-                const archiveDate = new Date(payment.archive_date);
-                const daysSinceArchive = Math.floor((today - archiveDate) / (1000 * 60 * 60 * 24));
-                const statusBadge =
-                    `<span class="badge status-${payment.status.toLowerCase()}">${payment.status}</span>`;
+                user.payments.sort((a, b) => {
+                    const dateA = a.payment_date ? new Date(a.payment_date) : new Date(0);
+                    const dateB = b.payment_date ? new Date(b.payment_date) : new Date(0);
+                    return dateB - dateA;
+                });
 
-                tr.innerHTML = `
+                user.payments.forEach(payment => {
+                    const tr = document.createElement('tr');
+                    tr.classList.add('archived-payment');
+
+                    const formattedArchiveDate = payment.archive_date ?
+                        new Date(payment.archive_date).toLocaleDateString() : 'Unknown';
+
+                    let formattedPaymentDate = 'N/A';
+                    if (payment.payment_date) {
+                        const date = new Date(payment.payment_date);
+                        formattedPaymentDate = new Intl.DateTimeFormat('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        }).format(date);
+                    }
+
+                    const today = new Date();
+                    const archiveDate = new Date(payment.archive_date);
+                    const daysSinceArchive = Math.floor((today - archiveDate) / (1000 * 60 * 60 * 24));
+                    const statusBadge =
+                        `<span class="badge status-${payment.status.toLowerCase()}">${payment.status}</span>`;
+
+                    tr.innerHTML = `
                     <td>${payment.payment_id}</td>
                     <td>${payment.payment_type}</td>
                     <td>${payment.amount}</td>
@@ -713,124 +713,124 @@ $csrf_token = $_SESSION['csrf_token'];
                         <small class="d-block text-muted mt-1">Archived: ${formattedArchiveDate} (${daysSinceArchive} days ago)</small>
                     </td>
                 `;
-                tbody.appendChild(tr);
-            });
-
-            attachPaymentButtonListeners();
-        }
-
-        // Helper function to attach button event listeners
-        function attachPaymentButtonListeners() {
-            document.querySelectorAll('.viewPaymentDetailsBtn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const paymentData = JSON.parse(decodeURIComponent(btn.getAttribute(
-                        'data-payment')));
-                    window.viewPaymentDetailsAdmin(paymentData);
+                    tbody.appendChild(tr);
                 });
-            });
 
-            document.querySelectorAll('.updatePaymentStatusBtn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const paymentId = btn.getAttribute('data-payment-id');
-                    window.updatePaymentStatus(paymentId);
-                });
-            });
-
-            document.querySelectorAll('.archivePaymentBtn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const paymentId = btn.getAttribute('data-payment-id');
-                    window.archivePayment(paymentId);
-                });
-            });
-
-            document.querySelectorAll('.restorePaymentBtn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const paymentId = btn.getAttribute('data-payment-id');
-                    window.restorePayment(paymentId);
-                });
-            });
-        }
-
-        // Make managePayments globally available
-        window.managePayments = function(userId) {
-            const user = paymentsByUser[userId];
-            if (!user) return;
-
-            const modalLabel = document.getElementById('paymentModalLabel');
-            modalLabel.innerText =
-            `Payments for ${user.first_name} ${user.last_name} (ID: ${user.user_id})`;
-            modalLabel.setAttribute('data-user-id', userId);
-            modalLabel.setAttribute('data-view-type', 'active');
-
-            const showArchivedCheckbox = document.getElementById('showArchivedUserPayments');
-            showArchivedCheckbox.checked = false;
-            showArchivedCheckbox.parentElement.style.display = 'inline-block';
-
-            renderUserPaymentsTable(userId, false);
-
-            const paymentModal = new bootstrap.Modal(document.getElementById('paymentModal'));
-            paymentModal.show();
-        };
-
-        // Global function to view archived payments
-        window.viewArchivedPayments = function(userId) {
-            const user = archivedPaymentsByUser[userId];
-            if (!user) return;
-
-            const modalLabel = document.getElementById('paymentModalLabel');
-            modalLabel.innerText =
-                `Archived Payments for ${user.first_name} ${user.last_name} (ID: ${user.user_id})`;
-            modalLabel.setAttribute('data-user-id', userId);
-            modalLabel.setAttribute('data-view-type', 'archived');
-
-            document.getElementById('showArchivedUserPayments').parentElement.style.display = 'none';
-
-            renderArchivedPaymentsTable(userId);
-
-            const paymentModal = new bootstrap.Modal(document.getElementById('paymentModal'));
-            paymentModal.show();
-        };
-
-        // Global function to show payment details (admin version)
-        window.viewPaymentDetailsAdmin = function(payment) {
-            const manageModalEl = document.getElementById('paymentModal');
-            manageModalEl.classList.add('modal-dimmed');
-
-            const receiptHTML = payment.image ?
-                `<img src="/capstone-php/backend/routes/decrypt_image.php?image_url=${encodeURIComponent(payment.image)}" alt="Receipt" style="max-width: 100%; cursor:pointer;">` :
-                'N/A';
-
-            let formattedDueDate = payment.due_date ? new Date(payment.due_date).toLocaleDateString() :
-                'N/A';
-            let formattedPaymentDate = 'N/A';
-
-            if (payment.payment_date) {
-                const date = new Date(payment.payment_date);
-                formattedPaymentDate = new Intl.DateTimeFormat('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                }).format(date);
+                attachPaymentButtonListeners();
             }
 
-            let archiveStatusHTML = '';
-            if (payment.is_archived) {
-                const archiveDate = new Date(payment.archive_date);
-                const today = new Date();
-                const daysSinceArchive = Math.floor((today - archiveDate) / (1000 * 60 * 60 * 24));
+            // Helper function to attach button event listeners
+            function attachPaymentButtonListeners() {
+                document.querySelectorAll('.viewPaymentDetailsBtn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const paymentData = JSON.parse(decodeURIComponent(btn.getAttribute(
+                            'data-payment')));
+                        window.viewPaymentDetailsAdmin(paymentData);
+                    });
+                });
 
-                archiveStatusHTML = `
+                document.querySelectorAll('.updatePaymentStatusBtn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const paymentId = btn.getAttribute('data-payment-id');
+                        window.updatePaymentStatus(paymentId);
+                    });
+                });
+
+                document.querySelectorAll('.archivePaymentBtn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const paymentId = btn.getAttribute('data-payment-id');
+                        window.archivePayment(paymentId);
+                    });
+                });
+
+                document.querySelectorAll('.restorePaymentBtn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const paymentId = btn.getAttribute('data-payment-id');
+                        window.restorePayment(paymentId);
+                    });
+                });
+            }
+
+            // Make managePayments globally available
+            window.managePayments = function(userId) {
+                const user = paymentsByUser[userId];
+                if (!user) return;
+
+                const modalLabel = document.getElementById('paymentModalLabel');
+                modalLabel.innerText =
+                    `Payments for ${user.first_name} ${user.last_name} (ID: ${user.user_id})`;
+                modalLabel.setAttribute('data-user-id', userId);
+                modalLabel.setAttribute('data-view-type', 'active');
+
+                const showArchivedCheckbox = document.getElementById('showArchivedUserPayments');
+                showArchivedCheckbox.checked = false;
+                showArchivedCheckbox.parentElement.style.display = 'inline-block';
+
+                renderUserPaymentsTable(userId, false);
+
+                const paymentModal = new bootstrap.Modal(document.getElementById('paymentModal'));
+                paymentModal.show();
+            };
+
+            // Global function to view archived payments
+            window.viewArchivedPayments = function(userId) {
+                const user = archivedPaymentsByUser[userId];
+                if (!user) return;
+
+                const modalLabel = document.getElementById('paymentModalLabel');
+                modalLabel.innerText =
+                    `Archived Payments for ${user.first_name} ${user.last_name} (ID: ${user.user_id})`;
+                modalLabel.setAttribute('data-user-id', userId);
+                modalLabel.setAttribute('data-view-type', 'archived');
+
+                document.getElementById('showArchivedUserPayments').parentElement.style.display = 'none';
+
+                renderArchivedPaymentsTable(userId);
+
+                const paymentModal = new bootstrap.Modal(document.getElementById('paymentModal'));
+                paymentModal.show();
+            };
+
+            // Global function to show payment details (admin version)
+            window.viewPaymentDetailsAdmin = function(payment) {
+                const manageModalEl = document.getElementById('paymentModal');
+                manageModalEl.classList.add('modal-dimmed');
+
+                const receiptHTML = payment.image ?
+                    `<img src="/capstone-php/backend/routes/decrypt_image.php?image_url=${encodeURIComponent(payment.image)}" alt="Receipt" style="max-width: 100%; cursor:pointer;">` :
+                    'N/A';
+
+                let formattedDueDate = payment.due_date ? new Date(payment.due_date).toLocaleDateString() :
+                    'N/A';
+                let formattedPaymentDate = 'N/A';
+
+                if (payment.payment_date) {
+                    const date = new Date(payment.payment_date);
+                    formattedPaymentDate = new Intl.DateTimeFormat('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    }).format(date);
+                }
+
+                let archiveStatusHTML = '';
+                if (payment.is_archived) {
+                    const archiveDate = new Date(payment.archive_date);
+                    const today = new Date();
+                    const daysSinceArchive = Math.floor((today - archiveDate) / (1000 * 60 * 60 * 24));
+
+                    archiveStatusHTML = `
                     <div class="alert alert-warning">
                         <strong>Archived Payment</strong><br>
                         Archived on: ${new Date(payment.archive_date).toLocaleDateString()}<br>
                         Days since archiving: ${daysSinceArchive} days
                     </div>
                 `;
-            }
+                }
 
-            const detailsHTML = `
+                const detailsHTML = `
                 ${archiveStatusHTML}
                 <p><strong>Payment ID:</strong> ${payment.payment_id}</p>
                 <p><strong>Type:</strong> ${payment.payment_type}</p>
@@ -842,231 +842,231 @@ $csrf_token = $_SESSION['csrf_token'];
                 <p><strong>Mode of Payment:</strong> ${payment.mode_of_payment ? payment.mode_of_payment : 'N/A'}</p>
                 <p><strong>Receipt:</strong> ${receiptHTML}</p>
             `;
-            document.getElementById('paymentDetailsBody').innerHTML = detailsHTML;
+                document.getElementById('paymentDetailsBody').innerHTML = detailsHTML;
 
-            const detailsModalEl = document.getElementById('paymentDetailsModal');
-            const detailsModal = new bootstrap.Modal(detailsModalEl);
-            detailsModal.show();
+                const detailsModalEl = document.getElementById('paymentDetailsModal');
+                const detailsModal = new bootstrap.Modal(detailsModalEl);
+                detailsModal.show();
 
-            detailsModalEl.addEventListener('hidden.bs.modal', function() {
-                manageModalEl.classList.remove('modal-dimmed');
-            }, {
-                once: true
-            });
-        };
-
-        // Global function to update payment status via PUT request
-        window.updatePaymentStatus = function(paymentId) {
-            const selectEl = document.getElementById(`status_select_${paymentId}`);
-            const newStatus = selectEl ? selectEl.value : null;
-            if (!newStatus) return;
-
-            document.getElementById('loadingSpinner').style.display = 'flex';
-
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            const payload = {
-                payment_id: paymentId,
-                status: newStatus,
-                csrf_token: csrfToken
+                detailsModalEl.addEventListener('hidden.bs.modal', function() {
+                    manageModalEl.classList.remove('modal-dimmed');
+                }, {
+                    once: true
+                });
             };
 
-            fetch('../backend/routes/payment.php', {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status) {
-                        showAlert(`Payment ${paymentId} updated successfully.`, 'success');
+            // Global function to update payment status via PUT request
+            window.updatePaymentStatus = function(paymentId) {
+                const selectEl = document.getElementById(`status_select_${paymentId}`);
+                const newStatus = selectEl ? selectEl.value : null;
+                if (!newStatus) return;
 
-                        if (newStatus === 'Completed') {
-                            window.archivePayment(paymentId, true);
+                document.getElementById('loadingSpinner').style.display = 'flex';
+
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                const payload = {
+                    payment_id: paymentId,
+                    status: newStatus,
+                    csrf_token: csrfToken
+                };
+
+                fetch('../backend/routes/payment.php', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status) {
+                            showAlert(`Payment ${paymentId} updated successfully.`, 'success');
+
+                            if (newStatus === 'Completed') {
+                                window.archivePayment(paymentId, true);
+                            } else {
+                                loadPayments();
+                                const modalEl = document.getElementById('paymentModal');
+                                const modal = bootstrap.Modal.getInstance(modalEl);
+                                if (modal) {
+                                    modal.hide();
+                                }
+                            }
                         } else {
-                            loadPayments();
+                            showAlert(data.message, 'danger');
+                            document.getElementById('loadingSpinner').style.display = 'none';
+                        }
+                    })
+                    .catch(err => {
+                        showAlert('Error updating payment status.', 'danger');
+                        console.error(err);
+                        document.getElementById('loadingSpinner').style.display = 'none';
+                    });
+            };
+
+            // Global function to archive a payment
+            window.archivePayment = function(paymentId, isAutoArchive = false) {
+                if (!isAutoArchive) {
+                    if (!confirm(
+                            'Are you sure you want to archive this payment? It will be stored in the Archives tab.'
+                        )) {
+                        return;
+                    }
+                }
+
+                document.getElementById('loadingSpinner').style.display = 'flex';
+
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                const payload = {
+                    payment_id: paymentId,
+                    action: 'archive',
+                    csrf_token: csrfToken
+                };
+
+                fetch('../backend/routes/payment.php', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status) {
+                            if (!isAutoArchive) {
+                                showAlert(`Payment ${paymentId} archived successfully.`, 'success');
+                            } else {
+                                showAlert(`Payment ${paymentId} marked as completed and archived.`,
+                                    'success');
+                            }
                             const modalEl = document.getElementById('paymentModal');
                             const modal = bootstrap.Modal.getInstance(modalEl);
                             if (modal) {
                                 modal.hide();
                             }
+                            loadPayments();
+                        } else {
+                            showAlert(data.message, 'danger');
                         }
-                    } else {
-                        showAlert(data.message, 'danger');
                         document.getElementById('loadingSpinner').style.display = 'none';
-                    }
-                })
-                .catch(err => {
-                    showAlert('Error updating payment status.', 'danger');
-                    console.error(err);
-                    document.getElementById('loadingSpinner').style.display = 'none';
-                });
-        };
+                    })
+                    .catch(err => {
+                        showAlert('Error archiving payment.', 'danger');
+                        console.error(err);
+                        document.getElementById('loadingSpinner').style.display = 'none';
+                    });
+            };
 
-        // Global function to archive a payment
-        window.archivePayment = function(paymentId, isAutoArchive = false) {
-            if (!isAutoArchive) {
-                if (!confirm(
-                        'Are you sure you want to archive this payment? It will be stored in the Archives tab.'
-                        )) {
+            // Global function to restore an archived payment
+            window.restorePayment = function(paymentId) {
+                if (!confirm('Are you sure you want to restore this archived payment?')) {
                     return;
                 }
-            }
 
-            document.getElementById('loadingSpinner').style.display = 'flex';
+                document.getElementById('loadingSpinner').style.display = 'flex';
 
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            const payload = {
-                payment_id: paymentId,
-                action: 'archive',
-                csrf_token: csrfToken
-            };
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                const payload = {
+                    payment_id: paymentId,
+                    action: 'restore',
+                    csrf_token: csrfToken
+                };
 
-            fetch('../backend/routes/payment.php', {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status) {
-                        if (!isAutoArchive) {
-                            showAlert(`Payment ${paymentId} archived successfully.`, 'success');
+                fetch('../backend/routes/payment.php', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status) {
+                            showAlert(`Payment ${paymentId} restored successfully.`, 'success');
+
+                            const modalEl = document.getElementById('paymentModal');
+                            const modal = bootstrap.Modal.getInstance(modalEl);
+                            if (modal) {
+                                modal.hide();
+                            }
+                            loadPayments();
                         } else {
-                            showAlert(`Payment ${paymentId} marked as completed and archived.`,
-                                'success');
+                            showAlert(data.message, 'danger');
                         }
-                        const modalEl = document.getElementById('paymentModal');
-                        const modal = bootstrap.Modal.getInstance(modalEl);
-                        if (modal) {
-                            modal.hide();
-                        }
-                        loadPayments();
-                    } else {
-                        showAlert(data.message, 'danger');
-                    }
-                    document.getElementById('loadingSpinner').style.display = 'none';
-                })
-                .catch(err => {
-                    showAlert('Error archiving payment.', 'danger');
-                    console.error(err);
-                    document.getElementById('loadingSpinner').style.display = 'none';
-                });
-        };
-
-        // Global function to restore an archived payment
-        window.restorePayment = function(paymentId) {
-            if (!confirm('Are you sure you want to restore this archived payment?')) {
-                return;
-            }
-
-            document.getElementById('loadingSpinner').style.display = 'flex';
-
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            const payload = {
-                payment_id: paymentId,
-                action: 'restore',
-                csrf_token: csrfToken
+                        document.getElementById('loadingSpinner').style.display = 'none';
+                    })
+                    .catch(err => {
+                        showAlert('Error restoring payment.', 'danger');
+                        console.error(err);
+                        document.getElementById('loadingSpinner').style.display = 'none';
+                    });
             };
 
-            fetch('../backend/routes/payment.php', {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status) {
-                        showAlert(`Payment ${paymentId} restored successfully.`, 'success');
-
-                        const modalEl = document.getElementById('paymentModal');
-                        const modal = bootstrap.Modal.getInstance(modalEl);
-                        if (modal) {
-                            modal.hide();
-                        }
-                        loadPayments();
-                    } else {
-                        showAlert(data.message, 'danger');
-                    }
-                    document.getElementById('loadingSpinner').style.display = 'none';
-                })
-                .catch(err => {
-                    showAlert('Error restoring payment.', 'danger');
-                    console.error(err);
-                    document.getElementById('loadingSpinner').style.display = 'none';
-                });
-        };
-
-        // Global function to delete old archived payments
-        function deleteOldArchivedPayments(daysOld) {
-            if (!confirm(
-                    `Are you sure you want to delete all archived payments older than ${daysOld} days? This action cannot be undone.`
+            // Global function to delete old archived payments
+            function deleteOldArchivedPayments(daysOld) {
+                if (!confirm(
+                        `Are you sure you want to delete all archived payments older than ${daysOld} days? This action cannot be undone.`
                     )) {
-                return;
+                    return;
+                }
+
+                document.getElementById('loadingSpinner').style.display = 'flex';
+
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                const payload = {
+                    days_old: daysOld,
+                    action: 'bulk_delete',
+                    csrf_token: csrfToken
+                };
+
+                fetch('../backend/routes/payment.php', {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status) {
+                            showAlert(
+                                `Successfully deleted ${data.deleted_count} archived payment(s) older than ${daysOld} days.`,
+                                'success');
+                            loadPayments();
+                        } else {
+                            showAlert(data.message, 'danger');
+                        }
+                        document.getElementById('loadingSpinner').style.display = 'none';
+                    })
+                    .catch(err => {
+                        showAlert('Error deleting archived payments.', 'danger');
+                        console.error(err);
+                        document.getElementById('loadingSpinner').style.display = 'none';
+                    });
             }
 
-            document.getElementById('loadingSpinner').style.display = 'flex';
-
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            const payload = {
-                days_old: daysOld,
-                action: 'bulk_delete',
-                csrf_token: csrfToken
-            };
-
-            fetch('../backend/routes/payment.php', {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status) {
-                        showAlert(
-                            `Successfully deleted ${data.deleted_count} archived payment(s) older than ${daysOld} days.`,
-                            'success');
-                        loadPayments();
-                    } else {
-                        showAlert(data.message, 'danger');
-                    }
-                    document.getElementById('loadingSpinner').style.display = 'none';
-                })
-                .catch(err => {
-                    showAlert('Error deleting archived payments.', 'danger');
-                    console.error(err);
-                    document.getElementById('loadingSpinner').style.display = 'none';
-                });
-        }
-
-        // Example alert/toast function
-        function showAlert(message, type = 'success') {
-            const alertContainer = document.getElementById('alertContainer');
-            const alert = document.createElement('div');
-            alert.className = `alert alert-${type} alert-dismissible fade show`;
-            alert.innerHTML = `
+            // Example alert/toast function
+            function showAlert(message, type = 'success') {
+                const alertContainer = document.getElementById('alertContainer');
+                const alert = document.createElement('div');
+                alert.className = `alert alert-${type} alert-dismissible fade show`;
+                alert.innerHTML = `
                 ${message}
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             `;
-            alertContainer.appendChild(alert);
+                alertContainer.appendChild(alert);
 
-            setTimeout(() => {
-                if (alert.parentElement) {
-                    const bsAlert = new bootstrap.Alert(alert);
-                    bsAlert.close();
-                }
-            }, 5000);
-        }
+                setTimeout(() => {
+                    if (alert.parentElement) {
+                        const bsAlert = new bootstrap.Alert(alert);
+                        bsAlert.close();
+                    }
+                }, 5000);
+            }
 
-        // Load payments on page load
-        loadPayments();
-    });
+            // Load payments on page load
+            loadPayments();
+        });
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>

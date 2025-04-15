@@ -70,10 +70,7 @@ if ($method === 'GET') {
     $action = isset($_GET['action']) ? $_GET['action'] : 'get_all_payments';
 
     if ($action === 'get_all_payments') {
-        $payments = [
-            'active' => [],
-            'archived' => []
-        ];
+        $payments = [];
         // Correct query: Ensure proper separation of active and archived payments
         $query = "SELECT p.payment_id, p.user_id, p.payment_type, p.amount, p.status, 
                        p.payment_date, p.due_date, p.reference_number, p.image, p.mode_of_payment,
@@ -95,13 +92,9 @@ if ($method === 'GET') {
         $result = $conn->query($query);
         if ($result) {
             while ($row = $result->fetch_assoc()) {
-                if ($row['is_archived'] == 1) {
-                    $payments['archived'][] = $row;
-                } else {
-                    $payments['active'][] = $row;
-                }
+                $payments[] = $row; // Collect all payments into a single array
             }
-            echo json_encode(['status' => true, 'payments' => $payments]);
+            echo json_encode(['status' => true, 'payments' => $payments]); // Ensure 'payments' is an array
             exit;
         } else {
             error_log("Database error in get_all_payments: " . $conn->error);
