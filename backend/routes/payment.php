@@ -85,6 +85,7 @@ if ($method === 'GET') {
                 JOIN users u ON p.user_id = u.user_id 
                 LEFT JOIN events e ON (p.payment_type = 'Event Registration' AND p.event_id = e.event_id)
                 LEFT JOIN trainings t ON (p.payment_type = 'Training Registration' AND p.training_id = t.training_id)
+                WHERE (p.is_archived = 1 OR p.is_archived = 0) -- Ensure proper separation
                 ORDER BY 
                     p.is_archived ASC, -- Active payments come first
                     CASE WHEN p.payment_date IS NULL THEN 1 ELSE 0 END,

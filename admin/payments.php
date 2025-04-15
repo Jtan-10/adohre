@@ -374,7 +374,7 @@ $csrf_token = $_SESSION['csrf_token'];
                             });
 
                             data.payments.forEach(payment => {
-                                if (payment.is_archived) {
+                                if (payment.is_archived === 1) { // Only archived payments
                                     if (!archivedPaymentsByUser[payment.user_id]) {
                                         archivedPaymentsByUser[payment.user_id] = {
                                             user_id: payment.user_id,
@@ -386,7 +386,7 @@ $csrf_token = $_SESSION['csrf_token'];
                                     }
                                     archivedPaymentsByUser[payment.user_id].payments.push(payment);
                                     totalArchivedCount++;
-                                } else {
+                                } else { // Active payments
                                     if (!paymentsByUser[payment.user_id]) {
                                         paymentsByUser[payment.user_id] = {
                                             user_id: payment.user_id,
@@ -983,13 +983,7 @@ $csrf_token = $_SESSION['csrf_token'];
                     .then(data => {
                         if (data.status) {
                             showAlert(`Payment ${paymentId} restored successfully.`, 'success');
-
-                            const modalEl = document.getElementById('paymentModal');
-                            const modal = bootstrap.Modal.getInstance(modalEl);
-                            if (modal) {
-                                modal.hide();
-                            }
-                            loadPayments();
+                            loadPayments(); // Reload payments to reflect changes
                         } else {
                             showAlert(data.message, 'danger');
                         }
