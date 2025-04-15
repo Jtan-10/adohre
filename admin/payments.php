@@ -18,78 +18,78 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
     <style>
-        /* Add a dark overlay to the manage modal when dimmed */
-        .modal-dimmed::before {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.6);
-            z-index: 1050;
-        }
+    /* Add a dark overlay to the manage modal when dimmed */
+    .modal-dimmed::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 1050;
+    }
 
-        /* Add styles for archived payments */
-        .archived-payment {
-            background-color: #f8f9fa;
-            color: #6c757d;
-        }
+    /* Add styles for archived payments */
+    .archived-payment {
+        background-color: #f8f9fa;
+        color: #6c757d;
+    }
 
-        /* Badge styles */
-        .status-badge {
-            padding: 0.25em 0.6em;
-            font-size: 75%;
-            font-weight: 700;
-            border-radius: 0.25rem;
-        }
+    /* Badge styles */
+    .status-badge {
+        padding: 0.25em 0.6em;
+        font-size: 75%;
+        font-weight: 700;
+        border-radius: 0.25rem;
+    }
 
-        .status-new {
-            background-color: #0d6efd;
-            color: white;
-        }
+    .status-new {
+        background-color: #0d6efd;
+        color: white;
+    }
 
-        .status-pending {
-            background-color: #ffc107;
-            color: black;
-        }
+    .status-pending {
+        background-color: #ffc107;
+        color: black;
+    }
 
-        .status-completed {
-            background-color: #198754;
-            color: white;
-        }
+    .status-completed {
+        background-color: #198754;
+        color: white;
+    }
 
-        .status-canceled {
-            background-color: #dc3545;
-            color: white;
-        }
+    .status-canceled {
+        background-color: #dc3545;
+        color: white;
+    }
 
-        .status-archived {
-            background-color: #6c757d;
-            color: white;
-        }
+    .status-archived {
+        background-color: #6c757d;
+        color: white;
+    }
 
-        /* Add a spinner for loading states */
-        .spinner-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 2000;
-            display: none;
-        }
+    /* Add a spinner for loading states */
+    .spinner-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 2000;
+        display: none;
+    }
 
-        .spinner-container {
-            background-color: white;
-            padding: 20px;
-            border-radius: 5px;
-            text-align: center;
-        }
+    .spinner-container {
+        background-color: white;
+        padding: 20px;
+        border-radius: 5px;
+        text-align: center;
+    }
     </style>
 </head>
 
@@ -295,116 +295,116 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 
     <!-- Scripts -->
     <script nonce="<?php echo $cspNonce; ?>">
-        document.addEventListener('DOMContentLoaded', function() {
-            // Global objects to store payments grouped by user
-            let activePaymentsByUser = {};
-            let archivedPaymentsByUser = {};
-            let statusFilter = 'all';
-            let activeTab = 'active';
+    document.addEventListener('DOMContentLoaded', function() {
+        // Global objects to store payments grouped by user
+        let activePaymentsByUser = {};
+        let archivedPaymentsByUser = {};
+        let statusFilter = 'all';
+        let activeTab = 'active';
 
-            // Tab switching event listeners
-            document.getElementById('active-tab').addEventListener('click', function() {
-                activeTab = 'active';
-            });
+        // Tab switching event listeners
+        document.getElementById('active-tab').addEventListener('click', function() {
+            activeTab = 'active';
+        });
 
-            document.getElementById('archived-tab').addEventListener('click', function() {
-                activeTab = 'archived';
-                renderArchivedUsersTable();
-            });
+        document.getElementById('archived-tab').addEventListener('click', function() {
+            activeTab = 'archived';
+            renderArchivedUsersTable();
+        });
 
-            // Event listeners for filter controls
-            document.getElementById('statusFilter').addEventListener('change', function() {
-                statusFilter = this.value;
-                renderUsersTable();
-            });
+        // Event listeners for filter controls
+        document.getElementById('statusFilter').addEventListener('change', function() {
+            statusFilter = this.value;
+            renderUsersTable();
+        });
 
-            document.getElementById('refreshPayments').addEventListener('click', function() {
-                loadPayments();
-            });
+        document.getElementById('refreshPayments').addEventListener('click', function() {
+            loadPayments();
+        });
 
-            // Event listeners for archive tab controls
-            document.getElementById('refreshArchivedPayments').addEventListener('click', function() {
-                loadPayments();
-            });
+        // Event listeners for archive tab controls
+        document.getElementById('refreshArchivedPayments').addEventListener('click', function() {
+            loadPayments();
+        });
 
-            document.getElementById('deleteOldArchived').addEventListener('click', function() {
-                const daysOld = document.getElementById('archiveDaysFilter').value;
-                deleteOldArchivedPayments(daysOld);
-            });
+        document.getElementById('deleteOldArchived').addEventListener('click', function() {
+            const daysOld = document.getElementById('archiveDaysFilter').value;
+            deleteOldArchivedPayments(daysOld);
+        });
 
-            // Fetch all payments from the API and group them by user
-            function loadPayments() {
-                document.getElementById('loadingSpinner').style.display = 'flex';
+        // Fetch all payments from the API and group them by user
+        function loadPayments() {
+            document.getElementById('loadingSpinner').style.display = 'flex';
 
-                fetch('../backend/routes/payment.php?action=get_all_payments', {
-                        method: 'GET'
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.status) {
-                            activePaymentsByUser = {};
-                            archivedPaymentsByUser = {};
+            fetch('../backend/routes/payment.php?action=get_all_payments', {
+                    method: 'GET'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status) {
+                        activePaymentsByUser = {};
+                        archivedPaymentsByUser = {};
 
-                            // Process active payments
-                            if (data.payments.active) {
-                                data.payments.active.forEach(payment => {
-                                    if (!activePaymentsByUser[payment.user_id]) {
-                                        activePaymentsByUser[payment.user_id] = {
-                                            user_id: payment.user_id,
-                                            first_name: payment.first_name,
-                                            last_name: payment.last_name,
-                                            email: payment.email,
-                                            payments: []
-                                        };
-                                    }
-                                    activePaymentsByUser[payment.user_id].payments.push(payment);
-                                });
-                            }
-
-                            // Process archived payments
-                            if (data.payments.archived) {
-                                data.payments.archived.forEach(payment => {
-                                    if (!archivedPaymentsByUser[payment.user_id]) {
-                                        archivedPaymentsByUser[payment.user_id] = {
-                                            user_id: payment.user_id,
-                                            first_name: payment.first_name,
-                                            last_name: payment.last_name,
-                                            email: payment.email,
-                                            payments: []
-                                        };
-                                    }
-                                    archivedPaymentsByUser[payment.user_id].payments.push(payment);
-                                });
-                            }
-
-                            document.getElementById('archivedCount').textContent =
-                                `${Object.keys(archivedPaymentsByUser).length} archived payment${Object.keys(archivedPaymentsByUser).length !== 1 ? 's' : ''}`;
-
-                            if (activeTab === 'active') {
-                                renderUsersTable();
-                            } else {
-                                renderArchivedUsersTable();
-                            }
-                            document.getElementById('loadingSpinner').style.display = 'none';
-                        } else {
-                            showAlert(data.message, 'danger');
-                            document.getElementById('loadingSpinner').style.display = 'none';
+                        // Process active payments
+                        if (data.payments.active) {
+                            data.payments.active.forEach(payment => {
+                                if (!activePaymentsByUser[payment.user_id]) {
+                                    activePaymentsByUser[payment.user_id] = {
+                                        user_id: payment.user_id,
+                                        first_name: payment.first_name,
+                                        last_name: payment.last_name,
+                                        email: payment.email,
+                                        payments: []
+                                    };
+                                }
+                                activePaymentsByUser[payment.user_id].payments.push(payment);
+                            });
                         }
-                    })
-                    .catch(err => {
-                        showAlert('Error loading payments.', 'danger');
-                        console.error(err);
+
+                        // Process archived payments
+                        if (data.payments.archived) {
+                            data.payments.archived.forEach(payment => {
+                                if (!archivedPaymentsByUser[payment.user_id]) {
+                                    archivedPaymentsByUser[payment.user_id] = {
+                                        user_id: payment.user_id,
+                                        first_name: payment.first_name,
+                                        last_name: payment.last_name,
+                                        email: payment.email,
+                                        payments: []
+                                    };
+                                }
+                                archivedPaymentsByUser[payment.user_id].payments.push(payment);
+                            });
+                        }
+
+                        document.getElementById('archivedCount').textContent =
+                            `${Object.keys(archivedPaymentsByUser).length} archived payment${Object.keys(archivedPaymentsByUser).length !== 1 ? 's' : ''}`;
+
+                        if (activeTab === 'active') {
+                            renderUsersTable();
+                        } else {
+                            renderArchivedUsersTable();
+                        }
                         document.getElementById('loadingSpinner').style.display = 'none';
-                    });
-            }
+                    } else {
+                        showAlert(data.message, 'danger');
+                        document.getElementById('loadingSpinner').style.display = 'none';
+                    }
+                })
+                .catch(err => {
+                    showAlert('Error loading payments.', 'danger');
+                    console.error(err);
+                    document.getElementById('loadingSpinner').style.display = 'none';
+                });
+        }
 
-            // Render the active users table
-            function renderUsersTable() {
-                const tbody = document.querySelector('#usersTable tbody');
-                tbody.innerHTML = '';
+        // Render the active users table
+        function renderUsersTable() {
+            const tbody = document.querySelector('#usersTable tbody');
+            tbody.innerHTML = '';
 
-                if (Object.keys(activePaymentsByUser).length === 0) {
-                    tbody.innerHTML = `
+            if (Object.keys(activePaymentsByUser).length === 0) {
+                tbody.innerHTML = `
                     <tr>
                         <td colspan="4" class="text-center py-4">
                             <div class="text-muted">
@@ -414,18 +414,18 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                         </td>
                     </tr>
                 `;
-                    return;
-                }
+                return;
+            }
 
-                let filteredUsers = Object.values(activePaymentsByUser);
-                if (statusFilter !== 'all') {
-                    filteredUsers = filteredUsers.filter(user => {
-                        return user.payments.some(payment => payment.status === statusFilter);
-                    });
-                }
+            let filteredUsers = Object.values(activePaymentsByUser);
+            if (statusFilter !== 'all') {
+                filteredUsers = filteredUsers.filter(user => {
+                    return user.payments.some(payment => payment.status === statusFilter);
+                });
+            }
 
-                if (filteredUsers.length === 0) {
-                    tbody.innerHTML = `
+            if (filteredUsers.length === 0) {
+                tbody.innerHTML = `
                     <tr>
                         <td colspan="4" class="text-center py-4">
                             <div class="text-muted">
@@ -435,18 +435,18 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                         </td>
                     </tr>
                 `;
-                    return;
-                }
+                return;
+            }
 
-                filteredUsers.forEach(user => {
-                    const filteredPayments = user.payments.filter(payment => {
-                        return statusFilter === 'all' || payment.status === statusFilter;
-                    });
+            filteredUsers.forEach(user => {
+                const filteredPayments = user.payments.filter(payment => {
+                    return statusFilter === 'all' || payment.status === statusFilter;
+                });
 
-                    if (filteredPayments.length === 0) return;
+                if (filteredPayments.length === 0) return;
 
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
                     <td>${user.user_id}</td>
                     <td>${user.first_name} ${user.last_name}</td>
                     <td>${user.email}</td>
@@ -456,24 +456,24 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                         </button>
                     </td>
                 `;
-                    tbody.appendChild(tr);
+                tbody.appendChild(tr);
+            });
+
+            document.querySelectorAll('.managePaymentsBtn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const userId = btn.getAttribute('data-user-id');
+                    window.managePayments(userId);
                 });
+            });
+        }
 
-                document.querySelectorAll('.managePaymentsBtn').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        const userId = btn.getAttribute('data-user-id');
-                        window.managePayments(userId);
-                    });
-                });
-            }
+        // Render the archived users table
+        function renderArchivedUsersTable() {
+            const tbody = document.querySelector('#archivedUsersTable tbody');
+            tbody.innerHTML = '';
 
-            // Render the archived users table
-            function renderArchivedUsersTable() {
-                const tbody = document.querySelector('#archivedUsersTable tbody');
-                tbody.innerHTML = '';
-
-                if (Object.keys(archivedPaymentsByUser).length === 0) {
-                    tbody.innerHTML = `
+            if (Object.keys(archivedPaymentsByUser).length === 0) {
+                tbody.innerHTML = `
                     <tr>
                         <td colspan="6" class="text-center py-4">
                             <div class="text-muted">
@@ -483,25 +483,25 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                         </td>
                     </tr>
                 `;
-                    return;
-                }
+                return;
+            }
 
-                Object.values(archivedPaymentsByUser).forEach(user => {
-                    let oldestArchiveDate = null;
-                    user.payments.forEach(payment => {
-                        if (payment.archive_date) {
-                            const archiveDate = new Date(payment.archive_date);
-                            if (!oldestArchiveDate || archiveDate < oldestArchiveDate) {
-                                oldestArchiveDate = archiveDate;
-                            }
+            Object.values(archivedPaymentsByUser).forEach(user => {
+                let oldestArchiveDate = null;
+                user.payments.forEach(payment => {
+                    if (payment.archive_date) {
+                        const archiveDate = new Date(payment.archive_date);
+                        if (!oldestArchiveDate || archiveDate < oldestArchiveDate) {
+                            oldestArchiveDate = archiveDate;
                         }
-                    });
+                    }
+                });
 
-                    const formattedOldestDate = oldestArchiveDate ?
-                        oldestArchiveDate.toISOString().split('T')[0] : 'Unknown';
+                const formattedOldestDate = oldestArchiveDate ?
+                    oldestArchiveDate.toISOString().split('T')[0] : 'Unknown';
 
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
                     <td>${user.user_id}</td>
                     <td>${user.first_name} ${user.last_name}</td>
                     <td>${user.email}</td>
@@ -513,39 +513,60 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                         </button>
                     </td>
                 `;
-                    tbody.appendChild(tr);
-                });
+                tbody.appendChild(tr);
+            });
 
-                document.querySelectorAll('.viewArchivedBtn').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        const userId = btn.getAttribute('data-user-id');
-                        window.viewArchivedPayments(userId);
-                    });
+            document.querySelectorAll('.viewArchivedBtn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const userId = btn.getAttribute('data-user-id');
+                    window.viewArchivedPayments(userId);
                 });
-            }
+            });
+        }
 
-            // Example alert/toast function
-            function showAlert(message, type = 'success') {
-                const alertContainer = document.getElementById('alertContainer');
-                const alert = document.createElement('div');
-                alert.className = `alert alert-${type} alert-dismissible fade show`;
-                alert.innerHTML = `
+        // Example alert/toast function
+        function showAlert(message, type = 'success') {
+            const alertContainer = document.getElementById('alertContainer');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type} alert-dismissible fade show`;
+            alert.innerHTML = `
                 ${message}
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             `;
-                alertContainer.appendChild(alert);
+            alertContainer.appendChild(alert);
 
-                setTimeout(() => {
-                    if (alert.parentElement) {
-                        const bsAlert = new bootstrap.Alert(alert);
-                        bsAlert.close();
-                    }
-                }, 5000);
-            }
+            setTimeout(() => {
+                if (alert.parentElement) {
+                    const bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                }
+            }, 5000);
+        }
 
-            // Load payments on page load
-            loadPayments();
-        });
+        // Define the managePayments function globally
+        window.managePayments = function(userId) {
+            const user = activePaymentsByUser[userId];
+            if (!user) return;
+
+            const modalLabel = document.getElementById('paymentModalLabel');
+            modalLabel.innerText =
+                `Payments for ${user.first_name} ${user.last_name} (ID: ${user.user_id})`;
+            modalLabel.setAttribute('data-user-id', userId);
+            modalLabel.setAttribute('data-view-type', 'active');
+
+            const showArchivedCheckbox = document.getElementById('showArchivedUserPayments');
+            showArchivedCheckbox.checked = false;
+            showArchivedCheckbox.parentElement.style.display = 'inline-block';
+
+            renderUserPaymentsTable(userId, false);
+
+            const paymentModal = new bootstrap.Modal(document.getElementById('paymentModal'));
+            paymentModal.show();
+        };
+
+        // Load payments on page load
+        loadPayments();
+    });
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
