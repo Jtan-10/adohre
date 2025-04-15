@@ -524,6 +524,75 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
             });
         }
 
+        // Define the renderUserPaymentsTable function
+        function renderUserPaymentsTable(userId, showArchived = false) {
+            const user = activePaymentsByUser[userId];
+            if (!user) return;
+
+            const tbody = document.querySelector('#userPaymentsTable tbody');
+            tbody.innerHTML = '';
+
+            let allPayments = [...user.payments];
+            if (showArchived && archivedPaymentsByUser[userId]) {
+                allPayments = [...allPayments, ...archivedPaymentsByUser[userId].payments];
+            }
+
+            if (allPayments.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center py-4">
+                            <div class="text-muted">
+                                <i class="bi bi-credit-card fs-4 d-block mb-2"></i>
+                                No payments found
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            allPayments.sort((a, b) => {
+                const dateA = a.payment_date ? new Date(a.payment_date) : new Date(0);
+                const dateB = b.payment_date ? new Date(b.payment_date) : new Date(0);
+                return dateB - dateA;
+            });
+
+            allPayments.forEach(payment => {
+                const tr = document.createElement('tr');
+                if (payment.is_archived) {
+                    tr.classList.add('archived-payment');
+                }
+
+                const statusBadge = payment.is_archived ?
+                    `<span class="badge status-archived">Archived</span>` :
+                    `<span class="badge status-${payment.status.toLowerCase()}">${payment.status}</span>`;
+
+                const formattedDate = payment.payment_date ?
+                    new Intl.DateTimeFormat('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                    }).format(new Date(payment.payment_date)) :
+                    'N/A';
+
+                tr.innerHTML = `
+                    <td>${payment.payment_id}</td>
+                    <td>${payment.payment_type}</td>
+                    <td>${payment.amount}</td>
+                    <td>${statusBadge}</td>
+                    <td>${formattedDate}</td>
+                    <td>
+                        <button class="btn btn-info btn-sm viewPaymentDetailsBtn" data-payment='${encodeURIComponent(
+                            JSON.stringify(payment)
+                        )}'>View</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
         // Example alert/toast function
         function showAlert(message, type = 'success') {
             const alertContainer = document.getElementById('alertContainer');
