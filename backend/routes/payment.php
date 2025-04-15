@@ -70,19 +70,24 @@ if ($method === 'GET') {
 
     if ($action === 'get_all_payments') {
         $payments = [];
-        // Updated query: join events and trainings to retrieve a title when applicable.
-        $query = "SELECT p.payment_id, p.user_id, p.payment_type, p.amount, p.status, p.payment_date, p.due_date, p.reference_number, p.image, p.mode_of_payment,
-                         u.first_name, u.last_name, u.email,
-                         CASE 
-                             WHEN p.payment_type = 'Event Registration' THEN e.title
-                             WHEN p.payment_type = 'Training Registration' THEN t.title
-                             ELSE NULL
-                         END AS title
-                  FROM payments p 
-                  JOIN users u ON p.user_id = u.user_id 
-                  LEFT JOIN events e ON (p.payment_type = 'Event Registration' AND p.event_id = e.event_id)
-                  LEFT JOIN trainings t ON (p.payment_type = 'Training Registration' AND p.training_id = t.training_id)
-                  ORDER BY p.payment_date DESC";
+        // Updated query: include is_archived and archive_date fields
+        $query = "SELECT p.payment_id, p.user_id, p.payment_type, p.amount, p.status, 
+                       p.payment_date, p.due_date, p.reference_number, p.image, p.mode_of_payment,
+                       p.is_archived, p.archive_date,
+                       u.first_name, u.last_name, u.email,
+                       CASE 
+                           WHEN p.payment_type = 'Event Registration' THEN e.title
+                           WHEN p.payment_type = 'Training Registration' THEN t.title
+                           ELSE NULL
+                       END AS title
+                FROM payments p 
+                JOIN users u ON p.user_id = u.user_id 
+                LEFT JOIN events e ON (p.payment_type = 'Event Registration' AND p.event_id = e.event_id)
+                LEFT JOIN trainings t ON (p.payment_type = 'Training Registration' AND p.training_id = t.training_id)
+                ORDER BY 
+                    CASE WHEN p.is_archived = 1 THEN 1 ELSE 0 END,
+                    CASE WHEN p.payment_date IS NULL THEN 1 ELSE 0 END,
+                    p.payment_date DESC";
         $result = $conn->query($query);
         if ($result) {
             while ($row = $result->fetch_assoc()) {
@@ -102,8 +107,8 @@ if ($method === 'GET') {
             exit;
         }
         $payments = [];
-        // Here, pending payments are those with status 'Pending'
-        $query = "SELECT * FROM payments WHERE user_id = ? AND status = 'Pending' ORDER BY due_date ASC";
+        // Updated to exclude archived payments
+        $query = "SELECT * FROM payments WHERE user_id = ? AND status = 'Pending' AND is_archived = 0 ORDER BY due_date ASC";
         $stmt = $conn->prepare($query);
         if ($stmt === false) {
             error_log("Database error in get_pending_payments: " . $conn->error);
@@ -131,18 +136,18 @@ if ($method === 'GET') {
             exit;
         }
         $payments = [];
-        // Updated query: join events/trainings for title data
+        // Updated query: exclude archived payments
         $query = "SELECT p.*, 
-                         CASE 
-                             WHEN p.payment_type = 'Event Registration' THEN e.title
-                             WHEN p.payment_type = 'Training Registration' THEN t.title
-                             ELSE NULL
-                         END AS title
-                  FROM payments p
-                  LEFT JOIN events e ON (p.payment_type = 'Event Registration' AND p.event_id = e.event_id)
-                  LEFT JOIN trainings t ON (p.payment_type = 'Training Registration' AND p.training_id = t.training_id)
-                  WHERE p.user_id = ? AND p.status = ?
-                  ORDER BY p.due_date ASC";
+                       CASE 
+                           WHEN p.payment_type = 'Event Registration' THEN e.title
+                           WHEN p.payment_type = 'Training Registration' THEN t.title
+                           ELSE NULL
+                       END AS title
+                FROM payments p
+                LEFT JOIN events e ON (p.payment_type = 'Event Registration' AND p.event_id = e.event_id)
+                LEFT JOIN trainings t ON (p.payment_type = 'Training Registration' AND p.training_id = t.training_id)
+                WHERE p.user_id = ? AND p.status = ? AND p.is_archived = 0
+                ORDER BY p.due_date ASC";
         $stmt = $conn->prepare($query);
         if ($stmt === false) {
             error_log("Database error in get_payments: " . $conn->error);
@@ -427,7 +432,7 @@ if ($method === 'GET') {
             }
         }
 
-        $stmt = $conn->prepare("INSERT INTO payments (user_id, payment_type, amount, status, payment_date, due_date, reference_number, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt = $conn->prepare("INSERT INTO payments (user_id, payment_type, amount, status, payment_date, due_date, reference_number, image, is_archived) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)");
         if ($stmt === false) {
             error_log("Database error in payment push: " . $conn->error);
             echo json_encode(['status' => false, 'message' => 'Internal server error']);
@@ -446,119 +451,270 @@ if ($method === 'GET') {
     }
 } elseif ($method === 'PUT') {
     $input = json_decode(file_get_contents('php://input'), true);
-    if (!isset($input['payment_id']) || !isset($input['status'])) {
+    
+    // Check if this is an action request (archive/restore)
+    if (isset($input['action'])) {
+        // Validate CSRF token if provided
+        if (isset($input['csrf_token']) && $input['csrf_token'] !== $_SESSION['csrf_token']) {
+            echo json_encode(['status' => false, 'message' => 'Invalid CSRF token']);
+            exit();
+        }
+        
+        switch ($input['action']) {
+            case 'archive':
+                // Archive a payment
+                if (!isset($input['payment_id'])) {
+                    echo json_encode(['status' => false, 'message' => 'Missing payment ID']);
+                    exit();
+                }
+                
+                $payment_id = $input['payment_id'];
+                $current_date = date('Y-m-d');
+                
+                $stmt = $conn->prepare("UPDATE payments SET is_archived = 1, archive_date = ? WHERE payment_id = ?");
+                if ($stmt === false) {
+                    error_log("Database error preparing archive statement: " . $conn->error);
+                    echo json_encode(['status' => false, 'message' => 'Database error']);
+                    exit();
+                }
+                
+                $stmt->bind_param("si", $current_date, $payment_id);
+                if ($stmt->execute()) {
+                    // Log the archiving action
+                    recordAuditLog($_SESSION['user_id'], 'Archive Payment', "Payment ID: $payment_id archived");
+                    echo json_encode(['status' => true, 'message' => 'Payment archived successfully']);
+                } else {
+                    error_log("Failed to archive payment: " . $stmt->error);
+                    echo json_encode(['status' => false, 'message' => 'Failed to archive payment']);
+                }
+                exit();
+                break;
+                
+            case 'restore':
+                // Restore an archived payment
+                if (!isset($input['payment_id'])) {
+                    echo json_encode(['status' => false, 'message' => 'Missing payment ID']);
+                    exit();
+                }
+                
+                $payment_id = $input['payment_id'];
+                
+                $stmt = $conn->prepare("UPDATE payments SET is_archived = 0, archive_date = NULL WHERE payment_id = ?");
+                if ($stmt === false) {
+                    error_log("Database error preparing restore statement: " . $conn->error);
+                    echo json_encode(['status' => false, 'message' => 'Database error']);
+                    exit();
+                }
+                
+                $stmt->bind_param("i", $payment_id);
+                if ($stmt->execute()) {
+                    // Log the restore action
+                    recordAuditLog($_SESSION['user_id'], 'Restore Payment', "Payment ID: $payment_id restored from archive");
+                    echo json_encode(['status' => true, 'message' => 'Payment restored successfully']);
+                } else {
+                    error_log("Failed to restore payment: " . $stmt->error);
+                    echo json_encode(['status' => false, 'message' => 'Failed to restore payment']);
+                }
+                exit();
+                break;
+                
+            default:
+                echo json_encode(['status' => false, 'message' => 'Invalid action']);
+                exit();
+        }
+    } else if (isset($input['payment_id']) && isset($input['status'])) {
+        // Regular payment status update
+        $payment_id = $input['payment_id'];
+        $newStatus = $input['status'];
+
+        $stmt = $conn->prepare("UPDATE payments SET status = ? WHERE payment_id = ?");
+        if ($stmt === false) {
+            error_log("Database error in PUT request: " . $conn->error);
+            echo json_encode(['status' => false, 'message' => 'Internal server error']);
+            exit();
+        }
+        $stmt->bind_param("si", $newStatus, $payment_id);
+        if ($stmt->execute()) {
+            // Audit log the payment status update.
+            recordAuditLog($_SESSION['user_id'], 'Update Payment Status', "Payment ID $payment_id updated to status: $newStatus");
+
+            // If the new status is "Completed", update membership and register for event/training.
+            if (strtolower($newStatus) === 'completed') {
+                // Retrieve full payment record
+                $stmtPayment = $conn->prepare("SELECT user_id, payment_type, event_id, training_id FROM payments WHERE payment_id = ?");
+                $stmtPayment->bind_param("i", $payment_id);
+                $stmtPayment->execute();
+                $resultPayment = $stmtPayment->get_result();
+                if ($resultPayment->num_rows === 1) {
+                    $paymentRecord = $resultPayment->fetch_assoc();
+                    // For event registration, insert into event_registrations table if not exists.
+                    if ($paymentRecord['payment_type'] === 'Event Registration' && !empty($paymentRecord['event_id'])) {
+                        $stmtReg = $conn->prepare("INSERT IGNORE INTO event_registrations (user_id, event_id) VALUES (?, ?)");
+                        $stmtReg->bind_param("ii", $paymentRecord['user_id'], $paymentRecord['event_id']);
+                        $stmtReg->execute();
+                        $stmtReg->close();
+                    }
+                    // For training registration, insert into training_registrations table if not exists.
+                    elseif ($paymentRecord['payment_type'] === 'Training Registration' && !empty($paymentRecord['training_id'])) {
+                        $stmtReg = $conn->prepare("INSERT IGNORE INTO training_registrations (user_id, training_id) VALUES (?, ?)");
+                        $stmtReg->bind_param("ii", $paymentRecord['user_id'], $paymentRecord['training_id']);
+                        $stmtReg->execute();
+                        $stmtReg->close();
+                    }
+                }
+                $stmtPayment->close();
+
+                // (Optional) Update membership_status if needed
+                $stmtUser = $conn->prepare("SELECT user_id FROM payments WHERE payment_id = ?");
+                $stmtUser->bind_param("i", $payment_id);
+                $stmtUser->execute();
+                $resultUser = $stmtUser->get_result();
+                if ($resultUser->num_rows === 1) {
+                    $row = $resultUser->fetch_assoc();
+                    $user_id = $row['user_id'];
+                    $stmtUpdateMember = $conn->prepare("UPDATE members SET membership_status = 'active' WHERE user_id = ?");
+                    $stmtUpdateMember->bind_param("i", $user_id);
+                    $stmtUpdateMember->execute();
+                    $stmtUpdateMember->close();
+                }
+                $stmtUser->close();
+
+                // New code to send email notification to the user for completed payment.
+                $stmtEmail = $conn->prepare("SELECT u.email, u.first_name, p.payment_type, p.amount, p.mode_of_payment, p.payment_date FROM payments p JOIN users u ON p.user_id = u.user_id WHERE p.payment_id = ? LIMIT 1");
+                $stmtEmail->bind_param("i", $payment_id);
+                $stmtEmail->execute();
+                $resultEmail = $stmtEmail->get_result();
+                if ($resultEmail->num_rows === 1) {
+                    $userDetails = $resultEmail->fetch_assoc();
+                    $stmtEmail->close();
+
+                    $mail = new PHPMailer(true);
+                    try {
+                        $mail->isSMTP();
+                        $mail->Host       = $_ENV['SMTP_HOST'];
+                        $mail->SMTPAuth   = true;
+                        $mail->Username   = $_ENV['SMTP_USER'];
+                        $mail->Password   = $_ENV['SMTP_PASS'];
+                        $mail->SMTPSecure = $_ENV['SMTP_SECURE'];
+                        $mail->Port       = $_ENV['SMTP_PORT'];
+                        $mail->SMTPOptions = [
+                            'ssl' => [
+                                'verify_peer'      => true,
+                                'verify_peer_name' => true,
+                                'allow_self_signed' => false,
+                            ],
+                        ];
+                        $mail->setFrom($_ENV['SMTP_FROM'], $_ENV['SMTP_FROM_NAME']);
+                        $mail->addAddress($userDetails['email']);
+                        $mail->isHTML(true);
+                        $mail->Subject = "Payment Completed Notification";
+                        $mail->Body    = "
+                            <h1>Hello " . htmlspecialchars($userDetails['first_name'], ENT_QUOTES, 'UTF-8') . ",</h1>
+                            <p>Your payment has been marked as <strong>Completed</strong>.</p>
+                            <p><strong>Payment Type:</strong> " . htmlspecialchars($userDetails['payment_type'], ENT_QUOTES, 'UTF-8') . "</p>
+                            <p><strong>Amount:</strong> " . htmlspecialchars($userDetails['amount'], ENT_QUOTES, 'UTF-8') . "</p>
+                            <p><strong>Mode of Payment:</strong> " . htmlspecialchars($userDetails['mode_of_payment'], ENT_QUOTES, 'UTF-8') . "</p>
+                            <p><strong>Payment Date:</strong> " . htmlspecialchars($userDetails['payment_date'], ENT_QUOTES, 'UTF-8') . "</p>
+                            <p>Thank you for your payment!</p>";
+                        $mail->AltBody = strip_tags($mail->Body);
+                        $mail->send();
+                    } catch (Exception $e) {
+                        error_log("Email could not be sent to " . $userDetails['email'] . ". Mailer Error: " . $mail->ErrorInfo);
+                    }
+                } else {
+                    $stmtEmail->close();
+                }
+            }
+
+            echo json_encode(['status' => true, 'message' => 'Payment status updated successfully.']);
+            exit();
+        } else {
+            error_log("Failed to update payment status: " . $stmt->error);
+            echo json_encode(['status' => false, 'message' => 'Internal server error']);
+            exit();
+        }
+    } else {
         echo json_encode(['status' => false, 'message' => 'Invalid input']);
         exit();
     }
-    $payment_id = $input['payment_id'];
-    $newStatus = $input['status'];
-
-    $stmt = $conn->prepare("UPDATE payments SET status = ? WHERE payment_id = ?");
-    if ($stmt === false) {
-        error_log("Database error in PUT request: " . $conn->error);
-        echo json_encode(['status' => false, 'message' => 'Internal server error']);
+} elseif ($method === 'DELETE') {
+    // Ensure the user is an admin
+    if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
+        echo json_encode(['status' => false, 'message' => 'Unauthorized access']);
         exit();
     }
-    $stmt->bind_param("si", $newStatus, $payment_id);
-    if ($stmt->execute()) {
-        // Audit log the payment status update.
-        recordAuditLog($_SESSION['user_id'], 'Update Payment Status', "Payment ID $payment_id updated to status: $newStatus");
-
-        // If the new status is "Completed", update membership and register for event/training.
-        if (strtolower($newStatus) === 'completed') {
-            // Retrieve full payment record
-            $stmtPayment = $conn->prepare("SELECT user_id, payment_type, event_id, training_id FROM payments WHERE payment_id = ?");
-            $stmtPayment->bind_param("i", $payment_id);
-            $stmtPayment->execute();
-            $resultPayment = $stmtPayment->get_result();
-            if ($resultPayment->num_rows === 1) {
-                $paymentRecord = $resultPayment->fetch_assoc();
-                // For event registration, insert into event_registrations table if not exists.
-                if ($paymentRecord['payment_type'] === 'Event Registration' && !empty($paymentRecord['event_id'])) {
-                    $stmtReg = $conn->prepare("INSERT IGNORE INTO event_registrations (user_id, event_id) VALUES (?, ?)");
-                    $stmtReg->bind_param("ii", $paymentRecord['user_id'], $paymentRecord['event_id']);
-                    $stmtReg->execute();
-                    $stmtReg->close();
-                }
-                // For training registration, insert into training_registrations table if not exists.
-                elseif ($paymentRecord['payment_type'] === 'Training Registration' && !empty($paymentRecord['training_id'])) {
-                    $stmtReg = $conn->prepare("INSERT IGNORE INTO training_registrations (user_id, training_id) VALUES (?, ?)");
-                    $stmtReg->bind_param("ii", $paymentRecord['user_id'], $paymentRecord['training_id']);
-                    $stmtReg->execute();
-                    $stmtReg->close();
-                }
-            }
-            $stmtPayment->close();
-
-            // (Optional) Update membership_status if needed
-            $stmtUser = $conn->prepare("SELECT user_id FROM payments WHERE payment_id = ?");
-            $stmtUser->bind_param("i", $payment_id);
-            $stmtUser->execute();
-            $resultUser = $stmtUser->get_result();
-            if ($resultUser->num_rows === 1) {
-                $row = $resultUser->fetch_assoc();
-                $user_id = $row['user_id'];
-                $stmtUpdateMember = $conn->prepare("UPDATE members SET membership_status = 'active' WHERE user_id = ?");
-                $stmtUpdateMember->bind_param("i", $user_id);
-                $stmtUpdateMember->execute();
-                $stmtUpdateMember->close();
-            }
-            $stmtUser->close();
-
-            // New code to send email notification to the user for completed payment.
-            $stmtEmail = $conn->prepare("SELECT u.email, u.first_name, p.payment_type, p.amount, p.mode_of_payment, p.payment_date FROM payments p JOIN users u ON p.user_id = u.user_id WHERE p.payment_id = ? LIMIT 1");
-            $stmtEmail->bind_param("i", $payment_id);
-            $stmtEmail->execute();
-            $resultEmail = $stmtEmail->get_result();
-            if ($resultEmail->num_rows === 1) {
-                $userDetails = $resultEmail->fetch_assoc();
-                $stmtEmail->close();
-
-                $mail = new PHPMailer(true);
-                try {
-                    $mail->isSMTP();
-                    $mail->Host       = $_ENV['SMTP_HOST'];
-                    $mail->SMTPAuth   = true;
-                    $mail->Username   = $_ENV['SMTP_USER'];
-                    $mail->Password   = $_ENV['SMTP_PASS'];
-                    $mail->SMTPSecure = $_ENV['SMTP_SECURE'];
-                    $mail->Port       = $_ENV['SMTP_PORT'];
-                    $mail->SMTPOptions = [
-                        'ssl' => [
-                            'verify_peer'      => true,
-                            'verify_peer_name' => true,
-                            'allow_self_signed' => false,
-                        ],
-                    ];
-                    $mail->setFrom($_ENV['SMTP_FROM'], $_ENV['SMTP_FROM_NAME']);
-                    $mail->addAddress($userDetails['email']);
-                    $mail->isHTML(true);
-                    $mail->Subject = "Payment Completed Notification";
-                    $mail->Body    = "
-                        <h1>Hello " . htmlspecialchars($userDetails['first_name'], ENT_QUOTES, 'UTF-8') . ",</h1>
-                        <p>Your payment has been marked as <strong>Completed</strong>.</p>
-                        <p><strong>Payment Type:</strong> " . htmlspecialchars($userDetails['payment_type'], ENT_QUOTES, 'UTF-8') . "</p>
-                        <p><strong>Amount:</strong> " . htmlspecialchars($userDetails['amount'], ENT_QUOTES, 'UTF-8') . "</p>
-                        <p><strong>Mode of Payment:</strong> " . htmlspecialchars($userDetails['mode_of_payment'], ENT_QUOTES, 'UTF-8') . "</p>
-                        <p><strong>Payment Date:</strong> " . htmlspecialchars($userDetails['payment_date'], ENT_QUOTES, 'UTF-8') . "</p>
-                        <p>Thank you for your payment!</p>";
-                    $mail->AltBody = strip_tags($mail->Body);
-                    $mail->send();
-                } catch (Exception $e) {
-                    error_log("Email could not be sent to " . $userDetails['email'] . ". Mailer Error: " . $mail->ErrorInfo);
-                }
-            } else {
-                $stmtEmail->close();
-            }
+    
+    $input = json_decode(file_get_contents('php://input'), true);
+    
+    // Validate request data
+    if (!isset($input['action']) || $input['action'] !== 'bulk_delete' || 
+        !isset($input['days_old']) || !isset($input['csrf_token'])) {
+        echo json_encode(['status' => false, 'message' => 'Invalid request data']);
+        exit();
+    }
+    
+    // Validate CSRF token
+    if ($input['csrf_token'] !== $_SESSION['csrf_token']) {
+        echo json_encode(['status' => false, 'message' => 'Invalid CSRF token']);
+        exit();
+    }
+    
+    $days_old = intval($input['days_old']);
+    if ($days_old <= 0) {
+        echo json_encode(['status' => false, 'message' => 'Days parameter must be a positive number']);
+        exit();
+    }
+    
+    // Calculate cutoff date for deletion
+    $cutoff_date = date('Y-m-d', strtotime("-$days_old days"));
+    
+    try {
+        // Begin transaction
+        $conn->begin_transaction();
+        
+        // Store payment IDs for logging purposes
+        $stmt_ids = $conn->prepare("SELECT payment_id FROM payments WHERE is_archived = 1 AND archive_date <= ?");
+        $stmt_ids->bind_param("s", $cutoff_date);
+        $stmt_ids->execute();
+        $result_ids = $stmt_ids->get_result();
+        $deleted_ids = [];
+        while ($row = $result_ids->fetch_assoc()) {
+            $deleted_ids[] = $row['payment_id'];
         }
-
-        echo json_encode(['status' => true, 'message' => 'Payment status updated successfully.']);
-        exit();
-    } else {
-        error_log("Failed to update payment status: " . $stmt->error);
-        echo json_encode(['status' => false, 'message' => 'Internal server error']);
-        exit();
+        $stmt_ids->close();
+        
+        // Delete payments that were archived before the cutoff date
+        $stmt = $conn->prepare("DELETE FROM payments WHERE is_archived = 1 AND archive_date <= ?");
+        $stmt->bind_param("s", $cutoff_date);
+        $stmt->execute();
+        $deleted_count = $stmt->affected_rows;
+        $stmt->close();
+        
+        // Log the deletion
+        if (!empty($deleted_ids)) {
+            $ids_string = implode(', ', $deleted_ids);
+            recordAuditLog($_SESSION['user_id'], 'Bulk Delete Archived Payments', 
+                "Deleted $deleted_count archived payments older than $days_old days. IDs: $ids_string");
+        } else {
+            recordAuditLog($_SESSION['user_id'], 'Bulk Delete Archived Payments', 
+                "No payments found to delete older than $days_old days.");
+        }
+        
+        // Commit transaction
+        $conn->commit();
+        
+        echo json_encode([
+            'status' => true,
+            'message' => "Successfully deleted $deleted_count archived payment(s).",
+            'deleted_count' => $deleted_count
+        ]);
+    } catch (Exception $e) {
+        // Rollback on error
+        $conn->rollback();
+        error_log("Error in bulk delete: " . $e->getMessage());
+        echo json_encode(['status' => false, 'message' => 'Database error occurred']);
     }
+    exit();
 } else {
     echo json_encode(['status' => false, 'message' => 'Unsupported request method']);
     exit();

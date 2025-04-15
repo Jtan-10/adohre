@@ -90,7 +90,7 @@
                 <select id="paymentStatusFilter" class="form-select" style="width: auto; display: inline-block;">
                     <option value="New" selected>New</option>
                     <option value="Pending">Pending</option>
-                    <option value="Completed">Completed</option>
+                    <option value="Completed">Validated</option>
                 </select>
             </div>
             <table class="table">
