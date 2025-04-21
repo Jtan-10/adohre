@@ -180,6 +180,26 @@
         transform: translateY(-2px);
         box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
     }
+
+    /* Custom Assessment Form Styles */
+    .assessment-question {
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid #eee;
+    }
+
+    .rating-buttons {
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .rating-buttons .btn {
+        flex: 1;
+    }
+
+    .checkbox-group {
+        padding: 0.5rem 0;
+    }
     </style>
 </head>
 
@@ -271,8 +291,7 @@
                                 <button id="takeAssessmentBtn" class="btn btn-primary">Take Assessment and
                                     Evaluation</button>
                                 <p class="mt-2 text-danger">
-                                    After submitting your answer in the form, click "Mark as Done" here to receive your
-                                    certificate.
+                                    Complete the assessment to receive your certificate.
                                 </p>
                                 <button id="markDoneBtn" class="btn btn-warning">Mark as Done</button>
                             </div>
@@ -287,7 +306,7 @@
         </div>
     </div>
 
-    <!-- Modal for Assessment Form (pops up when "Take Assessment" is clicked) -->
+    <!-- Modal for Google Form Assessment -->
     <div class="modal fade" id="assessmentModal" tabindex="-1" aria-labelledby="assessmentModalLabel"
         aria-hidden="true">
         <div class="modal-dialog modal-xl">
@@ -298,6 +317,22 @@
                 </div>
                 <div class="modal-body">
                     <iframe id="assessmentIframe" src="" width="100%" height="600" frameborder="0"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Custom Assessment Form -->
+    <div class="modal fade" id="customAssessmentModal" tabindex="-1" aria-labelledby="customAssessmentModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="customAssessmentModalLabel">Assessment and Evaluation Form</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="custom-assessment-container"></div>
                 </div>
             </div>
         </div>
@@ -609,23 +644,62 @@
             window.currentTrainingId = training.training_id;
             let modal = new bootstrap.Modal(document.getElementById('trainingModal'));
             modal.show();
+
             if (role !== 'trainer') {
+                // First check if there's a custom assessment
                 fetch(
-                        `/capstone-php/backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${training.training_id}`
-                    )
+                        `/capstone-php/backend/routes/assessment_manager.php?action=get_questions&training_id=${training.training_id}`
+                        )
                     .then(response => response.json())
-                    .then(data => {
-                        const assessmentSection = document.getElementById('assessmentSection');
-                        if (data.status && data.form_link) {
-                            window.currentAssessmentForm = data.form_link;
-                            assessmentSection.style.display = 'block';
-                        } else {
-                            assessmentSection.style.display = 'none';
-                        }
+                    .then(customData => {
+                        const hasCustomAssessment = customData.status && customData.questions && customData
+                            .questions.length > 0;
+
+                        // Then check if there's a Google Form
+                        fetch(
+                                `/capstone-php/backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${training.training_id}`
+                                )
+                            .then(response => response.json())
+                            .then(googleData => {
+                                const hasGoogleForm = googleData.status && googleData.form_link;
+                                const assessmentSection = document.getElementById('assessmentSection');
+
+                                if (hasCustomAssessment || hasGoogleForm) {
+                                    // Store assessment info for later use
+                                    window.currentAssessmentForm = hasGoogleForm ? googleData
+                                        .form_link : null;
+                                    window.hasCustomAssessment = hasCustomAssessment;
+                                    assessmentSection.style.display = 'block';
+                                } else {
+                                    assessmentSection.style.display = 'none';
+                                }
+                            })
+                            .catch(err => {
+                                console.error(err);
+                                document.getElementById('assessmentSection').style.display = 'none';
+                            });
                     })
                     .catch(err => {
                         console.error(err);
-                        document.getElementById('assessmentSection').style.display = 'none';
+                        // Still try to get Google Form as fallback
+                        fetch(
+                                `/capstone-php/backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${training.training_id}`
+                                )
+                            .then(response => response.json())
+                            .then(data => {
+                                const assessmentSection = document.getElementById('assessmentSection');
+                                if (data.status && data.form_link) {
+                                    window.currentAssessmentForm = data.form_link;
+                                    window.hasCustomAssessment = false;
+                                    assessmentSection.style.display = 'block';
+                                } else {
+                                    assessmentSection.style.display = 'none';
+                                }
+                            })
+                            .catch(err => {
+                                console.error(err);
+                                document.getElementById('assessmentSection').style.display = 'none';
+                            });
                     });
             } else {
                 document.getElementById('assessmentSection').style.display = 'none';
@@ -635,6 +709,22 @@
         const takeAssessmentBtn = document.getElementById('takeAssessmentBtn');
         if (takeAssessmentBtn) {
             takeAssessmentBtn.addEventListener('click', function() {
+                const trainingId = window.currentTrainingId;
+                if (!trainingId) {
+                    alert("Training not selected.");
+                    return;
+                }
+
+                // If we have a custom assessment, show it in a modal
+                if (window.hasCustomAssessment) {
+                    loadCustomAssessment(trainingId);
+                    let customAssessmentModal = new bootstrap.Modal(document.getElementById(
+                        'customAssessmentModal'));
+                    customAssessmentModal.show();
+                    return;
+                }
+
+                // Fallback to Google Form if no custom assessment
                 if (window.currentAssessmentForm) {
                     let formLink = window.currentAssessmentForm;
                     if (formLink.indexOf('docs.google.com/forms') !== -1 && formLink.indexOf('hl=') ===
@@ -646,7 +736,7 @@
                         'assessmentModal'));
                     assessmentModal.show();
                 } else {
-                    alert("No assessment form link available for this training.");
+                    alert("No assessment available for this training.");
                 }
             });
         }
@@ -676,7 +766,10 @@
                             if (result.message.toLowerCase().includes("already marked")) {
                                 alert(result.message);
                             } else {
-                                alert("Assessment marked as completed.");
+                                alert(
+                                    "Assessment marked as completed. You may now receive your certificate.");
+                                // Refresh the view to update UI
+                                window.location.reload();
                             }
                         } else {
                             alert("Error: " + result.message);
@@ -687,6 +780,250 @@
                         alert("Failed to mark assessment as completed.");
                     });
             });
+        }
+
+        // Load custom assessment questions and render the form in the modal
+        function loadCustomAssessment(trainingId) {
+            const container = document.getElementById('custom-assessment-container');
+            container.innerHTML =
+                '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+
+            fetch(
+                    `/capstone-php/backend/routes/assessment_manager.php?action=get_questions&training_id=${trainingId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status && data.questions.length > 0) {
+                        renderCustomAssessmentForm(data.questions, container);
+                    } else {
+                        container.innerHTML =
+                            '<div class="alert alert-warning">No assessment questions found. Please try again later.</div>';
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    container.innerHTML =
+                        '<div class="alert alert-danger">Failed to load assessment questions. Please try again later.</div>';
+                });
+        }
+
+        // Render the custom assessment form in the provided container
+        function renderCustomAssessmentForm(questions, container) {
+            let formHtml = `
+                <form id="customAssessmentForm" class="needs-validation" novalidate>
+                    <input type="hidden" name="training_id" value="${window.currentTrainingId}">
+            `;
+
+            questions.forEach((question, index) => {
+                const questionId = question.question_id;
+                const required = question.required == 1;
+
+                formHtml += `
+                    <div class="mb-4 assessment-question">
+                        <label class="form-label fw-bold">
+                            ${index + 1}. ${question.question_text} ${required ? '<span class="text-danger">*</span>' : ''}
+                        </label>
+                `;
+
+                switch (question.question_type) {
+                    case 'text':
+                        formHtml += `
+                            <input type="text" class="form-control" id="q${questionId}" 
+                                name="q${questionId}" ${required ? 'required' : ''}>
+                            ${required ? '<div class="invalid-feedback">Please provide an answer</div>' : ''}
+                        `;
+                        break;
+
+                    case 'textarea':
+                        formHtml += `
+                            <textarea class="form-control" id="q${questionId}" 
+                                    name="q${questionId}" rows="3" ${required ? 'required' : ''}></textarea>
+                            ${required ? '<div class="invalid-feedback">Please provide an answer</div>' : ''}
+                        `;
+                        break;
+
+                    case 'multiple_choice':
+                        if (Array.isArray(question.options)) {
+                            question.options.forEach((option, optIndex) => {
+                                formHtml += `
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="q${questionId}" 
+                                            id="q${questionId}_opt${optIndex}" value="${option}" ${required ? 'required' : ''}>
+                                        <label class="form-check-label" for="q${questionId}_opt${optIndex}">
+                                            ${option}
+                                        </label>
+                                    </div>
+                                `;
+                            });
+                            if (required) {
+                                formHtml +=
+                                    '<div class="invalid-feedback">Please select an option</div>';
+                            }
+                        }
+                        break;
+
+                    case 'checkbox':
+                        if (Array.isArray(question.options)) {
+                            formHtml += '<div class="checkbox-group" data-required="' + required + '">';
+                            question.options.forEach((option, optIndex) => {
+                                formHtml += `
+                                    <div class="form-check">
+                                        <input class="form-check-input checkbox-group-input" type="checkbox" 
+                                            name="q${questionId}[]" id="q${questionId}_opt${optIndex}" value="${option}">
+                                        <label class="form-check-label" for="q${questionId}_opt${optIndex}">
+                                            ${option}
+                                        </label>
+                                    </div>
+                                `;
+                            });
+                            if (required) {
+                                formHtml +=
+                                    '<div class="invalid-feedback">Please select at least one option</div>';
+                            }
+                            formHtml += '</div>';
+                        }
+                        break;
+
+                    case 'rating':
+                        if (question.options) {
+                            const options = typeof question.options === 'string' ?
+                                JSON.parse(question.options) : question.options;
+
+                            const min = options.min || 1;
+                            const max = options.max || 5;
+
+                            formHtml += `
+                                <div class="rating-scale">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="small">${options.minLabel || min}</span>
+                                        <span class="small">${options.maxLabel || max}</span>
+                                    </div>
+                                    <div class="btn-group rating-buttons w-100" role="group">
+                            `;
+
+                            for (let i = min; i <= max; i++) {
+                                formHtml += `
+                                    <input type="radio" class="btn-check" name="q${questionId}" 
+                                        id="q${questionId}_rate${i}" value="${i}" ${required ? 'required' : ''}>
+                                    <label class="btn btn-outline-primary" for="q${questionId}_rate${i}">${i}</label>
+                                `;
+                            }
+
+                            formHtml += `
+                                    </div>
+                                    ${required ? '<div class="invalid-feedback">Please select a rating</div>' : ''}
+                                </div>
+                            `;
+                        }
+                        break;
+                }
+
+                formHtml += `</div>`;
+            });
+
+            formHtml += `
+                    <div class="d-grid gap-2 mt-4">
+                        <button type="submit" class="btn btn-success btn-lg">Submit Assessment</button>
+                    </div>
+                </form>
+            `;
+
+            container.innerHTML = formHtml;
+
+            // Set up the form submission handler
+            document.getElementById('customAssessmentForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                // Bootstrap form validation
+                if (!this.checkValidity()) {
+                    e.stopPropagation();
+                    this.classList.add('was-validated');
+                    return;
+                }
+
+                submitCustomAssessment(this);
+            });
+
+            // Set up checkbox validation (for required checkbox groups)
+            document.querySelectorAll('.checkbox-group[data-required="true"]').forEach(group => {
+                const checkboxes = group.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach(checkbox => {
+                    checkbox.addEventListener('change', function() {
+                        const anyChecked = Array.from(checkboxes).some(cb => cb
+                        .checked);
+                        checkboxes.forEach(cb => {
+                            cb.setCustomValidity(anyChecked ? '' :
+                                'Please select at least one option');
+                        });
+                    });
+                });
+            });
+        }
+
+        // Submit the custom assessment to the server
+        function submitCustomAssessment(form) {
+            const questions = document.querySelectorAll('.assessment-question');
+            const responses = [];
+
+            questions.forEach(question => {
+                const questionInputs = question.querySelectorAll('input, textarea');
+                if (!questionInputs.length) return;
+
+                let questionId;
+                let responseText = '';
+
+                // Get the question ID from the first input's name (removing prefix 'q' and any '[]')
+                const firstInput = questionInputs[0];
+                questionId = firstInput.name.replace(/\[\]$|^q/, '');
+
+                // Get value based on input type
+                if (question.querySelector('input[type="text"]')) {
+                    responseText = question.querySelector('input[type="text"]').value;
+                } else if (question.querySelector('textarea')) {
+                    responseText = question.querySelector('textarea').value;
+                } else if (question.querySelector('input[type="radio"]:checked')) {
+                    responseText = question.querySelector('input[type="radio"]:checked').value;
+                } else if (question.querySelectorAll('input[type="checkbox"]').length > 0) {
+                    const checkedValues = [];
+                    question.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+                        checkedValues.push(cb.value);
+                    });
+                    responseText = JSON.stringify(checkedValues);
+                }
+
+                responses.push({
+                    question_id: questionId,
+                    response_text: responseText
+                });
+            });
+
+            // Submit to server
+            fetch('/capstone-php/backend/routes/assessment_manager.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'submit_assessment',
+                        training_id: window.currentTrainingId,
+                        responses: responses
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status) {
+                        // Success - show completion message and close modal
+                        bootstrap.Modal.getInstance(document.getElementById('customAssessmentModal'))
+                    .hide();
+                        alert('Thank you for completing the assessment!');
+                        window.location.reload(); // Refresh the page to update assessment status
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('Failed to submit assessment. Please try again.');
+                });
         }
 
         function showError(message) {
