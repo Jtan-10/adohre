@@ -1,11 +1,10 @@
 <?php
-// Set secure session cookie parameters for production
-session_set_cookie_params([
-    'secure' => true,        // cookie only sent over HTTPS
-    'httponly' => true,      // inaccessible via JavaScript
-    'samesite' => 'Strict'
-]);
+require_once '../db/db_connect.php';
+
+// Configure session security based on environment
+configureSessionSecurity();
 session_start();
+
 // Regenerate session ID to prevent fixation
 if (!isset($_SESSION['initiated'])) {
     session_regenerate_id(true);

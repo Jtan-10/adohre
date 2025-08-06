@@ -1,10 +1,8 @@
 <?php
-// Set secure session cookie parameters
-session_set_cookie_params([
-    'secure' => true,       // Ensure cookie is sent over HTTPS only
-    'httponly' => true,     // Inaccessible to JavaScript
-    'samesite' => 'Strict'  // Prevent CSRF
-]);
+require_once '../db/db_connect.php';
+
+// Configure session security based on environment
+configureSessionSecurity();
 session_start();
 
 // Set Content-Type header for JSON output

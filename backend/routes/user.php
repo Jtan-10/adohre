@@ -1,6 +1,10 @@
 <?php
-session_start();
 require_once '../db/db_connect.php';
+
+// Configure session security based on environment
+configureSessionSecurity();
+session_start();
+
 require_once '../s3config.php';
 require_once '../controllers/authController.php';
 
