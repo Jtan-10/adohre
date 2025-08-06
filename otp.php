@@ -447,26 +447,31 @@ if ($action === 'login' && $emailParam) {
                                 await loadReferenceDescriptor();
                                 startFaceVideoForLogin();
                             } else {
-                                // Skip face validation and proceed directly to complete login
-                                showModal('Success', 'OTP Verified. Logging you in...');
-                                try {
-                                    const completeResponse = await fetch('backend/routes/complete_login.php', {
-                                        method: 'POST',
-                                        headers: {
-                                            'Content-Type': 'application/json'
-                                        },
-                                        body: JSON.stringify({
-                                            email: email
-                                        })
-                                    });
-                                    const completeResult = await completeResponse.json();
-                                    if (completeResult.status) {
-                                        showModal('Success', 'Login successful!', 'index.php');
-                                    } else {
-                                        showModal('Error', 'Error completing login: ' + completeResult.message);
+                                // Face validation is disabled - check if login was completed by verify_otp.php
+                                if (result.face_validation_skipped) {
+                                    showModal('Success', 'Login successful!', 'index.php');
+                                } else {
+                                    // Fallback: try to complete login manually (shouldn't be needed with new logic)
+                                    showModal('Success', 'OTP Verified. Logging you in...');
+                                    try {
+                                        const completeResponse = await fetch('backend/routes/complete_login.php', {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/json'
+                                            },
+                                            body: JSON.stringify({
+                                                email: email
+                                            })
+                                        });
+                                        const completeResult = await completeResponse.json();
+                                        if (completeResult.status) {
+                                            showModal('Success', 'Login successful!', 'index.php');
+                                        } else {
+                                            showModal('Error', 'Error completing login: ' + completeResult.message);
+                                        }
+                                    } catch (error) {
+                                        showModal('Error', 'Error completing login: ' + error.message);
                                     }
-                                } catch (error) {
-                                    showModal('Error', 'Error completing login: ' + error.message);
                                 }
                             }
                         }
@@ -599,7 +604,7 @@ if ($action === 'login' && $emailParam) {
                         email,
                         first_name,
                         last_name,
-                        faceData: capturedFaceData
+                        faceData: faceValidationEnabled ? capturedFaceData : null
                     })
                 });
                 const result = await response.json();
@@ -737,7 +742,7 @@ if ($action === 'login' && $emailParam) {
                         email,
                         first_name,
                         last_name,
-                        faceData: updateCapturedFaceData
+                        faceData: faceValidationEnabled ? updateCapturedFaceData : null
                     })
                 });
                 const result = await response.json();
