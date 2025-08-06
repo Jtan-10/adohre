@@ -110,8 +110,24 @@ if (!function_exists('configureSessionSecurity')) {
      */
     function configureSessionSecurity()
     {
-        // Check if we're using HTTPS
-        $isHttps = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on';
+        // Check if we're using HTTPS - more comprehensive check
+        $isHttps = false;
+        
+        // Check various ways HTTPS might be indicated
+        if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
+            $isHttps = true;
+        } elseif (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) {
+            $isHttps = true;
+        } elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+            $isHttps = true;
+        } elseif (isset($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on') {
+            $isHttps = true;
+        }
+        
+        // Allow override via environment variable for development
+        if (isset($_ENV['FORCE_SECURE_COOKIES'])) {
+            $isHttps = filter_var($_ENV['FORCE_SECURE_COOKIES'], FILTER_VALIDATE_BOOLEAN);
+        }
 
         session_set_cookie_params([
             'lifetime' => 0,

@@ -33,7 +33,8 @@ header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
  * @param string $key  The encryption key.
  * @return string The concatenated IV and ciphertext.
  */
-function encryptSecret($data, $key) {
+function encryptSecret($data, $key)
+{
     $cipher = "AES-256-CBC";
     $ivlen = openssl_cipher_iv_length($cipher);
     $iv = openssl_random_pseudo_bytes($ivlen);
@@ -48,7 +49,8 @@ function encryptSecret($data, $key) {
  * @param string $key           The encryption key.
  * @return string The decrypted plain data.
  */
-function decryptSecret($encryptedData, $key) {
+function decryptSecret($encryptedData, $key)
+{
     $cipher = "AES-256-CBC";
     $ivlen = openssl_cipher_iv_length($cipher);
     $iv = substr($encryptedData, 0, $ivlen);
@@ -65,7 +67,8 @@ function decryptSecret($encryptedData, $key) {
  * @param int    $width      Desired width of the PNG image.
  * @return GdImage          A GD image object.
  */
-function embedDataInPng($binaryData): GdImage {
+function embedDataInPng($binaryData): GdImage
+{
     $dataLen = strlen($binaryData);
     // Each pixel holds 3 bytes.
     $numPixels = ceil($dataLen / 3);
@@ -222,11 +225,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $faceData = explode('base64,', $faceData)[1];
             }
             $decodedFaceData = base64_decode($faceData);
-            
+
             // Write the decoded clear image data to a temporary file.
             $tempFaceFile = tempnam(sys_get_temp_dir(), 'face_') . '.png';
             file_put_contents($tempFaceFile, $decodedFaceData);
-            
+
             // ---- Encryption & Embedding Step ----
             // Encrypt the clear image data.
             $cipher = "AES-256-CBC";
@@ -248,7 +251,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             imagepng($pngImage, $finalEncryptedPngFile);
             imagedestroy($pngImage);
             // ---- End Encryption & Embedding Step ----
-            
+
             // Generate a unique S3 key.
             $s3Key = 'uploads/faces/' . uniqid() . '.png';
 
@@ -265,18 +268,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 echo json_encode(['status' => false, 'message' => 'Internal server error.']);
                 exit;
             }
-            
+
             // Clean up temporary files.
             @unlink($tempFaceFile);
             @unlink($finalEncryptedPngFile);
-            
+
             // Convert S3 URL to local proxy URL if needed.
             $relativeFileName = str_replace(
                 "https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/",
                 "/s3proxy/",
                 $result['ObjectURL']
             );
-            
+
             // Update the user details with the encrypted PNG image URL.
             $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ?, face_image = ?, visually_impaired = ? WHERE email = ?");
             $stmt->bind_param("sssis", $first_name, $last_name, $relativeFileName, $visually_impaired, $email);
@@ -311,4 +314,3 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 } else {
     echo json_encode(['status' => false, 'message' => 'Invalid request method.']);
 }
-?>

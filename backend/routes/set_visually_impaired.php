@@ -73,4 +73,3 @@ if (isset($_SESSION['user_id'])) {
 
 echo json_encode(['status' => true, 'message' => 'Visually impaired flag saved in session.']);
 exit;
-?>
