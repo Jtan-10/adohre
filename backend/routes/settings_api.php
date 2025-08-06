@@ -209,6 +209,66 @@ switch ($action) {
         ]);
         break;
 
+    case 'update_security_settings':
+        $faceValidationEnabled = trim($_POST['face_validation_enabled'] ?? 'false');
+        $message = "";
+
+        // Validate the input (should be 'true' or 'false')
+        if (!in_array($faceValidationEnabled, ['true', 'false'])) {
+            $faceValidationEnabled = 'false';
+        }
+
+        // Update face validation setting in database
+        $stmt = $conn->prepare("
+            INSERT INTO settings (`key`, value) 
+            VALUES ('face_validation_enabled', ?) 
+            ON DUPLICATE KEY UPDATE value = VALUES(value)
+        ");
+        if ($stmt) {
+            $stmt->bind_param("s", $faceValidationEnabled);
+            if ($stmt->execute()) {
+                $message = "Face validation setting updated successfully.";
+                
+                // Also update the .env file for immediate effect
+                $envPath = __DIR__ . '/../../.env';
+                if (file_exists($envPath)) {
+                    $envContent = file_get_contents($envPath);
+                    
+                    // Check if FACE_VALIDATION_ENABLED already exists
+                    if (strpos($envContent, 'FACE_VALIDATION_ENABLED=') !== false) {
+                        // Replace existing value
+                        $envContent = preg_replace(
+                            '/FACE_VALIDATION_ENABLED=.*$/m',
+                            'FACE_VALIDATION_ENABLED=' . $faceValidationEnabled,
+                            $envContent
+                        );
+                    } else {
+                        // Add new line
+                        $envContent .= "\nFACE_VALIDATION_ENABLED=" . $faceValidationEnabled;
+                    }
+                    
+                    file_put_contents($envPath, $envContent);
+                }
+            } else {
+                error_log("Failed to update face validation setting: " . $stmt->error);
+                $message = "Failed to update face validation setting.";
+            }
+            $stmt->close();
+        } else {
+            error_log("Failed to prepare face validation setting statement: " . $conn->error);
+            $message = "Failed to update face validation setting.";
+        }
+
+        recordAuditLog($_SESSION['user_id'], 'Update Security Settings', 
+            "Face validation " . ($faceValidationEnabled === 'true' ? 'enabled' : 'disabled'));
+
+        echo json_encode([
+            'status' => !empty($message) && strpos($message, 'Failed') === false,
+            'message' => $message,
+            'face_validation_enabled' => $faceValidationEnabled
+        ]);
+        break;
+
     case 'backup_database':
         // Remove any previously set Content-Type header so we can output file data.
         header_remove('Content-Type');

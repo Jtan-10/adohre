@@ -54,258 +54,258 @@ if (isset($_SESSION['user_id'])) {
 
     <!-- Inline Styles for Page-Specific Tweaks -->
     <style>
-        body {
-            font-family: 'Montserrat', sans-serif;
-            line-height: 1.6;
-            color: #333;
-        }
+    body {
+        font-family: 'Montserrat', sans-serif;
+        line-height: 1.6;
+        color: #333;
+    }
 
-        /* Hero Section for About Page */
-        .about-hero {
-            position: relative;
-            background: url('assets/pexels-fauxels-3184434.jpg') no-repeat center center/cover;
-            padding: 120px 0;
-            color: #fff;
-            text-align: center;
-        }
+    /* Hero Section for About Page */
+    .about-hero {
+        position: relative;
+        background: url('assets/pexels-fauxels-3184434.jpg') no-repeat center center/cover;
+        padding: 120px 0;
+        color: #fff;
+        text-align: center;
+    }
 
-        .about-hero::before {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.6);
-            z-index: 1;
-        }
+    .about-hero::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 1;
+    }
 
-        .about-hero .container {
-            position: relative;
-            z-index: 2;
-        }
+    .about-hero .container {
+        position: relative;
+        z-index: 2;
+    }
 
-        .about-hero h1 {
-            font-size: 2.8rem;
-            font-weight: 700;
-            margin-bottom: 20px;
-        }
+    .about-hero h1 {
+        font-size: 2.8rem;
+        font-weight: 700;
+        margin-bottom: 20px;
+    }
 
-        .about-hero p {
-            font-size: 1.2rem;
-        }
+    .about-hero p {
+        font-size: 1.2rem;
+    }
 
-        /* Section Headings */
-        h2 {
-            color: var(--accent-color, #28A745);
-            margin-bottom: 20px;
-        }
+    /* Section Headings */
+    h2 {
+        color: var(--accent-color, #28A745);
+        margin-bottom: 20px;
+    }
 
-        /* Carousel (Horizontal Slider) for PMV */
-        .carousel-item .card {
-            border: none;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            margin: auto;
-            max-width: 600px;
-        }
+    /* Carousel (Horizontal Slider) for PMV */
+    .carousel-item .card {
+        border: none;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        margin: auto;
+        max-width: 600px;
+    }
 
-        .carousel-item .card-body {
-            padding: 2rem;
-        }
+    .carousel-item .card-body {
+        padding: 2rem;
+    }
 
-        .section-padding {
-            padding: 60px 0;
-        }
+    .section-padding {
+        padding: 60px 0;
+    }
 
-        /* Core Values Card Styling */
-        .core-value-card {
-            border: none;
-            text-align: center;
-            margin-bottom: 20px;
-        }
+    /* Core Values Card Styling */
+    .core-value-card {
+        border: none;
+        text-align: center;
+        margin-bottom: 20px;
+    }
 
-        .core-value-card h4 {
-            font-size: 2rem;
-            color: var(--accent-color, #28A745);
-        }
+    .core-value-card h4 {
+        font-size: 2rem;
+        color: var(--accent-color, #28A745);
+    }
 
-        .core-value-card p {
-            font-size: 1rem;
-        }
+    .core-value-card p {
+        font-size: 1rem;
+    }
 
-        .core-value-card p span {
-            color: var(--accent-color, #28A745);
-            font-weight: bold;
-        }
+    .core-value-card p span {
+        color: var(--accent-color, #28A745);
+        font-weight: bold;
+    }
 
-        /* Expertise and Interests Section */
-        .expertise-section {
-            background: url('assets/expertise-bg.jpg') no-repeat center center/cover;
-            color: #fff;
-            padding: 60px 0;
-            position: relative;
-        }
+    /* Expertise and Interests Section */
+    .expertise-section {
+        background: url('assets/expertise-bg.jpg') no-repeat center center/cover;
+        color: #fff;
+        padding: 60px 0;
+        position: relative;
+    }
 
-        .expertise-section::before {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(41, 41, 48, 0.7);
-            /* Dark blue overlay */
-            z-index: 1;
-        }
+    .expertise-section::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(41, 41, 48, 0.7);
+        /* Dark blue overlay */
+        z-index: 1;
+    }
 
-        .expertise-section .container {
-            position: relative;
-            z-index: 2;
-        }
+    .expertise-section .container {
+        position: relative;
+        z-index: 2;
+    }
 
-        .expertise-section h2 {
-            color: #fff;
-            /* White heading */
-            text-align: center;
-            margin-bottom: 40px;
-        }
+    .expertise-section h2 {
+        color: #fff;
+        /* White heading */
+        text-align: center;
+        margin-bottom: 40px;
+    }
 
-        .expertise-card {
-            background: rgba(255, 255, 255, 0.1);
-            /* Semi-transparent white background */
-            border: none;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
+    .expertise-card {
+        background: rgba(255, 255, 255, 0.1);
+        /* Semi-transparent white background */
+        border: none;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
 
-        .expertise-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-        }
+    .expertise-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    }
 
-        .expertise-card .card-header {
-            background-color: var(--accent-color, #28A745) !important;
-            color: #fff !important;
-            text-align: center;
-            font-weight: 700;
-            border-radius: 8px 8px 0 0;
-        }
+    .expertise-card .card-header {
+        background-color: var(--accent-color, #28A745) !important;
+        color: #fff !important;
+        text-align: center;
+        font-weight: 700;
+        border-radius: 8px 8px 0 0;
+    }
 
-        .expertise-card .card-body {
-            padding: 1.5rem;
-            color: #fff;
-            /* White text */
-        }
+    .expertise-card .card-body {
+        padding: 1.5rem;
+        color: #fff;
+        /* White text */
+    }
 
-        .expertise-card ul {
-            list-style-type: disc;
-            padding-left: 20px;
-            margin: 0;
-        }
+    .expertise-card ul {
+        list-style-type: disc;
+        padding-left: 20px;
+        margin: 0;
+    }
 
-        .expertise-card ul li {
-            margin-bottom: 10px;
-        }
+    .expertise-card ul li {
+        margin-bottom: 10px;
+    }
 
-        /* Organizational Objectives Section */
-        .objectives-section {
-            background: url('assets/objectives-bg.jpg') no-repeat center center/cover;
-            color: #fff;
-            /* White text */
-            padding: 60px 0;
-            position: relative;
-        }
+    /* Organizational Objectives Section */
+    .objectives-section {
+        background: url('assets/objectives-bg.jpg') no-repeat center center/cover;
+        color: #fff;
+        /* White text */
+        padding: 60px 0;
+        position: relative;
+    }
 
-        .objectives-section::before {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 51, 0.7);
-            /* Dark blue overlay */
-            z-index: 1;
-        }
+    .objectives-section::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 51, 0.7);
+        /* Dark blue overlay */
+        z-index: 1;
+    }
 
-        .objectives-section .container {
-            position: relative;
-            z-index: 2;
-        }
+    .objectives-section .container {
+        position: relative;
+        z-index: 2;
+    }
 
-        .objectives-section h2 {
-            color: #fff;
-            /* White heading */
-            cursor: pointer;
-        }
+    .objectives-section h2 {
+        color: #fff;
+        /* White heading */
+        cursor: pointer;
+    }
 
-        .objectives-section h2 .arrow {
-            color: #FFD700;
-            /* Gold arrow */
-            font-size: 1.5rem;
-            transition: transform 0.3s ease;
-        }
+    .objectives-section h2 .arrow {
+        color: #FFD700;
+        /* Gold arrow */
+        font-size: 1.5rem;
+        transition: transform 0.3s ease;
+    }
 
-        .objectives-section h2 .arrow.rotate {
-            transform: rotate(180deg);
-        }
+    .objectives-section h2 .arrow.rotate {
+        transform: rotate(180deg);
+    }
 
-        .objectives-section ul {
-            list-style-type: disc;
-            padding-left: 20px;
-            color: #F0F0F0;
-            /* Light gray text */
-        }
+    .objectives-section ul {
+        list-style-type: disc;
+        padding-left: 20px;
+        color: #F0F0F0;
+        /* Light gray text */
+    }
 
-        /* Back to Top Button */
-        #backToTopBtn {
-            display: none;
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 99;
-            border: none;
-            outline: none;
-            background-color: var(--accent-color, #28A745);
-            color: white;
-            cursor: pointer;
-            padding: 12px 20px;
-            border-radius: 50%;
-            font-size: 1.2rem;
-            transition: background-color 0.3s ease;
-        }
+    /* Back to Top Button */
+    #backToTopBtn {
+        display: none;
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 99;
+        border: none;
+        outline: none;
+        background-color: var(--accent-color, #28A745);
+        color: white;
+        cursor: pointer;
+        padding: 12px 20px;
+        border-radius: 50%;
+        font-size: 1.2rem;
+        transition: background-color 0.3s ease;
+    }
 
-        #backToTopBtn:hover {
-            background-color: #218838;
-        }
+    #backToTopBtn:hover {
+        background-color: #218838;
+    }
 
-        /* Read Page Button - Always visible in top right for visually impaired users */
-        #readPageBtn {
-            display: none;
-            /* Shown only if isVisuallyImpaired == 1 */
-            position: fixed;
-            top: 70px;
-            right: 20px;
-            z-index: 99;
-            border: none;
-            outline: none;
-            background-color: var(--accent-color, #28A745);
-            color: white;
-            cursor: pointer;
-            padding: 12px 20px;
-            border-radius: 30%;
-            font-size: 1.2rem;
-            transition: background-color 0.3s ease;
-        }
+    /* Read Page Button - Always visible in top right for visually impaired users */
+    #readPageBtn {
+        display: none;
+        /* Shown only if isVisuallyImpaired == 1 */
+        position: fixed;
+        top: 70px;
+        right: 20px;
+        z-index: 99;
+        border: none;
+        outline: none;
+        background-color: var(--accent-color, #28A745);
+        color: white;
+        cursor: pointer;
+        padding: 12px 20px;
+        border-radius: 30%;
+        font-size: 1.2rem;
+        transition: background-color 0.3s ease;
+    }
 
-        #readPageBtn:hover {
-            background-color: #218838;
-        }
+    #readPageBtn:hover {
+        background-color: #218838;
+    }
     </style>
     <!-- Pass the visually impaired flag to JavaScript -->
     <script>
-        var isVisuallyImpaired = <?php echo json_encode($isVisuallyImpaired); ?>;
+    var isVisuallyImpaired = <?php echo json_encode($isVisuallyImpaired); ?>;
     </script>
     <script src="tts.js"></script>
 </head>
@@ -565,57 +565,57 @@ if (isset($_SESSION['user_id'])) {
 
     <!-- JavaScript for Back to Top Button and Objectives Toggle -->
     <script>
-        // Back to Top Button
-        const backToTopBtn = document.getElementById("backToTopBtn");
+    // Back to Top Button
+    const backToTopBtn = document.getElementById("backToTopBtn");
 
-        window.onscroll = function() {
-            if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
-                backToTopBtn.style.display = "block";
-            } else {
-                backToTopBtn.style.display = "none";
-            }
-        };
+    window.onscroll = function() {
+        if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+            backToTopBtn.style.display = "block";
+        } else {
+            backToTopBtn.style.display = "none";
+        }
+    };
 
-        backToTopBtn.addEventListener("click", function() {
-            window.scrollTo({
-                top: 0,
-                behavior: "smooth"
-            });
+    backToTopBtn.addEventListener("click", function() {
+        window.scrollTo({
+            top: 0,
+            behavior: "smooth"
         });
+    });
 
-        // On window load, show the Read Page button if visually impaired.
-        window.addEventListener('load', function() {
-            console.log("Window loaded. isVisuallyImpaired =", isVisuallyImpaired);
-            if (isVisuallyImpaired == 1) {
-                document.getElementById("readPageBtn").style.display = "block";
-            }
-        });
+    // On window load, show the Read Page button if visually impaired.
+    window.addEventListener('load', function() {
+        console.log("Window loaded. isVisuallyImpaired =", isVisuallyImpaired);
+        if (isVisuallyImpaired == 1) {
+            document.getElementById("readPageBtn").style.display = "block";
+        }
+    });
 
 
-        // Objectives Toggle
-        const objectivesHeading = document.getElementById("objectivesHeading");
-        const arrow = objectivesHeading.querySelector(".arrow");
-        const objectivesCollapse = document.getElementById("objectivesCollapse");
+    // Objectives Toggle
+    const objectivesHeading = document.getElementById("objectivesHeading");
+    const arrow = objectivesHeading.querySelector(".arrow");
+    const objectivesCollapse = document.getElementById("objectivesCollapse");
 
-        objectivesHeading.addEventListener("click", function() {
-            objectivesCollapse.classList.toggle("show");
-            arrow.classList.toggle("rotate");
-        });
+    objectivesHeading.addEventListener("click", function() {
+        objectivesCollapse.classList.toggle("show");
+        arrow.classList.toggle("rotate");
+    });
 
-        // Read Page button: read text from <main> only using innerText
-        document.getElementById("readPageBtn").addEventListener("click", function() {
-            console.log("Read Page button clicked in about.php");
-            const mainElement = document.querySelector('main');
-            let textToRead = "";
-            if (mainElement) {
-                textToRead = mainElement.innerText.trim();
-                console.log("Reading from main element, length:", textToRead.length);
-            } else {
-                textToRead = document.body.innerText.trim();
-                console.log("No main found, reading entire body, length:", textToRead.length);
-            }
-            TTS.speakTextInChunks(textToRead);
-        });
+    // Read Page button: read text from <main> only using innerText
+    document.getElementById("readPageBtn").addEventListener("click", function() {
+        console.log("Read Page button clicked in about.php");
+        const mainElement = document.querySelector('main');
+        let textToRead = "";
+        if (mainElement) {
+            textToRead = mainElement.innerText.trim();
+            console.log("Reading from main element, length:", textToRead.length);
+        } else {
+            textToRead = document.body.innerText.trim();
+            console.log("No main found, reading entire body, length:", textToRead.length);
+        }
+        TTS.speakTextInChunks(textToRead);
+    });
     </script>
 </body>
 

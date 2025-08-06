@@ -40,6 +40,39 @@ if (!$conn->query("SET time_zone = '$timezone'")) {
 }
 
 // ---------------------------
+// Face Validation Helper Function
+// ---------------------------
+if (!function_exists('isFaceValidationEnabled')) {
+    /**
+     * Check if face validation is enabled.
+     * First checks database settings, then falls back to .env file.
+     *
+     * @return bool True if face validation is enabled, false otherwise.
+     */
+    function isFaceValidationEnabled()
+    {
+        global $conn;
+        
+        // First try to get from database settings
+        if ($conn) {
+            $stmt = $conn->prepare("SELECT value FROM settings WHERE `key` = 'face_validation_enabled'");
+            if ($stmt) {
+                $stmt->execute();
+                $stmt->bind_result($value);
+                if ($stmt->fetch()) {
+                    $stmt->close();
+                    return filter_var($value, FILTER_VALIDATE_BOOLEAN);
+                }
+                $stmt->close();
+            }
+        }
+        
+        // Fall back to .env file if not found in database
+        return filter_var($_ENV['FACE_VALIDATION_ENABLED'] ?? 'true', FILTER_VALIDATE_BOOLEAN);
+    }
+}
+
+// ---------------------------
 // Audit Logging Helper Function
 // ---------------------------
 if (!function_exists('recordAuditLog')) {
@@ -50,7 +83,8 @@ if (!function_exists('recordAuditLog')) {
      * @param string $action  A short description of the action.
      * @param string $details Additional details about the action.
      */
-    function recordAuditLog($userId, $action, $details = '') {
+    function recordAuditLog($userId, $action, $details = '')
+    {
         global $conn; // Ensure the database connection is available
 
         $stmt = $conn->prepare("INSERT INTO audit_logs (user_id, action, details) VALUES (?, ?, ?)");
@@ -65,4 +99,3 @@ if (!function_exists('recordAuditLog')) {
         }
     }
 }
-?>

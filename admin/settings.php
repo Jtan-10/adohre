@@ -29,6 +29,21 @@ function getSetting($key)
 $currentHeaderName = getSetting('header_name');
 $currentHeaderLogo = getSetting('header_logo');
 
+// Get face validation setting (default to enabled if not set)
+$currentFaceValidation = getSetting('face_validation_enabled') ?? 'true';
+
+// Initialize face validation setting in database if it doesn't exist
+if (getSetting('face_validation_enabled') === null) {
+    $defaultValue = $_ENV['FACE_VALIDATION_ENABLED'] ?? 'true';
+    $stmt = $conn->prepare("INSERT INTO settings (`key`, value) VALUES ('face_validation_enabled', ?)");
+    if ($stmt) {
+        $stmt->bind_param("s", $defaultValue);
+        $stmt->execute();
+        $stmt->close();
+        $currentFaceValidation = $defaultValue;
+    }
+}
+
 // Fetch recent audit logs.
 $auditLogs = [];
 $result = $conn->query("SELECT al.*, u.first_name, u.last_name FROM audit_logs al LEFT JOIN users u ON al.user_id = u.user_id ORDER BY al.created_at DESC LIMIT 100");
@@ -82,6 +97,27 @@ if ($result) {
                     <?php endif; ?>
                 </div>
                 <button type="submit" class="btn btn-primary">Update Header Settings</button>
+            </form>
+
+            <hr>
+
+            <h2>Security Settings</h2>
+            <form id="securitySettingsForm">
+                <div class="mb-3">
+                    <label class="form-label">Face Validation</label>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="face_validation_enabled" 
+                               name="face_validation_enabled" <?= $currentFaceValidation === 'true' ? 'checked' : '' ?>>
+                        <label class="form-check-label" for="face_validation_enabled">
+                            Enable Face Validation for Login and Registration
+                        </label>
+                    </div>
+                    <div class="form-text">
+                        When enabled, users will be required to capture and validate their face during login and registration.
+                        When disabled, users can login and register without face validation.
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Update Security Settings</button>
             </form>
 
             <hr>
@@ -170,6 +206,33 @@ if ($result) {
             .catch(error => {
                 console.error("Error updating header settings:", error);
                 showApiMessage("An error occurred while updating header settings.", "danger");
+            });
+    });
+
+    // Security Settings form submission.
+    document.getElementById('securitySettingsForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const form = this;
+        const faceValidationEnabled = form.querySelector('#face_validation_enabled').checked;
+        
+        const formData = new FormData();
+        formData.append('face_validation_enabled', faceValidationEnabled ? 'true' : 'false');
+        
+        fetch('../backend/routes/settings_api.php?action=update_security_settings', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status) {
+                    showApiMessage(data.message, 'success');
+                } else {
+                    showApiMessage(data.message, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error("Error updating security settings:", error);
+                showApiMessage("An error occurred while updating security settings.", "danger");
             });
     });
 

@@ -6,12 +6,16 @@ if (empty($_SESSION['csrf_token'])) {
 }
 $csp_nonce = base64_encode(random_bytes(16));
 
+require_once 'backend/db/db_connect.php';
+
+// Check if face validation is enabled
+$faceValidationEnabled = isFaceValidationEnabled();
+
 // Define $userFaceImageUrl from session
 $userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : '';
 
 // ***** NEW: Check if user already has a membership application record *****
 if (isset($_SESSION['user_id'])) {
-    require_once 'backend/db/db_connect.php';
     $user_id = $_SESSION['user_id'];
     $stmt = $conn->prepare("SELECT application_id FROM membership_applications WHERE user_id = ?");
     if ($stmt) {
@@ -56,9 +60,11 @@ if (isset($_SESSION['user_id'])) {
     <script nonce="<?php echo $csp_nonce; ?>"
         src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-    <!-- Added: Load face-api.js library -->
-    <script nonce="<?php echo $csp_nonce; ?>"
-        src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <!-- Added: Load face-api.js library only if face validation is enabled -->
+    <?php if ($faceValidationEnabled): ?>
+        <script nonce="<?php echo $csp_nonce; ?>"
+            src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <?php endif; ?>
     <style>
         body {
             background-color: #f8f9fa;
@@ -186,42 +192,44 @@ if (isset($_SESSION['user_id'])) {
             </div>
         </div>
 
-        <!-- New Face Validation Modal -->
-        <div class="modal fade" id="faceValidationModal" tabindex="-1" aria-labelledby="faceValidationModalLabel"
-            aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered" style="max-width: 600px;">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="faceValidationModalLabel">Face Validation</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <!-- Show stored face reference -->
-                        <div class="mb-3">
-                            <h5>Stored Face Reference</h5>
-                            <!-- Assuming update_user_details.php or similar has already stored the user's face image URL in a session variable -->
-                            <img id="storedFacePreview"
-                                src="<?php echo isset($_SESSION['face_image']) ? 'backend/routes/decrypt_image.php?face_url=' . urlencode($_SESSION['face_image']) : ''; ?>"
-                                alt="Stored Face Reference"
-                                style="width:100%; max-width:320px; border:1px solid #ccc; display:block;">
+        <!-- New Face Validation Modal (only shown if face validation is enabled) -->
+        <?php if ($faceValidationEnabled): ?>
+            <div class="modal fade" id="faceValidationModal" tabindex="-1" aria-labelledby="faceValidationModalLabel"
+                aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered" style="max-width: 600px;">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="faceValidationModalLabel">Face Validation</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
-                        <!-- Live face capture -->
-                        <div class="mb-3">
-                            <h5>Capture Your Face</h5>
-                            <video id="videoInput" width="320" height="240" autoplay muted
-                                style="border:1px solid #ccc;"></video>
+                        <div class="modal-body">
+                            <!-- Show stored face reference -->
+                            <div class="mb-3">
+                                <h5>Stored Face Reference</h5>
+                                <!-- Assuming update_user_details.php or similar has already stored the user's face image URL in a session variable -->
+                                <img id="storedFacePreview"
+                                    src="<?php echo isset($_SESSION['face_image']) ? 'backend/routes/decrypt_image.php?face_url=' . urlencode($_SESSION['face_image']) : ''; ?>"
+                                    alt="Stored Face Reference"
+                                    style="width:100%; max-width:320px; border:1px solid #ccc; display:block;">
+                            </div>
+                            <!-- Live face capture -->
+                            <div class="mb-3">
+                                <h5>Capture Your Face</h5>
+                                <video id="videoInput" width="320" height="240" autoplay muted
+                                    style="border:1px solid #ccc;"></video>
+                            </div>
+                            <!-- Validate Face button and hidden canvas -->
+                            <button type="button" class="btn btn-primary" id="validateFaceBtn">Validate Face</button>
+                            <canvas id="userFaceCanvas" style="display:none;"></canvas>
+                            <p id="faceValidationResult" class="mt-3" style="font-weight:bold;"></p>
                         </div>
-                        <!-- Validate Face button and hidden canvas -->
-                        <button type="button" class="btn btn-primary" id="validateFaceBtn">Validate Face</button>
-                        <canvas id="userFaceCanvas" style="display:none;"></canvas>
-                        <p id="faceValidationResult" class="mt-3" style="font-weight:bold;"></p>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        <?php endif; ?>
 
     </div>
     <script nonce="<?php echo $csp_nonce; ?>"
@@ -299,7 +307,8 @@ if (isset($_SESSION['user_id'])) {
     <script nonce="<?php echo $csp_nonce; ?>">
         // Face Validation and Form Submission logic
         // Global variable to track whether face validation has been completed
-        let faceValidated = false;
+        const faceValidationEnabled = <?php echo json_encode($faceValidationEnabled); ?>;
+        let faceValidated = !faceValidationEnabled; // Skip validation if disabled
         const membershipForm = document.getElementById('membership-form');
         const validateFaceBtn = document.getElementById('validateFaceBtn');
         const videoInput = document.getElementById('videoInput');
@@ -312,6 +321,8 @@ if (isset($_SESSION['user_id'])) {
 
         // Load face-api.js models
         async function loadFaceModels() {
+            if (!faceValidationEnabled) return;
+            if (typeof faceapi === 'undefined') return;
             await faceapi.nets.tinyFaceDetector.loadFromUri('backend/models/weights');
             await faceapi.nets.faceLandmark68Net.loadFromUri('backend/models/weights');
             await faceapi.nets.faceRecognitionNet.loadFromUri('backend/models/weights');
@@ -319,6 +330,7 @@ if (isset($_SESSION['user_id'])) {
 
         // Modified loadReferenceDescriptor function
         async function loadReferenceDescriptor() {
+            if (!faceValidationEnabled) return;
             if (!userFaceImageUrl) {
                 console.warn("No stored face image URL for this user.");
                 return;
