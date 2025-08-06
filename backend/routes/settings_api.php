@@ -228,12 +228,12 @@ switch ($action) {
             $stmt->bind_param("s", $faceValidationEnabled);
             if ($stmt->execute()) {
                 $message = "Face validation setting updated successfully.";
-                
+
                 // Also update the .env file for immediate effect
                 $envPath = __DIR__ . '/../../.env';
                 if (file_exists($envPath)) {
                     $envContent = file_get_contents($envPath);
-                    
+
                     // Check if FACE_VALIDATION_ENABLED already exists
                     if (strpos($envContent, 'FACE_VALIDATION_ENABLED=') !== false) {
                         // Replace existing value
@@ -246,7 +246,7 @@ switch ($action) {
                         // Add new line
                         $envContent .= "\nFACE_VALIDATION_ENABLED=" . $faceValidationEnabled;
                     }
-                    
+
                     file_put_contents($envPath, $envContent);
                 }
             } else {
@@ -259,8 +259,11 @@ switch ($action) {
             $message = "Failed to update face validation setting.";
         }
 
-        recordAuditLog($_SESSION['user_id'], 'Update Security Settings', 
-            "Face validation " . ($faceValidationEnabled === 'true' ? 'enabled' : 'disabled'));
+        recordAuditLog(
+            $_SESSION['user_id'],
+            'Update Security Settings',
+            "Face validation " . ($faceValidationEnabled === 'true' ? 'enabled' : 'disabled')
+        );
 
         echo json_encode([
             'status' => !empty($message) && strpos($message, 'Failed') === false,

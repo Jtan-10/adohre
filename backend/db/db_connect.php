@@ -52,7 +52,7 @@ if (!function_exists('isFaceValidationEnabled')) {
     function isFaceValidationEnabled()
     {
         global $conn;
-        
+
         // First try to get from database settings
         if ($conn) {
             $stmt = $conn->prepare("SELECT value FROM settings WHERE `key` = 'face_validation_enabled'");
@@ -66,7 +66,7 @@ if (!function_exists('isFaceValidationEnabled')) {
                 $stmt->close();
             }
         }
-        
+
         // Fall back to .env file if not found in database
         return filter_var($_ENV['FACE_VALIDATION_ENABLED'] ?? 'true', FILTER_VALIDATE_BOOLEAN);
     }

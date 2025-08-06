@@ -55,7 +55,7 @@ if (verifyOTP($email, $otp)) {
         echo json_encode(['status' => false, 'message' => 'Internal server error.']);
         exit();
     }
-    
+
     $stmt = $conn->prepare("SELECT user_id, first_name, last_name, profile_image, role FROM users WHERE email = ?");
     if (!$stmt) {
         error_log('DB prepare error: ' . $conn->error);
@@ -72,19 +72,19 @@ if (verifyOTP($email, $otp)) {
     if ($user) {
         // Regenerate session ID to prevent session fixation attacks
         session_regenerate_id(true);
-        
+
         // Check if face validation is enabled
         require_once '../db/db_connect.php';
         $faceValidationEnabled = isFaceValidationEnabled();
-        
+
         if ($faceValidationEnabled) {
             // Traditional flow: set temporary session data for face validation
             $_SESSION['otp_verified'] = true;
             $_SESSION['temp_user'] = $user; // store user data temporarily
-            
+
             // Record successful OTP verification (pending face validation)
             recordAuditLog($user['user_id'], 'OTP Verified', 'OTP verified successfully, pending face validation.');
-            
+
             echo json_encode(['status' => true, 'message' => 'OTP verified! Please complete face validation.']);
         } else {
             // Face validation disabled: complete login immediately
@@ -94,10 +94,10 @@ if (verifyOTP($email, $otp)) {
             $_SESSION['profile_image'] = $user['profile_image'];
             $_SESSION['role']          = $user['role'];
             $_SESSION['face_validated'] = true; // Mark as if face validation was completed
-            
+
             // Record successful login
             recordAuditLog($user['user_id'], 'Login Successful', 'User logged in successfully (face validation disabled).');
-            
+
             echo json_encode(['status' => true, 'message' => 'OTP verified! Login successful.', 'face_validation_skipped' => true]);
         }
     } else {
@@ -106,7 +106,6 @@ if (verifyOTP($email, $otp)) {
     }
 } else {
     recordAuditLog(0, 'OTP verification failed', 'Failed OTP verification attempt for email: ' . $email);
-    
+
     echo json_encode(['status' => false, 'message' => 'Invalid OTP.']);
 }
-?>
