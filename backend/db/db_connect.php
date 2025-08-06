@@ -112,7 +112,7 @@ if (!function_exists('configureSessionSecurity')) {
     {
         // Check if we're using HTTPS - more comprehensive check
         $isHttps = false;
-        
+
         // Check various ways HTTPS might be indicated
         if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
             $isHttps = true;
@@ -123,18 +123,21 @@ if (!function_exists('configureSessionSecurity')) {
         } elseif (isset($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on') {
             $isHttps = true;
         }
-        
+
         // Allow override via environment variable for development
         if (isset($_ENV['FORCE_SECURE_COOKIES'])) {
             $isHttps = filter_var($_ENV['FORCE_SECURE_COOKIES'], FILTER_VALIDATE_BOOLEAN);
         }
+
+        // Use less restrictive SameSite for development if not HTTPS
+        $sameSite = $isHttps ? 'Strict' : 'Lax';
 
         session_set_cookie_params([
             'lifetime' => 0,
             'path'     => '/',
             'secure'   => $isHttps,      // Only secure on HTTPS
             'httponly' => true,
-            'samesite' => 'Strict'
+            'samesite' => $sameSite      // Less restrictive for development
         ]);
     }
 }

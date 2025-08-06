@@ -171,7 +171,9 @@ header("X-Content-Type-Options: nosniff");
             function fetchPayments() {
                 // For this example, we assume the backend uses the get_payments action and pass status.
                 const status = document.getElementById('paymentStatusFilter').value;
-                fetch(`backend/routes/payment.php?action=get_payments&user_id=${userId}&status=${status}`)
+                fetch(`backend/routes/payment.php?action=get_payments&user_id=${userId}&status=${status}`, {
+                    credentials: 'include'
+                })
                     .then(response => response.json())
                     .then(data => {
                         if (data.status) {
@@ -263,7 +265,9 @@ header("X-Content-Type-Options: nosniff");
             }
 
             // Fetch the current profile data
-            fetch(`backend/routes/user.php?user_id=${userId}`)
+            fetch(`backend/routes/user.php?user_id=${userId}`, {
+                credentials: 'include'
+            })
                 .then(response => response.json())
                 .then(data => {
                     if (data.status) {
@@ -305,6 +309,7 @@ header("X-Content-Type-Options: nosniff");
                 fetch('backend/routes/user.php', {
                         method: 'POST',
                         body: formData,
+                        credentials: 'include'
                     })
                     .then(response => response.json())
                     .then(data => {
@@ -443,7 +448,8 @@ header("X-Content-Type-Options: nosniff");
                             },
                             body: JSON.stringify({
                                 regenerate_virtual_id: true
-                            })
+                            }),
+                            credentials: 'include'
                         })
                         .then(response => response.json())
                         .then(data => {
@@ -463,7 +469,9 @@ header("X-Content-Type-Options: nosniff");
             const eventsTabEl = document.getElementById('events-tab');
             if (eventsTabEl) {
                 eventsTabEl.addEventListener('shown.bs.tab', function() {
-                    fetch(`backend/routes/event_registration.php?action=get_joined_events`)
+                    fetch(`backend/routes/event_registration.php?action=get_joined_events`, {
+                        credentials: 'include'
+                    })
                         .then(response => response.json())
                         .then(data => {
                             const joinedEventsList = document.getElementById('joinedEventsList');
@@ -508,7 +516,9 @@ header("X-Content-Type-Options: nosniff");
             }
 
             document.getElementById('trainings-tab').addEventListener('click', function() {
-                fetch(`backend/routes/training_registration.php?action=get_joined_trainings`)
+                fetch(`backend/routes/training_registration.php?action=get_joined_trainings`, {
+                    credentials: 'include'
+                })
                     .then(response => response.json())
                     .then(data => {
                         const joinedTrainingsList = document.getElementById('joinedTrainingsList');

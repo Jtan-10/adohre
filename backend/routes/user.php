@@ -51,9 +51,15 @@ $method = $_SERVER['REQUEST_METHOD'];
 $auth_user_id   = $_SESSION['user_id'] ?? null;
 $auth_user_role = $_SESSION['role'] ?? null;
 
+// Debug logging
+error_log("Session data: " . json_encode($_SESSION));
+error_log("User ID: " . ($auth_user_id ?? 'null'));
+error_log("Session ID: " . session_id());
+
 if (!$auth_user_id) {
+    error_log("Unauthorized access attempt - no user_id in session");
     http_response_code(401);
-    echo json_encode(['status' => false, 'message' => 'Unauthorized']);
+    echo json_encode(['status' => false, 'message' => 'Unauthorized', 'debug' => ['session_id' => session_id(), 'session_data' => $_SESSION]]);
     exit();
 }
 
