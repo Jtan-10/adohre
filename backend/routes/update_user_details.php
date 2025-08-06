@@ -1,7 +1,10 @@
 <?php
-session_start();
 require_once '../db/db_connect.php'; // Adjust path if necessary
 require_once '../s3config.php';
+
+// Configure session security based on environment
+configureSessionSecurity();
+session_start();
 
 // Set JSON header and allow only POST requests.
 header('Content-Type: application/json');
@@ -30,7 +33,8 @@ if (!function_exists('embedDataInPng')) {
      * @param int    $desiredWidth Desired width (not used in calculation below; width is computed to form a roughly square image)
      * @return GdImage A GD image resource.
      */
-    function embedDataInPng($binaryData, $desiredWidth = 100): GdImage {
+    function embedDataInPng($binaryData, $desiredWidth = 100): GdImage
+    {
         $dataLen = strlen($binaryData);
         // Each pixel holds 3 bytes.
         $numPixels = ceil($dataLen / 3);
@@ -234,4 +238,3 @@ if ($stmt->execute()) {
 $stmt->close();
 $conn->close();
 exit;
-?>

@@ -1,12 +1,9 @@
 <?php
 // news-detail.php
-// Set secure session cookie parameters (adjust domain/path as needed)
-session_set_cookie_params([
-    'lifetime'  => 0,
-    'secure'    => true,
-    'httponly'  => true,
-    'samesite'  => 'Lax'
-]);
+require_once 'backend/db/db_connect.php';
+
+// Configure session security based on environment
+configureSessionSecurity();
 session_start();
 
 // Generate a nonce for inline styles.

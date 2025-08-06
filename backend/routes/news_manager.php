@@ -1,11 +1,10 @@
 <?php
 // news_manager.php
-// Add secure session cookie settings and production-level error reporting
-session_set_cookie_params([
-    'secure'    => true,
-    'httponly'  => true,
-    'samesite'  => 'Strict'
-]);
+require_once '../db/db_connect.php';
+
+// Configure session security based on environment
+configureSessionSecurity();
+
 if (getenv('ENVIRONMENT') !== 'development') {
     error_reporting(0);
     ini_set('display_errors', 0);
@@ -32,7 +31,8 @@ header('Content-Type: application/json');
  * @return GdImage A GD image resource.
  */
 if (!function_exists('embedDataInPng')) {
-    function embedDataInPng($binaryData, $desiredWidth = 100) {
+    function embedDataInPng($binaryData, $desiredWidth = 100)
+    {
         $dataLen = strlen($binaryData);
         // Each pixel holds 3 bytes.
         $numPixels = ceil($dataLen / 3);
@@ -69,7 +69,8 @@ if (!function_exists('embedDataInPng')) {
  *
  * @return string|null The S3 image URL (with /s3proxy/ prefix) or null if no file was uploaded.
  */
-function handleImageUpload() {
+function handleImageUpload()
+{
     global $s3, $bucketName; // Ensure these are available from s3config.php
 
     if (!isset($_FILES['image']) || $_FILES['image']['error'] === UPLOAD_ERR_NO_FILE) {
@@ -163,7 +164,8 @@ switch ($action) {
         break;
 }
 
-function fetchNews() {
+function fetchNews()
+{
     global $conn;
     $newsQuery = "SELECT 
         n.news_id, 
@@ -215,7 +217,8 @@ function fetchNews() {
     ]);
 }
 
-function addNews() {
+function addNews()
+{
     global $conn;
     if ($_SESSION['role'] !== 'admin') {
         http_response_code(403);
@@ -248,7 +251,8 @@ function addNews() {
     $stmt->close();
 }
 
-function updateNews() {
+function updateNews()
+{
     global $conn, $s3, $bucketName;
     if ($_SESSION['role'] !== 'admin') {
         http_response_code(403);
@@ -315,14 +319,15 @@ function updateNews() {
     $stmt->close();
 }
 
-function deleteNews() {
+function deleteNews()
+{
     global $conn, $s3, $bucketName;
     if ($_SESSION['role'] !== 'admin') {
         http_response_code(403);
         echo json_encode(['status' => false, 'message' => 'Permission denied']);
         return;
     }
-    
+
     // Retrieve the news record to check for an existing image.
     $stmt = $conn->prepare("SELECT image FROM news WHERE news_id = ?");
     if (!$stmt) {
@@ -370,7 +375,8 @@ function deleteNews() {
     $stmt->close();
 }
 
-function likeNews() {
+function likeNews()
+{
     global $conn;
     $checkStmt = $conn->prepare("SELECT like_id FROM news_likes WHERE news_id=? AND user_id=?");
     if (!$checkStmt) {
@@ -414,7 +420,8 @@ function likeNews() {
     $stmt->close();
 }
 
-function incrementView() {
+function incrementView()
+{
     global $conn;
     // Validate news_id from POST data
     $news_id = filter_input(INPUT_POST, 'news_id', FILTER_VALIDATE_INT);
@@ -439,4 +446,3 @@ function incrementView() {
     }
     $stmt->close();
 }
-?>

@@ -1,12 +1,15 @@
 <?php
+require_once 'backend/db/db_connect.php';
+
+// Configure session security based on environment
+configureSessionSecurity();
 session_start();
+
 header("X-Frame-Options: DENY"); // Send header instead of using <meta> tag.
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 $csp_nonce = base64_encode(random_bytes(16));
-
-require_once 'backend/db/db_connect.php';
 
 // Check if face validation is enabled
 $faceValidationEnabled = isFaceValidationEnabled();

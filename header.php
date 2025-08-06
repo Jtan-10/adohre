@@ -1,8 +1,11 @@
 <?php
+require_once 'backend/db/db_connect.php';
+
 if (session_status() === PHP_SESSION_NONE) {
+    // Configure session security based on environment
+    configureSessionSecurity();
     session_start();
 }
-require_once 'backend/db/db_connect.php';
 
 // Update the user's role from the database on each page load:
 if (isset($_SESSION['user_id'])) {

@@ -4,10 +4,12 @@ header("X-Frame-Options: DENY");
 header("Strict-Transport-Security: max-age=31536000; includeSubDomains; preload");
 header("X-Content-Type-Options: nosniff");
 
+require_once 'backend/db/db_connect.php';
+
+// Configure session security based on environment
+configureSessionSecurity();
 session_start();
 session_regenerate_id(true); // Prevent session fixation
-
-require_once 'backend/db/db_connect.php';
 
 // Check if face validation is enabled
 $faceValidationEnabled = isFaceValidationEnabled();

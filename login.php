@@ -1,7 +1,11 @@
 <?php
-session_start();
-error_log("login.php: Login page loaded"); // added error log
 require_once 'backend/db/db_connect.php';
+
+// Configure session security based on environment
+configureSessionSecurity();
+session_start();
+
+error_log("login.php: Login page loaded"); // added error log
 
 // Check if face validation is enabled
 $faceValidationEnabled = isFaceValidationEnabled();

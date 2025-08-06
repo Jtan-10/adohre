@@ -18,6 +18,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 // Start session if not already started
 if (session_status() === PHP_SESSION_NONE) {
+    // Configure session security based on environment
+    configureSessionSecurity();
     session_start();
 }
 

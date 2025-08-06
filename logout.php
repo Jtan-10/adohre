@@ -1,12 +1,13 @@
 <?php
+require_once 'backend/db/db_connect.php';
+
+// Configure session security based on environment
+configureSessionSecurity();
 session_start();
 
 // Check if the user is logged in and get their ID
 if (isset($_SESSION['user_id'])) {
     $userId = $_SESSION['user_id'];
-
-    // Include the database connection to log the event
-    require_once 'backend/db/db_connect.php';
 
     // Replace manual audit logging with a call to recordAuditLog
     recordAuditLog($userId, 'User Logout', 'User logged out successfully');

@@ -1,5 +1,10 @@
 <?php
+require_once 'backend/db/db_connect.php';
+
+// Configure session security based on environment
+configureSessionSecurity();
 session_start();
+
 $nonce = bin2hex(random_bytes(16)); // generate nonce
 
 // Production security headers with updated Content Security Policy
@@ -23,122 +28,122 @@ header("Referrer-Policy: no-referrer");
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Custom Styles -->
     <style>
-    :root {
-        --primary-color: #28a745;
-        --secondary-color: #2c3e50;
-        --accent-color: #f8f9fa;
-    }
+        :root {
+            --primary-color: #28a745;
+            --secondary-color: #2c3e50;
+            --accent-color: #f8f9fa;
+        }
 
-    body {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        background-color: #ffffff;
-    }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #ffffff;
+        }
 
-    .news-container {
-        background: var(--accent-color);
-        border-radius: 15px;
-        padding: 2rem;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-    }
+        .news-container {
+            background: var(--accent-color);
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
 
-    .news-card {
-        border: none;
-        border-radius: 12px;
-        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        background: #ffffff;
-        overflow: hidden;
-        margin-bottom: 2rem;
-    }
+        .news-card {
+            border: none;
+            border-radius: 12px;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: #ffffff;
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
 
-    .news-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 20px rgba(40, 167, 69, 0.15);
-    }
+        .news-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(40, 167, 69, 0.15);
+        }
 
-    .news-card img {
-        height: 250px;
-        object-fit: cover;
-        border-radius: 12px 12px 0 0;
-    }
+        .news-card img {
+            height: 250px;
+            object-fit: cover;
+            border-radius: 12px 12px 0 0;
+        }
 
-    .news-card-body {
-        padding: 1.5rem;
-    }
+        .news-card-body {
+            padding: 1.5rem;
+        }
 
-    .news-meta {
-        color: var(--primary-color);
-        font-size: 0.9rem;
-        margin-bottom: 0.5rem;
-    }
+        .news-meta {
+            color: var(--primary-color);
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
 
-    .section-title {
-        font-size: 2rem;
-        font-weight: 700;
-        color: var(--secondary-color);
-        margin-bottom: 2rem;
-        position: relative;
-        padding-left: 1.5rem;
-    }
+        .section-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--secondary-color);
+            margin-bottom: 2rem;
+            position: relative;
+            padding-left: 1.5rem;
+        }
 
-    .section-title::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        height: 70%;
-        width: 4px;
-        background: var(--primary-color);
-        border-radius: 2px;
-    }
+        .section-title::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 70%;
+            width: 4px;
+            background: var(--primary-color);
+            border-radius: 2px;
+        }
 
-    .category-badge {
-        background: var(--primary-color);
-        color: white;
-        padding: 0.3rem 0.8rem;
-        border-radius: 15px;
-        font-size: 0.8rem;
-        display: inline-block;
-        margin-bottom: 0.5rem;
-    }
+        .category-badge {
+            background: var(--primary-color);
+            color: white;
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            display: inline-block;
+            margin-bottom: 0.5rem;
+        }
 
-    .read-more {
-        color: var(--primary-color);
-        text-decoration: none;
-        font-weight: 500;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
+        .read-more {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
 
-    .read-more:hover {
-        color: #218838;
-    }
+        .read-more:hover {
+            color: #218838;
+        }
 
-    .scrollable-section {
-        max-height: 90vh;
-        overflow-y: auto;
-        padding-right: 1rem;
-    }
+        .scrollable-section {
+            max-height: 90vh;
+            overflow-y: auto;
+            padding-right: 1rem;
+        }
 
-    /* Custom Scrollbar */
-    ::-webkit-scrollbar {
-        width: 8px;
-    }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
 
-    ::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 4px;
-    }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
 
-    ::-webkit-scrollbar-thumb {
-        background: var(--primary-color);
-        border-radius: 4px;
-    }
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 4px;
+        }
 
-    ::-webkit-scrollbar-thumb:hover {
-        background: #218838;
-    }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #218838;
+        }
     </style>
 </head>
 

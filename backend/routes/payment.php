@@ -6,16 +6,10 @@ header('Content-Type: application/json');
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-// Add secure session cookie settings for production
-session_set_cookie_params([
-    'lifetime' => 0,
-    'path' => '/',
-    'domain' => '', // set your domain if needed
-    'secure' => true,
-    'httponly' => true,
-    'samesite' => 'Strict'
-]);
+// Configure session security based on environment
+configureSessionSecurity();
 session_start();
+
 // Ensure the user is logged in
 if (!isset($_SESSION['user_id'])) {
     header("Location: ../login.php");

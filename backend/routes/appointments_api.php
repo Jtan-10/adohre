@@ -1,12 +1,16 @@
 <?php
+require_once '../db/db_connect.php';
+
 header("Content-Type: application/json");
 // Turn off error display for production and log errors instead
 ini_set('display_errors', 0);
 ini_set('display_startup_errors', 0);
 error_reporting(E_ALL);
 
-// Start a secure session (ensure session cookie settings are configured in php.ini or here if needed)
+// Configure session security based on environment
+configureSessionSecurity();
 session_start();
+
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
     echo json_encode(["error" => "Unauthorized"]);
@@ -261,4 +265,3 @@ function sendAppointmentEmail($email, $subject, $body)
         return false;
     }
 }
-?>

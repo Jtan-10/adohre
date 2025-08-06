@@ -1,6 +1,11 @@
 <?php
 // backend/routes/complete_login.php
+require_once '../db/db_connect.php';
+
+// Configure session security based on environment
+configureSessionSecurity();
 session_start();
+
 header('Content-Type: application/json');
 
 // Ensure that OTP was verified and temporary user data exists
@@ -28,4 +33,3 @@ unset($_SESSION['temp_user']);
 unset($_SESSION['otp_verified']);
 
 echo json_encode(['status' => true, 'message' => 'User fully authenticated.']);
-?>

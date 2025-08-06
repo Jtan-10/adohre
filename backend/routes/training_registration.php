@@ -5,13 +5,8 @@ header('Content-Type: application/json');
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-// Add secure session settings before starting the session
-session_set_cookie_params([
-    'lifetime' => 0,
-    'secure'   => true,
-    'httponly' => true,
-    'samesite' => 'Strict'
-]);
+// Configure session security based on environment
+configureSessionSecurity();
 session_start();
 
 // Ensure the user is logged in
