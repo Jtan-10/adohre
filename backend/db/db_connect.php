@@ -99,3 +99,26 @@ if (!function_exists('recordAuditLog')) {
         }
     }
 }
+
+// ---------------------------
+// Session Configuration Helper Function
+// ---------------------------
+if (!function_exists('configureSessionSecurity')) {
+    /**
+     * Configure session security parameters based on environment.
+     * Uses secure cookies only for HTTPS connections.
+     */
+    function configureSessionSecurity()
+    {
+        // Check if we're using HTTPS
+        $isHttps = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on';
+
+        session_set_cookie_params([
+            'lifetime' => 0,
+            'path'     => '/',
+            'secure'   => $isHttps,      // Only secure on HTTPS
+            'httponly' => true,
+            'samesite' => 'Strict'
+        ]);
+    }
+}

@@ -20,17 +20,11 @@ header("X-XSS-Protection: 1; mode=block");
 header("Strict-Transport-Security: max-age=31536000; includeSubDomains");
 header("Referrer-Policy: no-referrer");
 
-// Add secure session cookie settings.
-session_set_cookie_params([
-    'lifetime' => 0,
-    'path'     => '/',
-    'domain'   => '',  // adjust if needed
-    'secure'   => true,
-    'httponly' => true,
-    'samesite' => 'Strict'
-]);
-session_start();
 require_once 'backend/db/db_connect.php';
+
+// Configure session security based on environment
+configureSessionSecurity();
+session_start();
 
 // Generate CSRF token if not exists.
 if (!isset($_SESSION['csrf_token'])) {

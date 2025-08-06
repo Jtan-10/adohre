@@ -5,13 +5,11 @@ ini_set('display_errors', '0');  // Do not display errors to users
 ini_set('log_errors', '1');      // Enable error logging
 error_reporting(E_ALL);          // Report all errors (they will be logged, not displayed)
 
-// Set secure session cookie parameters.
-session_set_cookie_params([
-    'lifetime' => 0,
-    'secure'   => true,   // Ensure HTTPS is used.
-    'httponly' => true,
-    'samesite' => 'Strict'
-]);
+// Include database connection.
+require_once __DIR__ . '/../db/db_connect.php';
+
+// Configure session security based on environment
+configureSessionSecurity();
 session_start();
 
 // Set Content-Type to JSON.
@@ -23,9 +21,6 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     echo json_encode(['status' => false, 'message' => 'Access denied.']);
     exit;
 }
-
-// Include database connection.
-require_once __DIR__ . '/../db/db_connect.php';
 
 // Include S3 configuration and AWS SDK initialization.
 require_once __DIR__ . '/../s3config.php';

@@ -1,12 +1,8 @@
 <?php
-// Set secure session cookie parameters (adjust 'domain' as needed)
-session_set_cookie_params([
-    'lifetime' => 0,
-    'path'     => '/',
-    'secure'   => true,          // ensure using HTTPS
-    'httponly' => true,
-    'samesite' => 'Strict'       // or 'Lax' based on your requirements
-]);
+require_once '../db/db_connect.php';
+
+// Configure session security based on environment
+configureSessionSecurity();
 session_start();
 
 require_once '../controllers/authController.php';
