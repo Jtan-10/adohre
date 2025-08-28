@@ -1,428 +1,445 @@
 <?php
-// Enforce HTTPS for production, skip enforcement if HTTP_HOST contains "localhost"
-if (stripos($_SERVER['HTTP_HOST'], 'localhost') === false && (empty($_SERVER['HTTPS']) || $_SERVER['HTTPS'] === 'off')) {
-    $redirect = 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
-    header("Location: $redirect");
-    exit();
-}
-
-// Generate a nonce for inline scripts and styles.
-$csp_nonce = base64_encode(random_bytes(16));
-
-// Disable error display to users.
-ini_set('display_errors', '0');
-error_reporting(E_ALL);
-
-// Send secure HTTP headers with CSP nonce.
-header("X-Content-Type-Options: nosniff");
-header("X-Frame-Options: DENY");
-header("X-XSS-Protection: 1; mode=block");
-header("Strict-Transport-Security: max-age=31536000; includeSubDomains");
-header("Referrer-Policy: no-referrer");
-
 require_once 'backend/db/db_connect.php';
 
 // Configure session security based on environment
 configureSessionSecurity();
 session_start();
 
-// Generate CSRF token if not exists.
-if (!isset($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
-
-// Default visually impaired flag is 0.
-$isVisuallyImpaired = 0;
-if (isset($_SESSION['user_id'])) {
-    $user_id = $_SESSION['user_id'];
-    $stmt = $conn->prepare("SELECT visually_impaired FROM users WHERE user_id = ?");
-    $stmt->bind_param("i", $user_id);
-    $stmt->execute();
-    $stmt->bind_result($visually_impaired);
-    if ($stmt->fetch()) {
-        $isVisuallyImpaired = $visually_impaired;
-    }
-    $stmt->close();
-}
+// Generate a unique nonce for this page
+$scriptNonce = bin2hex(random_bytes(16));
 ?>
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sign Up - Member Link</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style nonce="<?php echo $csp_nonce; ?>">
-        /* Desktop layout: two panes side by side */
+    <link rel="icon" href="assets/logo.png" type="image/jpg" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
         body {
             display: flex;
             min-height: 100vh;
             margin: 0;
             flex-direction: row;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
         }
 
-        /* Left pane: white background on desktop */
         .left-pane {
             flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            background: #ffffff;
             padding: 2rem;
-            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        /* Right pane: green background image */
         .right-pane {
             flex: 1;
-            background: url('assets/green_bg.png') no-repeat center center/cover;
-        }
-
-        /* Form styling */
-        .form-control {
-            border-radius: 0.5rem;
-        }
-
-        .btn-success {
-            width: 100%;
-            border-radius: 0.5rem;
-        }
-
-        #loadingScreen {
-            z-index: 1055;
+            background-size: cover;
+            background-position: center;
             display: none;
         }
 
-        /* Mobile styles (max-width: 768px) */
-        @media (max-width: 768px) {
+        .signup-card {
+            width: 100%;
+            max-width: 400px;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            background-color: white;
+        }
 
-            /* Use the green background for the entire body */
-            body {
-                flex-direction: column;
-                background: url('assets/green_bg.png') no-repeat center center/cover;
-                background-size: cover;
-            }
+        .signup-options {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 1rem;
+        }
 
-            /* Hide the right pane on mobile */
+        .signup-option {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .signup-option.active {
+            background-color: #e9ecef;
+            border-color: #6c757d;
+        }
+
+        .form-section {
+            display: none;
+        }
+
+        .form-section.active {
+            display: block;
+        }
+
+        .password-requirements {
+            font-size: 0.875rem;
+            color: #6c757d;
+            margin-top: 0.5rem;
+        }
+
+        .requirement {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .requirement i {
+            font-size: 0.75rem;
+        }
+
+        .requirement.valid {
+            color: #28a745;
+        }
+
+        .requirement.invalid {
+            color: #dc3545;
+        }
+
+        .password-strength {
+            height: 5px;
+            margin-top: 5px;
+            border-radius: 2px;
+            transition: all 0.3s ease;
+        }
+
+        .strength-weak { background-color: #dc3545; width: 33%; }
+        .strength-medium { background-color: #ffc107; width: 66%; }
+        .strength-strong { background-color: #28a745; width: 100%; }
+
+        @media (min-width: 768px) {
             .right-pane {
-                display: none;
-            }
-
-            /* Make left pane transparent and position it relative */
-            .left-pane {
-                position: relative;
-                background: transparent;
-                padding: 1rem;
-            }
-
-            /* Pseudo-element for the white "card" behind the content */
-            .left-pane::before {
-                content: "";
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                width: 100%;
-                max-width: 90%;
-                background: #ffffff;
-                padding: 12rem;
-                border-radius: 0.5rem;
-                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-                z-index: -1;
-                /* behind the form/logo text */
-            }
-
-            /* Ensure the content is above the pseudo-element */
-            .left-pane * {
-                position: relative;
-                z-index: 1;
+                display: block;
             }
         }
     </style>
-    <!-- Include the global TTS module (create tts.js with your TTS functions) -->
-    <script src="tts.js"></script>
-    <!-- Pass the CSRF token and visually impaired flag to JavaScript -->
-    <script nonce="<?php echo $csp_nonce; ?>">
-        var csrfToken = <?php echo json_encode($_SESSION['csrf_token']); ?>;
-        var isVisuallyImpaired = <?php echo json_encode($isVisuallyImpaired); ?>;
-    </script>
 </head>
 
 <body>
-    <div class="left-pane">
-        <img src="assets/logo.png" alt="ADOHRE Logo" width="100">
-        <h1 class="mt-3">Sign Up</h1>
-        <p>Enter your email to start the signup process.</p>
-        <form id="signupForm" class="w-75">
-            <div class="mb-3">
-                <label for="email" class="form-label">Email</label>
-                <input type="email" name="email" class="form-control" id="email" placeholder="Enter your email"
-                    required>
-            </div>
-            <!-- Include hidden CSRF token. -->
-            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-            <button type="button" id="signupBtn" class="btn btn-success">Send OTP</button>
-            <p id="error" class="text-danger mt-3"></p>
-        </form>
-    </div>
-    <div class="right-pane"></div>
+    <?php include 'visually_impaired_modal.php'; ?>
 
-    <!-- Loading Screen -->
-    <div id="loadingScreen"
-        class="d-none position-fixed w-100 h-100 top-0 start-0 bg-white bg-opacity-75 d-flex justify-content-center align-items-center">
-        <div class="spinner-border text-success" role="status">
-            <span class="visually-hidden">Loading...</span>
+    <div class="left-pane">
+        <div class="signup-card">
+            <h2 class="text-center mb-4">Create Account</h2>
+            
+            <div class="signup-options mb-4">
+                <div class="signup-option active" data-option="password">
+                    <i class="bi bi-key"></i>
+                    <div>Password</div>
+                </div>
+                <div class="signup-option" data-option="otp">
+                    <i class="bi bi-shield-lock"></i>
+                    <div>OTP</div>
+                </div>
+            </div>
+
+            <!-- Password Signup Form -->
+            <form id="passwordSignupForm" class="form-section active needs-validation" novalidate>
+                <div class="mb-3">
+                    <label for="email-password" class="form-label">Email</label>
+                    <input type="email" class="form-control" id="email-password" name="email" required>
+                    <div class="invalid-feedback">Please enter a valid email address.</div>
+                </div>
+                <div class="mb-3">
+                    <label for="firstName-password" class="form-label">First Name</label>
+                    <input type="text" class="form-control" id="firstName-password" name="firstName" required>
+                    <div class="invalid-feedback">Please enter your first name.</div>
+                </div>
+                <div class="mb-3">
+                    <label for="lastName-password" class="form-label">Last Name</label>
+                    <input type="text" class="form-control" id="lastName-password" name="lastName" required>
+                    <div class="invalid-feedback">Please enter your last name.</div>
+                </div>
+                <div class="mb-3">
+                    <label for="password" class="form-label">Password</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="password" name="password" required minlength="8">
+                        <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
+                    <div class="password-strength"></div>
+                    <div class="password-requirements">
+                        <div class="requirement" data-requirement="length">
+                            <i class="bi bi-x-circle"></i> At least 8 characters
+                        </div>
+                        <div class="requirement" data-requirement="uppercase">
+                            <i class="bi bi-x-circle"></i> One uppercase letter
+                        </div>
+                        <div class="requirement" data-requirement="lowercase">
+                            <i class="bi bi-x-circle"></i> One lowercase letter
+                        </div>
+                        <div class="requirement" data-requirement="number">
+                            <i class="bi bi-x-circle"></i> One number
+                        </div>
+                        <div class="requirement" data-requirement="special">
+                            <i class="bi bi-x-circle"></i> One special character
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label for="confirmPassword" class="form-label">Confirm Password</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" required>
+                        <button class="btn btn-outline-secondary" type="button" id="toggleConfirmPassword">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
+                    <div class="invalid-feedback">Passwords do not match.</div>
+                </div>
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary">Sign Up</button>
+                </div>
+            </form>
+
+            <!-- OTP Signup Form -->
+            <form id="otpSignupForm" class="form-section needs-validation" novalidate>
+                <div class="mb-3">
+                    <label for="email-otp" class="form-label">Email</label>
+                    <input type="email" class="form-control" id="email-otp" name="email" required>
+                    <div class="invalid-feedback">Please enter a valid email address.</div>
+                </div>
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary">Send OTP</button>
+                </div>
+            </form>
+
+            <hr class="my-4">
+            
+            <p class="text-center">
+                Already have an account? 
+                <a href="login.php" class="text-decoration-none">Log in</a>
+            </p>
         </div>
     </div>
+
+    <div class="right-pane" style="background-image: url('assets/expertise-background.png');"></div>
 
     <!-- Response Modal -->
     <div class="modal fade" id="responseModal" tabindex="-1" aria-labelledby="responseModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="responseModalLabel">Notification</h5>
+                    <h5 class="modal-title" id="responseModalLabel">Response</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body" id="responseModalBody">
-                    <!-- Response message will be inserted here -->
-                </div>
+                <div class="modal-body" id="responseModalBody"></div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        Close
-                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Check Spam Folder Modal -->
-    <div class="modal fade" id="checkSpamModal" tabindex="-1" aria-labelledby="checkSpamModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="checkSpamModalLabel">Check Your Spam Folder</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    An OTP has been sent to your email address. If you do not see it in your inbox within a few minutes,
-                    please check your spam or junk folder.
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">
-                        OK
-                    </button>
-                </div>
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="position-fixed top-0 start-0 w-100 h-100 d-none"
+        style="background: rgba(0,0,0,0.5); z-index: 9999;">
+        <div class="d-flex justify-content-center align-items-center h-100">
+            <div class="spinner-border text-light" role="status">
+                <span class="visually-hidden">Loading...</span>
             </div>
         </div>
     </div>
 
-    <!-- Include Visually Impaired Modal -->
-    <?php
-    define('IN_CAPSTONE', true);
-    include 'visually_impaired_modal.php';
-    ?>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous">
-    </script>
-    <script nonce="<?php echo $csp_nonce; ?>">
-        // Set up Speech Recognition.
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        let recognition;
-        let validResponseReceived = false; // Flag to check if valid response received.
-        if (SpeechRecognition) {
-            recognition = new SpeechRecognition();
-            recognition.lang = 'en-US';
-            recognition.interimResults = false;
-            recognition.maxAlternatives = 1;
-
-            // Function to start listening.
-            function startListening() {
-                validResponseReceived = false;
-                recognition.start();
-            }
-
-            recognition.onresult = function(event) {
-                const transcript = event.results[0][0].transcript.toLowerCase();
-                console.log("Recognized speech:", transcript);
-                if (transcript.includes("yes")) {
-                    validResponseReceived = true;
-                    TTS.speakMessage("You said yes.", function() {
-                        setVisuallyImpaired(true, visuallyImpairedModal);
-                    });
-                } else if (transcript.includes("no")) {
-                    validResponseReceived = true;
-                    TTS.speakMessage("You said no.", function() {
-                        setVisuallyImpaired(false, visuallyImpairedModal);
-                    });
-                } else {
-                    TTS.speakMessage("Try again.", startListening);
-                }
-            };
-
-            recognition.onerror = function(event) {
-                console.error("Speech recognition error:", event.error);
-                TTS.speakMessage("There was an error with speech recognition. Please click a button instead.",
-                    function() {});
-            };
-
-            recognition.onend = function() {
-                if (!validResponseReceived) {
-                    TTS.speakMessage("Try again.", startListening);
-                }
-            };
-        } else {
-            console.warn("Speech Recognition not supported. Please use the buttons.");
-        }
-
-        // Function to send the visually impaired flag to the server and save it in the session.
-        function setVisuallyImpaired(isImpaired, modalInstance) {
-            const payload = {
-                visually_impaired: isImpaired
-            };
-            console.log("Sending visually impaired flag payload:", payload);
-            fetch('backend/routes/set_visually_impaired.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                })
-                .then(response => {
-                    console.log("Response headers:", response.headers);
-                    return response.json();
-                })
-                .then(data => {
-                    console.log("Visually impaired update response:", data);
-                    modalInstance.hide();
-                })
-                .catch(error => {
-                    console.error("Error updating visually impaired:", error);
-                    modalInstance.hide();
-                });
-        }
-
-        // Globalize the initialization using event listeners.
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script nonce="<?php echo $scriptNonce; ?>">
         document.addEventListener('DOMContentLoaded', function() {
-            // Use the global TTS function for a welcome message.
-            TTS.speakMessage("Welcome to ADOHRE! Please sign up with your email to get started.");
+            const passwordInput = document.getElementById('password');
+            const confirmPasswordInput = document.getElementById('confirmPassword');
+            const strengthIndicator = document.querySelector('.password-strength');
+            const requirements = document.querySelectorAll('.requirement');
 
-            // Initialize the visually impaired modal so that clicking outside or pressing Escape won't close it.
-            var visuallyImpairedModalElement = document.getElementById('visuallyImpairedModal');
-            window.visuallyImpairedModal = new bootstrap.Modal(visuallyImpairedModalElement, {
-                backdrop: 'static',
-                keyboard: false
-            });
+            function validatePassword(password) {
+                const checks = {
+                    length: password.length >= 8,
+                    uppercase: /[A-Z]/.test(password),
+                    lowercase: /[a-z]/.test(password),
+                    number: /[0-9]/.test(password),
+                    special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+                };
 
-            // When the modal is shown, read its content and then prompt "or say yes or no".
-            visuallyImpairedModalElement.addEventListener('shown.bs.modal', function() {
-                const modalText = document.querySelector('#visuallyImpairedModal .modal-body').innerText
-                    .trim();
-                TTS.speakMessage(modalText, function() {
-                    TTS.speakMessage("or say yes or no", startListening);
+                requirements.forEach(req => {
+                    const type = req.dataset.requirement;
+                    const icon = req.querySelector('i');
+                    if (checks[type]) {
+                        req.classList.add('valid');
+                        req.classList.remove('invalid');
+                        icon.classList.replace('bi-x-circle', 'bi-check-circle');
+                    } else {
+                        req.classList.add('invalid');
+                        req.classList.remove('valid');
+                        icon.classList.replace('bi-check-circle', 'bi-x-circle');
+                    }
                 });
-            });
 
-            // Show the modal.
-            visuallyImpairedModal.show();
-
-            // Manual button listeners.
-            document.getElementById('btnYes').addEventListener('click', function() {
-                console.log("User clicked Yes.");
-                window.speechSynthesis.cancel();
-                TTS.speakMessage("You said yes.", function() {
-                    setVisuallyImpaired(true, visuallyImpairedModal);
-                });
-            });
-
-            document.getElementById('btnNo').addEventListener('click', function() {
-                console.log("User clicked No.");
-                window.speechSynthesis.cancel();
-                TTS.speakMessage("You said no.", function() {
-                    setVisuallyImpaired(false, visuallyImpairedModal);
-                });
-            });
-
-            // Show/hide loading screen functions.
-            function showLoading() {
-                const ls = document.getElementById('loadingScreen');
-                ls.classList.remove('d-none');
-                ls.style.display = 'flex';
+                return Object.values(checks).filter(Boolean).length;
             }
 
-            // 'Send OTP' button handler.
-            document.getElementById('signupBtn').addEventListener('click', async () => {
-                const email = document.getElementById('email').value;
-                if (!email) {
-                    showModal('Error', 'Please enter your email.');
+            function updateStrengthIndicator(strength) {
+                strengthIndicator.className = 'password-strength';
+                if (strength < 3) {
+                    strengthIndicator.classList.add('strength-weak');
+                } else if (strength < 5) {
+                    strengthIndicator.classList.add('strength-medium');
+                } else {
+                    strengthIndicator.classList.add('strength-strong');
+                }
+            }
+
+            // Toggle between signup options
+            const signupOptions = document.querySelectorAll('.signup-option');
+            signupOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    signupOptions.forEach(opt => opt.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    const formType = this.dataset.option;
+                    document.querySelectorAll('.form-section').forEach(form => {
+                        form.classList.remove('active');
+                    });
+                    document.getElementById(formType + 'SignupForm').classList.add('active');
+                });
+            });
+
+            // Password validation
+            passwordInput.addEventListener('input', function() {
+                const strength = validatePassword(this.value);
+                updateStrengthIndicator(strength);
+                
+                if (confirmPasswordInput.value) {
+                    confirmPasswordInput.setCustomValidity(
+                        confirmPasswordInput.value === this.value ? '' : 'Passwords do not match.'
+                    );
+                }
+            });
+
+            confirmPasswordInput.addEventListener('input', function() {
+                this.setCustomValidity(
+                    this.value === passwordInput.value ? '' : 'Passwords do not match.'
+                );
+            });
+
+            // Password visibility toggles
+            ['password', 'confirmPassword'].forEach(id => {
+                const input = document.getElementById(id);
+                const toggle = document.getElementById('toggle' + id.charAt(0).toUpperCase() + id.slice(1));
+                
+                toggle.addEventListener('click', () => {
+                    const icon = toggle.querySelector('i');
+                    if (input.type === 'password') {
+                        input.type = 'text';
+                        icon.classList.replace('bi-eye', 'bi-eye-slash');
+                    } else {
+                        input.type = 'password';
+                        icon.classList.replace('bi-eye-slash', 'bi-eye');
+                    }
+                });
+            });
+
+            // Password Signup Form Handler
+            document.getElementById('passwordSignupForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                if (!this.checkValidity()) {
+                    e.stopPropagation();
+                    this.classList.add('was-validated');
                     return;
                 }
+
                 showLoading();
                 try {
-                    // Check email deliverability
-                    const deliverRes = await fetch('backend/routes/check_email_deliverability.php', {
+                    const formData = new FormData();
+                    formData.append('email', document.getElementById('email-password').value);
+                    formData.append('firstName', document.getElementById('firstName-password').value);
+                    formData.append('lastName', document.getElementById('lastName-password').value);
+                    formData.append('password', passwordInput.value);
+
+                    const response = await fetch('backend/routes/complete_signup.php', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            email: email
-                        })
+                        body: formData
                     });
-                    const deliverData = await deliverRes.json();
-                    if (!deliverData.deliverable) {
-                        hideLoading();
-                        showModal('Error', 'The email domain is not capable of receiving emails.');
-                        return;
-                    }
-                    // Proceed with existing signup logic
-                    const response = await fetch('backend/routes/signup.php', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            email: email,
-                            csrf_token: csrfToken
-                        })
-                    });
+
                     const result = await response.json();
                     hideLoading();
+
                     if (result.status) {
-                        showModal('Success', result.message, `otp.php?action=signup&email=${email}`);
-                        // Also show the "Check Your Spam Folder" modal.
-                        const spamModal = new bootstrap.Modal(document.getElementById(
-                            'checkSpamModal'));
-                        spamModal.show();
+                        showModal('Success', result.message, 'index.php');
                     } else {
                         showModal('Error', result.message);
                     }
                 } catch (error) {
                     hideLoading();
-                    console.error('Error:', error);
-                    showModal('Error', 'An error occurred. Please try again.');
+                    showModal('Error', 'An error occurred during registration.');
                 }
             });
 
-            function hideLoading() {
-                const ls = document.getElementById('loadingScreen');
-                ls.classList.add('d-none');
-                ls.style.display = 'none';
+            // OTP Signup Form Handler
+            document.getElementById('otpSignupForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                if (!this.checkValidity()) {
+                    e.stopPropagation();
+                    this.classList.add('was-validated');
+                    return;
+                }
+
+                showLoading();
+                try {
+                    const response = await fetch('backend/routes/send_otp.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            email: document.getElementById('email-otp').value,
+                            action: 'signup'
+                        })
+                    });
+
+                    const result = await response.json();
+                    hideLoading();
+
+                    if (result.status) {
+                        sessionStorage.setItem('email', document.getElementById('email-otp').value);
+                        sessionStorage.setItem('action', 'signup');
+                        showModal('Success', 'OTP sent successfully!', 'otp.php');
+                    } else {
+                        showModal('Error', result.message);
+                    }
+                } catch (error) {
+                    hideLoading();
+                    showModal('Error', 'An error occurred while sending OTP.');
+                }
+            });
+
+            // Helper functions
+            function showLoading() {
+                document.getElementById('loadingSpinner').classList.remove('d-none');
             }
 
-            // Show Bootstrap modal function.
-            function showModal(title, message, redirectUrl = null) {
+            function hideLoading() {
+                document.getElementById('loadingSpinner').classList.add('d-none');
+            }
+
+            function showModal(title, message, redirect = null) {
+                const modal = new bootstrap.Modal(document.getElementById('responseModal'));
                 document.getElementById('responseModalLabel').textContent = title;
                 document.getElementById('responseModalBody').textContent = message;
-                var modal = new bootstrap.Modal(document.getElementById('responseModal'));
-                modal.show();
-                if (redirectUrl) {
+
+                if (redirect) {
                     modal._element.addEventListener('hidden.bs.modal', () => {
-                        window.location.href = redirectUrl;
-                    });
+                        window.location.href = redirect;
+                    }, { once: true });
                 }
+
+                modal.show();
             }
         });
     </script>

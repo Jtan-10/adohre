@@ -39,38 +39,6 @@ if (!$conn->query("SET time_zone = '$timezone'")) {
     die('Failed to set time zone. Please try again later.'); // Generic error message
 }
 
-// ---------------------------
-// Face Validation Helper Function
-// ---------------------------
-if (!function_exists('isFaceValidationEnabled')) {
-    /**
-     * Check if face validation is enabled.
-     * First checks database settings, then falls back to .env file.
-     *
-     * @return bool True if face validation is enabled, false otherwise.
-     */
-    function isFaceValidationEnabled()
-    {
-        global $conn;
-
-        // First try to get from database settings
-        if ($conn) {
-            $stmt = $conn->prepare("SELECT value FROM settings WHERE `key` = 'face_validation_enabled'");
-            if ($stmt) {
-                $stmt->execute();
-                $stmt->bind_result($value);
-                if ($stmt->fetch()) {
-                    $stmt->close();
-                    return filter_var($value, FILTER_VALIDATE_BOOLEAN);
-                }
-                $stmt->close();
-            }
-        }
-
-        // Fall back to .env file if not found in database
-        return filter_var($_ENV['FACE_VALIDATION_ENABLED'] ?? 'true', FILTER_VALIDATE_BOOLEAN);
-    }
-}
 
 // ---------------------------
 // Audit Logging Helper Function

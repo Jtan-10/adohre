@@ -8,26 +8,7 @@ if (!isset($conn) || !$conn->ping()) {
     require 'backend/db/db_connect.php';
 }
 
-// If the face image is not already in session and user is logged in, retrieve it from the database.
-if (!isset($_SESSION['face_image']) && isset($_SESSION['user_id'])) {
-    $userId = $_SESSION['user_id'];
-    $stmt = $conn->prepare("SELECT face_image FROM users WHERE user_id = ?");
-    if ($stmt) {
-        $stmt->bind_param("i", $userId);
-        $stmt->execute();
-        $stmt->bind_result($face_image);
-        if ($stmt->fetch()) {
-            // Store the retrieved face image (URL or filename) in the session
-            $_SESSION['face_image'] = $face_image;
-        }
-        $stmt->close();
-    } else {
-        error_log("Database prepare error: " . $conn->error);
-    }
-}
 
-// Now assign the session variable to a local variable.
-$userFaceImageUrl = isset($_SESSION['face_image']) ? $_SESSION['face_image'] : null;
 
 // Generate a unique nonce for inline scripts.
 $scriptNonce = bin2hex(random_bytes(16));
@@ -235,41 +216,7 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
         </div>
     </div>
 
-    <!-- Face Validation Modal -->
-    <div class="modal fade" id="faceValidationModal" tabindex="-1" aria-labelledby="faceValidationModalLabel"
-        aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered" style="max-width: 600px;">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="faceValidationModalLabel">Face Validation</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <!-- Show stored face reference -->
-                    <div class="mb-3">
-                        <h5>Stored Face Reference</h5>
-                        <img id="storedFacePreview"
-                            src="<?php echo $userFaceImageUrl ? 'backend/routes/decrypt_image.php?face_url=' . urlencode($userFaceImageUrl) : ''; ?>"
-                            alt="Stored Face Reference"
-                            style="width:100%; max-width:320px; border:1px solid #ccc; display:block;">
-                    </div>
-                    <!-- Live face capture -->
-                    <div class="mb-3">
-                        <h5>Capture Your Face</h5>
-                        <video id="videoInput" width="320" height="240" autoplay muted
-                            style="border:1px solid #ccc;"></video>
-                    </div>
-                    <!-- Validate Face button + hidden canvas for capture -->
-                    <button type="button" class="btn btn-primary" id="validateFaceBtn">Validate Face</button>
-                    <canvas id="userFaceCanvas" style="display:none;"></canvas>
-                    <p id="faceValidationResult" class="mt-3" style="font-weight:bold;"></p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
+
 
     <!-- Response Modal for Notifications -->
     <div class="modal fade" id="responseModal" tabindex="-1" aria-labelledby="responseModalLabel" aria-hidden="true">
@@ -294,56 +241,7 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Load face-api.js from an allowed source -->
-    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 
-    <!-- Inline Face Validation Module -->
-    <script nonce="<?php echo $scriptNonce; ?>" defer>
-        (function(global) {
-            "use strict";
-            async function loadModels(modelUrl = 'backend/models/weights') {
-                if (typeof modelUrl !== 'string') {
-                    throw new Error("Invalid modelUrl");
-                }
-                try {
-                    await faceapi.nets.tinyFaceDetector.loadFromUri(modelUrl);
-                    await faceapi.nets.faceLandmark68Net.loadFromUri(modelUrl);
-                    await faceapi.nets.faceRecognitionNet.loadFromUri(modelUrl);
-                } catch (error) {
-                    console.error("FaceValidation: Model load failed", error);
-                }
-            }
-
-            async function detectFaceFromCanvas(canvas, options = new faceapi.TinyFaceDetectorOptions()) {
-                if (!(canvas instanceof HTMLCanvasElement)) {
-                    throw new Error("Invalid canvas element");
-                }
-                try {
-                    const detection = await faceapi
-                        .detectSingleFace(canvas, options)
-                        .withFaceLandmarks()
-                        .withFaceDescriptor();
-                    return detection;
-                } catch (error) {
-                    console.error("FaceValidation: Face detection failed", error);
-                    return null;
-                }
-            }
-
-            function compareFaces(descriptor1, descriptor2) {
-                if (!(descriptor1 instanceof Float32Array) || !(descriptor2 instanceof Float32Array)) {
-                    throw new Error("Invalid descriptor(s)");
-                }
-                return faceapi.euclideanDistance(descriptor1, descriptor2);
-            }
-
-            const api = Object.freeze({
-                loadModels: loadModels,
-                detectFace: detectFaceFromCanvas,
-                compareFaces: compareFaces
-            });
-            global.faceValidation = api;
-        })(window);
     </script>
 
     <!-- Main Sidebar and Face Validation Logic -->
@@ -399,149 +297,44 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
             const validateFaceBtn = document.getElementById('validateFaceBtn');
             const faceValidationResult = document.getElementById('faceValidationResult');
             const userFaceCanvas = document.getElementById('userFaceCanvas');
-            let referenceDescriptor = null;
-            const userFaceImageUrl = "<?php echo $userFaceImageUrl; ?>";
-            await faceValidation.loadModels('backend/models/weights');
-            async function loadReferenceDescriptor() {
-                if (!userFaceImageUrl) {
-                    console.warn("No stored face image URL for this user.");
-                    return;
-                }
-                const decryptUrl =
-                    `backend/routes/decrypt_image.php?face_url=${encodeURIComponent(userFaceImageUrl)}`;
-                const img = new Image();
-                img.crossOrigin = "anonymous";
-                img.src = decryptUrl;
-                storedFacePreview.src = decryptUrl;
-                await new Promise((resolve, reject) => {
-                    img.onload = resolve;
-                    img.onerror = reject;
-                });
-                try {
-                    const detection = await faceapi
-                        .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({
-                            inputSize: 416,
-                            scoreThreshold: 0.5
-                        }))
-                        .withFaceLandmarks()
-                        .withFaceDescriptor();
-                    if (!detection) {
-                        console.error('No face detected in the reference image.');
-                        return;
-                    }
-                    referenceDescriptor = detection.descriptor;
-                    console.log("Reference descriptor loaded.");
-                } catch (error) {
-                    console.error("Error detecting face in reference image:", error);
-                }
-            }
-            if (userFaceImageUrl) {
-                await loadReferenceDescriptor();
-            }
-            if (virtualIdLink && faceValidationModalEl) {
+
+            if (virtualIdLink) {
                 virtualIdLink.addEventListener('click', async function(e) {
                     e.preventDefault();
-                    try {
-                        const stream = await navigator.mediaDevices.getUserMedia({
-                            video: {}
-                        });
-                        videoInput.srcObject = stream;
-                    } catch (error) {
-                        console.error("Webcam access error:", error);
-                        alert(
-                            'Unable to access webcam for face validation. Please check permissions.'
-                        );
-                        return;
-                    }
-                    const faceValidationModal = new bootstrap.Modal(faceValidationModalEl);
-                    faceValidationModal.show();
-                });
-            }
-            if (validateFaceBtn) {
-                validateFaceBtn.addEventListener('click', async function() {
-                    faceValidationResult.innerText = '';
-                    userFaceCanvas.width = videoInput.videoWidth;
-                    userFaceCanvas.height = videoInput.videoHeight;
-                    const ctx = userFaceCanvas.getContext('2d');
-                    ctx.drawImage(videoInput, 0, 0, userFaceCanvas.width, userFaceCanvas.height);
-                    const detection = await faceapi
-                        .detectSingleFace(userFaceCanvas, new faceapi.TinyFaceDetectorOptions({
-                            inputSize: 416,
-                            scoreThreshold: 0.5
-                        }))
-                        .withFaceLandmarks()
-                        .withFaceDescriptor();
-                    if (!detection) {
-                        faceValidationResult.innerText = 'No face detected. Please try again.';
-                        return;
-                    }
-                    if (!referenceDescriptor) {
-                        faceValidationResult.innerText =
-                            'No stored reference face found. Please contact support.';
-                        return;
-                    }
-                    const distance = faceapi.euclideanDistance(detection.descriptor,
-                        referenceDescriptor);
-                    console.log('Distance:', distance);
-                    const threshold = 0.6;
-                    if (distance < threshold) {
-                        faceValidationResult.innerText = 'Face matched successfully!';
-                        // Stop the webcam stream
-                        const stream = videoInput.srcObject;
-                        if (stream) {
-                            stream.getTracks().forEach(track => track.stop());
+
+                    // Generate a stronger, random 12-character password
+                    function generatePassword(length = 12) {
+                        const charset =
+                            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+";
+                        let retVal = "";
+                        const randomValues = new Uint32Array(length);
+                        window.crypto.getRandomValues(randomValues);
+                        for (let i = 0; i < length; i++) {
+                            retVal += charset[randomValues[i] % charset.length];
                         }
-                        // Automatically close the Face Validation modal
-                        const faceValidationModal = bootstrap.Modal.getInstance(
-                            faceValidationModalEl);
-                        if (faceValidationModal) {
-                            faceValidationModal.hide();
-                        }
-                        // Generate a stronger, random 12-character password
-                        function generatePassword(length = 12) {
-                            const charset =
-                                "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+";
-                            let retVal = "";
-                            const randomValues = new Uint32Array(length);
-                            window.crypto.getRandomValues(randomValues);
-                            for (let i = 0; i < length; i++) {
-                                retVal += charset[randomValues[i] % charset.length];
-                            }
-                            return retVal;
-                        }
-                        const pdfPassword = generatePassword();
-                        const userId = virtualIdLink.getAttribute('data-user-id');
-                        const downloadUrl =
-                            `backend/models/generate_virtual_id.php?user_id=${userId}&pdf_password=${encodeURIComponent(pdfPassword)}`;
-
-                        // Set the generated PDF password in the PDF Password Modal
-                        document.getElementById('pdfPasswordText').textContent =
-                            "Your PDF password is: " + pdfPassword;
-
-                        // Show the PDF Password Modal
-                        const pdfModalEl = document.getElementById('pdfPasswordModal');
-                        const pdfModal = new bootstrap.Modal(pdfModalEl);
-                        pdfModal.show();
-
-                        // When the PDF Password Modal is closed, redirect to the download URL
-                        pdfModalEl.addEventListener('hidden.bs.modal', () => {
-                            window.location.href = downloadUrl;
-                        }, {
-                            once: true
-                        });
-                    } else {
-                        faceValidationResult.innerText = 'Face did not match. Please try again.';
+                        return retVal;
                     }
-                });
-            }
 
-            // Stop the camera when the Face Validation modal is closed.
-            if (faceValidationModalEl) {
-                faceValidationModalEl.addEventListener('hidden.bs.modal', () => {
-                    if (videoInput && videoInput.srcObject) {
-                        videoInput.srcObject.getTracks().forEach(track => track.stop());
-                        videoInput.srcObject = null;
-                    }
+                    const pdfPassword = generatePassword();
+                    const userId = virtualIdLink.getAttribute('data-user-id');
+                    const downloadUrl =
+                        `backend/models/generate_virtual_id.php?user_id=${userId}&pdf_password=${encodeURIComponent(pdfPassword)}`;
+
+                    // Set the generated PDF password in the PDF Password Modal
+                    document.getElementById('pdfPasswordText').textContent =
+                        "Your PDF password is: " + pdfPassword;
+
+                    // Show the PDF Password Modal
+                    const pdfModalEl = document.getElementById('pdfPasswordModal');
+                    const pdfModal = new bootstrap.Modal(pdfModalEl);
+                    pdfModal.show();
+
+                    // When the PDF Password Modal is closed, redirect to the download URL
+                    pdfModalEl.addEventListener('hidden.bs.modal', () => {
+                        window.location.href = downloadUrl;
+                    }, {
+                        once: true
+                    });
                 });
             }
         });

@@ -69,33 +69,17 @@ if (verifyOTP($email, $otp)) {
         // Regenerate session ID to prevent session fixation attacks
         session_regenerate_id(true);
 
-        // Check if face validation is enabled
-        require_once '../db/db_connect.php';
-        $faceValidationEnabled = isFaceValidationEnabled();
+        // Set session variables for the authenticated user
+        $_SESSION['user_id']       = $user['user_id'];
+        $_SESSION['first_name']    = $user['first_name'];
+        $_SESSION['last_name']     = $user['last_name'];
+        $_SESSION['profile_image'] = $user['profile_image'];
+        $_SESSION['role']          = $user['role'];
 
-        if ($faceValidationEnabled) {
-            // Traditional flow: set temporary session data for face validation
-            $_SESSION['otp_verified'] = true;
-            $_SESSION['temp_user'] = $user; // store user data temporarily
+        // Record successful login
+        recordAuditLog($user['user_id'], 'Login Successful', 'User logged in successfully.');
 
-            // Record successful OTP verification (pending face validation)
-            recordAuditLog($user['user_id'], 'OTP Verified', 'OTP verified successfully, pending face validation.');
-
-            echo json_encode(['status' => true, 'message' => 'OTP verified! Please complete face validation.']);
-        } else {
-            // Face validation disabled: complete login immediately
-            $_SESSION['user_id']       = $user['user_id'];
-            $_SESSION['first_name']    = $user['first_name'];
-            $_SESSION['last_name']     = $user['last_name'];
-            $_SESSION['profile_image'] = $user['profile_image'];
-            $_SESSION['role']          = $user['role'];
-            $_SESSION['face_validated'] = true; // Mark as if face validation was completed
-
-            // Record successful login
-            recordAuditLog($user['user_id'], 'Login Successful', 'User logged in successfully (face validation disabled).');
-
-            echo json_encode(['status' => true, 'message' => 'OTP verified! Login successful.', 'face_validation_skipped' => true]);
-        }
+        echo json_encode(['status' => true, 'message' => 'OTP verified! Login successful.']);
     } else {
         // Do not reveal details about whether the email exists
         echo json_encode(['status' => false, 'message' => 'Invalid credentials.']);
