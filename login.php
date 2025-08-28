@@ -1,4 +1,7 @@
 <?php
+// Define constant for visually_impaired_modal.php
+define('IN_CAPSTONE', true);
+
 require_once 'backend/db/db_connect.php';
 
 // Configure session security based on environment
@@ -94,7 +97,7 @@ $scriptNonce = bin2hex(random_bytes(16));
     <div class="left-pane">
         <div class="login-card">
             <h2 class="text-center mb-4">Welcome Back</h2>
-            
+
             <div class="login-options mb-4">
                 <div class="login-option active" data-option="password">
                     <i class="bi bi-key"></i>
@@ -147,9 +150,9 @@ $scriptNonce = bin2hex(random_bytes(16));
             </form>
 
             <hr class="my-4">
-            
+
             <p class="text-center">
-                Don't have an account? 
+                Don't have an account?
                 <a href="signup.php" class="text-decoration-none">Sign up</a>
             </p>
         </div>
@@ -192,7 +195,7 @@ $scriptNonce = bin2hex(random_bytes(16));
                 option.addEventListener('click', function() {
                     loginOptions.forEach(opt => opt.classList.remove('active'));
                     this.classList.add('active');
-                    
+
                     const formType = this.dataset.option;
                     document.querySelectorAll('.form-section').forEach(form => {
                         form.classList.remove('active');
@@ -204,7 +207,7 @@ $scriptNonce = bin2hex(random_bytes(16));
             // Password visibility toggle
             const passwordInput = document.getElementById('password');
             const togglePassword = document.getElementById('togglePassword');
-            
+
             togglePassword.addEventListener('click', () => {
                 const icon = togglePassword.querySelector('i');
                 if (passwordInput.type === 'password') {
@@ -226,25 +229,27 @@ $scriptNonce = bin2hex(random_bytes(16));
                 }
 
                 fetch('backend/routes/reset_password.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ email: email })
-                })
-                .then(response => response.json())
-                .then(result => {
-                    if (result.status) {
-                        sessionStorage.setItem('email', email);
-                        sessionStorage.setItem('action', 'reset');
-                        showModal('Success', 'Password reset OTP sent to your email.', 'otp.php');
-                    } else {
-                        showModal('Error', result.message);
-                    }
-                })
-                .catch(error => {
-                    showModal('Error', 'An error occurred while requesting password reset.');
-                });
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            email: email
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.status) {
+                            sessionStorage.setItem('email', email);
+                            sessionStorage.setItem('action', 'reset');
+                            showModal('Success', 'Password reset OTP sent to your email.', 'otp.php');
+                        } else {
+                            showModal('Error', result.message);
+                        }
+                    })
+                    .catch(error => {
+                        showModal('Error', 'An error occurred while requesting password reset.');
+                    });
             });
 
             // Password Login Form Handler
@@ -337,7 +342,9 @@ $scriptNonce = bin2hex(random_bytes(16));
                 if (redirect) {
                     modal._element.addEventListener('hidden.bs.modal', () => {
                         window.location.href = redirect;
-                    }, { once: true });
+                    }, {
+                        once: true
+                    });
                 }
 
                 modal.show();

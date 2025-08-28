@@ -1,4 +1,7 @@
 <?php
+// Define constant for visually_impaired_modal.php
+define('IN_CAPSTONE', true);
+
 require_once 'backend/db/db_connect.php';
 
 // Configure session security based on environment
@@ -112,9 +115,20 @@ $scriptNonce = bin2hex(random_bytes(16));
             transition: all 0.3s ease;
         }
 
-        .strength-weak { background-color: #dc3545; width: 33%; }
-        .strength-medium { background-color: #ffc107; width: 66%; }
-        .strength-strong { background-color: #28a745; width: 100%; }
+        .strength-weak {
+            background-color: #dc3545;
+            width: 33%;
+        }
+
+        .strength-medium {
+            background-color: #ffc107;
+            width: 66%;
+        }
+
+        .strength-strong {
+            background-color: #28a745;
+            width: 100%;
+        }
 
         @media (min-width: 768px) {
             .right-pane {
@@ -130,7 +144,7 @@ $scriptNonce = bin2hex(random_bytes(16));
     <div class="left-pane">
         <div class="signup-card">
             <h2 class="text-center mb-4">Create Account</h2>
-            
+
             <div class="signup-options mb-4">
                 <div class="signup-option active" data-option="password">
                     <i class="bi bi-key"></i>
@@ -214,9 +228,9 @@ $scriptNonce = bin2hex(random_bytes(16));
             </form>
 
             <hr class="my-4">
-            
+
             <p class="text-center">
-                Already have an account? 
+                Already have an account?
                 <a href="login.php" class="text-decoration-none">Log in</a>
             </p>
         </div>
@@ -301,7 +315,7 @@ $scriptNonce = bin2hex(random_bytes(16));
                 option.addEventListener('click', function() {
                     signupOptions.forEach(opt => opt.classList.remove('active'));
                     this.classList.add('active');
-                    
+
                     const formType = this.dataset.option;
                     document.querySelectorAll('.form-section').forEach(form => {
                         form.classList.remove('active');
@@ -314,7 +328,7 @@ $scriptNonce = bin2hex(random_bytes(16));
             passwordInput.addEventListener('input', function() {
                 const strength = validatePassword(this.value);
                 updateStrengthIndicator(strength);
-                
+
                 if (confirmPasswordInput.value) {
                     confirmPasswordInput.setCustomValidity(
                         confirmPasswordInput.value === this.value ? '' : 'Passwords do not match.'
@@ -332,7 +346,7 @@ $scriptNonce = bin2hex(random_bytes(16));
             ['password', 'confirmPassword'].forEach(id => {
                 const input = document.getElementById(id);
                 const toggle = document.getElementById('toggle' + id.charAt(0).toUpperCase() + id.slice(1));
-                
+
                 toggle.addEventListener('click', () => {
                     const icon = toggle.querySelector('i');
                     if (input.type === 'password') {
@@ -436,7 +450,9 @@ $scriptNonce = bin2hex(random_bytes(16));
                 if (redirect) {
                     modal._element.addEventListener('hidden.bs.modal', () => {
                         window.location.href = redirect;
-                    }, { once: true });
+                    }, {
+                        once: true
+                    });
                 }
 
                 modal.show();
