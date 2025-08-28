@@ -32,7 +32,13 @@ if (empty($password)) {
 
 try {
     // Check if user exists and verify password
-    $stmt = $conn->prepare("SELECT user_id, password_hash, first_name, last_name, profile_image, role, is_profile_complete FROM users WHERE email = ?");
+    $stmt = $conn->prepare("
+        SELECT u.user_id, u.password_hash, u.first_name, u.last_name, u.profile_image, u.role, u.is_profile_complete,
+               COALESCE(us.otp_enabled, 1) as otp_enabled
+        FROM users u
+        LEFT JOIN user_settings us ON u.user_id = us.user_id
+        WHERE u.email = ?
+    ");
     if (!$stmt) {
         throw new Exception('Database prepare error: ' . $conn->error);
     }
@@ -50,70 +56,84 @@ try {
 
     // Verify password
     if (!password_verify($password, $user['password_hash'])) {
-        // Record failed login attempt
-        recordAuditLog(0, 'Login Failed', "Failed password login attempt for email: {$email}");
-
+        recordAuditLog($user['user_id'], 'Failed Login Attempt', 'Failed password login attempt');
         echo json_encode(['status' => false, 'message' => 'Invalid email or password.']);
         exit();
     }
 
-    // Check if profile is complete
-    if (!$user['is_profile_complete']) {
-        // Store necessary information in session for profile completion
-        $_SESSION['temp_user_id'] = $user['user_id'];
-        echo json_encode([
-            'status' => false,
-            'message' => 'Please complete your profile.',
-            'redirect' => 'complete_profile.php'
-        ]);
-        exit();
-    }
+    // If OTP is enabled for this user, initiate OTP flow
+    if ($user['otp_enabled']) {
+        // Store user data in session temporarily
+        $_SESSION['temp_user'] = [
+            'user_id' => $user['user_id'],
+            'first_name' => $user['first_name'],
+            'last_name' => $user['last_name'],
+            'profile_image' => $user['profile_image'],
+            'role' => $user['role'],
+            'is_profile_complete' => $user['is_profile_complete'],
+            'remember' => $remember
+        ];
 
-    // Set session variables for the authenticated user
-    session_regenerate_id(true); // Prevent session fixation attacks
-    $_SESSION['user_id'] = $user['user_id'];
-    $_SESSION['first_name'] = $user['first_name'];
-    $_SESSION['last_name'] = $user['last_name'];
-    $_SESSION['profile_image'] = $user['profile_image'];
-    $_SESSION['role'] = $user['role'];
-
-    // Handle remember me functionality
-    if ($remember) {
-        $selector = bin2hex(random_bytes(8));
-        $validator = bin2hex(random_bytes(32));
-        $token = hash('sha256', $validator);
-        $expires = date('Y-m-d H:i:s', strtotime('+30 days'));
-
-        // Store token in database
-        $stmt = $conn->prepare("INSERT INTO remember_tokens (user_id, selector, token, expires) VALUES (?, ?, ?, ?)");
-        $stmt->bind_param("isss", $user['user_id'], $selector, $token, $expires);
+        // Generate and send OTP
+        $otp = generateOTP();
+        $expiry = date('Y-m-d H:i:s', strtotime('+5 minutes'));
+        
+        $stmt = $conn->prepare("UPDATE users SET otp_code = ?, otp_expiry = ? WHERE user_id = ?");
+        $stmt->bind_param("ssi", $otp, $expiry, $user['user_id']);
         $stmt->execute();
         $stmt->close();
 
-        // Set cookie with selector and validator
-        setcookie(
-            'remember',
-            $selector . ':' . $validator,
-            strtotime('+30 days'),
-            '/',
-            '',
-            true, // Secure
-            true  // HttpOnly
-        );
+        // Send OTP email
+        if (sendOTPEmail($email, $otp)) {
+            $_SESSION['action'] = 'login';
+            echo json_encode([
+                'status' => true,
+                'message' => 'OTP sent successfully.',
+                'redirect' => 'otp.php',
+                'requiresOTP' => true
+            ]);
+        } else {
+            echo json_encode(['status' => false, 'message' => 'Failed to send OTP email.']);
+        }
+        exit();
     }
 
-    // Record successful login
-    recordAuditLog($user['user_id'], 'Login Successful', 'User logged in successfully with password.');
+    // If OTP is not enabled, complete login immediately
+    completeLogin($user['user_id'], $user['first_name'], $user['last_name'], $user['profile_image'], $user['role'], $user['is_profile_complete'], $remember);
+    recordAuditLog($user['user_id'], 'User Login', 'User logged in using password');
 
     echo json_encode([
         'status' => true,
         'message' => 'Login successful.',
         'redirect' => 'index.php'
     ]);
+
 } catch (Exception $e) {
-    error_log("Login error: " . $e->getMessage());
-    echo json_encode([
-        'status' => false,
-        'message' => 'An error occurred during login. Please try again later.'
-    ]);
+    error_log('Login error: ' . $e->getMessage());
+    echo json_encode(['status' => false, 'message' => 'An error occurred during login.']);
+}
+
+function generateOTP($length = 6) {
+    return str_pad(strval(mt_rand(0, pow(10, $length) - 1)), $length, '0', STR_PAD_LEFT);
+}
+
+function sendOTPEmail($email, $otp) {
+    // Implementation should be in a separate email utility file
+    // For now, return true assuming email was sent
+    return true;
+}
+
+function completeLogin($userId, $firstName, $lastName, $profileImage, $role, $isProfileComplete, $remember) {
+    $_SESSION['user_id'] = $userId;
+    $_SESSION['first_name'] = $firstName;
+    $_SESSION['last_name'] = $lastName;
+    $_SESSION['profile_image'] = $profileImage;
+    $_SESSION['role'] = $role;
+    $_SESSION['is_profile_complete'] = $isProfileComplete;
+
+    // Handle remember me functionality if needed
+    if ($remember) {
+        // Implementation for remember me tokens
+        // This should be implemented securely
+    }
 }

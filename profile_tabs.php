@@ -5,10 +5,10 @@
             role="tab" aria-controls="account" aria-selected="true">Account Settings</button>
     </li>
     <?php if (isset($_SESSION['user_id']) && (isset($_SESSION['role']) && $_SESSION['role'] !== 'user')): ?>
-    <li class="nav-item">
-        <button class="nav-link" id="events-tab" data-bs-toggle="tab" data-bs-target="#events" type="button" role="tab"
-            aria-controls="events" aria-selected="false">Events</button>
-    </li>
+        <li class="nav-item">
+            <button class="nav-link" id="events-tab" data-bs-toggle="tab" data-bs-target="#events" type="button" role="tab"
+                aria-controls="events" aria-selected="false">Events</button>
+        </li>
     <?php endif; ?>
     <li class="nav-item">
         <button class="nav-link" id="trainings-tab" data-bs-toggle="tab" data-bs-target="#trainings" type="button"
@@ -32,37 +32,60 @@
 <div class="tab-content mt-4">
     <!-- Account Settings -->
     <div class="tab-pane fade show active" id="account" role="tabpanel" aria-labelledby="account-tab">
-        <form id="profileForm" enctype="multipart/form-data">
-            <?php // Adding CSRF token for security 
-            ?>
-            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
-            <div class="text-center mb-3">
-                <img id="profileImage" src="assets/default-profile.jpeg" alt="Profile Image"
-                    class="profile-image rounded-circle" width="150" height="150">
-                <div class="mt-2">
-                    <label for="profile_image" class="form-label">Change Profile Image</label>
-                    <!-- Added accept attribute to allow only image files -->
-                    <input type="file" name="profile_image" id="profile_image" class="form-control" accept="image/*">
+        <div class="row">
+            <div class="col-lg-8">
+                <form id="profileForm" enctype="multipart/form-data">
+                    <?php // Adding CSRF token for security 
+                    ?>
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
+                    <div class="text-center mb-3">
+                        <img id="profileImage" src="assets/default-profile.jpeg" alt="Profile Image"
+                            class="profile-image rounded-circle" width="150" height="150">
+                        <div class="mt-2">
+                            <label for="profile_image" class="form-label">Change Profile Image</label>
+                            <!-- Added accept attribute to allow only image files -->
+                            <input type="file" name="profile_image" id="profile_image" class="form-control" accept="image/*">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="first_name" class="form-label">First Name</label>
+                        <input type="text" name="first_name" id="first_name" class="form-control" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="last_name" class="form-label">Last Name</label>
+                        <input type="text" name="last_name" id="last_name" class="form-control" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Role</label>
+                        <input type="text" name="role" id="role" class="form-control" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" name="email" id="email" class="form-control" readonly>
+                    </div>
+                    <button type="button" id="updateProfileBtn" class="btn btn-success">Update Profile</button>
+                </form>
+            </div>
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="card-title mb-0">Security Settings</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="securitySettingsForm">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" role="switch" id="otpEnabled" checked>
+                                <label class="form-check-label" for="otpEnabled">Enable OTP Verification</label>
+                            </div>
+                            <div class="form-text mb-3">
+                                When enabled, you'll be asked to enter an OTP (One-Time Password) sent to your email after logging in.
+                            </div>
+                            <button type="submit" class="btn btn-success">Save Security Settings</button>
+                        </form>
+                    </div>
                 </div>
             </div>
-            <div class="mb-3">
-                <label for="first_name" class="form-label">First Name</label>
-                <input type="text" name="first_name" id="first_name" class="form-control" readonly>
-            </div>
-            <div class="mb-3">
-                <label for="last_name" class="form-label">Last Name</label>
-                <input type="text" name="last_name" id="last_name" class="form-control" readonly>
-            </div>
-            <div class="mb-3">
-                <label for="role" class="form-label">Role</label>
-                <input type="text" name="role" id="role" class="form-control" readonly>
-            </div>
-            <div class="mb-3">
-                <label for="email" class="form-label">Email</label>
-                <input type="email" name="email" id="email" class="form-control" readonly>
-            </div>
-            <button type="button" id="updateProfileBtn" class="btn btn-success">Update Profile</button>
-        </form>
+        </div>
     </div>
 
     <!-- Events -->
@@ -176,18 +199,18 @@
             <!-- Notifications will be loaded here -->
         </div>
         <script>
-        // Load notifications when the Notifications tab is shown
-        document.addEventListener("DOMContentLoaded", function() {
-            var notificationsTab = document.getElementById('notifications-tab');
-            notificationsTab.addEventListener('shown.bs.tab', function() {
-                fetch('backend/routes/notifications.php')
-                    .then(response => response.json())
-                    .then(data => {
-                        var container = document.getElementById('notificationsList');
-                        if (data.status && data.notifications.length > 0) {
-                            let html = '';
-                            data.notifications.forEach(function(notif) {
-                                html += `<div class="card mb-2">
+            // Load notifications when the Notifications tab is shown
+            document.addEventListener("DOMContentLoaded", function() {
+                var notificationsTab = document.getElementById('notifications-tab');
+                notificationsTab.addEventListener('shown.bs.tab', function() {
+                    fetch('backend/routes/notifications.php')
+                        .then(response => response.json())
+                        .then(data => {
+                            var container = document.getElementById('notificationsList');
+                            if (data.status && data.notifications.length > 0) {
+                                let html = '';
+                                data.notifications.forEach(function(notif) {
+                                    html += `<div class="card mb-2">
                                         <div class="card-body">
                                             <h5 class="card-title">${notif.subject}</h5>
                                             <p class="card-text">${notif.body}</p>
@@ -195,18 +218,18 @@
                                             <p class="card-text"><small class="text-muted">${notif.sent_at}</small></p>
                                         </div>
                                     </div>`;
-                            });
-                            container.innerHTML = html;
-                        } else {
-                            container.innerHTML = '<p>No notifications found.</p>';
-                        }
-                    })
-                    .catch(err => {
-                        document.getElementById('notificationsList').innerHTML =
-                            '<p>Error loading notifications.</p>';
-                    });
+                                });
+                                container.innerHTML = html;
+                            } else {
+                                container.innerHTML = '<p>No notifications found.</p>';
+                            }
+                        })
+                        .catch(err => {
+                            document.getElementById('notificationsList').innerHTML =
+                                '<p>Error loading notifications.</p>';
+                        });
+                });
             });
-        });
         </script>
     </div>
 

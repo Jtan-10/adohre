@@ -207,6 +207,48 @@ header("X-Content-Type-Options: nosniff");
             }
 
 
+            // Fetch and handle security settings
+            fetch('backend/routes/user_settings.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status) {
+                        const otpEnabled = document.getElementById('otpEnabled');
+                        otpEnabled.checked = data.settings.otp_enabled === 1;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching security settings:', error);
+                    showToast('Error loading security settings.', 'danger');
+                });
+
+            // Handle security settings form submission
+            document.getElementById('securitySettingsForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const otpEnabled = document.getElementById('otpEnabled').checked;
+
+                fetch('backend/routes/user_settings.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            otp_enabled: otpEnabled
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status) {
+                            showToast('Security settings updated successfully.', 'success');
+                        } else {
+                            showToast(data.message || 'Failed to update security settings.', 'danger');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error updating security settings:', error);
+                        showToast('Error updating security settings.', 'danger');
+                    });
+            });
+
             // Load payments when the Payments tab is clicked
             document.getElementById('payments-tab').addEventListener('click', function() {
                 fetchPayments();
