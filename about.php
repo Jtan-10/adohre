@@ -6,8 +6,8 @@ require_once 'backend/utils/access_control.php';
 configureSessionSecurity();
 session_start();
 
-// Require authentication and OTP completion
-requireAuthentication();
+// Check authentication status (but don't require it)
+$isLoggedIn = isset($_SESSION['user_id']);
 
 // Default visually impaired flag is 0.
 $isVisuallyImpaired = 0;

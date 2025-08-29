@@ -6,8 +6,8 @@ require_once 'backend/utils/access_control.php';
 configureSessionSecurity();
 session_start();
 
-// Require authentication and OTP completion
-requireAuthentication();
+// Check authentication status (but don't require it for the form)
+$isLoggedIn = isset($_SESSION['user_id']);
 
 header("X-Frame-Options: DENY"); // Send header instead of using <meta> tag.
 if (empty($_SESSION['csrf_token'])) {

@@ -8,8 +8,6 @@ if (!isset($conn) || !$conn->ping()) {
     require 'backend/db/db_connect.php';
 }
 
-
-
 // Generate a unique nonce for inline scripts.
 $scriptNonce = bin2hex(random_bytes(16));
 
@@ -17,132 +15,126 @@ $scriptNonce = bin2hex(random_bytes(16));
 $current_page = basename($_SERVER['PHP_SELF']);
 $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appointments.php' || $current_page == 'medical_assistance.php');
 ?>
-<!DOCTYPE html>
-<html lang="en">
 
-<head>
-    <meta charset="UTF-8">
-    <title>Sidebar</title>
-    <!-- Include Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        /* Modern Sidebar Styles - Centered */
+<!-- Sidebar Styles -->
+<style>
+    /* Modern Sidebar Styles - Centered */
+    #sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 250px;
+        background-color: #198754;
+        color: #fff;
+        transition: all 0.3s ease;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        box-shadow: 3px 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    #sidebar.collapsed {
+        transform: translateX(-100%);
+    }
+
+    .sidebar-header {
+        text-align: center;
+        padding: 0;
+        margin-bottom: 0;
+    }
+
+    #sidebar ul.components {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+    }
+
+    #sidebar ul li {
+        margin: 0;
+        width: 100%;
+    }
+
+    #sidebar ul li a {
+        display: block;
+        width: 100%;
+        padding: 10px;
+        font-size: 1.1em;
+        color: #fff;
+        text-decoration: none;
+        text-align: center;
+        border-radius: 4px;
+        transition: background 0.3s ease;
+    }
+
+    #sidebar ul li a:hover {
+        background: rgba(255, 255, 255, 0.15);
+    }
+
+    #sidebar ul li.active>a {
+        background: rgba(0, 0, 0, 0.2);
+        color: #fff;
+    }
+
+    #sidebar ul li ul.submenu {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease;
+    }
+
+    #sidebar ul li ul.submenu.show {
+        max-height: 300px;
+    }
+
+    #sidebar ul li ul.submenu li {
+        margin: 0;
+    }
+
+    #sidebar ul li ul.submenu li a {
+        font-size: 0.95em;
+    }
+
+    #sidebarCollapse {
+        position: fixed;
+        top: 50%;
+        transform: translateY(-50%);
+        background: #198754;
+        border: none;
+        border-radius: 0 4px 4px 0;
+        padding: 10px 12px;
+        cursor: pointer;
+        z-index: 1001;
+        color: #fff;
+        font-size: 1.2em;
+        transition: left 0.3s ease;
+        box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+    }
+
+    #sidebarCollapse.expanded {
+        left: 250px;
+    }
+
+    @media (max-width: 768px) {
         #sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 100%;
-            width: 250px;
-            background-color: #198754;
-            color: #fff;
-            transition: all 0.3s ease;
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 0;
-            box-shadow: 3px 0 10px rgba(0, 0, 0, 0.1);
-        }
-
-        #sidebar.collapsed {
-            transform: translateX(-100%);
-        }
-
-        .sidebar-header {
-            text-align: center;
-            padding: 0;
-            margin-bottom: 0;
-        }
-
-        #sidebar ul.components {
-            list-style: none;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 1rem;
-        }
-
-        #sidebar ul li {
-            margin: 0;
-            width: 100%;
-        }
-
-        #sidebar ul li a {
-            display: block;
-            width: 100%;
-            padding: 10px;
-            font-size: 1.1em;
-            color: #fff;
-            text-decoration: none;
-            text-align: center;
-            border-radius: 4px;
-            transition: background 0.3s ease;
-        }
-
-        #sidebar ul li a:hover {
-            background: rgba(255, 255, 255, 0.15);
-        }
-
-        #sidebar ul li.active>a {
-            background: rgba(0, 0, 0, 0.2);
-            color: #fff;
-        }
-
-        #sidebar ul li ul.submenu {
-            list-style: none;
-            margin: 0;
-            padding: 0;
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease;
-        }
-
-        #sidebar ul li ul.submenu.show {
-            max-height: 300px;
-        }
-
-        #sidebar ul li ul.submenu li {
-            margin: 0;
-        }
-
-        #sidebar ul li ul.submenu li a {
-            font-size: 0.95em;
-        }
-
-        #sidebarCollapse {
-            position: fixed;
-            top: 50%;
-            transform: translateY(-50%);
-            background: #198754;
-            border: none;
-            border-radius: 0 4px 4px 0;
-            padding: 10px 12px;
-            cursor: pointer;
-            z-index: 1001;
-            color: #fff;
-            font-size: 1.2em;
-            transition: left 0.3s ease;
-            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+            width: 200px;
         }
 
         #sidebarCollapse.expanded {
-            left: 250px;
+            left: 200px;
         }
-
-        @media (max-width: 768px) {
-            #sidebar {
-                width: 200px;
-            }
-
-            #sidebarCollapse.expanded {
-                left: 200px;
-            }
-        }
-    </style>
+    }
+</style>
 </head>
 
 <body>
@@ -339,6 +331,3 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
             }
         });
     </script>
-</body>
-
-</html>

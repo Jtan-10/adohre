@@ -18,8 +18,9 @@ session_start();
 require_once 'backend/db/db_connect.php';
 require_once 'backend/utils/access_control.php';
 
-// Require authentication and OTP completion
-requireAuthentication();
+// Check if user is authenticated (but don't require it for homepage)
+$isLoggedIn = isset($_SESSION['user_id']);
+$isOTPRequired = isset($_SESSION['otp_pending']) && $_SESSION['otp_pending'] === true;
 
 // Default visually impaired flag is 0.
 $isVisuallyImpaired = 0;
@@ -37,7 +38,7 @@ if (isset($_SESSION['user_id'])) {
 
 
 // Check if the logged-in user is a member and does not have a membership application record.
-if (isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
+if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
     $stmtApp = $conn->prepare("SELECT COUNT(*) as count FROM membership_applications WHERE user_id = ?");
     $stmtApp->bind_param("i", $_SESSION['user_id']);
     $stmtApp->execute();

@@ -6,10 +6,8 @@ require_once 'backend/utils/access_control.php';
 configureSessionSecurity();
 session_start();
 
-// Require authentication and OTP completion
-requireAuthentication();
-
-$nonce = bin2hex(random_bytes(16)); // generate nonce
+// Check authentication status (but don't require it)
+$isLoggedIn = isset($_SESSION['user_id']);
 
 // Production security headers with updated Content Security Policy
 header("X-Frame-Options: DENY");

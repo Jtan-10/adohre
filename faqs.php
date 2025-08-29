@@ -1,9 +1,4 @@
 <?php
-// Include header and sidebar as needed
-include('header.php');
-include('sidebar.php');
-?>
-<?php
 // (Optional) include any backend initialization if needed
 ?>
 <!DOCTYPE html>
@@ -19,68 +14,73 @@ include('sidebar.php');
     <!-- Custom CSS -->
     <link rel="stylesheet" href="assets/style.css">
     <style>
-    /* FAQ Hero Section */
-    .faq-hero {
-        position: relative;
-        background: url('assets/faq-hero.jpg') no-repeat center center/cover;
-        padding: 120px 0;
-        color: #fff;
-        text-align: center;
-    }
+        /* FAQ Hero Section */
+        .faq-hero {
+            position: relative;
+            background: url('assets/faq-hero.jpg') no-repeat center center/cover;
+            padding: 120px 0;
+            color: #fff;
+            text-align: center;
+        }
 
-    .faq-hero::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.6);
-        z-index: 1;
-    }
+        .faq-hero::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1;
+        }
 
-    .faq-hero .container {
-        position: relative;
-        z-index: 2;
-    }
+        .faq-hero .container {
+            position: relative;
+            z-index: 2;
+        }
 
-    .faq-hero h1 {
-        font-size: 2.8rem;
-        font-weight: 700;
-        margin-bottom: 20px;
-    }
+        .faq-hero h1 {
+            font-size: 2.8rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
 
-    /* FAQ Main Content Styles */
-    main.container {
-        margin-top: 40px;
-        margin-bottom: 40px;
-    }
+        /* FAQ Main Content Styles */
+        main.container {
+            margin-top: 40px;
+            margin-bottom: 40px;
+        }
 
-    .faq-item {
-        margin-bottom: 2rem;
-    }
+        .faq-item {
+            margin-bottom: 2rem;
+        }
 
-    .faq-item h3 {
-        font-size: 1.75rem;
-        color: var(--accent-color, #28A745);
-        margin-bottom: 0.5rem;
-    }
+        .faq-item h3 {
+            font-size: 1.75rem;
+            color: var(--accent-color, #28A745);
+            margin-bottom: 0.5rem;
+        }
 
-    .faq-item p,
-    .faq-item ul {
-        font-size: 1rem;
-        line-height: 1.6;
-    }
+        .faq-item p,
+        .faq-item ul {
+            font-size: 1rem;
+            line-height: 1.6;
+        }
 
-    .faq-item ul {
-        list-style: disc;
-        padding-left: 20px;
-    }
+        .faq-item ul {
+            list-style: disc;
+            padding-left: 20px;
+        }
     </style>
 </head>
 
 <body>
-    <!-- Header and Sidebar already included above -->
+    <!-- Header -->
+    <?php include('header.php'); ?>
+
+    <!-- Sidebar -->
+    <?php include('sidebar.php'); ?>
+
     <!-- FAQ Hero Section -->
     <section class="faq-hero">
         <div class="container">
