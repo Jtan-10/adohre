@@ -68,7 +68,12 @@ if ($stmt) {
         <a class="navbar-brand" href="index.php">
             <?php if (strpos($headerLogo, 's3proxy') !== false): ?>
                 <!-- For S3 images that need decryption -->
-                <img src="/capstone-php/backend/routes/decrypt_image.php?image_url=<?= urlencode($headerLogo) ?>"
+                <img src="/capstone-php/decrypt_image_simple.php?image_url=<?= urlencode($headerLogo) ?>"
+                    alt="<?= htmlspecialchars($headerName, ENT_QUOTES, 'UTF-8') ?> Logo" width="30" height="28"
+                    class="d-inline-block align-text-top">
+            <?php elseif (strpos($headerLogo, 'http') === 0): ?>
+                <!-- For external image URLs -->
+                <img src="<?= htmlspecialchars($headerLogo, ENT_QUOTES, 'UTF-8') ?>"
                     alt="<?= htmlspecialchars($headerName, ENT_QUOTES, 'UTF-8') ?> Logo" width="30" height="28"
                     class="d-inline-block align-text-top">
             <?php else: ?>
@@ -103,7 +108,7 @@ if ($stmt) {
                         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"
                             data-bs-toggle="dropdown" aria-expanded="false">
                             <img id="profileImageNav" src="<?= isset($_SESSION['profile_image'])
-                                                                ? '/capstone-php/backend/routes/decrypt_image.php?image_url=' . urlencode($_SESSION['profile_image'])
+                                                                ? '/capstone-php/decrypt_image_simple.php?image_url=' . urlencode($_SESSION['profile_image'])
                                                                 : './assets/default-profile.jpeg' ?>"
                                 alt="Profile Image" class="profile-image-header rounded-circle" width="30" height="30">
                         </a>

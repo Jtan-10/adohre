@@ -21,8 +21,13 @@ if (!$imageUrl) {
     exit;
 }
 
+// Handle S3 proxy URLs
+if (strpos($imageUrl, '/s3proxy/') === 0) {
+    // This is an S3 proxy URL, we need to handle it through the s3proxy.php script
+    $imageUrl = 'http://' . $_SERVER['HTTP_HOST'] . $imageUrl;
+}
 // If the URL is relative (starts with '/'), build an absolute URL based on the current host.
-if (strpos($imageUrl, '/') === 0) {
+elseif (strpos($imageUrl, '/') === 0) {
     $imageUrl = 'http://' . $_SERVER['HTTP_HOST'] . $imageUrl;
 } elseif (!preg_match('/^https?:\/\//', $imageUrl)) {
     // If the URL doesn't start with http:// or https://, assume it is relative.
