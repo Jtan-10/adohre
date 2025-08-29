@@ -594,7 +594,7 @@ if (isset($_SESSION['user_id'])) {
                             <i class="fa fa-up-right-and-down-left-from-center me-1"></i> View full-screen
                         </button>
                     <?php endif; ?>
-                    <button class="btn btn-outline-dark" data-bs-toggle="collapse" data-bs-target="#orgTextOutline" aria-expanded="false" aria-controls="orgTextOutline">
+                    <button type="button" class="btn btn-outline-dark" data-bs-toggle="collapse" data-bs-target="#orgTextOutline" aria-expanded="false" aria-controls="orgTextOutline">
                         <i class="fa fa-list me-1"></i> Text outline
                     </button>
                 </div>
@@ -814,6 +814,23 @@ if (isset($_SESSION['user_id'])) {
                 scale = 1;
                 apply();
             });
+        })();
+    </script>
+    <script>
+        // Robust toggle for the Text outline to ensure it collapses on second click
+        (function() {
+            const outlineEl = document.getElementById('orgTextOutline');
+            const outlineBtn = document.querySelector('[data-bs-target="#orgTextOutline"]');
+            if (!outlineEl || !outlineBtn || typeof bootstrap === 'undefined' || !bootstrap.Collapse) return;
+            const collapse = new bootstrap.Collapse(outlineEl, {
+                toggle: false
+            });
+            outlineBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                collapse.toggle();
+            });
+            outlineEl.addEventListener('shown.bs.collapse', () => outlineBtn.setAttribute('aria-expanded', 'true'));
+            outlineEl.addEventListener('hidden.bs.collapse', () => outlineBtn.setAttribute('aria-expanded', 'false'));
         })();
     </script>
 </body>
