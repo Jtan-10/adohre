@@ -21,42 +21,42 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 ?>
 
 <style nonce="<?= $cspNonce ?>">
-.sidebar {
-    background-color: #198754;
-    min-height: 100vh;
-    color: white;
-    transition: all 0.3s ease-in-out;
-    width: 200px;
-}
+    .sidebar {
+        background-color: #198754;
+        min-height: 100vh;
+        color: white;
+        transition: all 0.3s ease-in-out;
+        width: 200px;
+    }
 
-.sidebar-collapsed {
-    width: 80px !important;
-}
+    .sidebar-collapsed {
+        width: 80px !important;
+    }
 
-.sidebar .nav-link {
-    color: white;
-    font-weight: 500;
-}
+    .sidebar .nav-link {
+        color: white;
+        font-weight: 500;
+    }
 
-.sidebar .nav-link.active {
-    background-color: #157347;
-    font-weight: bold;
-}
+    .sidebar .nav-link.active {
+        background-color: #157347;
+        font-weight: bold;
+    }
 
-.sidebar-collapsed .nav-link {
-    text-align: center;
-}
+    .sidebar-collapsed .nav-link {
+        text-align: center;
+    }
 
-.sidebar-collapsed .nav-link span {
-    display: none;
-}
+    .sidebar-collapsed .nav-link span {
+        display: none;
+    }
 
-.toggle-btn {
-    background: none;
-    border: none;
-    color: white;
-    font-size: 1.5rem;
-}
+    .toggle-btn {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 1.5rem;
+    }
 </style>
 
 <div id="sidebar" class="sidebar sidebar-collapsed p-3">
@@ -73,9 +73,6 @@ $currentPage = basename($_SERVER['PHP_SELF']);
         <a href="content_manager.php"
             class="nav-link <?php echo $currentPage === 'content_manager.php' ? 'active' : ''; ?>">
             <i class="bi bi-journal"></i> <span>Content Manager</span>
-        </a>
-        <a href="news.php" class="nav-link <?php echo $currentPage === 'news.php' ? 'active' : ''; ?>">
-            <i class="bi bi-newspaper"></i> <span>News Management</span>
         </a>
         <!-- Payments tab added here -->
         <a href="payments.php" class="nav-link <?php echo $currentPage === 'payments.php' ? 'active' : ''; ?>">
@@ -114,16 +111,16 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 </div>
 
 <script nonce="<?= $cspNonce ?>">
-// Toggle Sidebar
-const sidebar = document.getElementById('sidebar');
-const toggleSidebar = document.getElementById('toggleSidebar');
+    // Toggle Sidebar
+    const sidebar = document.getElementById('sidebar');
+    const toggleSidebar = document.getElementById('toggleSidebar');
 
-// Initialize the sidebar in collapsed state
-sidebar.classList.add('sidebar-collapsed');
+    // Initialize the sidebar in collapsed state
+    sidebar.classList.add('sidebar-collapsed');
 
-if (toggleSidebar) { // defensive check
-    toggleSidebar.addEventListener('click', () => {
-        sidebar.classList.toggle('sidebar-collapsed');
-    });
-}
+    if (toggleSidebar) { // defensive check
+        toggleSidebar.addEventListener('click', () => {
+            sidebar.classList.toggle('sidebar-collapsed');
+        });
+    }
 </script>

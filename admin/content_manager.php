@@ -103,6 +103,26 @@ if (!isset($_SESSION['csrf_token'])) {
         </main>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script nonce="<?= $cspNonce ?>">
+        // Allow deep-linking to a specific tab via hash (e.g., #news)
+        document.addEventListener('DOMContentLoaded', () => {
+            const hash = window.location.hash;
+            if (hash) {
+                const trigger = document.querySelector(`[data-bs-target="${hash}"]`);
+                if (trigger) {
+                    const tab = new bootstrap.Tab(trigger);
+                    tab.show();
+                }
+            }
+            // Update URL hash when switching tabs (without scrolling)
+            document.querySelectorAll('#contentTabs button[data-bs-toggle="tab"]').forEach(btn => {
+                btn.addEventListener('shown.bs.tab', (e) => {
+                    const target = e.target.getAttribute('data-bs-target');
+                    if (target) history.replaceState(null, '', target);
+                });
+            });
+        });
+    </script>
 </body>
 
 </html>
