@@ -45,15 +45,19 @@ if (strpos($imageUrl, '/s3proxy/') !== false) {
     $imageUrl = $baseUrl . $s3Key;
     error_log("S3 proxy mapped to S3 URL: $imageUrl");
 }
-// If the URL is relative (starts with '/'), build an absolute URL based on the current host
-elseif (strpos($imageUrl, '/') === 0) {
-    $imageUrl = 'http://' . $_SERVER['HTTP_HOST'] . $imageUrl;
-    error_log("Relative URL processed: $imageUrl");
-}
-// If the URL doesn't start with http:// or https://, assume it is relative
-elseif (!preg_match('/^https?:\/\//', $imageUrl)) {
-    $imageUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/capstone-php/' . ltrim($imageUrl, '/');
-    error_log("No protocol URL processed: $imageUrl");
+// Normalize to absolute URL without hardcoding project folder
+else {
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    if (strpos($imageUrl, '/') === 0) {
+        // Leading slash: root-relative to current host
+        $imageUrl = $scheme . '://' . $_SERVER['HTTP_HOST'] . $imageUrl;
+        error_log("Relative URL processed: $imageUrl");
+    } elseif (!preg_match('/^https?:\/\//', $imageUrl)) {
+        // Plain relative path: relative to current script directory
+        $basePath = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
+        $imageUrl = $scheme . '://' . $_SERVER['HTTP_HOST'] . $basePath . '/' . ltrim($imageUrl, '/');
+        error_log("No protocol URL processed: $imageUrl");
+    }
 }
 
 // Download the encrypted PNG data.

@@ -1,9 +1,15 @@
 <?php
 require_once 'backend/db/db_connect.php';
+// Ensure access control helpers are available
+if (!function_exists('configureSessionSecurity')) {
+    @require_once 'backend/utils/access_control.php';
+}
 
 if (session_status() === PHP_SESSION_NONE) {
-    // Configure session security based on environment
-    configureSessionSecurity();
+    if (function_exists('configureSessionSecurity')) {
+        // Configure session security based on environment
+        configureSessionSecurity();
+    }
     session_start();
 }
 
@@ -68,7 +74,7 @@ if ($stmt) {
         <a class="navbar-brand" href="index.php">
             <?php if (strpos($headerLogo, 's3proxy') !== false || strpos($headerLogo, 'amazonaws.com') !== false): ?>
                 <!-- For S3 images that need decryption -->
-                <img src="/capstone-php/backend/routes/decrypt_image.php?image_url=<?= urlencode($headerLogo) ?>"
+                <img src="backend/routes/decrypt_image.php?image_url=<?= urlencode($headerLogo) ?>"
                     alt="<?= htmlspecialchars($headerName, ENT_QUOTES, 'UTF-8') ?> Logo" width="30" height="28"
                     class="d-inline-block align-text-top">
             <?php elseif (strpos($headerLogo, 'http') === 0): ?>
@@ -78,7 +84,14 @@ if ($stmt) {
                     class="d-inline-block align-text-top">
             <?php else: ?>
                 <!-- For regular images from the assets folder -->
-                <?php $localLogo = (strpos($headerLogo, '/capstone-php/') === 0) ? $headerLogo : '/capstone-php/' . ltrim($headerLogo, '/'); ?>
+                <?php
+                // Normalize any stored absolute paths like "/capstone-php/assets/..." to relative "assets/..."
+                $localLogo = $headerLogo;
+                if (strpos($localLogo, '/capstone-php/') === 0) {
+                    $localLogo = substr($localLogo, strlen('/capstone-php/'));
+                }
+                $localLogo = ltrim($localLogo, '/');
+                ?>
                 <img src="<?= htmlspecialchars($localLogo, ENT_QUOTES, 'UTF-8') ?>"
                     alt="<?= htmlspecialchars($headerName, ENT_QUOTES, 'UTF-8') ?> Logo" width="30" height="28"
                     class="d-inline-block align-text-top">
@@ -109,8 +122,8 @@ if ($stmt) {
                         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"
                             data-bs-toggle="dropdown" aria-expanded="false">
                             <img id="profileImageNav" src="<?= isset($_SESSION['profile_image'])
-                                                                ? '/capstone-php/backend/routes/decrypt_image.php?image_url=' . urlencode($_SESSION['profile_image'])
-                                                                : './assets/default-profile.jpeg' ?>"
+                                                                ? 'backend/routes/decrypt_image.php?image_url=' . urlencode($_SESSION['profile_image'])
+                                                                : 'assets/default-profile.jpeg' ?>"
                                 alt="Profile Image" class="profile-image-header rounded-circle" width="30" height="30">
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">

@@ -1,9 +1,15 @@
 <?php
 require_once '../backend/db/db_connect.php';
+// Ensure access control helpers are available
+if (!function_exists('configureSessionSecurity')) {
+    @require_once '../backend/utils/access_control.php';
+}
 
 if (session_status() === PHP_SESSION_NONE) {
-    // Configure session security based on environment
-    configureSessionSecurity();
+    if (function_exists('configureSessionSecurity')) {
+        // Configure session security based on environment
+        configureSessionSecurity();
+    }
     session_start();
 }
 
@@ -19,7 +25,7 @@ require_once __DIR__ . '/../backend/db/db_connect.php';
 
 /* Begin update: Retrieve header settings from DB instead of session variables */
 $headerName = 'ADOHRE';
-$headerLogo = '/capstone-php/assets/logo.png';
+$headerLogo = '../assets/logo.png';
 
 $stmt = $conn->prepare("SELECT `key`, value FROM settings WHERE `key` IN ('header_name', 'header_logo')");
 if ($stmt) {
@@ -52,10 +58,10 @@ $isLoggedIn = isset($_SESSION['user_id']);
             <div class="hamburger-placeholder"></div>
         <?php endif; ?>
 
-        <a class="navbar-brand d-flex align-items-center text-white" href="/capstone-php/admin/dashboard.php">
+        <a class="navbar-brand d-flex align-items-center text-white" href="dashboard.php">
             <?php if (strpos($headerLogo, 's3proxy') !== false || strpos($headerLogo, 'amazonaws.com') !== false): ?>
                 <!-- For S3 images that need decryption -->
-                <img src="/capstone-php/backend/routes/decrypt_image.php?image_url=<?= urlencode($headerLogo) ?>"
+                <img src="../backend/routes/decrypt_image.php?image_url=<?= urlencode($headerLogo) ?>"
                     alt="<?= htmlspecialchars($headerName, ENT_QUOTES) ?> Logo" width="30" height="28"
                     class="d-inline-block align-text-top">
             <?php elseif (strpos($headerLogo, 'http') === 0): ?>
@@ -65,8 +71,15 @@ $isLoggedIn = isset($_SESSION['user_id']);
                     class="d-inline-block align-text-top">
             <?php else: ?>
                 <!-- For regular images from the assets folder -->
-                <?php $localLogo = (strpos($headerLogo, '/capstone-php/') === 0) ? $headerLogo : '/capstone-php/' . ltrim($headerLogo, '/'); ?>
-                <img src="<?= htmlspecialchars($localLogo, ENT_QUOTES) ?>"
+                <?php
+                // Normalize any stored absolute path to a relative path from /admin
+                $localLogo = $headerLogo;
+                if (strpos($localLogo, '/capstone-php/') === 0) {
+                    $localLogo = substr($localLogo, strlen('/capstone-php/'));
+                }
+                $localLogo = ltrim($localLogo, '/');
+                ?>
+                <img src="<?= htmlspecialchars('../' . $localLogo, ENT_QUOTES) ?>"
                     alt="<?= htmlspecialchars($headerName, ENT_QUOTES) ?> Logo" width="30" height="28"
                     class="d-inline-block align-text-top">
             <?php endif; ?>
@@ -79,29 +92,29 @@ $isLoggedIn = isset($_SESSION['user_id']);
                     <a class="nav-link dropdown-toggle text-white" href="#" id="navbarDropdown" role="button"
                         data-bs-toggle="dropdown" aria-expanded="false">
                         <img id="profileImageNav" src="<?php echo isset($_SESSION['profile_image'])
-                                                            ? '/capstone-php/backend/routes/decrypt_image.php?image_url=' . urlencode($_SESSION['profile_image'])
-                                                            : '/capstone-php/assets/default-profile.jpeg'; ?>"
+                                                            ? '../backend/routes/decrypt_image.php?image_url=' . urlencode($_SESSION['profile_image'])
+                                                            : '../assets/default-profile.jpeg'; ?>"
                             alt="Profile Image" class="rounded-circle" width="30" height="30">
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end position-absolute" aria-labelledby="navbarDropdown">
-                        <li><a class="dropdown-item" href="/capstone-php/index.php">Home</a></li>
-                        <li><a class="dropdown-item" href="/capstone-php/profile.php">Profile</a></li>
+                        <li><a class="dropdown-item" href="../index.php">Home</a></li>
+                        <li><a class="dropdown-item" href="../profile.php">Profile</a></li>
                         <?php if ($_SESSION['role'] === 'admin'): ?>
-                            <li><a class="dropdown-item" href="/capstone-php/admin/dashboard.php">Admin Dashboard</a></li>
+                            <li><a class="dropdown-item" href="dashboard.php">Admin Dashboard</a></li>
                         <?php endif; ?>
                         <?php if ($_SESSION['role'] === 'trainer'): ?>
-                            <li><a class="dropdown-item" href="/capstone-php/admin/trainer/dashboard.php">Trainer Dashboard</a>
+                            <li><a class="dropdown-item" href="trainer/dashboard.php">Trainer Dashboard</a>
                             </li>
                         <?php endif; ?>
-                        <li><a class="dropdown-item" href="/capstone-php/logout.php">Logout</a></li>
+                        <li><a class="dropdown-item" href="../logout.php">Logout</a></li>
                     </ul>
                 </li>
             <?php else: ?>
                 <li class="nav-item mx-2">
-                    <a href="/capstone-php/login.php" class="btn btn-light btn-sm">Login</a>
+                    <a href="../login.php" class="btn btn-light btn-sm">Login</a>
                 </li>
                 <li class="nav-item mx-2">
-                    <a href="/capstone-php/signup.php" class="btn btn-light btn-sm">Sign Up</a>
+                    <a href="../signup.php" class="btn btn-light btn-sm">Sign Up</a>
                 </li>
             <?php endif; ?>
         </ul>
