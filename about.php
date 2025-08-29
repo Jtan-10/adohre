@@ -115,6 +115,31 @@ if (isset($_SESSION['user_id'])) {
             padding: 60px 0;
         }
 
+        /* Improve arrow visibility on the Core Pillars carousel */
+        #pmvCarousel .carousel-control-prev,
+        #pmvCarousel .carousel-control-next {
+            width: 48px;
+            height: 48px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 50%;
+            opacity: 1;
+        }
+
+        #pmvCarousel .carousel-control-prev-icon,
+        #pmvCarousel .carousel-control-next-icon {
+            background-size: 24px 24px;
+        }
+
+        #pmvCarousel .carousel-control-prev-icon {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%2328A745' viewBox='0 0 16 16'%3E%3Cpath d='M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z'/%3E%3C/svg%3E");
+        }
+
+        #pmvCarousel .carousel-control-next-icon {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%2328A745' viewBox='0 0 16 16'%3E%3Cpath d='M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+        }
+
         /* Core Values Card Styling */
         .core-value-card {
             border: none;
