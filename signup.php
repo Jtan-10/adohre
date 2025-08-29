@@ -333,6 +333,16 @@ $scriptNonce = bin2hex(random_bytes(16));
 
         <hr class="my-4">
 
+        <!-- Debug Section (Remove in production) -->
+        <div class="mt-4 p-3 bg-light rounded" id="debugSection" style="display: none;">
+            <h6 class="text-muted">Debug: Test Email Verification</h6>
+            <div class="input-group">
+                <input type="email" class="form-control" id="debugEmail" placeholder="Enter test email">
+                <button class="btn btn-outline-secondary" type="button" id="testEmailBtn">Test Email</button>
+            </div>
+            <div id="debugResult" class="mt-2 small text-muted"></div>
+        </div>
+
         <p class="text-center">
             Already have an account?
             <a href="login.php">Log in</a>
@@ -677,6 +687,49 @@ $scriptNonce = bin2hex(random_bytes(16));
 
                 modal.show();
             }
+
+            // Debug functionality (remove in production)
+            document.getElementById('testEmailBtn').addEventListener('click', async function() {
+                const debugEmail = document.getElementById('debugEmail').value;
+                const debugResult = document.getElementById('debugResult');
+
+                if (!debugEmail || !debugEmail.includes('@')) {
+                    debugResult.innerHTML = '<span class="text-danger">Please enter a valid email address.</span>';
+                    return;
+                }
+
+                debugResult.innerHTML = '<span class="text-info">Sending test email...</span>';
+
+                try {
+                    const response = await fetch('backend/routes/test_email_verification.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            testEmail: debugEmail
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.status) {
+                        debugResult.innerHTML = `
+                            <span class="text-success">✅ Test email sent successfully!</span><br>
+                            <small class="text-muted">Check ${debugEmail} for the verification code: ${result.debug.code_generated}</small>
+                        `;
+                    } else {
+                        debugResult.innerHTML = `
+                            <span class="text-danger">❌ Failed to send test email: ${result.message}</span>
+                        `;
+                    }
+                } catch (error) {
+                    debugResult.innerHTML = '<span class="text-danger">❌ Error: ' + error.message + '</span>';
+                }
+            });
+
+            // Show debug section (uncomment to enable)
+            // document.getElementById('debugSection').style.display = 'block';
         });
     </script>
 </body>

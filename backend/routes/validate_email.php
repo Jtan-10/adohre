@@ -40,8 +40,11 @@ try {
     }
 
     // Generate verification code
-    $verificationCode = generateOTP(6); // 6-digit code
+    $verificationCode = generateVerificationCode(6); // 6-digit code
     $expiry = date('Y-m-d H:i:s', strtotime('+10 minutes'));
+
+    // Log the verification code (for debugging - remove in production)
+    error_log("Generated verification code for $email: $verificationCode");
 
     // Store verification code in session
     $_SESSION['email_verification'] = [

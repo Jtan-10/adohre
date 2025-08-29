@@ -285,13 +285,27 @@ function sendEmailVerification($email, $verificationCode)
         $mail->Subject = 'Email Verification Code - Member Link';
         $mail->Body = "Your email verification code is: $verificationCode\n\nThis code will expire in 10 minutes.\n\nIf you didn't request this verification, please ignore this email.";
 
+        // Log the email details (for debugging)
+        error_log("Sending verification email to $email with code: $verificationCode");
+
         // Attempt to send the email.
         $mail->send();
+        error_log("Verification email sent successfully to $email");
         return true;
     } catch (Exception $e) {
         error_log("PHPMailer Error: " . $mail->ErrorInfo);
         return false;
     }
+}
+
+function generateVerificationCode($length = 6)
+{
+    // Generate a random numeric code of specified length
+    $code = '';
+    for ($i = 0; $i < $length; $i++) {
+        $code .= random_int(0, 9);
+    }
+    return $code;
 }
 
 function generateVirtualId($length = 16)
