@@ -537,6 +537,22 @@ if (isset($_SESSION['user_id'])) {
                 </div>
             </div>
         </section>
+
+        <!-- Call to Action Band -->
+        <section class="section-padding bg-light">
+            <div class="container">
+                <div class="p-4 p-md-5 d-flex flex-column flex-md-row align-items-center justify-content-between gap-3 shadow-sm" style="background: linear-gradient(90deg, #28A745, #2ecc71); color: #fff; border-radius: 12px;">
+                    <div>
+                        <h3 class="mb-1">Be part of ADOHRE</h3>
+                        <p class="mb-0">Join our community of retired health professionals and stay engaged.</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="membership_form.php" class="btn btn-light">Apply for Membership</a>
+                        <a href="mailto:adohre366@gmail.com" class="btn btn-outline-light">Contact Us</a>
+                    </div>
+                </div>
+            </div>
+        </section>
     </main>
 
     <!-- Footer -->
