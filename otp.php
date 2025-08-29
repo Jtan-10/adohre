@@ -135,7 +135,7 @@ if ($action === 'login' && !empty($email)) {
             <div class="text-center">
                 <button type="button" class="btn btn-link" id="resendOtpBtn">Didn't receive the code? Resend</button>
             </div>
-                </form>
+        </form>
 
         <!-- Update Details Form (for incomplete profiles) -->
         <div id="update-details-section" style="display: none;">
@@ -156,60 +156,60 @@ if ($action === 'login' && !empty($email)) {
                 </div>
             </form>
         </div>
-            <div class="card-body" id="signup-section" style="display: none;">
-                <h2 class="text-center mb-4">Sign Up</h2>
-                <form id="signupForm" class="needs-validation" novalidate>
-                    <div class="mb-3">
-                        <label for="signup-first-name" class="form-label">First Name</label>
-                        <input type="text" class="form-control" id="signup-first-name" name="firstName" required>
-                        <div class="invalid-feedback">
-                            Please provide your first name.
-                        </div>
+        <div class="card-body" id="signup-section" style="display: none;">
+            <h2 class="text-center mb-4">Sign Up</h2>
+            <form id="signupForm" class="needs-validation" novalidate>
+                <div class="mb-3">
+                    <label for="signup-first-name" class="form-label">First Name</label>
+                    <input type="text" class="form-control" id="signup-first-name" name="firstName" required>
+                    <div class="invalid-feedback">
+                        Please provide your first name.
                     </div>
-                    <div class="mb-3">
-                        <label for="signup-last-name" class="form-label">Last Name</label>
-                        <input type="text" class="form-control" id="signup-last-name" name="lastName" required>
-                        <div class="invalid-feedback">
-                            Please provide your last name.
-                        </div>
+                </div>
+                <div class="mb-3">
+                    <label for="signup-last-name" class="form-label">Last Name</label>
+                    <input type="text" class="form-control" id="signup-last-name" name="lastName" required>
+                    <div class="invalid-feedback">
+                        Please provide your last name.
                     </div>
-                    <div class="mb-3">
-                        <label for="signup-password" class="form-label">Password</label>
-                        <div class="input-group">
-                            <input type="password" class="form-control" id="signup-password" name="password" required
-                                minlength="8">
-                            <button class="btn btn-outline-secondary" type="button" id="togglePassword">
-                                <i class="bi bi-eye"></i>
-                            </button>
-                        </div>
-                        <div class="invalid-feedback">
-                            Password must be at least 8 characters long.
-                        </div>
+                </div>
+                <div class="mb-3">
+                    <label for="signup-password" class="form-label">Password</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="signup-password" name="password" required
+                            minlength="8">
+                        <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                            <i class="bi bi-eye"></i>
+                        </button>
                     </div>
-                    <div class="mb-3">
-                        <label for="signup-confirm-password" class="form-label">Confirm Password</label>
-                        <div class="input-group">
-                            <input type="password" class="form-control" id="signup-confirm-password"
-                                name="confirmPassword" required>
-                            <button class="btn btn-outline-secondary" type="button" id="toggleConfirmPassword">
-                                <i class="bi bi-eye"></i>
-                            </button>
-                        </div>
-                        <div class="invalid-feedback">
-                            Passwords do not match.
-                        </div>
+                    <div class="invalid-feedback">
+                        Password must be at least 8 characters long.
                     </div>
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">Complete Sign Up</button>
+                </div>
+                <div class="mb-3">
+                    <label for="signup-confirm-password" class="form-label">Confirm Password</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="signup-confirm-password"
+                            name="confirmPassword" required>
+                        <button class="btn btn-outline-secondary" type="button" id="toggleConfirmPassword">
+                            <i class="bi bi-eye"></i>
+                        </button>
                     </div>
-                </form>
-            </div>
+                    <div class="invalid-feedback">
+                        Passwords do not match.
+                    </div>
+                </div>
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary">Complete Sign Up</button>
+                </div>
+            </form>
         </div>
+    </div>
 
-        <hr class="my-4">
-        <div class="text-center">
-            <a href="logout.php" class="btn btn-outline-secondary btn-sm">Logout</a>
-        </div>
+    <hr class="my-4">
+    <div class="text-center">
+        <a href="logout.php" class="btn btn-outline-secondary btn-sm">Logout</a>
+    </div>
     </div>
 
     <!-- Response Modal -->

@@ -54,4 +54,3 @@ if (sendEmailOTP($email, $otp)) {
 } else {
     echo json_encode(['status' => false, 'message' => 'Failed to send OTP email.']);
 }
-?>
