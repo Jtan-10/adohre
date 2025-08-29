@@ -21,17 +21,32 @@ if (!$imageUrl) {
     exit;
 }
 
-// Handle S3 proxy URLs
-if (strpos($imageUrl, '/s3proxy/') === 0) {
-    // This is an S3 proxy URL, we need to handle it through the s3proxy.php script
-    $imageUrl = 'http://' . $_SERVER['HTTP_HOST'] . $imageUrl;
+// Fix any double slashes in the URL
+$imageUrl = preg_replace('#/{2,}#', '/', $imageUrl);
+error_log("decrypt_image.php called with URL: " . $imageUrl);
+
+// Handle URLs with /s3proxy/ anywhere in the path
+if (strpos($imageUrl, '/s3proxy/') !== false) {
+    // Make sure it starts with the correct protocol and host
+    if (!preg_match('/^https?:\/\//', $imageUrl)) {
+        // Handle both paths with and without /capstone-php/ prefix
+        if (strpos($imageUrl, '/capstone-php/') === 0) {
+            $imageUrl = 'http://' . $_SERVER['HTTP_HOST'] . $imageUrl;
+        } else {
+            $imageUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/capstone-php' . $imageUrl;
+        }
+    }
+    error_log("S3 proxy URL processed: $imageUrl");
 }
-// If the URL is relative (starts with '/'), build an absolute URL based on the current host.
+// If the URL is relative (starts with '/'), build an absolute URL based on the current host
 elseif (strpos($imageUrl, '/') === 0) {
     $imageUrl = 'http://' . $_SERVER['HTTP_HOST'] . $imageUrl;
-} elseif (!preg_match('/^https?:\/\//', $imageUrl)) {
-    // If the URL doesn't start with http:// or https://, assume it is relative.
-    $imageUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/' . ltrim($imageUrl, '/');
+    error_log("Relative URL processed: $imageUrl");
+}
+// If the URL doesn't start with http:// or https://, assume it is relative
+elseif (!preg_match('/^https?:\/\//', $imageUrl)) {
+    $imageUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/capstone-php/' . ltrim($imageUrl, '/');
+    error_log("No protocol URL processed: $imageUrl");
 }
 
 // Download the encrypted PNG data.

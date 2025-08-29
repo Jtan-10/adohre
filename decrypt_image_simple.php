@@ -30,10 +30,20 @@ if (!$imageUrl) {
     die("Missing image URL parameter");
 }
 
-// Handle S3 proxy URLs
-if (strpos($imageUrl, '/s3proxy/') === 0) {
-    // Convert to full URL
-    $imageUrl = 'http://' . $_SERVER['HTTP_HOST'] . $imageUrl;
+// Fix any double slashes in the URL
+$imageUrl = preg_replace('#/{2,}#', '/', $imageUrl);
+
+// Handle URLs with /s3proxy/ anywhere in the path
+if (strpos($imageUrl, '/s3proxy/') !== false) {
+    // If it doesn't start with http, add the host
+    if (!preg_match('/^https?:\/\//', $imageUrl)) {
+        // Handle both paths with and without /capstone-php/ prefix
+        if (strpos($imageUrl, '/capstone-php/') === 0) {
+            $imageUrl = 'http://' . $_SERVER['HTTP_HOST'] . $imageUrl;
+        } else {
+            $imageUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/capstone-php' . $imageUrl;
+        }
+    }
     error_log("S3 proxy URL detected, converted to: $imageUrl");
 }
 // Handle relative URLs
