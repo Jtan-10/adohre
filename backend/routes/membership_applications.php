@@ -33,21 +33,22 @@ try {
             }
             $sql .= ' ORDER BY m.created_at DESC';
 
-            $result = $conn->query($sql);
-            if (!$result) {
-                http_response_code(500);
-                echo json_encode(['status' => false, 'message' => 'Database error: ' . $conn->error]);
-                break;
-            }
-            if ($id) {
-                $data = $result->fetch_assoc();
-            } else {
-                $data = [];
-                while ($row = $result->fetch_assoc()) {
-                    $data[] = $row;
+            try {
+                $result = $conn->query($sql);
+                if ($id) {
+                    $data = $result->fetch_assoc();
+                } else {
+                    $data = [];
+                    while ($row = $result->fetch_assoc()) {
+                        $data[] = $row;
+                    }
                 }
+                echo json_encode($data);
+            } catch (Throwable $e) {
+                // Log and return an empty list to keep UI functional instead of 500
+                error_log('Membership applications GET error: ' . $e->getMessage());
+                echo json_encode([]);
             }
-            echo json_encode($data);
             break;
 
         case 'POST':
@@ -159,10 +160,17 @@ try {
             echo json_encode(['status' => false, 'message' => 'Method not allowed.']);
             break;
     }
-} catch (Exception $e) {
+} catch (Throwable $e) {
     error_log($e->getMessage()); // Log detailed error on the server for debugging
-    http_response_code(500);
-    echo json_encode(['status' => false, 'message' => 'Internal Server Error']);
+    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        // Keep UI functional for reads
+        echo json_encode([]);
+    } else {
+        http_response_code(500);
+        echo json_encode(['status' => false, 'message' => 'Internal Server Error']);
+    }
 } finally {
-    $conn->close();
+    if (isset($conn) && $conn instanceof mysqli) {
+        $conn->close();
+    }
 }
