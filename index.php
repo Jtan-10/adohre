@@ -42,12 +42,13 @@ if (isset($_SESSION['user_id'])) {
 
 // Check if the logged-in user is a member and does not have a membership application record.
 if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
-    $stmtApp = $conn->prepare("SELECT COUNT(*) as count FROM membership_applications WHERE user_id = ?");
+    $stmtApp = $conn->prepare("SELECT COUNT(*) as cnt FROM membership_applications WHERE user_id = ?");
     $stmtApp->bind_param("i", $_SESSION['user_id']);
     $stmtApp->execute();
-    $resultApp = $stmtApp->get_result()->fetch_assoc();
+    $stmtApp->bind_result($cnt);
+    $stmtApp->fetch();
     $stmtApp->close();
-    if ($resultApp['count'] == 0) {
+    if (intval($cnt) === 0) {
         // Show warning message instead of redirecting
         $showMembershipWarning = true;
     }
@@ -87,6 +88,14 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
             background-color: #fff;
         }
 
+        :root {
+            --accent-color: #28A745;
+            --accent-dark: #1e7e34;
+            --text-dark: #1f2937;
+            --muted: #6b7280;
+            --card-bg: #ffffff;
+        }
+
         /* Hero Section with Overlay */
         .hero-section {
             position: relative;
@@ -103,7 +112,7 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.5);
+            background: linear-gradient(135deg, rgba(0, 0, 0, .6) 0%, rgba(0, 0, 0, .25) 100%);
             z-index: 1;
         }
 
@@ -113,13 +122,14 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
         }
 
         .hero-section h1 {
-            font-size: 2.8rem;
-            font-weight: 700;
+            font-size: clamp(2rem, 3.2vw, 3rem);
+            font-weight: 800;
             margin-bottom: 20px;
+            letter-spacing: .2px;
         }
 
         .hero-section p {
-            font-size: 1.2rem;
+            font-size: 1.125rem;
             margin-bottom: 30px;
         }
 
@@ -131,7 +141,7 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
 
         /* Custom Button Styling */
         .btn-custom {
-            background-color: var(--accent-color, #28A745);
+            background-color: var(--accent-color);
             border: none;
             color: #fff;
             padding: 12px 30px;
@@ -141,7 +151,7 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
         }
 
         .btn-custom:hover {
-            background-color: #218838;
+            background-color: var(--accent-dark);
             transform: translateY(-2px);
         }
 
@@ -155,6 +165,36 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
             font-size: 1rem;
             line-height: 1.8;
             margin-bottom: 1rem;
+        }
+
+        /* Feature Cards */
+        .feature-card {
+            border: 0;
+            border-radius: 16px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, .06);
+            transition: transform .2s ease, box-shadow .2s ease;
+            background: var(--card-bg);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, .08);
+        }
+
+        .feature-icon {
+            font-size: 2rem;
+            color: var(--accent-color);
+        }
+
+        /* Section decorations */
+        .shape-divider {
+            line-height: 0;
+        }
+
+        .shape-divider svg {
+            display: block;
+            width: 100%;
+            height: 60px;
         }
 
         /* Empowerment Section Overlay */
@@ -223,6 +263,27 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
         #readPageBtn:hover {
             background-color: #218838;
         }
+
+        /* Cards for event/news preview */
+        .preview-card img {
+            height: 180px;
+            object-fit: cover;
+        }
+
+        .preview-card {
+            border: 0;
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 6px 14px rgba(0, 0, 0, .06);
+        }
+
+        .preview-card .card-body {
+            min-height: 150px;
+        }
+
+        .section-subtitle {
+            color: var(--muted);
+        }
     </style>
 
     <!-- Pass the visually impaired flag to JavaScript -->
@@ -272,6 +333,15 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
             </div>
         </section>
 
+        <!-- Wave Divider -->
+        <div class="shape-divider">
+            <svg preserveAspectRatio="none" viewBox="0 0 1200 120" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1200 0L0 0 0 16.48 1200 0z" opacity=".25" fill="#28A745"></path>
+                <path d="M1200 0L0 0 0 6.48 1200 0z" opacity=".5" fill="#28A745"></path>
+                <path d="M1200 0L0 0 0 0 1200 0z" fill="#28A745"></path>
+            </svg>
+        </div>
+
         <!-- About Section -->
         <section class="section-padding">
             <div class="container">
@@ -296,6 +366,46 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
             </div>
         </section>
 
+        <!-- Features Section -->
+        <section class="section-padding bg-light">
+            <div class="container">
+                <div class="text-center mb-4">
+                    <h2>Why Join ADOHRE</h2>
+                    <p class="section-subtitle">Community, growth, and purpose for health retirees</p>
+                </div>
+                <div class="row g-4">
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card feature-card h-100 p-3">
+                            <div class="feature-icon mb-2"><i class="fa-solid fa-people-group"></i></div>
+                            <h5>Supportive Community</h5>
+                            <p class="mb-0">Connect with peers and mentors who share your passion for public health.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card feature-card h-100 p-3">
+                            <div class="feature-icon mb-2"><i class="fa-solid fa-chalkboard-teacher"></i></div>
+                            <h5>Training & Webinars</h5>
+                            <p class="mb-0">Stay active with learning opportunities designed for real-world impact.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card feature-card h-100 p-3">
+                            <div class="feature-icon mb-2"><i class="fa-solid fa-hand-holding-heart"></i></div>
+                            <h5>Service & Advocacy</h5>
+                            <p class="mb-0">Contribute to initiatives that uplift communities and colleagues.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card feature-card h-100 p-3">
+                            <div class="feature-icon mb-2"><i class="fa-solid fa-id-card"></i></div>
+                            <h5>Member Benefits</h5>
+                            <p class="mb-0">Access events, assistance, and resources exclusive to members.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- Empowerment Section -->
         <section class="section-padding text-center text-white empower-section">
             <div class="container">
@@ -306,6 +416,79 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
                     journey. Our expert-led programs cover the latest trends and best practices, providing you with
                     valuable insights and actionable strategies.
                 </p>
+            </div>
+        </section>
+
+        <!-- Upcoming Events Preview -->
+        <section class="section-padding">
+            <div class="container">
+                <div class="d-flex align-items-end justify-content-between mb-3">
+                    <div>
+                        <h2 class="mb-0">Upcoming Events</h2>
+                        <small class="section-subtitle">Don’t miss what’s next</small>
+                    </div>
+                    <a href="events.php" class="btn btn-outline-success btn-sm">View all</a>
+                </div>
+                <div class="row g-4" id="homeEvents"></div>
+            </div>
+        </section>
+
+        <!-- Latest News Preview -->
+        <section class="section-padding bg-light">
+            <div class="container">
+                <div class="d-flex align-items-end justify-content-between mb-3">
+                    <div>
+                        <h2 class="mb-0">Latest News</h2>
+                        <small class="section-subtitle">Updates from the ADOHRE community</small>
+                    </div>
+                    <a href="news.php" class="btn btn-outline-success btn-sm">More news</a>
+                </div>
+                <div class="row g-4" id="homeNews"></div>
+            </div>
+        </section>
+
+        <!-- Testimonials -->
+        <section class="section-padding">
+            <div class="container">
+                <div class="text-center mb-4">
+                    <h2>What Our Members Say</h2>
+                </div>
+                <div id="testimonialsCarousel" class="carousel slide" data-bs-ride="carousel">
+                    <div class="carousel-inner">
+                        <div class="carousel-item active">
+                            <figure class="text-center mx-auto" style="max-width:720px">
+                                <blockquote class="blockquote">
+                                    <p>“ADOHRE gave me a new chapter—one filled with purpose and camaraderie.”</p>
+                                </blockquote>
+                                <figcaption class="blockquote-footer">Maria, Member</figcaption>
+                            </figure>
+                        </div>
+                        <div class="carousel-item">
+                            <figure class="text-center mx-auto" style="max-width:720px">
+                                <blockquote class="blockquote">
+                                    <p>“The trainings keep me updated and inspired to continue serving.”</p>
+                                </blockquote>
+                                <figcaption class="blockquote-footer">Jose, Former DOH Staff</figcaption>
+                            </figure>
+                        </div>
+                        <div class="carousel-item">
+                            <figure class="text-center mx-auto" style="max-width:720px">
+                                <blockquote class="blockquote">
+                                    <p>“More than an organization, it’s a family.”</p>
+                                </blockquote>
+                                <figcaption class="blockquote-footer">Lina, Volunteer</figcaption>
+                            </figure>
+                        </div>
+                    </div>
+                    <button class="carousel-control-prev" type="button" data-bs-target="#testimonialsCarousel" data-bs-slide="prev">
+                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Previous</span>
+                    </button>
+                    <button class="carousel-control-next" type="button" data-bs-target="#testimonialsCarousel" data-bs-slide="next">
+                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Next</span>
+                    </button>
+                </div>
             </div>
         </section>
 
@@ -378,6 +561,77 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
             }
             TTS.speakTextInChunks(textToRead);
         });
+
+        // Populate Upcoming Events
+        (function loadEvents() {
+            const target = document.getElementById('homeEvents');
+            if (!target) return;
+            fetch('backend/routes/content_manager.php?action=fetch')
+                .then(r => r.json())
+                .then(data => {
+                    if (!data || !data.status || !Array.isArray(data.events)) throw new Error('Invalid events response');
+                    const now = new Date();
+                    const upcoming = data.events
+                        .filter(e => new Date(e.date) >= now)
+                        .sort((a, b) => new Date(a.date) - new Date(b.date))
+                        .slice(0, 3);
+                    if (upcoming.length === 0) {
+                        target.innerHTML = '<p class="text-muted">No upcoming events.</p>';
+                        return;
+                    }
+                    target.innerHTML = upcoming.map(e => `
+                                        <div class="col-md-6 col-lg-4">
+                                            <div class="card preview-card h-100">
+                                                <img src="${'backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(e.image || '/capstone-php/assets/default-image.jpg')}" class="card-img-top" alt="${(e.title||'Event')}">
+                                                <div class="card-body">
+                                                    <h5 class="card-title mb-1">${e.title || ''}</h5>
+                                                    <small class="text-muted d-block mb-2"><i class="fa-regular fa-calendar me-1"></i>${new Date(e.date).toLocaleString()}</small>
+                                                    <p class="card-text mb-2">${(e.description || '').toString().slice(0,120)}${(e.description||'').length>120?'…':''}</p>
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <span class="badge bg-success">${(e.fee && parseFloat(e.fee)>0)? ('₱'+e.fee):'Free'}</span>
+                                                        <a href="events.php" class="btn btn-sm btn-outline-success">Details</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>`).join('');
+                })
+                .catch(err => {
+                    console.error('Events load error', err);
+                    target.innerHTML = '<p class="text-muted">Unable to load events right now.</p>';
+                });
+        })();
+
+        // Populate Latest News
+        (function loadNews() {
+            const target = document.getElementById('homeNews');
+            if (!target) return;
+            fetch('backend/routes/news_manager.php?action=fetch')
+                .then(r => r.json())
+                .then(data => {
+                    if (!data || !data.status || !Array.isArray(data.news)) throw new Error('Invalid news response');
+                    const items = data.news.slice(0, 3);
+                    if (items.length === 0) {
+                        target.innerHTML = '<p class="text-muted">No news yet.</p>';
+                        return;
+                    }
+                    target.innerHTML = items.map(n => `
+                                        <div class="col-md-6 col-lg-4">
+                                            <div class="card preview-card h-100">
+                                                <img src="${ n.image ? ('backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(n.image)) : 'assets/default-image.jpg' }" class="card-img-top" alt="${(n.title||'News')}">
+                                                <div class="card-body">
+                                                    <h5 class="card-title mb-1">${n.title || ''}</h5>
+                                                    <small class="text-muted d-block mb-2"><i class="fa-regular fa-calendar me-1"></i>${new Date(n.published_date).toLocaleDateString()}</small>
+                                                    <p class="card-text mb-2">${(n.excerpt||'').toString().slice(0,120)}${(n.excerpt||'').length>120?'…':''}</p>
+                                                    <a href="news.php" class="btn btn-sm btn-outline-success">Read more</a>
+                                                </div>
+                                            </div>
+                                        </div>`).join('');
+                })
+                .catch(err => {
+                    console.error('News load error', err);
+                    target.innerHTML = '<p class="text-muted">Unable to load news right now.</p>';
+                });
+        })();
     </script>
 </body>
 
