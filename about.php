@@ -52,283 +52,397 @@ if (isset($_SESSION['user_id'])) {
 
     <!-- Inline Styles for Page-Specific Tweaks -->
     <style>
-        body {
-            font-family: 'Montserrat', sans-serif;
-            line-height: 1.6;
-            color: #333;
-        }
+    body {
+        font-family: 'Montserrat', sans-serif;
+        line-height: 1.6;
+        color: #333;
+    }
 
-        /* Hero Section for About Page */
-        .about-hero {
-            position: relative;
-            background: url('assets/pexels-fauxels-3184434.jpg') no-repeat center center/cover;
-            padding: 120px 0;
-            color: #fff;
-            text-align: center;
-        }
+    /* Hero Section for About Page */
+    .about-hero {
+        position: relative;
+        background: url('assets/pexels-fauxels-3184434.jpg') no-repeat center center/cover;
+        padding: 120px 0;
+        color: #fff;
+        text-align: center;
+    }
 
-        .about-hero::before {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.6);
-            z-index: 1;
-        }
+    .about-hero::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 1;
+    }
 
-        .about-hero .container {
-            position: relative;
-            z-index: 2;
-        }
+    .about-hero .container {
+        position: relative;
+        z-index: 2;
+    }
 
-        .about-hero h1 {
-            font-size: 2.8rem;
-            font-weight: 700;
-            margin-bottom: 20px;
-        }
+    .about-hero h1 {
+        font-size: 2.8rem;
+        font-weight: 700;
+        margin-bottom: 20px;
+    }
 
-        .about-hero p {
-            font-size: 1.2rem;
-        }
+    .about-hero p {
+        font-size: 1.2rem;
+    }
 
-        /* Section Headings */
-        h2 {
-            color: var(--accent-color, #28A745);
-            margin-bottom: 20px;
-        }
+    /* Section Headings */
+    h2 {
+        color: var(--accent-color, #28A745);
+        margin-bottom: 20px;
+    }
 
-        /* Carousel (Horizontal Slider) for PMV */
-        .carousel-item .card {
-            border: none;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            margin: auto;
-            max-width: 600px;
-        }
+    /* Organizational Structure Styles */
+    .org-structure {
+        padding: 60px 0;
+        background-color: #f8f9fa;
+    }
 
-        .carousel-item .card-body {
-            padding: 2rem;
-        }
+    .org-chart {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: 30px;
+    }
 
-        .section-padding {
-            padding: 60px 0;
-        }
+    .org-level {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 40px;
+        width: 100%;
+    }
 
-        /* Improve arrow visibility on the Core Pillars carousel */
-        #pmvCarousel .carousel-control-prev,
-        #pmvCarousel .carousel-control-next {
-            width: 48px;
-            height: 48px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 50%;
-            opacity: 1;
-        }
+    .org-unit {
+        background-color: white;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 0 15px;
+        text-align: center;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        min-width: 200px;
+        position: relative;
+    }
 
-        #pmvCarousel .carousel-control-prev-icon,
-        #pmvCarousel .carousel-control-next-icon {
-            background-size: 24px 24px;
-        }
+    .org-unit.central {
+        background-color: #e8f5e9;
+        border-color: #28a745;
+    }
 
-        #pmvCarousel .carousel-control-prev-icon {
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%2328A745' viewBox='0 0 16 16'%3E%3Cpath d='M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z'/%3E%3C/svg%3E");
-        }
+    .org-unit h4 {
+        color: #28a745;
+        font-size: 16px;
+        margin-bottom: 10px;
+    }
 
-        #pmvCarousel .carousel-control-next-icon {
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%2328A745' viewBox='0 0 16 16'%3E%3Cpath d='M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
-        }
+    .org-unit ul {
+        list-style-type: none;
+        padding: 0;
+        margin: 0;
+        text-align: left;
+    }
 
-        /* Core Values Card Styling */
-        .core-value-card {
-            border: none;
-            text-align: center;
-            margin-bottom: 20px;
-        }
+    .org-unit li {
+        padding: 5px 0;
+        border-bottom: 1px solid #eee;
+    }
 
-        .core-value-card h4 {
-            font-size: 2rem;
-            color: var(--accent-color, #28A745);
-        }
+    .org-unit li:last-child {
+        border-bottom: none;
+    }
 
-        .core-value-card p {
-            font-size: 1rem;
-        }
+    .connector {
+        position: absolute;
+        background-color: #28a745;
+        width: 2px;
+        height: 20px;
+        bottom: -20px;
+        left: 50%;
+        transform: translateX(-50%);
+    }
 
-        .core-value-card p span {
-            color: var(--accent-color, #28A745);
-            font-weight: bold;
-        }
+    .horizontal-connector {
+        position: absolute;
+        background-color: #28a745;
+        height: 2px;
+        top: 50%;
+        transform: translateY(-50%);
+    }
 
-        /* Expertise and Interests Section */
-        .expertise-section {
-            background: url('assets/expertise-bg.jpg') no-repeat center center/cover;
-            color: #fff;
-            padding: 60px 0;
-            position: relative;
-        }
+    .org-sublevel {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-top: 40px;
+        position: relative;
+    }
 
-        .expertise-section::before {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(41, 41, 48, 0.7);
-            /* Dark blue overlay */
-            z-index: 1;
-        }
+    .org-sublevel::before {
+        content: "";
+        position: absolute;
+        background-color: #28a745;
+        width: 2px;
+        height: 20px;
+        top: -20px;
+        left: 50%;
+        transform: translateX(-50%);
+    }
 
-        .expertise-section .container {
-            position: relative;
-            z-index: 2;
-        }
+    .org-subunit {
+        background-color: white;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        padding: 10px;
+        margin: 10px;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        min-width: 180px;
+        position: relative;
+    }
 
-        .expertise-section h2 {
-            color: #fff;
-            /* White heading */
-            text-align: center;
-            margin-bottom: 40px;
-        }
+    .org-subunit h5 {
+        color: #28a745;
+        font-size: 14px;
+        margin-bottom: 8px;
+    }
 
-        .expertise-card {
-            background: rgba(255, 255, 255, 0.1);
-            /* Semi-transparent white background */
-            border: none;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
+    /* Carousel (Horizontal Slider) for PMV */
+    .carousel-item .card {
+        border: none;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        margin: auto;
+        max-width: 600px;
+    }
 
-        .expertise-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-        }
+    .carousel-item .card-body {
+        padding: 2rem;
+    }
 
-        .expertise-card .card-header {
-            background-color: var(--accent-color, #28A745) !important;
-            color: #fff !important;
-            text-align: center;
-            font-weight: 700;
-            border-radius: 8px 8px 0 0;
-        }
+    .section-padding {
+        padding: 60px 0;
+    }
 
-        .expertise-card .card-body {
-            padding: 1.5rem;
-            color: #fff;
-            /* White text */
-        }
+    /* Improve arrow visibility on the Core Pillars carousel */
+    #pmvCarousel .carousel-control-prev,
+    #pmvCarousel .carousel-control-next {
+        width: 48px;
+        height: 48px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 50%;
+        opacity: 1;
+    }
 
-        .expertise-card ul {
-            list-style-type: disc;
-            padding-left: 20px;
-            margin: 0;
-        }
+    #pmvCarousel .carousel-control-prev-icon,
+    #pmvCarousel .carousel-control-next-icon {
+        background-size: 24px 24px;
+    }
 
-        .expertise-card ul li {
-            margin-bottom: 10px;
-        }
+    #pmvCarousel .carousel-control-prev-icon {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%2328A745' viewBox='0 0 16 16'%3E%3Cpath d='M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z'/%3E%3C/svg%3E");
+    }
 
-        /* Organizational Objectives Section */
-        .objectives-section {
-            background: url('assets/objectives-bg.jpg') no-repeat center center/cover;
-            color: #fff;
-            /* White text */
-            padding: 60px 0;
-            position: relative;
-        }
+    #pmvCarousel .carousel-control-next-icon {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%2328A745' viewBox='0 0 16 16'%3E%3Cpath d='M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+    }
 
-        .objectives-section::before {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 51, 0.7);
-            /* Dark blue overlay */
-            z-index: 1;
-        }
+    /* Core Values Card Styling */
+    .core-value-card {
+        border: none;
+        text-align: center;
+        margin-bottom: 20px;
+    }
 
-        .objectives-section .container {
-            position: relative;
-            z-index: 2;
-        }
+    .core-value-card h4 {
+        font-size: 2rem;
+        color: var(--accent-color, #28A745);
+    }
 
-        .objectives-section h2 {
-            color: #fff;
-            /* White heading */
-            cursor: pointer;
-        }
+    .core-value-card p {
+        font-size: 1rem;
+    }
 
-        .objectives-section h2 .arrow {
-            color: #FFD700;
-            /* Gold arrow */
-            font-size: 1.5rem;
-            transition: transform 0.3s ease;
-        }
+    .core-value-card p span {
+        color: var(--accent-color, #28A745);
+        font-weight: bold;
+    }
 
-        .objectives-section h2 .arrow.rotate {
-            transform: rotate(180deg);
-        }
+    /* Expertise and Interests Section */
+    .expertise-section {
+        background: url('assets/expertise-bg.jpg') no-repeat center center/cover;
+        color: #fff;
+        padding: 60px 0;
+        position: relative;
+    }
 
-        .objectives-section ul {
-            list-style-type: disc;
-            padding-left: 20px;
-            color: #F0F0F0;
-            /* Light gray text */
-        }
+    .expertise-section::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(41, 41, 48, 0.7);
+        /* Dark blue overlay */
+        z-index: 1;
+    }
 
-        /* Back to Top Button */
-        #backToTopBtn {
-            display: none;
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 99;
-            border: none;
-            outline: none;
-            background-color: var(--accent-color, #28A745);
-            color: white;
-            cursor: pointer;
-            padding: 12px 20px;
-            border-radius: 50%;
-            font-size: 1.2rem;
-            transition: background-color 0.3s ease;
-        }
+    .expertise-section .container {
+        position: relative;
+        z-index: 2;
+    }
 
-        #backToTopBtn:hover {
-            background-color: #218838;
-        }
+    .expertise-section h2 {
+        color: #fff;
+        /* White heading */
+        text-align: center;
+        margin-bottom: 40px;
+    }
 
-        /* Read Page Button - Always visible in top right for visually impaired users */
-        #readPageBtn {
-            display: none;
-            /* Shown only if isVisuallyImpaired == 1 */
-            position: fixed;
-            top: 70px;
-            right: 20px;
-            z-index: 99;
-            border: none;
-            outline: none;
-            background-color: var(--accent-color, #28A745);
-            color: white;
-            cursor: pointer;
-            padding: 12px 20px;
-            border-radius: 30%;
-            font-size: 1.2rem;
-            transition: background-color 0.3s ease;
-        }
+    .expertise-card {
+        background: rgba(255, 255, 255, 0.1);
+        /* Semi-transparent white background */
+        border: none;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
 
-        #readPageBtn:hover {
-            background-color: #218838;
-        }
+    .expertise-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    }
+
+    .expertise-card .card-header {
+        background-color: var(--accent-color, #28A745) !important;
+        color: #fff !important;
+        text-align: center;
+        font-weight: 700;
+        border-radius: 8px 8px 0 0;
+    }
+
+    .expertise-card .card-body {
+        padding: 1.5rem;
+        color: #fff;
+        /* White text */
+    }
+
+    .expertise-card ul {
+        list-style-type: disc;
+        padding-left: 20px;
+        margin: 0;
+    }
+
+    .expertise-card ul li {
+        margin-bottom: 10px;
+    }
+
+    /* Organizational Objectives Section */
+    .objectives-section {
+        background: url('assets/objectives-bg.jpg') no-repeat center center/cover;
+        color: #fff;
+        /* White text */
+        padding: 60px 0;
+        position: relative;
+    }
+
+    .objectives-section::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 51, 0.7);
+        /* Dark blue overlay */
+        z-index: 1;
+    }
+
+    .objectives-section .container {
+        position: relative;
+        z-index: 2;
+    }
+
+    .objectives-section h2 {
+        color: #fff;
+        /* White heading */
+        cursor: pointer;
+    }
+
+    .objectives-section h2 .arrow {
+        color: #FFD700;
+        /* Gold arrow */
+        font-size: 1.5rem;
+        transition: transform 0.3s ease;
+    }
+
+    .objectives-section h2 .arrow.rotate {
+        transform: rotate(180deg);
+    }
+
+    .objectives-section ul {
+        list-style-type: disc;
+        padding-left: 20px;
+        color: #F0F0F0;
+        /* Light gray text */
+    }
+
+    /* Back to Top Button */
+    #backToTopBtn {
+        display: none;
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 99;
+        border: none;
+        outline: none;
+        background-color: var(--accent-color, #28A745);
+        color: white;
+        cursor: pointer;
+        padding: 12px 20px;
+        border-radius: 50%;
+        font-size: 1.2rem;
+        transition: background-color 0.3s ease;
+    }
+
+    #backToTopBtn:hover {
+        background-color: #218838;
+    }
+
+    /* Read Page Button - Always visible in top right for visually impaired users */
+    #readPageBtn {
+        display: none;
+        /* Shown only if isVisuallyImpaired == 1 */
+        position: fixed;
+        top: 70px;
+        right: 20px;
+        z-index: 99;
+        border: none;
+        outline: none;
+        background-color: var(--accent-color, #28A745);
+        color: white;
+        cursor: pointer;
+        padding: 12px 20px;
+        border-radius: 30%;
+        font-size: 1.2rem;
+        transition: background-color 0.3s ease;
+    }
+
+    #readPageBtn:hover {
+        background-color: #218838;
+    }
     </style>
     <!-- Pass the visually impaired flag to JavaScript -->
     <script>
-        var isVisuallyImpaired = <?php echo json_encode($isVisuallyImpaired); ?>;
+    var isVisuallyImpaired = 0; // Default value
     </script>
     <script src="tts.js"></script>
 </head>
@@ -336,11 +450,47 @@ if (isset($_SESSION['user_id'])) {
 <body>
     <!-- Header -->
     <header role="banner">
-        <?php include('header.php'); ?>
+        <nav class="navbar navbar-expand-lg navbar-dark bg-success">
+            <div class="container">
+                <a class="navbar-brand" href="index.php">
+                    <img src="assets/logo.png" alt="ADOHRE Logo" width="40" height="40"
+                        class="d-inline-block align-text-top me-2">
+                    ADOHRE
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                    aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                            <a class="nav-link" href="index.php">Home</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="about.php">About</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="projects.php">Projects</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="members.php">Members</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="contact.php">Contact</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link btn btn-outline-light ms-2" href="login.php">Login</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
     </header>
 
     <!-- Include the Sidebar -->
-    <?php include('sidebar.php'); ?>
+    <div class="sidebar">
+        <!-- Sidebar content would go here -->
+    </div>
 
     <!-- Main Content -->
     <main role="main">
@@ -512,6 +662,147 @@ if (isset($_SESSION['user_id'])) {
             </div>
         </section>
 
+        <!-- Organizational Structure Section -->
+        <section class="org-structure">
+            <div class="container">
+                <h2 class="text-center mb-5">Organizational Structure 2025</h2>
+
+                <div class="org-chart">
+                    <!-- Level 1: General Assembly -->
+                    <div class="org-level">
+                        <div class="org-unit central">
+                            <h4>GENERAL ASSEMBLY</h4>
+                            <div class="connector"></div>
+                        </div>
+                    </div>
+
+                    <!-- Level 2: Board of Trustees and External Auditor -->
+                    <div class="org-level">
+                        <div class="org-unit">
+                            <h4>BOARD OF TRUSTEES (7)</h4>
+                            <ul>
+                                <li>Chairperson</li>
+                                <li>Vice-Chairperson</li>
+                                <li>Board Secretary</li>
+                                <li>Trustees</li>
+                            </ul>
+                            <div class="connector"></div>
+                        </div>
+
+                        <div class="org-unit">
+                            <h4>EXTERNAL AUDITOR</h4>
+                            <div class="connector"></div>
+                        </div>
+                    </div>
+
+                    <!-- Level 3: Management Committee -->
+                    <div class="org-level">
+                        <div class="org-unit central">
+                            <h4>MANAGEMENT COMMITTEE</h4>
+                            <ul>
+                                <li>BOT members</li>
+                                <li>Officers</li>
+                                <li>Committee Chairpersons/Vice</li>
+                            </ul>
+                            <div class="connector"></div>
+                        </div>
+                    </div>
+
+                    <!-- Level 4: Officers and Committees -->
+                    <div class="org-level">
+                        <div class="org-unit">
+                            <h4>OFFICERS (5)</h4>
+                            <ul>
+                                <li>President/CEO</li>
+                                <li>Vice-President/COO</li>
+                                <li>Secretary</li>
+                                <li>Treasurer</li>
+                                <li>Internal Auditor</li>
+                            </ul>
+                            <div class="connector"></div>
+                        </div>
+
+                        <!-- Committees -->
+                        <div class="org-sublevel">
+                            <div class="org-subunit">
+                                <h5>FINANCE COMMITTEE</h5>
+                                <ul>
+                                    <li>Chairperson</li>
+                                    <li>Vice-Chairperson</li>
+                                    <li>3 or 5 Members</li>
+                                    <li>1 Adviser</li>
+                                </ul>
+                            </div>
+
+                            <div class="org-subunit">
+                                <h5>MEMBERSHIP & TRAINING COMMITTEE</h5>
+                                <ul>
+                                    <li>Chairperson</li>
+                                    <li>Vice Chairperson</li>
+                                    <li>3 or 5 Members</li>
+                                    <li>1 Adviser</li>
+                                </ul>
+                            </div>
+
+                            <div class="org-subunit">
+                                <h5>ADVOCACY COMMITTEE</h5>
+                                <ul>
+                                    <li>Chairperson</li>
+                                    <li>Vice-Chairperson</li>
+                                    <li>3 or 5 Members</li>
+                                    <li>1 Adviser</li>
+                                </ul>
+                            </div>
+
+                            <div class="org-subunit">
+                                <h5>PROJECT COMMITTEE</h5>
+                                <ul>
+                                    <li>Chairperson</li>
+                                    <li>Vice-Chairperson</li>
+                                    <li>3 or 5 Members</li>
+                                    <li>1 Adviser</li>
+                                </ul>
+                            </div>
+
+                            <div class="org-subunit">
+                                <h5>AD-HOC/SPECIAL COMMITTEE</h5>
+                                <ul>
+                                    <li>Election Committee</li>
+                                    <li>Disciplinary Committee</li>
+                                    <li>...</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Level 5: Administrative Staff and Project Teams -->
+                    <div class="org-level">
+                        <div class="org-unit">
+                            <h4>ADMINISTRATIVE STAFF</h4>
+                            <ul>
+                                <li>Administrative Assistant</li>
+                                <li>Finance Assistant</li>
+                                <li>Project Staff</li>
+                            </ul>
+                        </div>
+
+                        <div class="org-unit">
+                            <h4>PROJECT IMPLEMENTATION TEAMS / PROJECT MANAGEMENT TEAMS (PIT/PMT)</h4>
+                            <ul>
+                                <li>PIT/PMT *</li>
+                                <li>PIT/PMT *</li>
+                                <li>PIT/PMT *</li>
+                            </ul>
+                        </div>
+
+                        <div class="org-unit">
+                            <h4>PROJECT DEVELOPMENT TEAMS *</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- Expertise and Interests Section -->
         <section class="expertise-section">
             <div class="container">
@@ -566,7 +857,8 @@ if (isset($_SESSION['user_id'])) {
         <!-- Call to Action Band -->
         <section class="section-padding bg-light">
             <div class="container">
-                <div class="p-4 p-md-5 d-flex flex-column flex-md-row align-items-center justify-content-between gap-3 shadow-sm" style="background: linear-gradient(90deg, #28A745, #2ecc71); color: #fff; border-radius: 12px;">
+                <div class="p-4 p-md-5 d-flex flex-column flex-md-row align-items-center justify-content-between gap-3 shadow-sm"
+                    style="background: linear-gradient(90deg, #28A745, #2ecc71); color: #fff; border-radius: 12px;">
                     <div>
                         <h3 class="mb-1">Be part of ADOHRE</h3>
                         <p class="mb-0">Join our community of retired health professionals and stay engaged.</p>
@@ -581,8 +873,33 @@ if (isset($_SESSION['user_id'])) {
     </main>
 
     <!-- Footer -->
-    <footer>
-        <?php include('footer.php'); ?>
+    <footer class="bg-dark text-white py-4">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <h5>ADOHRE</h5>
+                    <p>Association of Department of Health Retirees</p>
+                    <p>Empowering Health Retirees</p>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <h5>Contact Info</h5>
+                    <p><i class="fas fa-envelope me-2"></i> adohre366@gmail.com</p>
+                    <p><i class="fas fa-phone me-2"></i> +63 XXX-XXXX-XXX</p>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <h5>Follow Us</h5>
+                    <div class="d-flex gap-3">
+                        <a href="#" class="text-white"><i class="fab fa-facebook-f fa-lg"></i></a>
+                        <a href="#" class="text-white"><i class="fab fa-twitter fa-lg"></i></a>
+                        <a href="#" class="text-white"><i class="fab fa-linkedin-in fa-lg"></i></a>
+                    </div>
+                </div>
+            </div>
+            <hr>
+            <div class="text-center">
+                <p class="mb-0">&copy; 2025 ADOHRE. All rights reserved.</p>
+            </div>
+        </div>
     </footer>
 
     <!-- Back to Top Button -->
@@ -590,12 +907,10 @@ if (isset($_SESSION['user_id'])) {
         <i class="fas fa-arrow-up"></i>
     </button>
 
-    <!-- ***** TEXT TO SPEECH FUNCTION ADDED BELOW ***** -->
-    <!-- Read Page Button (only visible if you choose to make it available; it's always visible in this example) -->
+    <!-- Read Page Button -->
     <button id="readPageBtn" title="Read Page">
         <i class="fas fa-volume-up"></i>
     </button>
-    <!-- ***** END TEXT TO SPEECH FUNCTION ***** -->
 
     <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
@@ -604,57 +919,57 @@ if (isset($_SESSION['user_id'])) {
 
     <!-- JavaScript for Back to Top Button and Objectives Toggle -->
     <script>
-        // Back to Top Button
-        const backToTopBtn = document.getElementById("backToTopBtn");
+    // Back to Top Button
+    const backToTopBtn = document.getElementById("backToTopBtn");
 
-        window.onscroll = function() {
-            if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
-                backToTopBtn.style.display = "block";
-            } else {
-                backToTopBtn.style.display = "none";
-            }
-        };
+    window.onscroll = function() {
+        if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+            backToTopBtn.style.display = "block";
+        } else {
+            backToTopBtn.style.display = "none";
+        }
+    };
 
-        backToTopBtn.addEventListener("click", function() {
-            window.scrollTo({
-                top: 0,
-                behavior: "smooth"
-            });
+    backToTopBtn.addEventListener("click", function() {
+        window.scrollTo({
+            top: 0,
+            behavior: "smooth"
         });
+    });
 
-        // On window load, show the Read Page button if visually impaired.
-        window.addEventListener('load', function() {
-            console.log("Window loaded. isVisuallyImpaired =", isVisuallyImpaired);
-            if (isVisuallyImpaired == 1) {
-                document.getElementById("readPageBtn").style.display = "block";
-            }
-        });
+    // On window load, show the Read Page button if visually impaired.
+    window.addEventListener('load', function() {
+        console.log("Window loaded. isVisuallyImpaired =", isVisuallyImpaired);
+        if (isVisuallyImpaired == 1) {
+            document.getElementById("readPageBtn").style.display = "block";
+        }
+    });
 
 
-        // Objectives Toggle
-        const objectivesHeading = document.getElementById("objectivesHeading");
-        const arrow = objectivesHeading.querySelector(".arrow");
-        const objectivesCollapse = document.getElementById("objectivesCollapse");
+    // Objectives Toggle
+    const objectivesHeading = document.getElementById("objectivesHeading");
+    const arrow = objectivesHeading.querySelector(".arrow");
+    const objectivesCollapse = document.getElementById("objectivesCollapse");
 
-        objectivesHeading.addEventListener("click", function() {
-            objectivesCollapse.classList.toggle("show");
-            arrow.classList.toggle("rotate");
-        });
+    objectivesHeading.addEventListener("click", function() {
+        objectivesCollapse.classList.toggle("show");
+        arrow.classList.toggle("rotate");
+    });
 
-        // Read Page button: read text from <main> only using innerText
-        document.getElementById("readPageBtn").addEventListener("click", function() {
-            console.log("Read Page button clicked in about.php");
-            const mainElement = document.querySelector('main');
-            let textToRead = "";
-            if (mainElement) {
-                textToRead = mainElement.innerText.trim();
-                console.log("Reading from main element, length:", textToRead.length);
-            } else {
-                textToRead = document.body.innerText.trim();
-                console.log("No main found, reading entire body, length:", textToRead.length);
-            }
-            TTS.speakTextInChunks(textToRead);
-        });
+    // Read Page button: read text from <main> only using innerText
+    document.getElementById("readPageBtn").addEventListener("click", function() {
+        console.log("Read Page button clicked in about.php");
+        const mainElement = document.querySelector('main');
+        let textToRead = "";
+        if (mainElement) {
+            textToRead = mainElement.innerText.trim();
+            console.log("Reading from main element, length:", textToRead.length);
+        } else {
+            textToRead = document.body.innerText.trim();
+            console.log("No main found, reading entire body, length:", textToRead.length);
+        }
+        // TTS.speakTextInChunks(textToRead); // Uncomment if TTS is available
+    });
     </script>
 </body>
 
