@@ -145,6 +145,28 @@ try {
         // Continue with registration even if audit log fails
     }
 
+    // Ensure user settings are created with OTP disabled
+    try {
+        // Check if user settings already exist
+        $settingsCheck = $conn->prepare("SELECT user_id FROM user_settings WHERE user_id = ?");
+        $settingsCheck->bind_param("i", $userId);
+        $settingsCheck->execute();
+        $settingsResult = $settingsCheck->get_result();
+        $settingsCheck->close();
+
+        if ($settingsResult->num_rows === 0) {
+            // Create new user settings with OTP disabled
+            $settingsStmt = $conn->prepare("INSERT INTO user_settings (user_id, otp_enabled) VALUES (?, 0)");
+            $settingsStmt->bind_param("i", $userId);
+            $settingsStmt->execute();
+            $settingsStmt->close();
+            error_log("Created user settings for new user ID: $userId with OTP disabled");
+        }
+    } catch (Exception $settingsError) {
+        error_log("User settings creation failed but continuing: " . $settingsError->getMessage());
+        // Continue with registration even if settings creation fails
+    }
+
     // Commit transaction
     $conn->commit();
 

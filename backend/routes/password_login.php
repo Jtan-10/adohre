@@ -114,6 +114,9 @@ try {
             'remember' => $remember
         ];
 
+        // Store email in session for OTP verification
+        $_SESSION['email'] = $email;
+
         // Generate and send OTP
         $otp = generateOTP();
         $expiry = date('Y-m-d H:i:s', strtotime('+5 minutes'));
@@ -127,13 +130,23 @@ try {
         if (sendOTPEmail($email, $otp)) {
             $_SESSION['action'] = 'login';
             $_SESSION['otp_pending'] = true; // Mark OTP as pending
+
+            // Ensure session data is written to disk
+            session_write_close();
+            session_start();
+
+            error_log('OTP flow initiated for user: ' . $email . '. Session ID: ' . session_id());
+            error_log('Session data before redirect: ' . json_encode($_SESSION));
+
             echo json_encode([
                 'status' => true,
                 'message' => 'OTP sent successfully.',
                 'redirect' => 'otp.php',
-                'requiresOTP' => true
+                'requiresOTP' => true,
+                'debug_session' => session_id()
             ]);
         } else {
+            error_log('Failed to send OTP email to: ' . $email);
             echo json_encode(['status' => false, 'message' => 'Failed to send OTP email.']);
         }
         exit();

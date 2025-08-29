@@ -11,15 +11,17 @@ require_once 'backend/db/db_connect.php';
 // Include access control
 require_once 'backend/utils/access_control.php';
 
-// Check if user is authenticated and OTP is pending
-if (!isset($_SESSION['user_id'])) {
-    header('Location: login.php');
-    exit();
-}
-
+// Check if OTP is pending or if we have temporary user data
 if (!isset($_SESSION['otp_pending']) || $_SESSION['otp_pending'] !== true) {
-    header('Location: index.php');
-    exit();
+    // Also check if we have temp_user as a fallback
+    if (!isset($_SESSION['temp_user'])) {
+        error_log("OTP.PHP - No OTP pending or temp user data found in session. Redirecting to login.");
+        header('Location: login.php');
+        exit();
+    }
+    // Set OTP as pending if we have temp user but no OTP pending flag
+    $_SESSION['otp_pending'] = true;
+    error_log("OTP.PHP - Found temp user but no OTP pending flag. Setting OTP pending flag.");
 }
 
 // Get action and other values from session storage

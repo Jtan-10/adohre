@@ -265,11 +265,20 @@ $scriptNonce = bin2hex(random_bytes(16));
                     console.log('Login response:', result); // Debug log
 
                     if (result.status) {
-                        console.log('Login successful, redirecting...'); // Debug log
+                        console.log('Login successful, redirecting...', result); // Debug log with result
                         if (result.requiresOTP) {
+                            console.log('OTP required, redirecting to OTP page...');
                             sessionStorage.setItem('email', document.getElementById('email-password').value);
                             sessionStorage.setItem('action', 'login');
-                            window.location.href = result.redirect;
+
+                            // Force hard redirect to OTP page
+                            window.location.replace(result.redirect);
+
+                            // Fallback redirect after a small delay
+                            setTimeout(function() {
+                                console.log('Fallback redirect to OTP page...');
+                                window.location.href = result.redirect;
+                            }, 500);
                         } else {
                             // Force redirect to index.php - use direct method
                             console.log('Redirecting to index.php...');
