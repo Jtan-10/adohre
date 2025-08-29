@@ -72,12 +72,13 @@ try {
 
     // Insert or update user - handle missing columns gracefully
     $stmt = $conn->prepare("
-        INSERT INTO users (email, first_name, last_name, password_hash, is_profile_complete, created_at, updated_at)
-        VALUES (?, ?, ?, ?, 1, NOW(), NOW())
+        INSERT INTO users (email, first_name, last_name, password_hash, role, is_profile_complete, created_at, updated_at)
+        VALUES (?, ?, ?, ?, 'user', 1, NOW(), NOW())
         ON DUPLICATE KEY UPDATE
             first_name = VALUES(first_name),
             last_name = VALUES(last_name),
             password_hash = VALUES(password_hash),
+            role = 'user',
             is_profile_complete = 1,
             updated_at = NOW()
     ");
@@ -128,7 +129,10 @@ try {
     $_SESSION['user_id'] = $userId;
     $_SESSION['first_name'] = $firstName;
     $_SESSION['last_name'] = $lastName;
-    $_SESSION['role'] = 'member'; // Default role for new users
+    $_SESSION['role'] = 'user'; // Default role for new users should be 'user', not 'member'
+
+    // Log role assignment
+    error_log("Setting role 'user' for new signup: $email (User ID: $userId)");
 
     // Clear email verification session
     unset($_SESSION['email_verified']);

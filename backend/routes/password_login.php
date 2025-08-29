@@ -98,8 +98,8 @@ try {
         $otp_enabled = $settings ? $settings['otp_enabled'] : 0;
     }
 
-    // For now, disable OTP to ensure login works
-    $otp_enabled = 0;
+    // Debug log OTP status
+    error_log('OTP enabled for user ' . $email . ': ' . ($otp_enabled ? 'Yes' : 'No'));
 
     // If OTP is enabled for this user, initiate OTP flow
     if ($otp_enabled) {
