@@ -28,8 +28,9 @@ function requireAuthentication()
 
     // Check if OTP is pending and redirect to OTP page
     if (isset($_SESSION['otp_pending']) && $_SESSION['otp_pending'] === true) {
-        // Only redirect if not already on OTP page
-        if (basename($_SERVER['PHP_SELF']) !== 'otp.php') {
+        // Only redirect if not already on OTP page or logout page
+        $currentPage = basename($_SERVER['PHP_SELF']);
+        if ($currentPage !== 'otp.php' && $currentPage !== 'logout.php') {
             header('Location: otp.php');
             exit();
         }

@@ -16,7 +16,7 @@ if (isset($_SESSION['user_id'])) {
     $conn->close();
 }
 
-// Destroy the session and redirect to login.
+// Destroy the session and redirect to home page.
 session_destroy();
-header("Location: login.php");
+header("Location: index.php");
 exit;

@@ -1,9 +1,13 @@
 <?php
 require_once 'backend/db/db_connect.php';
+require_once 'backend/utils/access_control.php';
 
 // Configure session security based on environment
 configureSessionSecurity();
 session_start();
+
+// Require authentication and OTP completion
+requireAuthentication();
 
 $nonce = bin2hex(random_bytes(16)); // generate nonce
 
