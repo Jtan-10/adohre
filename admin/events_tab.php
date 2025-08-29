@@ -1,42 +1,10 @@
 <div class="form-section" id="manageEventsSection">
     <div class="d-flex justify-content-between align-items-center">
         <h3 class="m-0">Manage Events</h3>
-        <button type="button" id="openAddEventBtn" class="btn btn-success">
+        <button type="button" id="openAddEventBtn" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#eventModal" data-mode="create">
             <i class="bi bi-plus-lg"></i> Add Event
         </button>
     </div>
-
-    <!-- Event Form -->
-    <form id="eventForm" enctype="multipart/form-data">
-        <div class="mb-3">
-            <label for="eventTitle" class="form-label">Event Title</label>
-            <input type="text" id="eventTitle" name="title" class="form-control" required>
-        </div>
-        <div class="mb-3">
-            <label for="eventDescription" class="form-label">Event Description</label>
-            <textarea id="eventDescription" name="description" class="form-control" required></textarea>
-        </div>
-        <div class="mb-3">
-            <label for="eventDate" class="form-label">Event Date &amp; Time</label>
-            <input type="datetime-local" id="eventDate" name="date" class="form-control" required>
-        </div>
-        <div class="mb-3">
-            <label for="eventLocation" class="form-label">Event Location</label>
-            <input type="text" id="eventLocation" name="location" class="form-control" required>
-        </div>
-        <!-- New Event Fee Field -->
-        <div class="mb-3">
-            <label for="eventFee" class="form-label">Event Fee</label>
-            <input type="number" id="eventFee" name="fee" class="form-control"
-                placeholder="Enter event fee (0 for free)" step="0.01">
-        </div>
-        <div class="mb-3">
-            <label for="eventImage" class="form-label">Event Image</label>
-            <input type="file" id="eventImage" name="image" class="form-control" accept="image/*">
-        </div>
-        <input type="hidden" id="eventId" name="id"> <!-- Hidden field for updating events -->
-        <button type="submit" class="btn btn-success">Save Event</button>
-    </form>
     <hr>
 
     <!-- Tab Navigation for Events List -->
@@ -63,35 +31,91 @@
     </div>
 </div>
 
+<!-- Event Modal -->
+<div class="modal fade" id="eventModal" tabindex="-1" aria-labelledby="eventModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="eventModalLabel">Add Event</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="eventForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="eventTitle" class="form-label">Event Title</label>
+                        <input type="text" id="eventTitle" name="title" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="eventDescription" class="form-label">Event Description</label>
+                        <textarea id="eventDescription" name="description" class="form-control" required></textarea>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="eventDate" class="form-label">Event Date &amp; Time</label>
+                            <input type="datetime-local" id="eventDate" name="date" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="eventLocation" class="form-label">Event Location</label>
+                            <input type="text" id="eventLocation" name="location" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
+                            <label for="eventFee" class="form-label">Event Fee</label>
+                            <input type="number" id="eventFee" name="fee" class="form-control" placeholder="Enter event fee (0 for free)" step="0.01">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="eventImage" class="form-label">Event Image</label>
+                            <input type="file" id="eventImage" name="image" class="form-control" accept="image/*">
+                        </div>
+                    </div>
+                    <input type="hidden" id="eventId" name="id">
+                    <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="saveEventBtn" class="btn btn-success">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Updated inline script with matching nonce -->
 <script nonce="<?= $cspNonce ?>">
     document.addEventListener('DOMContentLoaded', function() {
-        // Quick open Add Event
-        const openAddEventBtn = document.getElementById('openAddEventBtn');
-        if (openAddEventBtn) {
-            openAddEventBtn.addEventListener('click', () => {
-                document.getElementById('eventForm').reset();
-                document.getElementById('eventId').value = '';
-                document.getElementById('manageEventsSection').scrollIntoView({
-                    behavior: 'smooth'
-                });
-                document.getElementById('eventTitle').focus();
-            });
-        }
         // Fetch and display existing events
         fetchContent();
 
-        // Handle form submission (Add/Update Event)
-        document.getElementById('eventForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const formData = new FormData(this);
-            const id = document.getElementById('eventId').value;
+        const eventModal = document.getElementById('eventModal');
+        const modalTitle = document.getElementById('eventModalLabel');
+        const saveEventBtn = document.getElementById('saveEventBtn');
+        const eventForm = document.getElementById('eventForm');
 
-            // Determine if it's Add or Update
+        // When modal opens in create mode, reset form
+        eventModal.addEventListener('show.bs.modal', (e) => {
+            const trigger = e.relatedTarget;
+            if (trigger && trigger.getAttribute('data-mode') === 'create') {
+                modalTitle.textContent = 'Add Event';
+                eventForm.reset();
+                document.getElementById('eventId').value = '';
+            }
+        });
+
+        // Save (Add/Update)
+        saveEventBtn.addEventListener('click', () => {
+            const formData = new FormData(eventForm);
+            const id = document.getElementById('eventId').value;
             const action = id ? 'update_event' : 'add_event';
             formData.append('action', action);
-
-            manageContent(formData, id ? 'Event updated successfully.' : 'Event added successfully.');
+            // include csrf if present
+            const csrf = eventForm.querySelector('input[name="csrf_token"]').value;
+            if (csrf && !formData.get('csrf_token')) formData.append('csrf_token', csrf);
+            manageContent(formData, id ? 'Event updated successfully.' : 'Event added successfully.', () => {
+                bootstrap.Modal.getInstance(eventModal)?.hide();
+                eventForm.reset();
+                document.getElementById('eventId').value = '';
+            });
         });
 
         // Fetch and display events
@@ -188,10 +212,9 @@
                         document.getElementById('eventLocation').value = event.location;
                         document.getElementById('eventFee').value = event.fee || '';
 
-                        // Scroll smoothly to the manage events section (the event form)
-                        document.getElementById('manageEventsSection').scrollIntoView({
-                            behavior: 'smooth'
-                        });
+                        // Open modal in edit mode
+                        modalTitle.textContent = 'Edit Event';
+                        new bootstrap.Modal(eventModal).show();
                     }
                 })
                 .catch((err) => console.error(err));
@@ -209,7 +232,7 @@
         }
 
         // Manage Content (Add/Update/Delete)
-        function manageContent(formData, successMessage) {
+        function manageContent(formData, successMessage, onSuccess) {
             fetch('../backend/routes/content_manager.php', {
                     method: 'POST',
                     body: formData,
@@ -219,8 +242,7 @@
                     if (data.status) {
                         alert(successMessage);
                         fetchContent();
-                        document.getElementById('eventForm').reset();
-                        document.getElementById('eventId').value = '';
+                        if (typeof onSuccess === 'function') onSuccess();
                     } else {
                         alert(`Error: ${data.message}`);
                     }

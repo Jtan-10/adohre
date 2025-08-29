@@ -1,29 +1,45 @@
 <div class="form-section">
     <div class="d-flex justify-content-between align-items-center">
         <h3 class="m-0">Manage Announcements</h3>
-        <button type="button" id="openAddAnnouncementBtn" class="btn btn-success">
+        <button type="button" id="openAddAnnouncementBtn" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#announcementModal" data-mode="create">
             <i class="bi bi-plus-lg"></i> Add Announcement
         </button>
     </div>
-
-    <!-- Announcement Form -->
-    <form id="announcementForm">
-        <div class="mb-3">
-            <label for="announcementTitle" class="form-label">Title</label>
-            <input type="text" id="announcementTitle" name="title" class="form-control" required>
-        </div>
-        <div class="mb-3">
-            <label for="announcementContent" class="form-label">Content</label>
-            <textarea id="announcementContent" name="text" class="form-control" required></textarea>
-        </div>
-        <input type="hidden" id="announcementId" name="id"> <!-- Hidden field for updating announcements -->
-        <button type="submit" class="btn btn-primary">Save Announcement</button>
-    </form>
     <hr>
 
     <!-- Announcements List -->
     <h4>Existing Announcements</h4>
     <div id="announcementsList"></div>
+</div>
+
+<!-- Announcement Modal -->
+<div class="modal fade" id="announcementModal" tabindex="-1" aria-labelledby="announcementModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="announcementModalLabel">Add Announcement</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="announcementForm">
+                    <div class="mb-3">
+                        <label for="announcementTitle" class="form-label">Title</label>
+                        <input type="text" id="announcementTitle" name="title" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="announcementContent" class="form-label">Content</label>
+                        <textarea id="announcementContent" name="text" class="form-control" required></textarea>
+                    </div>
+                    <input type="hidden" id="announcementId" name="id">
+                    <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="saveAnnouncementBtn" class="btn btn-primary">Save</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Updated inline script with matching nonce -->
@@ -52,33 +68,35 @@
         // Fetch and display existing announcements
         fetchContent();
 
-        // Quick open Add Announcement
-        const openAddAnnouncementBtn = document.getElementById('openAddAnnouncementBtn');
-        if (openAddAnnouncementBtn) {
-            openAddAnnouncementBtn.addEventListener('click', () => {
+        const announcementModal = document.getElementById('announcementModal');
+        const modalTitle = document.getElementById('announcementModalLabel');
+        const saveAnnouncementBtn = document.getElementById('saveAnnouncementBtn');
+
+        // When modal opens in create mode, reset form
+        announcementModal.addEventListener('show.bs.modal', (e) => {
+            const trigger = e.relatedTarget;
+            if (trigger && trigger.getAttribute('data-mode') === 'create') {
+                modalTitle.textContent = 'Add Announcement';
+                announcementForm.reset();
                 const idField = document.getElementById('announcementId');
                 if (idField) idField.value = '';
-                announcementForm.reset();
-                announcementForm.scrollIntoView({
-                    behavior: 'smooth'
-                });
-                document.getElementById('announcementTitle').focus();
-            });
-        }
+            }
+        });
 
-        // Handle form submission (Add/Update Announcement)
-        announcementForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const formData = new FormData(this);
+        // Save (Add/Update)
+        saveAnnouncementBtn.addEventListener('click', () => {
+            const formData = new FormData(announcementForm);
             const idField = document.getElementById('announcementId');
             const id = idField ? idField.value : '';
-
-            // Determine if it's Add or Update
             const action = id ? 'update_announcement' : 'add_announcement';
             formData.append('action', action);
-
-            manageContent(formData, id ? 'Announcement updated successfully.' :
-                'Announcement added successfully.');
+            const csrf = announcementForm.querySelector('input[name="csrf_token"]').value;
+            if (csrf && !formData.get('csrf_token')) formData.append('csrf_token', csrf);
+            manageContent(formData, id ? 'Announcement updated successfully.' : 'Announcement added successfully.', () => {
+                bootstrap.Modal.getInstance(announcementModal)?.hide();
+                announcementForm.reset();
+                if (idField) idField.value = '';
+            });
         });
 
         // Fetch and display announcements
@@ -143,6 +161,8 @@
                             announcementIdField.value = announcement.announcement_id;
                             announcementTitleField.value = decodeHtmlEntities(announcement.title);
                             announcementContentField.value = decodeHtmlEntities(announcement.text);
+                            modalTitle.textContent = 'Edit Announcement';
+                            new bootstrap.Modal(announcementModal).show();
                         }
                     }
                 })
@@ -160,7 +180,7 @@
         }
 
         // Manage Content (Add/Update/Delete)
-        function manageContent(formData, successMessage) {
+        function manageContent(formData, successMessage, onSuccess) {
             fetch('../backend/routes/content_manager.php', {
                     method: 'POST',
                     body: formData,
@@ -170,9 +190,7 @@
                     if (data.status) {
                         alert(successMessage);
                         fetchContent();
-                        announcementForm.reset();
-                        const idField = document.getElementById('announcementId');
-                        if (idField) idField.value = '';
+                        if (typeof onSuccess === 'function') onSuccess();
                     } else {
                         alert(`Error: ${data.message}`);
                     }
