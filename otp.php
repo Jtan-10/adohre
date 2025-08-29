@@ -1,4 +1,7 @@
 <?php
+// Define constant for visually_impaired_modal.php
+define('IN_CAPSTONE', true);
+
 // Start session
 session_start();
 

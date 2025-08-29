@@ -16,6 +16,10 @@ header("X-Content-Type-Options: nosniff");
 // Start the session and include your database connection.
 session_start();
 require_once 'backend/db/db_connect.php';
+require_once 'backend/utils/access_control.php';
+
+// Require authentication and OTP completion
+requireAuthentication();
 
 // Default visually impaired flag is 0.
 $isVisuallyImpaired = 0;
@@ -40,13 +44,8 @@ if (isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
     $resultApp = $stmtApp->get_result()->fetch_assoc();
     $stmtApp->close();
     if ($resultApp['count'] == 0) {
-        // Option 1: Force redirection to the membership application form
-        header("Location: membership_form.php?warning=1");
-        exit();
-
-        // Option 2: Or, you might choose to display a warning message on the dashboard instead of a redirect.
-        // For example, you could set a flag and later show a modal or a banner:
-        // $showMembershipWarning = true;
+        // Show warning message instead of redirecting
+        $showMembershipWarning = true;
     }
 }
 ?>
@@ -240,6 +239,16 @@ if (isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
     <?php include('sidebar.php'); ?>
 
     <?php include 'privacy_and_cookie_notice.php'; ?>
+
+    <!-- Membership Warning -->
+    <?php if (isset($showMembershipWarning) && $showMembershipWarning): ?>
+        <div class="alert alert-warning alert-dismissible fade show text-center" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>Membership Required:</strong> You must complete your membership application to access all features.
+            <a href="membership_form.php" class="alert-link">Complete Application</a>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    <?php endif; ?>
 
     <!-- Main Content -->
     <main role="main">

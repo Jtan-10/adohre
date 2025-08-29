@@ -34,7 +34,7 @@ try {
     // Check if user exists and verify password
     $stmt = $conn->prepare("
         SELECT u.user_id, u.password_hash, u.first_name, u.last_name, u.profile_image, u.role, u.is_profile_complete,
-               COALESCE(us.otp_enabled, 1) as otp_enabled
+               COALESCE(us.otp_enabled, 0) as otp_enabled
         FROM users u
         LEFT JOIN user_settings us ON u.user_id = us.user_id
         WHERE u.email = ?
@@ -77,7 +77,7 @@ try {
         // Generate and send OTP
         $otp = generateOTP();
         $expiry = date('Y-m-d H:i:s', strtotime('+5 minutes'));
-        
+
         $stmt = $conn->prepare("UPDATE users SET otp_code = ?, otp_expiry = ? WHERE user_id = ?");
         $stmt->bind_param("ssi", $otp, $expiry, $user['user_id']);
         $stmt->execute();
@@ -86,6 +86,7 @@ try {
         // Send OTP email
         if (sendOTPEmail($email, $otp)) {
             $_SESSION['action'] = 'login';
+            $_SESSION['otp_pending'] = true; // Mark OTP as pending
             echo json_encode([
                 'status' => true,
                 'message' => 'OTP sent successfully.',
@@ -107,23 +108,25 @@ try {
         'message' => 'Login successful.',
         'redirect' => 'index.php'
     ]);
-
 } catch (Exception $e) {
     error_log('Login error: ' . $e->getMessage());
     echo json_encode(['status' => false, 'message' => 'An error occurred during login.']);
 }
 
-function generateOTP($length = 6) {
+function generateOTP($length = 6)
+{
     return str_pad(strval(mt_rand(0, pow(10, $length) - 1)), $length, '0', STR_PAD_LEFT);
 }
 
-function sendOTPEmail($email, $otp) {
+function sendOTPEmail($email, $otp)
+{
     // Implementation should be in a separate email utility file
     // For now, return true assuming email was sent
     return true;
 }
 
-function completeLogin($userId, $firstName, $lastName, $profileImage, $role, $isProfileComplete, $remember) {
+function completeLogin($userId, $firstName, $lastName, $profileImage, $role, $isProfileComplete, $remember)
+{
     $_SESSION['user_id'] = $userId;
     $_SESSION['first_name'] = $firstName;
     $_SESSION['last_name'] = $lastName;

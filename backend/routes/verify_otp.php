@@ -75,6 +75,7 @@ if (verifyOTP($email, $otp)) {
         $_SESSION['last_name']     = $user['last_name'];
         $_SESSION['profile_image'] = $user['profile_image'];
         $_SESSION['role']          = $user['role'];
+        $_SESSION['otp_pending']   = false; // Clear OTP pending status
 
         // Record successful login
         recordAuditLog($user['user_id'], 'Login Successful', 'User logged in successfully.');
