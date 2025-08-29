@@ -156,12 +156,66 @@ $scriptNonce = bin2hex(random_bytes(16));
             color: #218838;
         }
 
-        /* Toast styles */
-        .toast-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 1050;
+        /* Progress indicator styles */
+        .step-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #e9ecef;
+            color: #6c757d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .step.active .step-circle {
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        .step.completed .step-circle {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .step-label {
+            font-size: 0.875rem;
+            color: #6c757d;
+            font-weight: 500;
+        }
+
+        .step.active .step-label {
+            color: var(--accent-color);
+        }
+
+        .step.completed .step-label {
+            color: #28a745;
+        }
+
+        .step-connector {
+            width: 40px;
+            height: 2px;
+            background-color: #e9ecef;
+            transition: all 0.3s ease;
+        }
+
+        .step.completed+.step-connector {
+            background-color: #28a745;
         }
     </style>
 </head>
@@ -171,6 +225,28 @@ $scriptNonce = bin2hex(random_bytes(16));
 
     <div class="signup-card">
         <h2 class="text-center mb-4">Create Account</h2>
+
+        <!-- Progress indicator -->
+        <div class="mb-4">
+            <div class="d-flex justify-content-center">
+                <div class="step-indicator">
+                    <div class="step active" id="step1">
+                        <div class="step-circle">1</div>
+                        <div class="step-label">Email</div>
+                    </div>
+                    <div class="step-connector"></div>
+                    <div class="step" id="step2">
+                        <div class="step-circle">2</div>
+                        <div class="step-label">Verify</div>
+                    </div>
+                    <div class="step-connector"></div>
+                    <div class="step" id="step3">
+                        <div class="step-circle">3</div>
+                        <div class="step-label">Details</div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- Email Validation Form -->
         <form id="emailValidationForm" class="form-section active needs-validation" novalidate>
@@ -187,14 +263,17 @@ $scriptNonce = bin2hex(random_bytes(16));
         <!-- Email Verification Form -->
         <form id="emailVerificationForm" class="form-section needs-validation" novalidate style="display: none;">
             <div class="mb-3">
-                <p class="text-muted">A verification code has been sent to your email. Please enter it below.</p>
                 <label for="verificationCode" class="form-label">Verification Code</label>
-                <input type="text" class="form-control" id="verificationCode" name="verificationCode" required maxlength="6" pattern="[0-9]{6}">
+                <input type="text" class="form-control" id="verificationCode" name="verificationCode" required
+                    maxlength="6" pattern="[0-9]{6}" placeholder="Enter 6-digit code">
                 <div class="invalid-feedback">Please enter the 6-digit verification code.</div>
+                <div class="form-text">Check your email for the verification code. It expires in 10 minutes.</div>
             </div>
-            <div class="d-grid gap-2">
-                <button type="submit" class="btn btn-primary">Verify Email</button>
-                <button type="button" id="resendCodeBtn" class="btn btn-outline-secondary">Resend Code</button>
+            <div class="d-grid mb-3">
+                <button type="submit" class="btn btn-primary">Verify Code</button>
+            </div>
+            <div class="text-center">
+                <button type="button" class="btn btn-link" id="resendCodeBtn">Didn't receive the code? Resend</button>
             </div>
         </form>
 
@@ -334,6 +413,21 @@ $scriptNonce = bin2hex(random_bytes(16));
             // Email validation form handler
             let validatedEmail = '';
 
+            function updateStepIndicator(currentStep) {
+                // Reset all steps
+                document.querySelectorAll('.step').forEach(step => {
+                    step.classList.remove('active', 'completed');
+                });
+
+                // Set completed steps
+                for (let i = 1; i < currentStep; i++) {
+                    document.getElementById(`step${i}`).classList.add('completed');
+                }
+
+                // Set active step
+                document.getElementById(`step${currentStep}`).classList.add('active');
+            }
+
             document.getElementById('emailValidationForm').addEventListener('submit', async function(e) {
                 e.preventDefault();
                 if (!this.checkValidity()) {
@@ -362,13 +456,14 @@ $scriptNonce = bin2hex(random_bytes(16));
                         validatedEmail = email;
                         document.getElementById('emailValidationForm').style.display = 'none';
                         document.getElementById('emailVerificationForm').style.display = 'block';
-                        showModal('Success', result.message);
+                        updateStepIndicator(2);
+                        document.getElementById('verificationCode').focus();
                     } else {
                         showModal('Error', result.message);
                     }
                 } catch (error) {
                     hideLoading();
-                    showModal('Error', 'An error occurred while validating email.');
+                    showModal('Error', 'An error occurred while sending verification code.');
                 }
             });
 
@@ -381,6 +476,7 @@ $scriptNonce = bin2hex(random_bytes(16));
                     return;
                 }
 
+                const verificationCode = document.getElementById('verificationCode').value;
                 showLoading();
                 try {
                     const response = await fetch('backend/routes/verify_email_code.php', {
@@ -389,28 +485,34 @@ $scriptNonce = bin2hex(random_bytes(16));
                             'Content-Type': 'application/json',
                         },
                         body: JSON.stringify({
-                            email: validatedEmail,
-                            code: document.getElementById('verificationCode').value
+                            verificationCode
                         })
                     });
 
                     const result = await response.json();
                     hideLoading();
 
-                    if (result.status) {
+                    if (result.status && result.verified) {
                         document.getElementById('emailVerificationForm').style.display = 'none';
                         document.getElementById('completeSignupForm').style.display = 'block';
+                        updateStepIndicator(3);
+                        document.getElementById('firstName').focus();
                     } else {
                         showModal('Error', result.message);
                     }
                 } catch (error) {
                     hideLoading();
-                    showModal('Error', 'An error occurred during email verification.');
+                    showModal('Error', 'An error occurred while verifying the code.');
                 }
             });
 
             // Resend verification code handler
             document.getElementById('resendCodeBtn').addEventListener('click', async function() {
+                if (!validatedEmail) {
+                    showModal('Error', 'No email to resend code to. Please start over.');
+                    return;
+                }
+
                 showLoading();
                 try {
                     const response = await fetch('backend/routes/validate_email.php', {
@@ -427,14 +529,57 @@ $scriptNonce = bin2hex(random_bytes(16));
                     hideLoading();
 
                     if (result.status) {
-                        showModal('Success', 'A new verification code has been sent to your email.');
+                        showModal('Success', 'New verification code sent to your email.');
+                        document.getElementById('verificationCode').value = '';
+                        document.getElementById('verificationCode').focus();
                     } else {
                         showModal('Error', result.message);
                     }
                 } catch (error) {
                     hideLoading();
-                    showModal('Error', 'An error occurred while resending the verification code.');
+                    showModal('Error', 'An error occurred while resending the code.');
                 }
+            });
+
+            // Add back button functionality
+            function addBackButton(formId, targetStep) {
+                const form = document.getElementById(formId);
+                const backBtn = document.createElement('button');
+                backBtn.type = 'button';
+                backBtn.className = 'btn btn-outline-secondary mt-2';
+                backBtn.innerHTML = '<i class="bi bi-arrow-left"></i> Back';
+                backBtn.onclick = () => {
+                    form.style.display = 'none';
+                    updateStepIndicator(targetStep);
+                    if (targetStep === 1) {
+                        document.getElementById('emailValidationForm').style.display = 'block';
+                        document.getElementById('email').focus();
+                    } else if (targetStep === 2) {
+                        document.getElementById('emailVerificationForm').style.display = 'block';
+                        document.getElementById('verificationCode').focus();
+                    }
+                };
+                form.appendChild(backBtn);
+            }
+
+            // Auto-format verification code input (only numbers)
+            document.getElementById('verificationCode').addEventListener('input', function(e) {
+                // Remove any non-numeric characters
+                this.value = this.value.replace(/[^0-9]/g, '');
+
+                // Auto-focus to next field when complete
+                if (this.value.length === 6) {
+                    // Trigger form submission or move to next step
+                    this.blur();
+                }
+            });
+
+            // Prevent paste of non-numeric content
+            document.getElementById('verificationCode').addEventListener('paste', function(e) {
+                e.preventDefault();
+                const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+                const numericText = pastedText.replace(/[^0-9]/g, '');
+                this.value = numericText.substring(0, 6);
             });
 
             // Password validation

@@ -39,29 +39,27 @@ try {
         exit();
     }
 
-    // Generate verification code and send email
-    $verificationCode = generateOTP();
-    $expiry = date('Y-m-d H:i:s', strtotime('+5 minutes'));
-    
+    // Generate verification code
+    $verificationCode = generateOTP(6); // 6-digit code
+    $expiry = date('Y-m-d H:i:s', strtotime('+10 minutes'));
+
     // Store verification code in session
     $_SESSION['email_verification'] = [
         'email' => $email,
         'code' => $verificationCode,
-        'expiry' => $expiry
+        'expiry' => $expiry,
+        'attempts' => 0
     ];
-    
+
     // Send verification email
-    if (sendEmailOTP($email, $verificationCode)) {
+    if (sendEmailVerification($email, $verificationCode)) {
         echo json_encode([
             'status' => true,
-            'message' => 'Verification code sent to your email.',
+            'message' => 'Verification code sent to your email. Please check your inbox and enter the code below.',
             'requiresVerification' => true
         ]);
     } else {
-        echo json_encode([
-            'status' => false,
-            'message' => 'Failed to send verification code. Please try again.'
-        ]);
+        echo json_encode(['status' => false, 'message' => 'Failed to send verification email. Please try again.']);
     }
 } catch (Exception $e) {
     error_log('Email validation error: ' . $e->getMessage());

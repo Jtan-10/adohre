@@ -227,6 +227,68 @@ function sendEmailOTP($email, $otp)
         $mail->send();
         return true;
     } catch (Exception $e) {
+    }
+}
+
+function sendEmailVerification($email, $verificationCode)
+{
+    // Ensure session is started.
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+
+    // Log the verification request (do not log the code itself).
+    error_log("sendEmailVerification request for email: " . $email . " at " . date('Y-m-d H:i:s'));
+
+    // Rate limiting: allow a maximum of 3 verification requests per email within 15 minutes.
+    $window = 900;           // 15 minutes in seconds
+    $maxRequests = 3;        // Maximum allowed requests per window
+    $now = time();
+
+    if (!isset($_SESSION['verification_requests'])) {
+        $_SESSION['verification_requests'] = [];
+    }
+
+    if (!isset($_SESSION['verification_requests'][$email])) {
+        $_SESSION['verification_requests'][$email] = ['count' => 0, 'first_request_time' => $now];
+    }
+
+    // Reset count if the window has expired.
+    if ($now - $_SESSION['verification_requests'][$email]['first_request_time'] > $window) {
+        $_SESSION['verification_requests'][$email]['count'] = 0;
+        $_SESSION['verification_requests'][$email]['first_request_time'] = $now;
+    }
+
+    // Check if the rate limit has been reached.
+    if ($_SESSION['verification_requests'][$email]['count'] >= $maxRequests) {
+        error_log("Rate limit exceeded for email verification: " . $email);
+        return false;
+    }
+
+    // Increment the verification request count.
+    $_SESSION['verification_requests'][$email]['count']++;
+
+    $mail = new PHPMailer(true);
+    try {
+        // SMTP setup.
+        $mail->isSMTP();
+        $mail->Host       = $_ENV['SMTP_HOST'];
+        $mail->SMTPAuth   = true;
+        $mail->Username   = $_ENV['SMTP_USER'];
+        $mail->Password   = $_ENV['SMTP_PASS'];
+        $mail->SMTPSecure = $_ENV['SMTP_SECURE'];
+        $mail->Port       = $_ENV['SMTP_PORT'];
+
+        // Set sender and recipient.
+        $mail->setFrom($_ENV['SMTP_FROM'], $_ENV['SMTP_FROM_NAME']);
+        $mail->addAddress($email);
+        $mail->Subject = 'Email Verification Code - Member Link';
+        $mail->Body = "Your email verification code is: $verificationCode\n\nThis code will expire in 10 minutes.\n\nIf you didn't request this verification, please ignore this email.";
+
+        // Attempt to send the email.
+        $mail->send();
+        return true;
+    } catch (Exception $e) {
         error_log("PHPMailer Error: " . $mail->ErrorInfo);
         return false;
     }

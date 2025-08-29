@@ -46,13 +46,17 @@ if ($passwordValidation !== true) {
     exit();
 }
 
-try {
-    // Check if email has been verified
-    if (!isset($_SESSION['email_verified']) || !isset($_SESSION['verified_email']) || $_SESSION['verified_email'] !== $email) {
-        echo json_encode(['status' => false, 'message' => 'Email verification required.']);
-        exit();
-    }
+// Check if email has been verified
+if (
+    !isset($_SESSION['email_verified']) ||
+    $_SESSION['email_verified']['email'] !== $email ||
+    strtotime($_SESSION['email_verified']['verified_at']) < (time() - 3600)
+) { // 1 hour expiry
+    echo json_encode(['status' => false, 'message' => 'Email verification required. Please verify your email first.']);
+    exit();
+}
 
+try {
     // Start transaction
     $conn->begin_transaction();
 
@@ -86,12 +90,11 @@ try {
     $_SESSION['last_name'] = $lastName;
     $_SESSION['role'] = 'member'; // Default role for new users
 
+    // Clear email verification session
+    unset($_SESSION['email_verified']);
+
     // Record signup in audit log
     recordAuditLog($userId, 'User Registration', 'New user registered successfully.');
-
-    // Clear email verification session data
-    unset($_SESSION['email_verified']);
-    unset($_SESSION['verified_email']);
 
     // Commit transaction
     $conn->commit();
