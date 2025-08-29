@@ -528,9 +528,9 @@ header("X-Content-Type-Options: nosniff");
                                 <div class="card mb-3">
                                     <div class="row g-0">
                                         <div class="col-md-4">
-                                            <img src="${event.image
-  ? 'backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(event.image)
-  : 'assets/default-image.jpeg'
+                                                                                        <img src="${event.image
+    ? '/capstone-php/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(event.image)
+    : 'assets/default-image.jpeg'
 }" class="img-fluid rounded-start" alt="${event.title}">
                                         </div>
                                         <div class="col-md-8">
@@ -574,9 +574,9 @@ header("X-Content-Type-Options: nosniff");
                     <div class="card mb-3">
                         <div class="row g-0">
                             <div class="col-md-4">
-                               <img src="${training.image
-  ? 'backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image)
-  : 'assets/default-training.jpg'
+                                                             <img src="${training.image
+    ? '/capstone-php/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image)
+    : 'assets/default-training.jpg'
 }" class="img-fluid rounded-start" alt="${training.title}">
 
                             </div>

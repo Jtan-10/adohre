@@ -66,7 +66,7 @@ if ($stmt) {
 <nav class="navbar navbar-expand-lg navbar-dark bg-success">
     <div class="container">
         <a class="navbar-brand" href="index.php">
-            <?php if (strpos($headerLogo, 's3proxy') !== false): ?>
+            <?php if (strpos($headerLogo, 's3proxy') !== false || strpos($headerLogo, 'amazonaws.com') !== false): ?>
                 <!-- For S3 images that need decryption -->
                 <img src="/capstone-php/backend/routes/decrypt_image.php?image_url=<?= urlencode($headerLogo) ?>"
                     alt="<?= htmlspecialchars($headerName, ENT_QUOTES, 'UTF-8') ?> Logo" width="30" height="28"
@@ -78,7 +78,8 @@ if ($stmt) {
                     class="d-inline-block align-text-top">
             <?php else: ?>
                 <!-- For regular images from the assets folder -->
-                <img src="/capstone-php/<?= $headerLogo ?>"
+                <?php $localLogo = (strpos($headerLogo, '/capstone-php/') === 0) ? $headerLogo : '/capstone-php/' . ltrim($headerLogo, '/'); ?>
+                <img src="<?= htmlspecialchars($localLogo, ENT_QUOTES, 'UTF-8') ?>"
                     alt="<?= htmlspecialchars($headerName, ENT_QUOTES, 'UTF-8') ?> Logo" width="30" height="28"
                     class="d-inline-block align-text-top">
             <?php endif; ?>

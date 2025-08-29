@@ -13,193 +13,193 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-    :root {
-        --primary-color: #28a745;
-        --secondary-color: #2c3e50;
-        --accent-color: #f8f9fa;
-    }
+        :root {
+            --primary-color: #28a745;
+            --secondary-color: #2c3e50;
+            --accent-color: #f8f9fa;
+        }
 
-    body {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        background-color: #ffffff;
-    }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #ffffff;
+        }
 
-    .trainings-container {
-        background: var(--accent-color);
-        border-radius: 15px;
-        padding: 2rem;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-    }
+        .trainings-container {
+            background: var(--accent-color);
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
 
-    .training-card {
-        border: none;
-        border-radius: 12px;
-        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        background: linear-gradient(145deg, #ffffff, #f8f9fa);
-        overflow: hidden;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-    }
+        .training-card {
+            border: none;
+            border-radius: 12px;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: linear-gradient(145deg, #ffffff, #f8f9fa);
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
 
-    .training-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 20px rgba(40, 167, 69, 0.15);
-    }
+        .training-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(40, 167, 69, 0.15);
+        }
 
-    .training-card img {
-        height: 200px;
-        object-fit: cover;
-        border-radius: 12px 12px 0 0;
-    }
+        .training-card img {
+            height: 200px;
+            object-fit: cover;
+            border-radius: 12px 12px 0 0;
+        }
 
-    .training-badge {
-        background: var(--primary-color);
-        color: white;
-        padding: 0.5rem 1rem;
-        border-radius: 20px;
-        font-size: 0.9rem;
-        display: inline-block;
-        margin-bottom: 1rem;
-    }
+        .training-badge {
+            background: var(--primary-color);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            display: inline-block;
+            margin-bottom: 1rem;
+        }
 
-    .section-title {
-        font-size: 2rem;
-        font-weight: 700;
-        color: var(--secondary-color);
-        margin-bottom: 2rem;
-        position: relative;
-        padding-left: 1.5rem;
-    }
+        .section-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--secondary-color);
+            margin-bottom: 2rem;
+            position: relative;
+            padding-left: 1.5rem;
+        }
 
-    .section-title::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        height: 70%;
-        width: 4px;
-        background: var(--primary-color);
-        border-radius: 2px;
-    }
+        .section-title::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 70%;
+            width: 4px;
+            background: var(--primary-color);
+            border-radius: 2px;
+        }
 
-    .modal-content {
-        border-radius: 15px;
-        border: none;
-    }
+        .modal-content {
+            border-radius: 15px;
+            border: none;
+        }
 
-    .modal-header {
-        border-bottom: 2px solid var(--primary-color);
-    }
+        .modal-header {
+            border-bottom: 2px solid var(--primary-color);
+        }
 
-    .modal-title {
-        color: var(--secondary-color);
-        font-weight: 700;
-    }
+        .modal-title {
+            color: var(--secondary-color);
+            font-weight: 700;
+        }
 
-    .btn-success {
-        background-color: var(--primary-color);
-        border: none;
-        padding: 10px 20px;
-        font-size: 1rem;
-        transition: background-color 0.3s ease;
-    }
+        .btn-success {
+            background-color: var(--primary-color);
+            border: none;
+            padding: 10px 20px;
+            font-size: 1rem;
+            transition: background-color 0.3s ease;
+        }
 
-    .btn-success:hover {
-        background-color: #218838;
-    }
+        .btn-success:hover {
+            background-color: #218838;
+        }
 
-    .btn-primary {
-        background-color: var(--secondary-color);
-        border: none;
-    }
+        .btn-primary {
+            background-color: var(--secondary-color);
+            border: none;
+        }
 
-    .training-details-list {
-        list-style: none;
-        padding-left: 0;
-    }
+        .training-details-list {
+            list-style: none;
+            padding-left: 0;
+        }
 
-    .training-details-list li {
-        margin-bottom: 1rem;
-        padding-left: 2rem;
-        position: relative;
-    }
+        .training-details-list li {
+            margin-bottom: 1rem;
+            padding-left: 2rem;
+            position: relative;
+        }
 
-    .training-details-list li i {
-        position: absolute;
-        left: 0;
-        top: 2px;
-        color: var(--primary-color);
-    }
+        .training-details-list li i {
+            position: absolute;
+            left: 0;
+            top: 2px;
+            color: var(--primary-color);
+        }
 
-    .scrollable-section {
-        max-height: 70vh;
-        overflow-y: auto;
-        padding-right: 1rem;
-    }
+        .scrollable-section {
+            max-height: 70vh;
+            overflow-y: auto;
+            padding-right: 1rem;
+        }
 
-    ::-webkit-scrollbar {
-        width: 8px;
-    }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
 
-    ::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 4px;
-    }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
 
-    ::-webkit-scrollbar-thumb {
-        background: var(--primary-color);
-        border-radius: 4px;
-    }
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 4px;
+        }
 
-    ::-webkit-scrollbar-thumb:hover {
-        background: #218838;
-    }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #218838;
+        }
 
-    #backToTopBtn {
-        display: none;
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 99;
-        border: none;
-        outline: none;
-        background-color: var(--primary-color);
-        color: white;
-        cursor: pointer;
-        padding: 15px 19px;
-        border-radius: 50%;
-        font-size: 1.2rem;
-        transition: background-color 0.3s ease;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        width: 52px;
-        height: 52px;
-    }
+        #backToTopBtn {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 99;
+            border: none;
+            outline: none;
+            background-color: var(--primary-color);
+            color: white;
+            cursor: pointer;
+            padding: 15px 19px;
+            border-radius: 50%;
+            font-size: 1.2rem;
+            transition: background-color 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            width: 52px;
+            height: 52px;
+        }
 
-    #backToTopBtn:hover {
-        background-color: #218838;
-        transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-    }
+        #backToTopBtn:hover {
+            background-color: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+        }
 
-    /* Custom Assessment Form Styles */
-    .assessment-question {
-        margin-bottom: 2rem;
-        padding-bottom: 1.5rem;
-        border-bottom: 1px solid #eee;
-    }
+        /* Custom Assessment Form Styles */
+        .assessment-question {
+            margin-bottom: 2rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #eee;
+        }
 
-    .rating-buttons {
-        display: flex;
-        justify-content: space-between;
-    }
+        .rating-buttons {
+            display: flex;
+            justify-content: space-between;
+        }
 
-    .rating-buttons .btn {
-        flex: 1;
-    }
+        .rating-buttons .btn {
+            flex: 1;
+        }
 
-    .checkbox-group {
-        padding: 0.5rem 0;
-    }
+        .checkbox-group {
+            padding: 0.5rem 0;
+        }
     </style>
 </head>
 
@@ -287,14 +287,14 @@
                             </ul>
                             <!-- New Assessment Section: Only shown for non-trainers -->
                             <?php if ($_SESSION['role'] !== 'trainer'): ?>
-                            <div id="assessmentSection" style="display: none; margin-top: 20px;">
-                                <button id="takeAssessmentBtn" class="btn btn-primary">Take Assessment and
-                                    Evaluation</button>
-                                <p class="mt-2 text-danger">
-                                    Complete the assessment to receive your certificate.
-                                </p>
-                                <button id="markDoneBtn" class="btn btn-warning">Mark as Done</button>
-                            </div>
+                                <div id="assessmentSection" style="display: none; margin-top: 20px;">
+                                    <button id="takeAssessmentBtn" class="btn btn-primary">Take Assessment and
+                                        Evaluation</button>
+                                    <p class="mt-2 text-danger">
+                                        Complete the assessment to receive your certificate.
+                                    </p>
+                                    <button id="markDoneBtn" class="btn btn-warning">Mark as Done</button>
+                                </div>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -343,87 +343,87 @@
         <i class="fas fa-arrow-up"></i>
     </button>
     <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        const userId = <?php echo json_encode($_SESSION['user_id']); ?>;
-        const role = <?php echo json_encode($_SESSION['role']); ?>; // e.g., 'trainer' or 'user'
-        let trainingsData = [];
-        const trainingsList = document.getElementById('trainingsList');
-        const paymentModalInstance = new bootstrap.Modal(document.getElementById('paymentModal'));
-        const trainingFeeSpan = document.getElementById('trainingFee');
+        document.addEventListener("DOMContentLoaded", function() {
+            const userId = <?php echo json_encode($_SESSION['user_id']); ?>;
+            const role = <?php echo json_encode($_SESSION['role']); ?>; // e.g., 'trainer' or 'user'
+            let trainingsData = [];
+            const trainingsList = document.getElementById('trainingsList');
+            const paymentModalInstance = new bootstrap.Modal(document.getElementById('paymentModal'));
+            const trainingFeeSpan = document.getElementById('trainingFee');
 
-        // Global variables to store the training ID and button reference for payment initiation.
-        let currentTrainingForPayment = null;
-        let currentButtonForPayment = null;
+            // Global variables to store the training ID and button reference for payment initiation.
+            let currentTrainingForPayment = null;
+            let currentButtonForPayment = null;
 
-        // Event delegation for training card buttons
-        trainingsList.addEventListener('click', function(e) {
-            const btn = e.target.closest('button');
-            if (!btn) return;
-            const trainingId = btn.dataset.trainingId;
-            const training = trainingsData.find(t => t.training_id == trainingId);
-            if (btn.classList.contains('join-training-btn')) {
-                joinTraining(trainingId, btn, training.fee);
-            } else if (btn.classList.contains('view-training-btn')) {
-                showTrainingModal(training);
-            }
-        });
-
-        // Fetch trainings with absolute URL path
-        fetch('/capstone-php/backend/routes/content_manager.php?action=fetch')
-            .then(response => response.json())
-            .then(data => {
-                if (data.status) {
-                    trainingsData = data.trainings;
-                    renderTrainings(data.trainings);
-                } else {
-                    showError('Failed to load trainings');
+            // Event delegation for training card buttons
+            trainingsList.addEventListener('click', function(e) {
+                const btn = e.target.closest('button');
+                if (!btn) return;
+                const trainingId = btn.dataset.trainingId;
+                const training = trainingsData.find(t => t.training_id == trainingId);
+                if (btn.classList.contains('join-training-btn')) {
+                    joinTraining(trainingId, btn, training.fee);
+                } else if (btn.classList.contains('view-training-btn')) {
+                    showTrainingModal(training);
                 }
-            })
-            .catch(err => {
-                console.error('Fetch error:', err);
-                showError('Failed to load trainings');
             });
 
-        // Updated renderTrainings() function with tabs for upcoming and past trainings
-        function renderTrainings(trainings) {
-            const now = new Date();
-            const upcomingTrainings = trainings.filter(training => new Date(training.schedule) >= now);
-            const pastTrainings = trainings.filter(training => new Date(training.schedule) < now);
-            const upcomingHtml = upcomingTrainings.map(training => {
-                let joinBtn = '';
-                if (training.joined) {
-                    // Payment complete – show "View Training" button
-                    joinBtn = `<button class="btn btn-primary btn-sm view-training-btn" data-training-id="${training.training_id}">
+            // Fetch trainings with absolute URL path
+            fetch('/capstone-php/backend/routes/content_manager.php?action=fetch')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status) {
+                        trainingsData = data.trainings;
+                        renderTrainings(data.trainings);
+                    } else {
+                        showError('Failed to load trainings');
+                    }
+                })
+                .catch(err => {
+                    console.error('Fetch error:', err);
+                    showError('Failed to load trainings');
+                });
+
+            // Updated renderTrainings() function with tabs for upcoming and past trainings
+            function renderTrainings(trainings) {
+                const now = new Date();
+                const upcomingTrainings = trainings.filter(training => new Date(training.schedule) >= now);
+                const pastTrainings = trainings.filter(training => new Date(training.schedule) < now);
+                const upcomingHtml = upcomingTrainings.map(training => {
+                    let joinBtn = '';
+                    if (training.joined) {
+                        // Payment complete – show "View Training" button
+                        joinBtn = `<button class="btn btn-primary btn-sm view-training-btn" data-training-id="${training.training_id}">
                                         <i class="fas fa-eye me-2"></i>View Training
                                    </button>`;
-                } else if (training.pending_payment) {
-                    joinBtn =
-                        `<button class="btn btn-warning btn-sm" disabled>Pending Payment</button>`;
-                } else {
-                    if (parseFloat(training.fee) > 0) {
-                        joinBtn = `<button class="btn btn-success btn-sm join-training-btn" data-training-id="${training.training_id}" data-fee="${training.fee}">
+                    } else if (training.pending_payment) {
+                        joinBtn =
+                            `<button class="btn btn-warning btn-sm" disabled>Pending Payment</button>`;
+                    } else {
+                        if (parseFloat(training.fee) > 0) {
+                            joinBtn = `<button class="btn btn-success btn-sm join-training-btn" data-training-id="${training.training_id}" data-fee="${training.fee}">
                                             Register Now <i class="fas fa-arrow-right me-2"></i>
                                        </button>`;
-                    } else {
-                        joinBtn = `<button class="btn btn-success btn-sm join-training-btn" data-training-id="${training.training_id}" data-fee="0">
+                        } else {
+                            joinBtn = `<button class="btn btn-success btn-sm join-training-btn" data-training-id="${training.training_id}" data-fee="0">
                                             Join Training <i class="fas fa-arrow-right me-2"></i>
                                        </button>`;
+                        }
                     }
-                }
-                const dateStr = new Date(training.schedule).toLocaleString('en-US', {
-                    month: 'long',
-                    day: 'numeric',
-                    year: 'numeric',
-                    hour: 'numeric',
-                    minute: 'numeric',
-                    hour12: true
-                });
-                return `
+                    const dateStr = new Date(training.schedule).toLocaleString('en-US', {
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: 'numeric',
+                        minute: 'numeric',
+                        hour12: true
+                    });
+                    return `
                         <div class="col-12">
                           <div class="training-card card">
                             <div class="row g-0">
                               <div class="col-md-4">
-                                <img src="${training.image ? '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image) : 'assets/default-training.jpg'}" 
+                                <img src="${training.image ? '/capstone-php/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image) : 'assets/default-training.jpg'}" 
                                      class="img-fluid training-image" 
                                      alt="${training.title}">
                               </div>
@@ -450,22 +450,22 @@
                             </div>
                           </div>
                         </div>`;
-            }).join('');
-            const pastHtml = pastTrainings.map(training => {
-                const dateStr = new Date(training.schedule).toLocaleString('en-US', {
-                    month: 'long',
-                    day: 'numeric',
-                    year: 'numeric',
-                    hour: 'numeric',
-                    minute: 'numeric',
-                    hour12: true
-                });
-                return `
+                }).join('');
+                const pastHtml = pastTrainings.map(training => {
+                    const dateStr = new Date(training.schedule).toLocaleString('en-US', {
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: 'numeric',
+                        minute: 'numeric',
+                        hour12: true
+                    });
+                    return `
                         <div class="col-12">
                           <div class="training-card card">
                             <div class="row g-0">
                               <div class="col-md-4">
-                                <img src="${training.image ? '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image) : 'assets/default-training.jpg'}" 
+                                <img src="${training.image ? '/capstone-php/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image) : 'assets/default-training.jpg'}" 
                                      class="img-fluid training-image" 
                                      alt="${training.title}">
                               </div>
@@ -492,8 +492,8 @@
                             </div>
                           </div>
                         </div>`;
-            }).join('');
-            trainingsList.innerHTML = `
+                }).join('');
+                trainingsList.innerHTML = `
                     <ul class="nav nav-tabs" id="trainingsTab" role="tablist">
                         <li class="nav-item" role="presentation">
                             <button class="nav-link active" id="upcoming-tab" data-bs-toggle="tab" data-bs-target="#upcomingTrainings" type="button" role="tab">
@@ -518,333 +518,333 @@
                             </div>
                         </div>
                     </div>`;
-        }
-
-        // Updated joinTraining function for paid trainings using "Ok, Got It" to push payment
-        async function joinTraining(trainingId, button, fee) {
-            if (parseFloat(fee) > 0) {
-                trainingFeeSpan.textContent = "PHP " + parseFloat(fee).toFixed(2);
-                // Store current training and button globally for later use
-                currentTrainingForPayment = trainingId;
-                currentButtonForPayment = button;
-                // Show payment modal (do not push payment yet)
-                paymentModalInstance.show();
-                return;
             }
-            // For free trainings (fee == 0), proceed to register immediately.
-            try {
-                button.innerHTML =
-                    `<span class="spinner-border spinner-border-sm" role="status"></span> Joining...`;
-                button.disabled = true;
-                const response = await fetch(
-                    '/capstone-php/backend/routes/training_registration.php?action=join_training', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            training_id: trainingId
-                        })
-                    });
-                const data = await response.json();
-                if (data.status) {
-                    const trainingIndex = trainingsData.findIndex(t => t.training_id == trainingId);
-                    trainingsData[trainingIndex].joined = 1;
-                    renderTrainings(trainingsData);
-                    alert('Successfully joined the training!');
-                } else {
-                    alert(data.message || 'Failed to join training');
+
+            // Updated joinTraining function for paid trainings using "Ok, Got It" to push payment
+            async function joinTraining(trainingId, button, fee) {
+                if (parseFloat(fee) > 0) {
+                    trainingFeeSpan.textContent = "PHP " + parseFloat(fee).toFixed(2);
+                    // Store current training and button globally for later use
+                    currentTrainingForPayment = trainingId;
+                    currentButtonForPayment = button;
+                    // Show payment modal (do not push payment yet)
+                    paymentModalInstance.show();
+                    return;
                 }
-            } catch (err) {
-                console.error('Join training error:', err);
-                alert('Error joining training');
+                // For free trainings (fee == 0), proceed to register immediately.
+                try {
+                    button.innerHTML =
+                        `<span class="spinner-border spinner-border-sm" role="status"></span> Joining...`;
+                    button.disabled = true;
+                    const response = await fetch(
+                        '/capstone-php/backend/routes/training_registration.php?action=join_training', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                training_id: trainingId
+                            })
+                        });
+                    const data = await response.json();
+                    if (data.status) {
+                        const trainingIndex = trainingsData.findIndex(t => t.training_id == trainingId);
+                        trainingsData[trainingIndex].joined = 1;
+                        renderTrainings(trainingsData);
+                        alert('Successfully joined the training!');
+                    } else {
+                        alert(data.message || 'Failed to join training');
+                    }
+                } catch (err) {
+                    console.error('Join training error:', err);
+                    alert('Error joining training');
+                }
             }
-        }
 
-        // Attach event listener to the "Ok, Got It" button in the payment modal
-        document.getElementById('okGotItBtn').addEventListener('click', async function() {
-            if (!currentTrainingForPayment) return;
-            try {
-                const response = await fetch(
-                    '/capstone-php/backend/routes/training_registration.php?action=initiate_payment', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            training_id: currentTrainingForPayment
-                        })
-                    });
-                const data = await response.json();
-                if (data.status) {
-                    // Update stored button to "Pending Payment"
-                    currentButtonForPayment.innerHTML = `Pending Payment`;
-                    currentButtonForPayment.classList.remove('btn-success');
-                    currentButtonForPayment.classList.add('btn-warning');
-                    currentButtonForPayment.disabled = true;
-                    // Start polling for payment status every 5 seconds.
-                    const pollInterval = setInterval(async () => {
-                        const pollResponse = await fetch(
-                            '/capstone-php/backend/routes/training_registration.php?action=check_payment_status', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify({
-                                    training_id: currentTrainingForPayment
-                                })
-                            });
-                        const pollData = await pollResponse.json();
-                        if (pollData.payment_completed) {
-                            clearInterval(pollInterval);
-                            // Instead of "Joined", show "View Training" so users can click to see details.
-                            currentButtonForPayment.innerHTML =
-                                `<i class="fas fa-eye me-2"></i>View Training`;
-                            currentButtonForPayment.classList.remove('btn-warning');
-                            currentButtonForPayment.classList.add('btn-primary',
-                                'view-training-btn');
-                            currentButtonForPayment.disabled = false;
-                            alert(pollData.message);
-                            currentTrainingForPayment = null;
-                            currentButtonForPayment = null;
-                        }
-                    }, 5000);
-                } else {
-                    alert(data.message || 'Failed to initiate payment');
+            // Attach event listener to the "Ok, Got It" button in the payment modal
+            document.getElementById('okGotItBtn').addEventListener('click', async function() {
+                if (!currentTrainingForPayment) return;
+                try {
+                    const response = await fetch(
+                        '/capstone-php/backend/routes/training_registration.php?action=initiate_payment', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                training_id: currentTrainingForPayment
+                            })
+                        });
+                    const data = await response.json();
+                    if (data.status) {
+                        // Update stored button to "Pending Payment"
+                        currentButtonForPayment.innerHTML = `Pending Payment`;
+                        currentButtonForPayment.classList.remove('btn-success');
+                        currentButtonForPayment.classList.add('btn-warning');
+                        currentButtonForPayment.disabled = true;
+                        // Start polling for payment status every 5 seconds.
+                        const pollInterval = setInterval(async () => {
+                            const pollResponse = await fetch(
+                                '/capstone-php/backend/routes/training_registration.php?action=check_payment_status', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({
+                                        training_id: currentTrainingForPayment
+                                    })
+                                });
+                            const pollData = await pollResponse.json();
+                            if (pollData.payment_completed) {
+                                clearInterval(pollInterval);
+                                // Instead of "Joined", show "View Training" so users can click to see details.
+                                currentButtonForPayment.innerHTML =
+                                    `<i class="fas fa-eye me-2"></i>View Training`;
+                                currentButtonForPayment.classList.remove('btn-warning');
+                                currentButtonForPayment.classList.add('btn-primary',
+                                    'view-training-btn');
+                                currentButtonForPayment.disabled = false;
+                                alert(pollData.message);
+                                currentTrainingForPayment = null;
+                                currentButtonForPayment = null;
+                            }
+                        }, 5000);
+                    } else {
+                        alert(data.message || 'Failed to initiate payment');
+                        currentButtonForPayment.innerHTML =
+                            `Register Now <i class="fas fa-arrow-right me-2"></i>`;
+                        currentButtonForPayment.disabled = false;
+                        currentTrainingForPayment = null;
+                        currentButtonForPayment = null;
+                    }
+                } catch (err) {
+                    console.error('initiate_payment error:', err);
+                    alert('Error initiating payment');
                     currentButtonForPayment.innerHTML =
                         `Register Now <i class="fas fa-arrow-right me-2"></i>`;
                     currentButtonForPayment.disabled = false;
                     currentTrainingForPayment = null;
                     currentButtonForPayment = null;
                 }
-            } catch (err) {
-                console.error('initiate_payment error:', err);
-                alert('Error initiating payment');
-                currentButtonForPayment.innerHTML =
-                    `Register Now <i class="fas fa-arrow-right me-2"></i>`;
-                currentButtonForPayment.disabled = false;
-                currentTrainingForPayment = null;
-                currentButtonForPayment = null;
-            }
-        });
-
-        function showTrainingModal(training) {
-            if (!training) return;
-            document.getElementById('trainingModalLabel').textContent = training.title;
-            document.getElementById('trainingModalImage').src = training.image ?
-                '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image) :
-                'assets/default-training.jpg';
-            document.getElementById('trainingModalDescription').textContent = training.description;
-            document.getElementById('trainingModalSchedule').textContent = new Date(training.schedule)
-                .toLocaleString();
-            document.getElementById('trainingModalCapacity').textContent = training.capacity;
-            document.getElementById('trainingModalModality').textContent = training.modality || 'Not provided';
-            document.getElementById('trainingModalModalityDetails').textContent = training.modality_details ||
-                'Not provided';
-            window.currentTrainingId = training.training_id;
-            let modal = new bootstrap.Modal(document.getElementById('trainingModal'));
-            modal.show();
-
-            if (role !== 'trainer') {
-                // First check if there's a custom assessment
-                fetch(
-                        `/capstone-php/backend/routes/assessment_manager.php?action=get_questions&training_id=${training.training_id}`
-                        )
-                    .then(response => response.json())
-                    .then(customData => {
-                        const hasCustomAssessment = customData.status && customData.questions && customData
-                            .questions.length > 0;
-
-                        // Then check if there's a Google Form
-                        fetch(
-                                `/capstone-php/backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${training.training_id}`
-                                )
-                            .then(response => response.json())
-                            .then(googleData => {
-                                const hasGoogleForm = googleData.status && googleData.form_link;
-                                const assessmentSection = document.getElementById('assessmentSection');
-
-                                if (hasCustomAssessment || hasGoogleForm) {
-                                    // Store assessment info for later use
-                                    window.currentAssessmentForm = hasGoogleForm ? googleData
-                                        .form_link : null;
-                                    window.hasCustomAssessment = hasCustomAssessment;
-                                    assessmentSection.style.display = 'block';
-                                } else {
-                                    assessmentSection.style.display = 'none';
-                                }
-                            })
-                            .catch(err => {
-                                console.error(err);
-                                document.getElementById('assessmentSection').style.display = 'none';
-                            });
-                    })
-                    .catch(err => {
-                        console.error(err);
-                        // Still try to get Google Form as fallback
-                        fetch(
-                                `/capstone-php/backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${training.training_id}`
-                                )
-                            .then(response => response.json())
-                            .then(data => {
-                                const assessmentSection = document.getElementById('assessmentSection');
-                                if (data.status && data.form_link) {
-                                    window.currentAssessmentForm = data.form_link;
-                                    window.hasCustomAssessment = false;
-                                    assessmentSection.style.display = 'block';
-                                } else {
-                                    assessmentSection.style.display = 'none';
-                                }
-                            })
-                            .catch(err => {
-                                console.error(err);
-                                document.getElementById('assessmentSection').style.display = 'none';
-                            });
-                    });
-            } else {
-                document.getElementById('assessmentSection').style.display = 'none';
-            }
-        }
-
-        const takeAssessmentBtn = document.getElementById('takeAssessmentBtn');
-        if (takeAssessmentBtn) {
-            takeAssessmentBtn.addEventListener('click', function() {
-                const trainingId = window.currentTrainingId;
-                if (!trainingId) {
-                    alert("Training not selected.");
-                    return;
-                }
-
-                // If we have a custom assessment, show it in a modal
-                if (window.hasCustomAssessment) {
-                    loadCustomAssessment(trainingId);
-                    let customAssessmentModal = new bootstrap.Modal(document.getElementById(
-                        'customAssessmentModal'));
-                    customAssessmentModal.show();
-                    return;
-                }
-
-                // Fallback to Google Form if no custom assessment
-                if (window.currentAssessmentForm) {
-                    let formLink = window.currentAssessmentForm;
-                    if (formLink.indexOf('docs.google.com/forms') !== -1 && formLink.indexOf('hl=') ===
-                        -1) {
-                        formLink += (formLink.indexOf('?') === -1) ? '?hl=en' : '&hl=en';
-                    }
-                    document.getElementById('assessmentIframe').src = formLink;
-                    let assessmentModal = new bootstrap.Modal(document.getElementById(
-                        'assessmentModal'));
-                    assessmentModal.show();
-                } else {
-                    alert("No assessment available for this training.");
-                }
             });
-        }
 
-        const markDoneBtn = document.getElementById('markDoneBtn');
-        if (markDoneBtn) {
-            markDoneBtn.addEventListener('click', function() {
-                const trainingId = window.currentTrainingId;
-                if (!trainingId) {
-                    alert("Training not selected.");
-                    return;
-                }
-                fetch('/capstone-php/backend/routes/assessment_manager.php', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            action: 'mark_assessment_done',
-                            user_id: userId,
-                            training_id: trainingId
+            function showTrainingModal(training) {
+                if (!training) return;
+                document.getElementById('trainingModalLabel').textContent = training.title;
+                document.getElementById('trainingModalImage').src = training.image ?
+                    '/capstone-php/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image) :
+                    'assets/default-training.jpg';
+                document.getElementById('trainingModalDescription').textContent = training.description;
+                document.getElementById('trainingModalSchedule').textContent = new Date(training.schedule)
+                    .toLocaleString();
+                document.getElementById('trainingModalCapacity').textContent = training.capacity;
+                document.getElementById('trainingModalModality').textContent = training.modality || 'Not provided';
+                document.getElementById('trainingModalModalityDetails').textContent = training.modality_details ||
+                    'Not provided';
+                window.currentTrainingId = training.training_id;
+                let modal = new bootstrap.Modal(document.getElementById('trainingModal'));
+                modal.show();
+
+                if (role !== 'trainer') {
+                    // First check if there's a custom assessment
+                    fetch(
+                            `/capstone-php/backend/routes/assessment_manager.php?action=get_questions&training_id=${training.training_id}`
+                        )
+                        .then(response => response.json())
+                        .then(customData => {
+                            const hasCustomAssessment = customData.status && customData.questions && customData
+                                .questions.length > 0;
+
+                            // Then check if there's a Google Form
+                            fetch(
+                                    `/capstone-php/backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${training.training_id}`
+                                )
+                                .then(response => response.json())
+                                .then(googleData => {
+                                    const hasGoogleForm = googleData.status && googleData.form_link;
+                                    const assessmentSection = document.getElementById('assessmentSection');
+
+                                    if (hasCustomAssessment || hasGoogleForm) {
+                                        // Store assessment info for later use
+                                        window.currentAssessmentForm = hasGoogleForm ? googleData
+                                            .form_link : null;
+                                        window.hasCustomAssessment = hasCustomAssessment;
+                                        assessmentSection.style.display = 'block';
+                                    } else {
+                                        assessmentSection.style.display = 'none';
+                                    }
+                                })
+                                .catch(err => {
+                                    console.error(err);
+                                    document.getElementById('assessmentSection').style.display = 'none';
+                                });
                         })
-                    })
-                    .then(resp => resp.json())
-                    .then(result => {
-                        if (result.status) {
-                            if (result.message.toLowerCase().includes("already marked")) {
-                                alert(result.message);
+                        .catch(err => {
+                            console.error(err);
+                            // Still try to get Google Form as fallback
+                            fetch(
+                                    `/capstone-php/backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${training.training_id}`
+                                )
+                                .then(response => response.json())
+                                .then(data => {
+                                    const assessmentSection = document.getElementById('assessmentSection');
+                                    if (data.status && data.form_link) {
+                                        window.currentAssessmentForm = data.form_link;
+                                        window.hasCustomAssessment = false;
+                                        assessmentSection.style.display = 'block';
+                                    } else {
+                                        assessmentSection.style.display = 'none';
+                                    }
+                                })
+                                .catch(err => {
+                                    console.error(err);
+                                    document.getElementById('assessmentSection').style.display = 'none';
+                                });
+                        });
+                } else {
+                    document.getElementById('assessmentSection').style.display = 'none';
+                }
+            }
+
+            const takeAssessmentBtn = document.getElementById('takeAssessmentBtn');
+            if (takeAssessmentBtn) {
+                takeAssessmentBtn.addEventListener('click', function() {
+                    const trainingId = window.currentTrainingId;
+                    if (!trainingId) {
+                        alert("Training not selected.");
+                        return;
+                    }
+
+                    // If we have a custom assessment, show it in a modal
+                    if (window.hasCustomAssessment) {
+                        loadCustomAssessment(trainingId);
+                        let customAssessmentModal = new bootstrap.Modal(document.getElementById(
+                            'customAssessmentModal'));
+                        customAssessmentModal.show();
+                        return;
+                    }
+
+                    // Fallback to Google Form if no custom assessment
+                    if (window.currentAssessmentForm) {
+                        let formLink = window.currentAssessmentForm;
+                        if (formLink.indexOf('docs.google.com/forms') !== -1 && formLink.indexOf('hl=') ===
+                            -1) {
+                            formLink += (formLink.indexOf('?') === -1) ? '?hl=en' : '&hl=en';
+                        }
+                        document.getElementById('assessmentIframe').src = formLink;
+                        let assessmentModal = new bootstrap.Modal(document.getElementById(
+                            'assessmentModal'));
+                        assessmentModal.show();
+                    } else {
+                        alert("No assessment available for this training.");
+                    }
+                });
+            }
+
+            const markDoneBtn = document.getElementById('markDoneBtn');
+            if (markDoneBtn) {
+                markDoneBtn.addEventListener('click', function() {
+                    const trainingId = window.currentTrainingId;
+                    if (!trainingId) {
+                        alert("Training not selected.");
+                        return;
+                    }
+                    fetch('/capstone-php/backend/routes/assessment_manager.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                action: 'mark_assessment_done',
+                                user_id: userId,
+                                training_id: trainingId
+                            })
+                        })
+                        .then(resp => resp.json())
+                        .then(result => {
+                            if (result.status) {
+                                if (result.message.toLowerCase().includes("already marked")) {
+                                    alert(result.message);
+                                } else {
+                                    alert(
+                                        "Assessment marked as completed. You may now receive your certificate.");
+                                    // Refresh the view to update UI
+                                    window.location.reload();
+                                }
                             } else {
-                                alert(
-                                    "Assessment marked as completed. You may now receive your certificate.");
-                                // Refresh the view to update UI
-                                window.location.reload();
+                                alert("Error: " + result.message);
                             }
+                        })
+                        .catch(err => {
+                            console.error(err);
+                            alert("Failed to mark assessment as completed.");
+                        });
+                });
+            }
+
+            // Load custom assessment questions and render the form in the modal
+            function loadCustomAssessment(trainingId) {
+                const container = document.getElementById('custom-assessment-container');
+                container.innerHTML =
+                    '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+
+                fetch(
+                        `/capstone-php/backend/routes/assessment_manager.php?action=get_questions&training_id=${trainingId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status && data.questions.length > 0) {
+                            renderCustomAssessmentForm(data.questions, container);
                         } else {
-                            alert("Error: " + result.message);
+                            container.innerHTML =
+                                '<div class="alert alert-warning">No assessment questions found. Please try again later.</div>';
                         }
                     })
                     .catch(err => {
                         console.error(err);
-                        alert("Failed to mark assessment as completed.");
-                    });
-            });
-        }
-
-        // Load custom assessment questions and render the form in the modal
-        function loadCustomAssessment(trainingId) {
-            const container = document.getElementById('custom-assessment-container');
-            container.innerHTML =
-                '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
-
-            fetch(
-                    `/capstone-php/backend/routes/assessment_manager.php?action=get_questions&training_id=${trainingId}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status && data.questions.length > 0) {
-                        renderCustomAssessmentForm(data.questions, container);
-                    } else {
                         container.innerHTML =
-                            '<div class="alert alert-warning">No assessment questions found. Please try again later.</div>';
-                    }
-                })
-                .catch(err => {
-                    console.error(err);
-                    container.innerHTML =
-                        '<div class="alert alert-danger">Failed to load assessment questions. Please try again later.</div>';
-                });
-        }
+                            '<div class="alert alert-danger">Failed to load assessment questions. Please try again later.</div>';
+                    });
+            }
 
-        // Render the custom assessment form in the provided container
-        function renderCustomAssessmentForm(questions, container) {
-            let formHtml = `
+            // Render the custom assessment form in the provided container
+            function renderCustomAssessmentForm(questions, container) {
+                let formHtml = `
                 <form id="customAssessmentForm" class="needs-validation" novalidate>
                     <input type="hidden" name="training_id" value="${window.currentTrainingId}">
             `;
 
-            questions.forEach((question, index) => {
-                const questionId = question.question_id;
-                const required = question.required == 1;
+                questions.forEach((question, index) => {
+                    const questionId = question.question_id;
+                    const required = question.required == 1;
 
-                formHtml += `
+                    formHtml += `
                     <div class="mb-4 assessment-question">
                         <label class="form-label fw-bold">
                             ${index + 1}. ${question.question_text} ${required ? '<span class="text-danger">*</span>' : ''}
                         </label>
                 `;
 
-                switch (question.question_type) {
-                    case 'text':
-                        formHtml += `
+                    switch (question.question_type) {
+                        case 'text':
+                            formHtml += `
                             <input type="text" class="form-control" id="q${questionId}" 
                                 name="q${questionId}" ${required ? 'required' : ''}>
                             ${required ? '<div class="invalid-feedback">Please provide an answer</div>' : ''}
                         `;
-                        break;
+                            break;
 
-                    case 'textarea':
-                        formHtml += `
+                        case 'textarea':
+                            formHtml += `
                             <textarea class="form-control" id="q${questionId}" 
                                     name="q${questionId}" rows="3" ${required ? 'required' : ''}></textarea>
                             ${required ? '<div class="invalid-feedback">Please provide an answer</div>' : ''}
                         `;
-                        break;
+                            break;
 
-                    case 'multiple_choice':
-                        if (Array.isArray(question.options)) {
-                            question.options.forEach((option, optIndex) => {
-                                formHtml += `
+                        case 'multiple_choice':
+                            if (Array.isArray(question.options)) {
+                                question.options.forEach((option, optIndex) => {
+                                    formHtml += `
                                     <div class="form-check">
                                         <input class="form-check-input" type="radio" name="q${questionId}" 
                                             id="q${questionId}_opt${optIndex}" value="${option}" ${required ? 'required' : ''}>
@@ -853,19 +853,19 @@
                                         </label>
                                     </div>
                                 `;
-                            });
-                            if (required) {
-                                formHtml +=
-                                    '<div class="invalid-feedback">Please select an option</div>';
+                                });
+                                if (required) {
+                                    formHtml +=
+                                        '<div class="invalid-feedback">Please select an option</div>';
+                                }
                             }
-                        }
-                        break;
+                            break;
 
-                    case 'checkbox':
-                        if (Array.isArray(question.options)) {
-                            formHtml += '<div class="checkbox-group" data-required="' + required + '">';
-                            question.options.forEach((option, optIndex) => {
-                                formHtml += `
+                        case 'checkbox':
+                            if (Array.isArray(question.options)) {
+                                formHtml += '<div class="checkbox-group" data-required="' + required + '">';
+                                question.options.forEach((option, optIndex) => {
+                                    formHtml += `
                                     <div class="form-check">
                                         <input class="form-check-input checkbox-group-input" type="checkbox" 
                                             name="q${questionId}[]" id="q${questionId}_opt${optIndex}" value="${option}">
@@ -874,24 +874,24 @@
                                         </label>
                                     </div>
                                 `;
-                            });
-                            if (required) {
-                                formHtml +=
-                                    '<div class="invalid-feedback">Please select at least one option</div>';
+                                });
+                                if (required) {
+                                    formHtml +=
+                                        '<div class="invalid-feedback">Please select at least one option</div>';
+                                }
+                                formHtml += '</div>';
                             }
-                            formHtml += '</div>';
-                        }
-                        break;
+                            break;
 
-                    case 'rating':
-                        if (question.options) {
-                            const options = typeof question.options === 'string' ?
-                                JSON.parse(question.options) : question.options;
+                        case 'rating':
+                            if (question.options) {
+                                const options = typeof question.options === 'string' ?
+                                    JSON.parse(question.options) : question.options;
 
-                            const min = options.min || 1;
-                            const max = options.max || 5;
+                                const min = options.min || 1;
+                                const max = options.max || 5;
 
-                            formHtml += `
+                                formHtml += `
                                 <div class="rating-scale">
                                     <div class="d-flex justify-content-between align-items-center mb-2">
                                         <span class="small">${options.minLabel || min}</span>
@@ -900,141 +900,141 @@
                                     <div class="btn-group rating-buttons w-100" role="group">
                             `;
 
-                            for (let i = min; i <= max; i++) {
-                                formHtml += `
+                                for (let i = min; i <= max; i++) {
+                                    formHtml += `
                                     <input type="radio" class="btn-check" name="q${questionId}" 
                                         id="q${questionId}_rate${i}" value="${i}" ${required ? 'required' : ''}>
                                     <label class="btn btn-outline-primary" for="q${questionId}_rate${i}">${i}</label>
                                 `;
-                            }
+                                }
 
-                            formHtml += `
+                                formHtml += `
                                     </div>
                                     ${required ? '<div class="invalid-feedback">Please select a rating</div>' : ''}
                                 </div>
                             `;
-                        }
-                        break;
-                }
+                            }
+                            break;
+                    }
 
-                formHtml += `</div>`;
-            });
+                    formHtml += `</div>`;
+                });
 
-            formHtml += `
+                formHtml += `
                     <div class="d-grid gap-2 mt-4">
                         <button type="submit" class="btn btn-success btn-lg">Submit Assessment</button>
                     </div>
                 </form>
             `;
 
-            container.innerHTML = formHtml;
+                container.innerHTML = formHtml;
 
-            // Set up the form submission handler
-            document.getElementById('customAssessmentForm').addEventListener('submit', function(e) {
-                e.preventDefault();
+                // Set up the form submission handler
+                document.getElementById('customAssessmentForm').addEventListener('submit', function(e) {
+                    e.preventDefault();
 
-                // Bootstrap form validation
-                if (!this.checkValidity()) {
-                    e.stopPropagation();
-                    this.classList.add('was-validated');
-                    return;
-                }
+                    // Bootstrap form validation
+                    if (!this.checkValidity()) {
+                        e.stopPropagation();
+                        this.classList.add('was-validated');
+                        return;
+                    }
 
-                submitCustomAssessment(this);
-            });
+                    submitCustomAssessment(this);
+                });
 
-            // Set up checkbox validation (for required checkbox groups)
-            document.querySelectorAll('.checkbox-group[data-required="true"]').forEach(group => {
-                const checkboxes = group.querySelectorAll('input[type="checkbox"]');
-                checkboxes.forEach(checkbox => {
-                    checkbox.addEventListener('change', function() {
-                        const anyChecked = Array.from(checkboxes).some(cb => cb
-                        .checked);
-                        checkboxes.forEach(cb => {
-                            cb.setCustomValidity(anyChecked ? '' :
-                                'Please select at least one option');
+                // Set up checkbox validation (for required checkbox groups)
+                document.querySelectorAll('.checkbox-group[data-required="true"]').forEach(group => {
+                    const checkboxes = group.querySelectorAll('input[type="checkbox"]');
+                    checkboxes.forEach(checkbox => {
+                        checkbox.addEventListener('change', function() {
+                            const anyChecked = Array.from(checkboxes).some(cb => cb
+                                .checked);
+                            checkboxes.forEach(cb => {
+                                cb.setCustomValidity(anyChecked ? '' :
+                                    'Please select at least one option');
+                            });
                         });
                     });
                 });
-            });
-        }
+            }
 
-        // Submit the custom assessment to the server
-        function submitCustomAssessment(form) {
-            const questions = document.querySelectorAll('.assessment-question');
-            const responses = [];
+            // Submit the custom assessment to the server
+            function submitCustomAssessment(form) {
+                const questions = document.querySelectorAll('.assessment-question');
+                const responses = [];
 
-            questions.forEach(question => {
-                const questionInputs = question.querySelectorAll('input, textarea');
-                if (!questionInputs.length) return;
+                questions.forEach(question => {
+                    const questionInputs = question.querySelectorAll('input, textarea');
+                    if (!questionInputs.length) return;
 
-                let questionId;
-                let responseText = '';
+                    let questionId;
+                    let responseText = '';
 
-                // Get the question ID from the first input's name (removing prefix 'q' and any '[]')
-                const firstInput = questionInputs[0];
-                questionId = firstInput.name.replace(/\[\]$|^q/, '');
+                    // Get the question ID from the first input's name (removing prefix 'q' and any '[]')
+                    const firstInput = questionInputs[0];
+                    questionId = firstInput.name.replace(/\[\]$|^q/, '');
 
-                // Get value based on input type
-                if (question.querySelector('input[type="text"]')) {
-                    responseText = question.querySelector('input[type="text"]').value;
-                } else if (question.querySelector('textarea')) {
-                    responseText = question.querySelector('textarea').value;
-                } else if (question.querySelector('input[type="radio"]:checked')) {
-                    responseText = question.querySelector('input[type="radio"]:checked').value;
-                } else if (question.querySelectorAll('input[type="checkbox"]').length > 0) {
-                    const checkedValues = [];
-                    question.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
-                        checkedValues.push(cb.value);
-                    });
-                    responseText = JSON.stringify(checkedValues);
-                }
-
-                responses.push({
-                    question_id: questionId,
-                    response_text: responseText
-                });
-            });
-
-            // Submit to server
-            fetch('/capstone-php/backend/routes/assessment_manager.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        action: 'submit_assessment',
-                        training_id: window.currentTrainingId,
-                        responses: responses
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status) {
-                        // Success - show completion message and close modal
-                        bootstrap.Modal.getInstance(document.getElementById('customAssessmentModal'))
-                    .hide();
-                        alert('Thank you for completing the assessment!');
-                        window.location.reload(); // Refresh the page to update assessment status
-                    } else {
-                        alert('Error: ' + data.message);
+                    // Get value based on input type
+                    if (question.querySelector('input[type="text"]')) {
+                        responseText = question.querySelector('input[type="text"]').value;
+                    } else if (question.querySelector('textarea')) {
+                        responseText = question.querySelector('textarea').value;
+                    } else if (question.querySelector('input[type="radio"]:checked')) {
+                        responseText = question.querySelector('input[type="radio"]:checked').value;
+                    } else if (question.querySelectorAll('input[type="checkbox"]').length > 0) {
+                        const checkedValues = [];
+                        question.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+                            checkedValues.push(cb.value);
+                        });
+                        responseText = JSON.stringify(checkedValues);
                     }
-                })
-                .catch(err => {
-                    console.error(err);
-                    alert('Failed to submit assessment. Please try again.');
-                });
-        }
 
-        function showError(message) {
-            trainingsList.innerHTML = `
+                    responses.push({
+                        question_id: questionId,
+                        response_text: responseText
+                    });
+                });
+
+                // Submit to server
+                fetch('/capstone-php/backend/routes/assessment_manager.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            action: 'submit_assessment',
+                            training_id: window.currentTrainingId,
+                            responses: responses
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status) {
+                            // Success - show completion message and close modal
+                            bootstrap.Modal.getInstance(document.getElementById('customAssessmentModal'))
+                                .hide();
+                            alert('Thank you for completing the assessment!');
+                            window.location.reload(); // Refresh the page to update assessment status
+                        } else {
+                            alert('Error: ' + data.message);
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        alert('Failed to submit assessment. Please try again.');
+                    });
+            }
+
+            function showError(message) {
+                trainingsList.innerHTML = `
                     <div class="col-12 text-center text-danger">
                         <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
                         <p>${message}</p>
                     </div>
                 `;
-        }
-    });
+            }
+        });
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous">

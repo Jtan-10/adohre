@@ -412,7 +412,7 @@ error_reporting(0);
                     return `
             <div class="col-12">
               <div class="event-card">
-                <img src="${ event.image ? '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(event.image) : 'assets/default-event.jpg' }" 
+                <img src="${ event.image ? '/capstone-php/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(event.image) : 'assets/default-event.jpg' }" 
                      class="card-img-top" 
                      alt="${event.title}">
                 <div class="event-card-body">
@@ -447,7 +447,7 @@ error_reporting(0);
                     return `
             <div class="col-12">
               <div class="event-card">
-                <img src="${ event.image ? '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(event.image) : 'assets/default-event.jpg' }" 
+                <img src="${ event.image ? '/capstone-php/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(event.image) : 'assets/default-event.jpg' }" 
                      class="card-img-top" 
                      alt="${event.title}">
                 <div class="event-card-body">

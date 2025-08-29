@@ -5,7 +5,7 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../..');
 $dotenv->load();
 
-header('Content-Type: image/png');  // We'll output the decrypted image as PNG.
+// We'll set the Content-Type header after decryption based on the actual image type.
 header('X-Content-Type-Options: nosniff');
 
 $cipher = "AES-256-CBC";
@@ -21,22 +21,29 @@ if (!$imageUrl) {
     exit;
 }
 
-// Fix any double slashes in the URL
-$imageUrl = preg_replace('#/{2,}#', '/', $imageUrl);
+// Fix any double slashes in the URL but keep the protocol (don't collapse 'https://')
+$imageUrl = preg_replace('#(?<!:)//+#', '/', $imageUrl);
 error_log("decrypt_image.php called with URL: " . $imageUrl);
 
-// Handle URLs with /s3proxy/ anywhere in the path
+// Handle URLs with /s3proxy/ anywhere in the path by converting to the real S3 URL
 if (strpos($imageUrl, '/s3proxy/') !== false) {
-    // Make sure it starts with the correct protocol and host
-    if (!preg_match('/^https?:\/\//', $imageUrl)) {
-        // Handle both paths with and without /capstone-php/ prefix
-        if (strpos($imageUrl, '/capstone-php/') === 0) {
-            $imageUrl = 'http://' . $_SERVER['HTTP_HOST'] . $imageUrl;
-        } else {
-            $imageUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/capstone-php' . $imageUrl;
-        }
+    // Determine S3 base URL from environment (prefer an override if provided)
+    $bucket = $_ENV['AWS_BUCKET_NAME'] ?? getenv('AWS_BUCKET_NAME') ?? '';
+    $region = $_ENV['AWS_REGION'] ?? getenv('AWS_REGION') ?? '';
+    $customBase = $_ENV['AWS_S3_BASE_URL'] ?? getenv('AWS_S3_BASE_URL') ?? '';
+
+    // Extract S3 key from the s3proxy path
+    $parts = explode('/s3proxy/', $imageUrl, 2);
+    $s3Key = isset($parts[1]) ? ltrim($parts[1], '/') : '';
+
+    if (!empty($customBase)) {
+        $baseUrl = rtrim($customBase, '/') . '/';
+    } else {
+        // Fallback to standard bucket URL
+        $baseUrl = "https://{$bucket}.s3." . $region . ".amazonaws.com/";
     }
-    error_log("S3 proxy URL processed: $imageUrl");
+    $imageUrl = $baseUrl . $s3Key;
+    error_log("S3 proxy mapped to S3 URL: $imageUrl");
 }
 // If the URL is relative (starts with '/'), build an absolute URL based on the current host
 elseif (strpos($imageUrl, '/') === 0) {
@@ -50,7 +57,26 @@ elseif (!preg_match('/^https?:\/\//', $imageUrl)) {
 }
 
 // Download the encrypted PNG data.
-$encryptedPngData = file_get_contents($imageUrl);
+$encryptedPngData = @file_get_contents($imageUrl);
+if ($encryptedPngData === false) {
+    // Fallback to cURL in case allow_url_fopen is disabled or other failures
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $imageUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+    // Enforce SSL verification when using HTTPS
+    if (stripos($imageUrl, 'https://') === 0) {
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+    }
+    $encryptedPngData = curl_exec($ch);
+    if ($encryptedPngData === false) {
+        error_log('decrypt_image curl error: ' . curl_error($ch));
+    }
+    curl_close($ch);
+}
 if (!$encryptedPngData) {
     http_response_code(404);
     echo "Could not retrieve the PNG file.";
@@ -90,6 +116,17 @@ if (!$clearImageData) {
     echo "Failed to decrypt data.";
     exit;
 }
+
+// Detect MIME type of decrypted image and set proper header
+if (function_exists('finfo_open')) {
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mime = $finfo->buffer($clearImageData) ?: 'application/octet-stream';
+} else {
+    // Fallback: try getimagesizefromstring
+    $info = @getimagesizefromstring($clearImageData);
+    $mime = $info['mime'] ?? 'application/octet-stream';
+}
+header('Content-Type: ' . $mime);
 
 // Output the clear image data directly.
 echo $clearImageData;
