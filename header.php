@@ -66,9 +66,17 @@ if ($stmt) {
 <nav class="navbar navbar-expand-lg navbar-dark bg-success">
     <div class="container">
         <a class="navbar-brand" href="index.php">
-            <img src="/capstone-php/backend/routes/decrypt_image.php?image_url=<?= urlencode($headerLogo) ?>"
-                alt="<?= htmlspecialchars($headerName, ENT_QUOTES, 'UTF-8') ?> Logo" width="30" height="28"
-                class="d-inline-block align-text-top">
+            <?php if (strpos($headerLogo, 's3proxy') !== false): ?>
+                <!-- For S3 images that need decryption -->
+                <img src="/capstone-php/backend/routes/decrypt_image.php?image_url=<?= urlencode($headerLogo) ?>"
+                    alt="<?= htmlspecialchars($headerName, ENT_QUOTES, 'UTF-8') ?> Logo" width="30" height="28"
+                    class="d-inline-block align-text-top">
+            <?php else: ?>
+                <!-- For regular images from the assets folder -->
+                <img src="/capstone-php/<?= $headerLogo ?>"
+                    alt="<?= htmlspecialchars($headerName, ENT_QUOTES, 'UTF-8') ?> Logo" width="30" height="28"
+                    class="d-inline-block align-text-top">
+            <?php endif; ?>
             <?= htmlspecialchars($headerName, ENT_QUOTES, 'UTF-8') ?>
         </a>
         <!-- Toggler button using Bootstrap's data-bs attributes -->

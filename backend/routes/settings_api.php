@@ -208,7 +208,7 @@ switch ($action) {
         // Get the face validation setting
         $faceValidation = $_POST['face_validation'] ?? '0';
         $faceValidation = filter_var($faceValidation, FILTER_VALIDATE_INT) ? $faceValidation : '0';
-        
+
         try {
             // Update or insert the face_validation setting
             $stmt = $conn->prepare("INSERT INTO settings (`key`, value) VALUES ('face_validation', ?) 
@@ -216,19 +216,19 @@ switch ($action) {
             $stmt->bind_param('ss', $faceValidation, $faceValidation);
             $success = $stmt->execute();
             $stmt->close();
-            
+
             if (!$success) {
                 throw new Exception("Failed to update face validation setting: " . $conn->error);
             }
-            
+
             $message = "Security settings updated successfully.";
-            
+
             recordAuditLog(
                 $_SESSION['user_id'],
                 'Update Security Settings',
                 "Face validation setting updated to: " . ($faceValidation == '1' ? 'Enabled' : 'Disabled')
             );
-            
+
             echo json_encode([
                 'status' => true,
                 'message' => $message

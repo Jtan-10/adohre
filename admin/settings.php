@@ -29,9 +29,6 @@ function getSetting($key)
 $currentHeaderName = getSetting('header_name');
 $currentHeaderLogo = getSetting('header_logo');
 
-// Get face validation setting
-$currentFaceValidation = getSetting('face_validation') ?? '0';  // Default to disabled if not set
-
 
 // Fetch recent audit logs.
 $auditLogs = [];
@@ -53,10 +50,10 @@ if ($result) {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <style nonce="<?= $cspNonce ?>">
-    .audit-log-table {
-        max-height: 400px;
-        overflow-y: auto;
-    }
+        .audit-log-table {
+            max-height: 400px;
+            overflow-y: auto;
+        }
     </style>
 </head>
 
@@ -79,10 +76,10 @@ if ($result) {
                     <label for="header_logo" class="form-label">Header Logo</label>
                     <input type="file" class="form-control" id="header_logo" name="header_logo" accept="image/*">
                     <?php if ($currentHeaderLogo): ?>
-                    <p>Current Logo:
-                        <img src="../backend/routes/decrypt_image.php?image_url=<?= urlencode($currentHeaderLogo) ?>"
-                            alt="Header Logo" style="max-height: 50px;">
-                    </p>
+                        <p>Current Logo:
+                            <img src="../backend/routes/decrypt_image.php?image_url=<?= urlencode($currentHeaderLogo) ?>"
+                                alt="Header Logo" style="max-height: 50px;">
+                        </p>
                     <?php endif; ?>
                 </div>
                 <button type="submit" class="btn btn-primary">Update Header Settings</button>
@@ -90,18 +87,7 @@ if ($result) {
 
             <hr>
 
-            <h2>Security Settings</h2>
-            <form id="securitySettingsForm">
-                <div class="mb-3">
-                    <label for="face_validation" class="form-label">Face Validation</label>
-                    <select class="form-select" id="face_validation" name="face_validation">
-                        <option value="0" <?php echo ($currentFaceValidation == '0') ? 'selected' : ''; ?>>Disabled</option>
-                        <option value="1" <?php echo ($currentFaceValidation == '1') ? 'selected' : ''; ?>>Enabled</option>
-                    </select>
-                    <div class="form-text">When enabled, users are required to complete face validation during the membership application process.</div>
-                </div>
-                <button type="submit" class="btn btn-primary">Update Security Settings</button>
-            </form>
+            <!-- Security Settings section removed -->
 
             <hr>
 
@@ -118,12 +104,12 @@ if ($result) {
                     </thead>
                     <tbody id="auditLogsTable">
                         <?php foreach ($auditLogs as $log): ?>
-                        <tr>
-                            <td><?= htmlspecialchars($log['created_at']) ?></td>
-                            <td><?= htmlspecialchars(trim($log['first_name'] . ' ' . $log['last_name'])) ?></td>
-                            <td><?= htmlspecialchars($log['action']) ?></td>
-                            <td><?= htmlspecialchars($log['details']) ?></td>
-                        </tr>
+                            <tr>
+                                <td><?= htmlspecialchars($log['created_at']) ?></td>
+                                <td><?= htmlspecialchars(trim($log['first_name'] . ' ' . $log['last_name'])) ?></td>
+                                <td><?= htmlspecialchars($log['action']) ?></td>
+                                <td><?= htmlspecialchars($log['details']) ?></td>
+                            </tr>
                         <?php endforeach; ?>
                     </tbody>
                 </table>
@@ -153,122 +139,98 @@ if ($result) {
     </div>
     <!-- JavaScript to handle API calls -->
     <script nonce="<?= $cspNonce ?>">
-    // Utility function to display API messages.
-    function showApiMessage(message, type = 'info') {
-        const msgDiv = document.getElementById('apiMessage');
-        msgDiv.innerHTML = `<div class="alert alert-${type}" role="alert">${message}</div>`;
-        setTimeout(() => {
-            msgDiv.innerHTML = '';
-        }, 5000);
-    }
-
-    // Header Settings form submission.
-    document.getElementById('headerSettingsForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const form = this;
-        const headerNameInput = form.querySelector('#header_name');
-        const headerLogoInput = form.querySelector('#header_logo');
-        const originalHeaderName = "<?= htmlspecialchars($currentHeaderName, ENT_QUOTES) ?>";
-        if (headerNameInput.value.trim() === originalHeaderName && headerLogoInput.files.length === 0) {
-            showApiMessage("No changes detected.", "info");
-            return;
+        // Utility function to display API messages.
+        function showApiMessage(message, type = 'info') {
+            const msgDiv = document.getElementById('apiMessage');
+            msgDiv.innerHTML = `<div class="alert alert-${type}" role="alert">${message}</div>`;
+            setTimeout(() => {
+                msgDiv.innerHTML = '';
+            }, 5000);
         }
-        const formData = new FormData(form);
-        fetch('../backend/routes/settings_api.php?action=update_header_settings', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status) {
-                    showApiMessage(data.message, 'success');
-                } else {
-                    showApiMessage(data.message, 'danger');
-                }
-            })
-            .catch(error => {
-                console.error("Error updating header settings:", error);
-                showApiMessage("An error occurred while updating header settings.", "danger");
-            });
-    });
 
-    // Security Settings form submission.
-    document.getElementById('securitySettingsForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const form = this;
-        const formData = new FormData(form);
-        const faceValidationSelect = form.querySelector('#face_validation');
-        formData.append('face_validation', faceValidationSelect.value);
-
-        fetch('../backend/routes/settings_api.php?action=update_security_settings', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status) {
-                    showApiMessage(data.message, 'success');
-                } else {
-                    showApiMessage(data.message, 'danger');
-                }
-            })
-            .catch(error => {
-                console.error("Error updating security settings:", error);
-                showApiMessage("An error occurred while updating security settings.", "danger");
-            });
-    });
-
-    // Wait for the DOM to fully load for modal-related operations.
-    document.addEventListener('DOMContentLoaded', function() {
-        // Backup Database form submission with password retrieval.
-        document.getElementById('backupForm').addEventListener('submit', async function(e) {
+        // Header Settings form submission.
+        document.getElementById('headerSettingsForm').addEventListener('submit', function(e) {
             e.preventDefault();
-
-            try {
-                // 1) Request the backup file as a Blob with credentials included.
-                const backupResponse = await fetch(
-                    '../backend/routes/settings_api.php?action=backup_database', {
-                        method: 'POST',
-                        credentials: 'include'
+            const form = this;
+            const headerNameInput = form.querySelector('#header_name');
+            const headerLogoInput = form.querySelector('#header_logo');
+            const originalHeaderName = "<?= htmlspecialchars($currentHeaderName, ENT_QUOTES) ?>";
+            if (headerNameInput.value.trim() === originalHeaderName && headerLogoInput.files.length === 0) {
+                showApiMessage("No changes detected.", "info");
+                return;
+            }
+            const formData = new FormData(form);
+            fetch('../backend/routes/settings_api.php?action=update_header_settings', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status) {
+                        showApiMessage(data.message, 'success');
+                    } else {
+                        showApiMessage(data.message, 'danger');
                     }
-                );
-                console.log('Backup response status:', backupResponse.status);
-                if (!backupResponse.ok) {
-                    throw new Error('Backup request failed with status ' + backupResponse.status);
-                }
+                })
+                .catch(error => {
+                    console.error("Error updating header settings:", error);
+                    showApiMessage("An error occurred while updating header settings.", "danger");
+                });
+        });
 
-                // 2) Convert the response to a Blob (the .sql.enc file)
-                const backupBlob = await backupResponse.blob();
-                console.log('Received backup blob, size:', backupBlob.size);
+        // Security Settings form submission removed
 
-                // 3) Create a temporary link to trigger the file download
-                const downloadUrl = window.URL.createObjectURL(backupBlob);
-                const link = document.createElement('a');
-                link.href = downloadUrl;
-                link.download = 'database_backup_' + new Date().toISOString().replace(/[:.]/g,
-                    '-') + '.sql.enc';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                window.URL.revokeObjectURL(downloadUrl);
+        // Wait for the DOM to fully load for modal-related operations.
+        document.addEventListener('DOMContentLoaded', function() {
+            // Backup Database form submission with password retrieval.
+            document.getElementById('backupForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
 
-                // 4) Now fetch the backup password with credentials included.
-                const passwordResponse = await fetch(
-                    '../backend/routes/settings_api.php?action=get_backup_password', {
-                        credentials: 'include'
+                try {
+                    // 1) Request the backup file as a Blob with credentials included.
+                    const backupResponse = await fetch(
+                        '../backend/routes/settings_api.php?action=backup_database', {
+                            method: 'POST',
+                            credentials: 'include'
+                        }
+                    );
+                    console.log('Backup response status:', backupResponse.status);
+                    if (!backupResponse.ok) {
+                        throw new Error('Backup request failed with status ' + backupResponse.status);
                     }
-                );
-                console.log('Password response status:', passwordResponse.status);
-                if (!passwordResponse.ok) {
-                    throw new Error('Password request failed with status ' + passwordResponse
-                        .status);
-                }
-                const passwordData = await passwordResponse.json();
-                console.log('Password data:', passwordData);
 
-                if (passwordData.status && passwordData.encryption_password) {
-                    // Create the modal markup
-                    const modalHtml = `
+                    // 2) Convert the response to a Blob (the .sql.enc file)
+                    const backupBlob = await backupResponse.blob();
+                    console.log('Received backup blob, size:', backupBlob.size);
+
+                    // 3) Create a temporary link to trigger the file download
+                    const downloadUrl = window.URL.createObjectURL(backupBlob);
+                    const link = document.createElement('a');
+                    link.href = downloadUrl;
+                    link.download = 'database_backup_' + new Date().toISOString().replace(/[:.]/g,
+                        '-') + '.sql.enc';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(downloadUrl);
+
+                    // 4) Now fetch the backup password with credentials included.
+                    const passwordResponse = await fetch(
+                        '../backend/routes/settings_api.php?action=get_backup_password', {
+                            credentials: 'include'
+                        }
+                    );
+                    console.log('Password response status:', passwordResponse.status);
+                    if (!passwordResponse.ok) {
+                        throw new Error('Password request failed with status ' + passwordResponse
+                            .status);
+                    }
+                    const passwordData = await passwordResponse.json();
+                    console.log('Password data:', passwordData);
+
+                    if (passwordData.status && passwordData.encryption_password) {
+                        // Create the modal markup
+                        const modalHtml = `
                         <div class="modal fade" id="backupPasswordModal" tabindex="-1" aria-labelledby="backupPasswordModalLabel" aria-hidden="true">
                             <div class="modal-dialog">
                                 <div class="modal-content">
@@ -288,75 +250,75 @@ if ($result) {
                             </div>
                         </div>
                     `;
-                    // Remove existing modal if any.
-                    document.getElementById('backupPasswordModal')?.remove();
+                        // Remove existing modal if any.
+                        document.getElementById('backupPasswordModal')?.remove();
 
-                    // Insert the new modal.
-                    const modalContainer = document.createElement('div');
-                    modalContainer.innerHTML = modalHtml;
-                    document.body.appendChild(modalContainer
-                        .firstElementChild); // changed from firstChild
+                        // Insert the new modal.
+                        const modalContainer = document.createElement('div');
+                        modalContainer.innerHTML = modalHtml;
+                        document.body.appendChild(modalContainer
+                            .firstElementChild); // changed from firstChild
 
-                    // Initialize & show the modal.
-                    const backupPasswordModalEl = document.getElementById('backupPasswordModal');
-                    if (backupPasswordModalEl) {
-                        const backupPasswordModal = new bootstrap.Modal(backupPasswordModalEl);
-                        backupPasswordModal.show();
+                        // Initialize & show the modal.
+                        const backupPasswordModalEl = document.getElementById('backupPasswordModal');
+                        if (backupPasswordModalEl) {
+                            const backupPasswordModal = new bootstrap.Modal(backupPasswordModalEl);
+                            backupPasswordModal.show();
 
-                        // Copy-to-clipboard functionality.
-                        const copyBtn = document.getElementById('copyPasswordBtn');
-                        if (copyBtn) {
-                            copyBtn.addEventListener('click', () => {
-                                const passwordText = document.getElementById(
-                                    'backupPasswordText').textContent;
-                                navigator.clipboard.writeText(passwordText).then(() => {
-                                    showApiMessage('Password copied to clipboard!',
-                                        'success');
+                            // Copy-to-clipboard functionality.
+                            const copyBtn = document.getElementById('copyPasswordBtn');
+                            if (copyBtn) {
+                                copyBtn.addEventListener('click', () => {
+                                    const passwordText = document.getElementById(
+                                        'backupPasswordText').textContent;
+                                    navigator.clipboard.writeText(passwordText).then(() => {
+                                        showApiMessage('Password copied to clipboard!',
+                                            'success');
+                                    });
                                 });
-                            });
+                            } else {
+                                console.error("Copy password button not found");
+                            }
                         } else {
-                            console.error("Copy password button not found");
+                            console.error("Backup modal element not found");
                         }
+
+                        showApiMessage('Database backup successful', 'success');
                     } else {
-                        console.error("Backup modal element not found");
+                        showApiMessage('Backup succeeded, but no password returned.', 'warning');
                     }
 
-                    showApiMessage('Database backup successful', 'success');
-                } else {
-                    showApiMessage('Backup succeeded, but no password returned.', 'warning');
+                } catch (error) {
+                    console.error("Backup error:", error);
+                    showApiMessage('An error occurred during database backup: ' + error.message,
+                        'danger');
                 }
+            });
 
-            } catch (error) {
-                console.error("Backup error:", error);
-                showApiMessage('An error occurred during database backup: ' + error.message,
-                    'danger');
-            }
+            // Restore Database form submission.
+            document.getElementById('restoreForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const form = this;
+                const formData = new FormData(form);
+                fetch('../backend/routes/settings_api.php?action=restore_database', {
+                        method: 'POST',
+                        body: formData,
+                        credentials: 'include'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status) {
+                            showApiMessage(data.message, 'success');
+                        } else {
+                            showApiMessage(data.message, 'danger');
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Error during restore:", error);
+                        showApiMessage("An error occurred during database restore.", "danger");
+                    });
+            });
         });
-
-        // Restore Database form submission.
-        document.getElementById('restoreForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const form = this;
-            const formData = new FormData(form);
-            fetch('../backend/routes/settings_api.php?action=restore_database', {
-                    method: 'POST',
-                    body: formData,
-                    credentials: 'include'
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status) {
-                        showApiMessage(data.message, 'success');
-                    } else {
-                        showApiMessage(data.message, 'danger');
-                    }
-                })
-                .catch(error => {
-                    console.error("Error during restore:", error);
-                    showApiMessage("An error occurred during database restore.", "danger");
-                });
-        });
-    });
     </script>
 </body>
 

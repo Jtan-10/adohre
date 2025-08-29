@@ -13,12 +13,12 @@ $files = [
 
 foreach ($files as $file) {
     echo "<h2>Checking: $file</h2>";
-    
+
     // Use PHP's built-in linter
     $output = [];
     $return_var = 0;
     exec("php -l $file", $output, $return_var);
-    
+
     if ($return_var === 0) {
         echo "<p style='color: green;'>No syntax errors detected.</p>";
     } else {
@@ -27,4 +27,3 @@ foreach ($files as $file) {
         echo "</pre>";
     }
 }
-?>
