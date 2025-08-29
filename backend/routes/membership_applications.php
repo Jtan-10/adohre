@@ -13,32 +13,32 @@ try {
 
             // Updated SQL query to include face_image from users table:
             $sql = "SELECT m.*, u.face_image FROM membership_applications m LEFT JOIN users u ON m.user_id = u.user_id";
-            $conditions = [];
-            $params = [];
-            $types = '';
 
+            $whereParts = [];
             if ($id) {
-                $conditions[] = "m.application_id = ?";
-                $params[] = $id;
-                $types .= "i";
+                $whereParts[] = "m.application_id = " . intval($id);
             }
-            if ($status) {
-                $conditions[] = "m.status = ?";
-                $params[] = $status;
-                $types .= "s";
+            if ($status !== null && $status !== '') {
+                // Whitelist statuses per schema
+                $allowedStatuses = ['Pending', 'Reviewed', 'Approved', 'Rejected'];
+                if (!in_array($status, $allowedStatuses, true)) {
+                    http_response_code(400);
+                    echo json_encode(['status' => false, 'message' => 'Invalid status filter']);
+                    break;
+                }
+                $whereParts[] = "m.status = '" . $conn->real_escape_string($status) . "'";
             }
+            if ($whereParts) {
+                $sql .= ' WHERE ' . implode(' AND ', $whereParts);
+            }
+            $sql .= ' ORDER BY m.created_at DESC';
 
-            if ($conditions) {
-                $sql .= " WHERE " . implode(" AND ", $conditions);
+            $result = $conn->query($sql);
+            if (!$result) {
+                http_response_code(500);
+                echo json_encode(['status' => false, 'message' => 'Database error: ' . $conn->error]);
+                break;
             }
-            $sql .= " ORDER BY m.created_at DESC";
-
-            $stmt = $conn->prepare($sql);
-            if ($types) {
-                $stmt->bind_param($types, ...$params);
-            }
-            $stmt->execute();
-            $result = $stmt->get_result();
             $data = $id ? $result->fetch_assoc() : $result->fetch_all(MYSQLI_ASSOC);
             echo json_encode($data);
             break;
@@ -79,10 +79,11 @@ try {
                             $stmtMember = $conn->prepare("SELECT COUNT(*) as count FROM members WHERE user_id = ?");
                             $stmtMember->bind_param("i", $userId);
                             $stmtMember->execute();
-                            $resultMember = $stmtMember->get_result()->fetch_assoc();
+                            $stmtMember->bind_result($memberCount);
+                            $stmtMember->fetch();
                             $stmtMember->close();
 
-                            if ($resultMember['count'] == 0) {
+                            if (intval($memberCount) === 0) {
                                 // No record exists: insert a new record with membership_status 'active'
                                 $stmtInsert = $conn->prepare("INSERT INTO members (user_id, membership_status) VALUES (?, 'inactive')");
                                 $stmtInsert->bind_param("i", $userId);
