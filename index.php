@@ -324,7 +324,7 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
         <section class="hero-section text-center">
             <div class="container">
                 <h1>
-                    THE ASSOCIATION OF DEPARTMENT OF HEALTH (DOH) RETIRED EMPLOYEES INC., PHILIPPINES (ADOHRE)
+                    THE ASSOCIATION OF DEPARTMENT OF HEALTH (DOH) RETIRED EMPLOYEES, PHILIPPINES, INC. (ADOHRE)
                 </h1>
                 <p class="lead">
                     Discover ADOHRE: Your Best Chapter is Here!
