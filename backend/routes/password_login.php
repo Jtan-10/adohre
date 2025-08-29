@@ -37,6 +37,7 @@ if (empty($password)) {
 
 try {
     // Check if user exists and verify password
+    // First try with user_settings join, if that fails, try without
     $stmt = $conn->prepare("
         SELECT u.user_id, u.password_hash, u.first_name, u.last_name, u.profile_image, u.role, u.is_profile_complete,
                COALESCE(us.otp_enabled, 0) as otp_enabled
@@ -44,22 +45,50 @@ try {
         LEFT JOIN user_settings us ON u.user_id = us.user_id
         WHERE u.email = ?
     ");
+
     if (!$stmt) {
-        throw new Exception('Database prepare error: ' . $conn->error);
-    }
+        // If the join fails (likely because user_settings table doesn't exist), try without it
+        $stmt = $conn->prepare("
+            SELECT user_id, password_hash, first_name, last_name, profile_image, role, is_profile_complete
+            FROM users 
+            WHERE email = ?
+        ");
+        if (!$stmt) {
+            throw new Exception('Database prepare error: ' . $conn->error);
+        }
 
-    $stmt->bind_param("s", $email);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $user = $result->fetch_assoc();
-    $stmt->close();
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $user = $result->fetch_assoc();
+        $stmt->close();
 
-    if (!$user) {
-        echo json_encode(['status' => false, 'message' => 'Invalid email or password.']);
-        exit();
+        if (!$user) {
+            echo json_encode(['status' => false, 'message' => 'Invalid email or password.']);
+            exit();
+        }
+
+        // Assume OTP is disabled if user_settings table doesn't exist
+        $user['otp_enabled'] = 0;
+    } else {
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $user = $result->fetch_assoc();
+        $stmt->close();
+
+        if (!$user) {
+            echo json_encode(['status' => false, 'message' => 'Invalid email or password.']);
+            exit();
+        }
     }
 
     // Verify password
+    if (empty($user['password_hash'])) {
+        echo json_encode(['status' => false, 'message' => 'Account not fully set up. Please contact support.']);
+        exit();
+    }
+
     if (!password_verify($password, $user['password_hash'])) {
         recordAuditLog($user['user_id'], 'Failed Login Attempt', 'Failed password login attempt');
         echo json_encode(['status' => false, 'message' => 'Invalid email or password.']);
@@ -125,9 +154,6 @@ function generateOTP($length = 6)
 
 function sendOTPEmail($email, $otp)
 {
-    // Load PHPMailer
-    require_once '../../vendor/autoload.php';
-
     $mail = new PHPMailer(true);
     try {
         // SMTP setup
