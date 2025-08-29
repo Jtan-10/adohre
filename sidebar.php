@@ -197,6 +197,7 @@ $userRole = $isLoggedIn ? ($_SESSION['role'] ?? 'member') : 'guest';
                 </ul>
             </li>
             <li <?php if ($current_page == 'events.php') echo 'class="active"'; ?>><a href="events.php">Events</a></li>
+            <li <?php if ($current_page == 'projects.php') echo 'class="active"'; ?>><a href="projects.php">Projects</a></li>
         <?php endif; ?>
         <?php if (isset($_SESSION['user_id'])): ?>
             <li <?php if ($current_page == 'trainings.php') echo 'class="active"'; ?>><a

@@ -152,6 +152,16 @@ try {
             'announcements' => $announcements,
             'trainings' => $trainings
         ]);
+    } elseif ($action === 'fetch_projects') {
+        // Fetch projects list
+        $result = $conn->query("SELECT project_id, title, description, date, location, image FROM projects ORDER BY COALESCE(date, created_at) DESC");
+        $projects = [];
+        if ($result) {
+            while ($row = $result->fetch_assoc()) {
+                $projects[] = $row;
+            }
+        }
+        echo json_encode(['status' => true, 'projects' => $projects]);
     } elseif ($action === 'add_event' || $action === 'update_event') {
         ensureAuthenticated();
         // ----------------------------
@@ -253,26 +263,26 @@ try {
         if ($action === 'add_event') {
             // New: retrieve fee; default to 0 if not provided
             $fee = isset($_POST['fee']) && is_numeric($_POST['fee']) ? floatval($_POST['fee']) : 0.00;
-            
+
             // Insert new event with fee column included
             $stmt = $conn->prepare("INSERT INTO events (title, description, date, location, fee, image) VALUES (?, ?, ?, ?, ?, ?)");
             $stmt->bind_param('ssssds', $title, $description, $date, $location, $fee, $relativeImagePath);
             $stmt->execute();
-        
+
             // Audit log for event addition
             recordAuditLog($userId, "Add Event", "Event '$title' added.");
             echo json_encode(['status' => true, 'message' => 'Event added successfully.']);
         } elseif ($action === 'update_event') {
             // New: retrieve fee; default to 0 if not provided
             $fee = isset($_POST['fee']) && is_numeric($_POST['fee']) ? floatval($_POST['fee']) : 0.00;
-            
+
             // Update existing event; if no new image provided, the old image remains.
             $stmt = $conn->prepare(
                 "UPDATE events SET title = ?, description = ?, date = ?, location = ?, fee = ?, image = IFNULL(?, image) WHERE event_id = ?"
             );
             $stmt->bind_param('ssssdsi', $title, $description, $date, $location, $fee, $relativeImagePath, $event_id);
             $stmt->execute();
-        
+
             // Audit log for event update
             recordAuditLog($userId, "Update Event", "Event ID $event_id updated with title '$title'.");
             echo json_encode(['status' => true, 'message' => 'Event updated successfully.']);
@@ -284,7 +294,7 @@ try {
         // ----------------------------
         $event_id = $_POST['id'];
         $userId = $_SESSION['user_id'];
-    
+
         // Retrieve the event record to check for an existing image.
         $stmt = $conn->prepare("SELECT image FROM events WHERE event_id = ?");
         $stmt->bind_param('i', $event_id);
@@ -314,12 +324,12 @@ try {
             }
         }
         $stmt->close();
-    
+
         // Now delete the event record from the database.
         $stmt = $conn->prepare("DELETE FROM events WHERE event_id = ?");
         $stmt->bind_param('i', $event_id);
         $stmt->execute();
-    
+
         // Audit log for event deletion.
         recordAuditLog($userId, "Delete Event", "Event ID $event_id deleted.");
         echo json_encode(['status' => true, 'message' => 'Event deleted successfully.']);
@@ -487,6 +497,133 @@ try {
             }
             @unlink($finalEncryptedPngFile);
         }
+    } elseif ($action === 'add_project' || $action === 'update_project') {
+        ensureAuthenticated();
+        $title = $_POST['title'];
+        $description = $_POST['description'];
+        $date = $_POST['date'] ?? null; // YYYY-MM-DD
+        $location = $_POST['location'] ?? '';
+        $project_id = $_POST['id'] ?? null;
+        $userId = $_SESSION['user_id'];
+
+        $relativeImagePath = null;
+        if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+            if ($_FILES['image']['size'] > 5242880) {
+                echo json_encode(['status' => false, 'message' => 'File too large. Maximum size is 5MB.']);
+                exit();
+            }
+            $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+            if (!in_array($_FILES['image']['type'], $allowedTypes)) {
+                echo json_encode(['status' => false, 'message' => 'Invalid file type. Only JPG, PNG, and GIF allowed.']);
+                exit();
+            }
+
+            $imageName = time() . '_' . basename($_FILES['image']['name']);
+            $s3Key = 'uploads/project_images/' . $imageName;
+
+            // Encrypt and embed
+            $clearImageData = file_get_contents($_FILES['image']['tmp_name']);
+            $cipher = "AES-256-CBC";
+            $ivlen = openssl_cipher_iv_length($cipher);
+            $iv = openssl_random_pseudo_bytes($ivlen);
+            $rawKey = getenv('ENCRYPTION_KEY');
+            $encryptionKey = hash('sha256', $rawKey, true);
+            $encryptedData = openssl_encrypt($clearImageData, $cipher, $encryptionKey, OPENSSL_RAW_DATA, $iv);
+            $encryptedImageData = $iv . $encryptedData;
+            $pngImage = embedDataInPng($encryptedImageData, 100);
+            $finalEncryptedPngFile = tempnam(sys_get_temp_dir(), 'enc_png_') . '.png';
+            imagepng($pngImage, $finalEncryptedPngFile);
+            imagedestroy($pngImage);
+
+            if ($action === 'update_project') {
+                $stmtCheck = $conn->prepare("SELECT image FROM projects WHERE project_id = ?");
+                $stmtCheck->bind_param("i", $project_id);
+                $stmtCheck->execute();
+                $resultCheck = $stmtCheck->get_result();
+                if ($resultCheck->num_rows > 0) {
+                    $existing = $resultCheck->fetch_assoc();
+                    if (!empty($existing['image'])) {
+                        $existingS3Key = urldecode(str_replace('/s3proxy/', '', $existing['image']));
+                        try {
+                            $s3->deleteObject(['Bucket' => $bucketName, 'Key' => $existingS3Key]);
+                        } catch (Aws\Exception\AwsException $e) {
+                            error_log($e->getMessage());
+                        }
+                    }
+                }
+                $stmtCheck->close();
+            }
+
+            try {
+                $result = $s3->putObject([
+                    'Bucket'      => $bucketName,
+                    'Key'         => $s3Key,
+                    'Body'        => fopen($finalEncryptedPngFile, 'rb'),
+                    'ACL'         => 'public-read',
+                    'ContentType' => 'image/png'
+                ]);
+                $relativeImagePath = str_replace(
+                    "https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/",
+                    "/s3proxy/",
+                    $result['ObjectURL']
+                );
+            } catch (Aws\Exception\AwsException $e) {
+                error_log("S3 upload error: " . $e->getMessage());
+                echo json_encode(['status' => false, 'message' => 'Failed to upload image to S3.']);
+                exit();
+            }
+            @unlink($finalEncryptedPngFile);
+        }
+
+        if ($action === 'add_project') {
+            $stmt = $conn->prepare("INSERT INTO projects (title, description, date, location, image, created_by) VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param('sssssi', $title, $description, $date, $location, $relativeImagePath, $userId);
+            $stmt->execute();
+            recordAuditLog($userId, 'Add Project', "Project '$title' added.");
+            echo json_encode(['status' => true, 'message' => 'Project added successfully.']);
+        } else {
+            $stmt = $conn->prepare("UPDATE projects SET title = ?, description = ?, date = ?, location = ?, image = IFNULL(?, image) WHERE project_id = ?");
+            $stmt->bind_param('sssssi', $title, $description, $date, $location, $relativeImagePath, $project_id);
+            $stmt->execute();
+            recordAuditLog($userId, 'Update Project', "Project ID $project_id updated.");
+            echo json_encode(['status' => true, 'message' => 'Project updated successfully.']);
+        }
+    } elseif ($action === 'delete_project') {
+        ensureAuthenticated();
+        $project_id = $_POST['id'];
+        $userId = $_SESSION['user_id'];
+        $stmt = $conn->prepare("SELECT image FROM projects WHERE project_id = ?");
+        $stmt->bind_param('i', $project_id);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        if ($res->num_rows > 0) {
+            $row = $res->fetch_assoc();
+            if (!empty($row['image']) && strpos($row['image'], '/s3proxy/') === 0) {
+                $existingS3Key = urldecode(str_replace('/s3proxy/', '', $row['image']));
+                try {
+                    $s3->deleteObject(['Bucket' => $bucketName, 'Key' => $existingS3Key]);
+                } catch (Aws\Exception\AwsException $e) {
+                    error_log($e->getMessage());
+                }
+            }
+        }
+        $stmt->close();
+        $stmt = $conn->prepare("DELETE FROM projects WHERE project_id = ?");
+        $stmt->bind_param('i', $project_id);
+        $stmt->execute();
+        recordAuditLog($userId, 'Delete Project', "Project ID $project_id deleted.");
+        echo json_encode(['status' => true, 'message' => 'Project deleted successfully.']);
+    } elseif ($action === 'get_project') {
+        $project_id = $_GET['id'];
+        $stmt = $conn->prepare("SELECT * FROM projects WHERE project_id = ?");
+        $stmt->bind_param('i', $project_id);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        if ($res->num_rows > 0) {
+            echo json_encode(['status' => true, 'project' => $res->fetch_assoc()]);
+        } else {
+            echo json_encode(['status' => false, 'message' => 'Project not found.']);
+        }
 
         if ($action === 'add_training') {
             $trainer_id = $_SESSION['user_id'] ?? 0;
@@ -495,7 +632,7 @@ try {
             $stmt = $conn->prepare("INSERT INTO trainings (title, description, schedule, capacity, fee, image, modality, modality_details, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->bind_param('sssidsssi', $title, $description, $schedule, $capacity, $fee, $relativeImagePath, $modality, $modality_details, $trainer_id);
             $stmt->execute();
-        
+
             recordAuditLog($trainer_id, "Add Training", "Training '$title' added.");
             echo json_encode(['status' => true, 'message' => 'Training added successfully.']);
         } elseif ($action === 'update_training') {
@@ -504,7 +641,7 @@ try {
             $stmt = $conn->prepare("UPDATE trainings SET title = ?, description = ?, schedule = ?, capacity = ?, fee = ?, image = IFNULL(?, image), modality = ?, modality_details = ? WHERE training_id = ?");
             $stmt->bind_param('sssidsssi', $title, $description, $schedule, $capacity, $fee, $relativeImagePath, $modality, $modality_details, $training_id);
             $stmt->execute();
-        
+
             recordAuditLog($_SESSION['user_id'], "Update Training", "Training ID $training_id updated with title '$title'.");
             echo json_encode(['status' => true, 'message' => 'Training updated successfully.']);
             exit();
@@ -512,7 +649,7 @@ try {
     } elseif ($action === 'delete_training') {
         ensureAuthenticated();
         $training_id = $_POST['id'];
-        
+
         // Check if there is an existing image and delete it from S3
         $stmtCheck = $conn->prepare("SELECT image FROM trainings WHERE training_id = ?");
         $stmtCheck->bind_param("i", $training_id);
@@ -570,4 +707,3 @@ try {
         'message' => 'Internal Server Error.'
     ]);
 }
-?>

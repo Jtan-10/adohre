@@ -111,6 +111,9 @@ if ($stmt) {
                 <li class="nav-item"><a class="nav-link" href="news.php">News</a></li>
                 <!-- Added FAQ nav item -->
                 <li class="nav-item"><a class="nav-link" href="faqs.php">FAQs</a></li>
+                <?php if (isset($_SESSION['user_id'])): ?>
+                    <li class="nav-item"><a class="nav-link" href="projects.php">Projects</a></li>
+                <?php endif; ?>
                 <?php if ($isLoggedIn && (isset($_SESSION['role']) && $_SESSION['role'] !== 'user')): ?>
                     <li class="nav-item"><a class="nav-link" href="events.php">Events</a></li>
                 <?php endif; ?>
