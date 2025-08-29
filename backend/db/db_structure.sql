@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3306
--- Generation Time: Aug 29, 2025 at 03:59 PM
+-- Generation Time: Aug 29, 2025 at 07:34 PM
 -- Server version: 11.8.2-MariaDB
 -- PHP Version: 8.3.23
 
@@ -32,23 +32,6 @@ CREATE TABLE `announcements` (
   `title` varchar(255) NOT NULL DEFAULT '',
   `text` text NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `appointments`
---
-
-CREATE TABLE `appointments` (
-  `appointment_id` int(11) NOT NULL,
-  `user_id` int(11) NOT NULL,
-  `appointment_date` datetime NOT NULL,
-  `description` text DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `accepted` tinyint(1) NOT NULL DEFAULT 0,
-  `accept_details` text DEFAULT NULL,
-  `done` tinyint(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -252,23 +235,6 @@ CREATE TABLE `event_registrations` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `medical_assistance`
---
-
-CREATE TABLE `medical_assistance` (
-  `assistance_id` int(11) NOT NULL,
-  `user_id` int(11) NOT NULL,
-  `assistance_date` datetime NOT NULL,
-  `description` text DEFAULT NULL,
-  `accepted` tinyint(1) NOT NULL DEFAULT 0,
-  `accept_details` text DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `done` tinyint(1) NOT NULL DEFAULT 0
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- --------------------------------------------------------
-
---
 -- Table structure for table `members`
 --
 
@@ -314,6 +280,22 @@ CREATE TABLE `membership_applications` (
   `committees` varchar(255) DEFAULT NULL,
   `status` enum('Pending','Reviewed','Approved','Rejected') DEFAULT 'Pending',
   `valid_id_url` varchar(255) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `member_requests`
+--
+
+CREATE TABLE `member_requests` (
+  `request_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `request_type` enum('appointment','medical_assistance','death_assistance','other') NOT NULL,
+  `requested_at` datetime NOT NULL,
+  `description` text DEFAULT NULL,
+  `status` enum('submitted','pending','approved') NOT NULL DEFAULT 'submitted',
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -372,6 +354,24 @@ CREATE TABLE `payments` (
   `is_archived` tinyint(1) NOT NULL DEFAULT 0,
   `archive_date` date DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `projects`
+--
+
+CREATE TABLE `projects` (
+  `project_id` int(10) UNSIGNED NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `description` text NOT NULL,
+  `date` date DEFAULT NULL,
+  `location` varchar(255) DEFAULT NULL,
+  `image` varchar(512) DEFAULT NULL,
+  `created_by` int(11) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -482,13 +482,6 @@ ALTER TABLE `announcements`
   ADD PRIMARY KEY (`announcement_id`);
 
 --
--- Indexes for table `appointments`
---
-ALTER TABLE `appointments`
-  ADD PRIMARY KEY (`appointment_id`),
-  ADD KEY `user_id` (`user_id`);
-
---
 -- Indexes for table `assessment_forms`
 --
 ALTER TABLE `assessment_forms`
@@ -591,13 +584,6 @@ ALTER TABLE `event_registrations`
   ADD KEY `user_id` (`user_id`);
 
 --
--- Indexes for table `medical_assistance`
---
-ALTER TABLE `medical_assistance`
-  ADD PRIMARY KEY (`assistance_id`),
-  ADD KEY `user_id` (`user_id`);
-
---
 -- Indexes for table `members`
 --
 ALTER TABLE `members`
@@ -610,6 +596,15 @@ ALTER TABLE `members`
 ALTER TABLE `membership_applications`
   ADD PRIMARY KEY (`application_id`),
   ADD KEY `fk_user_id` (`user_id`);
+
+--
+-- Indexes for table `member_requests`
+--
+ALTER TABLE `member_requests`
+  ADD PRIMARY KEY (`request_id`),
+  ADD KEY `user_id` (`user_id`),
+  ADD KEY `idx_member_requests_status` (`status`),
+  ADD KEY `idx_member_requests_type` (`request_type`);
 
 --
 -- Indexes for table `news`
@@ -634,6 +629,15 @@ ALTER TABLE `payments`
   ADD PRIMARY KEY (`payment_id`),
   ADD KEY `user_id` (`user_id`),
   ADD KEY `idx_payments_archived` (`is_archived`,`archive_date`);
+
+--
+-- Indexes for table `projects`
+--
+ALTER TABLE `projects`
+  ADD PRIMARY KEY (`project_id`),
+  ADD KEY `idx_projects_date` (`date`),
+  ADD KEY `idx_projects_created_at` (`created_at`),
+  ADD KEY `fk_projects_created_by` (`created_by`);
 
 --
 -- Indexes for table `remember_tokens`
@@ -688,12 +692,6 @@ ALTER TABLE `user_settings`
 --
 ALTER TABLE `announcements`
   MODIFY `announcement_id` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT for table `appointments`
---
-ALTER TABLE `appointments`
-  MODIFY `appointment_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `assessment_questions`
@@ -762,12 +760,6 @@ ALTER TABLE `event_registrations`
   MODIFY `registration_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
--- AUTO_INCREMENT for table `medical_assistance`
---
-ALTER TABLE `medical_assistance`
-  MODIFY `assistance_id` int(11) NOT NULL AUTO_INCREMENT;
-
---
 -- AUTO_INCREMENT for table `members`
 --
 ALTER TABLE `members`
@@ -778,6 +770,12 @@ ALTER TABLE `members`
 --
 ALTER TABLE `membership_applications`
   MODIFY `application_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `member_requests`
+--
+ALTER TABLE `member_requests`
+  MODIFY `request_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `news`
@@ -796,6 +794,12 @@ ALTER TABLE `news_likes`
 --
 ALTER TABLE `payments`
   MODIFY `payment_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `projects`
+--
+ALTER TABLE `projects`
+  MODIFY `project_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `remember_tokens`
@@ -824,12 +828,6 @@ ALTER TABLE `users`
 --
 -- Constraints for dumped tables
 --
-
---
--- Constraints for table `appointments`
---
-ALTER TABLE `appointments`
-  ADD CONSTRAINT `appointments_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `assessment_forms`
@@ -899,12 +897,6 @@ ALTER TABLE `event_registrations`
   ADD CONSTRAINT `event_registrations_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
 
 --
--- Constraints for table `medical_assistance`
---
-ALTER TABLE `medical_assistance`
-  ADD CONSTRAINT `medical_assistance_fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
-
---
 -- Constraints for table `members`
 --
 ALTER TABLE `members`
@@ -915,6 +907,12 @@ ALTER TABLE `members`
 --
 ALTER TABLE `membership_applications`
   ADD CONSTRAINT `fk_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `member_requests`
+--
+ALTER TABLE `member_requests`
+  ADD CONSTRAINT `member_requests_fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `news`
@@ -934,6 +932,12 @@ ALTER TABLE `news_likes`
 --
 ALTER TABLE `payments`
   ADD CONSTRAINT `payments_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `projects`
+--
+ALTER TABLE `projects`
+  ADD CONSTRAINT `fk_projects_created_by` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 --
 -- Constraints for table `remember_tokens`

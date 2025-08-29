@@ -22,7 +22,7 @@ $scriptNonce = bin2hex(random_bytes(16));
 
 // Get the current page name and determine submenu active state.
 $current_page = basename($_SERVER['PHP_SELF']);
-$submenuActive = ($current_page == 'consultation.php' || $current_page == 'appointments.php' || $current_page == 'medical_assistance.php');
+$submenuActive = ($current_page == 'consultation.php' || $current_page == 'member_requests.php');
 
 // Check if the user is logged in
 $isLoggedIn = isset($_SESSION['user_id']);
@@ -190,10 +190,8 @@ $userRole = $isLoggedIn ? ($_SESSION['role'] ?? 'member') : 'guest';
                 <ul class="submenu <?php echo $submenuActive ? 'show' : ''; ?>" id="memberServicesSubmenu">
                     <li <?php if ($current_page == 'consultation.php') echo 'class="active"'; ?>><a
                             href="consultation.php">Chat Assistance</a></li>
-                    <li <?php if ($current_page == 'appointments.php') echo 'class="active"'; ?>><a
-                            href="appointments.php">Appointments</a></li>
-                    <li <?php if ($current_page == 'medical_assistance.php') echo 'class="active"'; ?>><a
-                            href="medical_assistance.php">Medical Assistance</a></li>
+                    <li <?php if ($current_page == 'member_requests.php') echo 'class="active"'; ?>><a
+                            href="member_requests.php">Member Requests</a></li>
                 </ul>
             </li>
             <li <?php if ($current_page == 'events.php') echo 'class="active"'; ?>><a href="events.php">Events</a></li>

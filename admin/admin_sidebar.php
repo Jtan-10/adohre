@@ -93,13 +93,9 @@ $currentPage = basename($_SERVER['PHP_SELF']);
             class="nav-link <?php echo $currentPage === 'consultations.php' ? 'active' : ''; ?>">
             <i class="bi bi-chat-left-text"></i><span>Consultation Management</span>
         </a>
-        <a href="appointments_management.php"
-            class="nav-link <?php echo $currentPage === 'appointments_management.php' ? 'active' : ''; ?>">
-            <i class="bi bi-calendar-check"></i><span>Appointments</span>
-        </a>
-        <a href="medical_assistance_management.php"
-            class="nav-link <?php echo $currentPage === 'medical_assistance_management.php' ? 'active' : ''; ?>">
-            <i class="bi bi-hospital"></i><span>Medical Assistance</span>
+        <a href="member_requests_management.php"
+            class="nav-link <?php echo $currentPage === 'member_requests_management.php' ? 'active' : ''; ?>">
+            <i class="bi bi-ui-checks"></i><span>Member Requests</span>
         </a>
         <a href="settings.php" class="nav-link <?php echo $currentPage === 'settings.php' ? 'active' : ''; ?>">
             <i class="bi bi-gear"></i> <span>Settings</span>
