@@ -153,8 +153,8 @@ try {
             'trainings' => $trainings
         ]);
     } elseif ($action === 'fetch_projects') {
-        // Fetch projects list
-        $result = $conn->query("SELECT project_id, title, description, date, location, image FROM projects ORDER BY COALESCE(date, created_at) DESC");
+        // Fetch projects list (new schema: partner, date, status, end_date, image)
+        $result = $conn->query("SELECT project_id, title, partner, date, status, end_date, image FROM projects ORDER BY COALESCE(date, created_at) DESC");
         $projects = [];
         if ($result) {
             while ($row = $result->fetch_assoc()) {
@@ -170,6 +170,8 @@ try {
         // Store raw text rather than HTML-escaped text.
         $title = $_POST['title'];
         $description = $_POST['description'];
+        $partner = $_POST['partner'] ?? null;
+        $timeframe = $_POST['timeframe'] ?? null;
         $date = $_POST['date'];
         $location = $_POST['location'];
         $event_id = $_POST['id'] ?? null;
@@ -500,9 +502,10 @@ try {
     } elseif ($action === 'add_project' || $action === 'update_project') {
         ensureAuthenticated();
         $title = $_POST['title'];
-        $description = $_POST['description'];
-        $date = $_POST['date'] ?? null; // YYYY-MM-DD
-        $location = $_POST['location'] ?? '';
+        $partner = $_POST['partner'] ?? null;
+        $date = $_POST['date'] ?? null; // YYYY-MM-DD (start date or relevant date)
+        $status = $_POST['status'] ?? 'scheduling';
+        $end_date = $_POST['end_date'] ?? null; // Only for finished
         $project_id = $_POST['id'] ?? null;
         $userId = $_SESSION['user_id'];
 
@@ -576,14 +579,14 @@ try {
         }
 
         if ($action === 'add_project') {
-            $stmt = $conn->prepare("INSERT INTO projects (title, description, date, location, image, created_by) VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param('sssssi', $title, $description, $date, $location, $relativeImagePath, $userId);
+            $stmt = $conn->prepare("INSERT INTO projects (title, partner, date, status, end_date, image, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param('ssssssi', $title, $partner, $date, $status, $end_date, $relativeImagePath, $userId);
             $stmt->execute();
             recordAuditLog($userId, 'Add Project', "Project '$title' added.");
             echo json_encode(['status' => true, 'message' => 'Project added successfully.']);
         } else {
-            $stmt = $conn->prepare("UPDATE projects SET title = ?, description = ?, date = ?, location = ?, image = IFNULL(?, image) WHERE project_id = ?");
-            $stmt->bind_param('sssssi', $title, $description, $date, $location, $relativeImagePath, $project_id);
+            $stmt = $conn->prepare("UPDATE projects SET title = ?, partner = ?, date = ?, status = ?, end_date = ?, image = IFNULL(?, image) WHERE project_id = ?");
+            $stmt->bind_param('ssssssi', $title, $partner, $date, $status, $end_date, $relativeImagePath, $project_id);
             $stmt->execute();
             recordAuditLog($userId, 'Update Project', "Project ID $project_id updated.");
             echo json_encode(['status' => true, 'message' => 'Project updated successfully.']);

@@ -364,14 +364,30 @@ CREATE TABLE `payments` (
 CREATE TABLE `projects` (
   `project_id` int(10) UNSIGNED NOT NULL,
   `title` varchar(255) NOT NULL,
-  `description` text NOT NULL,
+  `partner` varchar(255) DEFAULT NULL,
   `date` date DEFAULT NULL,
-  `location` varchar(255) DEFAULT NULL,
+  `status` enum('scheduling','ongoing','finished') NOT NULL DEFAULT 'scheduling',
+  `end_date` date DEFAULT NULL,
   `image` varchar(512) DEFAULT NULL,
   `created_by` int(11) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Optional seed: To load sample projects (new schema), run the following after creating the projects table:
+-- INSERT INTO projects (title, partner, date, status, end_date, image, created_by) VALUES
+-- ('Building CSO Partnerships to Strengthen Open Government Program Commitments in Tobacco Control Implementation', 'Vital Strategies Limited, NY,NY, USA', NULL, 'ongoing', NULL, NULL, NULL),
+-- ('Growing Expertise in E-health Knowledge and Skills (GEEKS) program for DOH informatics capacity building (Cohort 2)', 'The Task Force for Global Health, GA, USA', NULL, 'ongoing', NULL, NULL, NULL),
+-- ('Service Provider to Facilitate the Process of Training and Certification Examination for DOH KMITS staff', 'Philippine Business for Social Progress, Metro Manila', NULL, 'scheduling', NULL, NULL, NULL),
+-- ('Service Provider to Conduct and Manage Training Courses for KMITS and Regional Epidemiology and Surveillance Units staff', 'Philippine Business for Social Progress, Metro Manila', NULL, 'scheduling', NULL, NULL, NULL),
+-- ('CRVS and MCCOD Training (Civil Registration and Vital Statistics and MCCOD)', 'Aklan Local Government Unit', NULL, 'scheduling', NULL, NULL, NULL),
+-- ('Data Impact Program & Global Grants Program', 'Vital Strategies (Asia Pacific), Singapore', NULL, 'ongoing', NULL, NULL, NULL),
+-- ('Support for COVID-19 Data Management Support... GEEKS program (Cohort 1) for DOH', 'The Task Force for Global Health, GA, USA', NULL, 'finished', '2024-02-29', NULL, NULL),
+-- ('Technical Assistance for National Upscaling of CRVS and MCCOD Capacity', 'World Health Organization - Philippines', NULL, 'finished', '2023-12-31', NULL, NULL),
+-- ('Bloomberg’s Data for Health Initiative', 'CDC Foundation, Atlanta GA', NULL, 'finished', '2024-04-30', NULL, NULL),
+-- ('Data Impact Program and Global Grants Program', 'Vital Strategies (Asia-Pacific)', NULL, 'finished', '2025-03-31', NULL, NULL),
+-- ('Conduct of MCCOD for Medical Schools Faculty...', 'KMITS, Department of Health', NULL, 'finished', '2023-02-28', NULL, NULL),
+-- ('TA for the Conduct of MCCOD ToT for PGI Program', 'World Health Organization - Philippines', NULL, 'finished', '2019-12-31', NULL, NULL);
 
 -- --------------------------------------------------------
 

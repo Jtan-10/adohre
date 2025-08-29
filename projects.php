@@ -127,16 +127,25 @@ if (!isset($_SESSION['user_id'])) {
                             day: 'numeric',
                             year: 'numeric'
                         }) : '';
+                        const statusStr = p.status ? p.status.charAt(0).toUpperCase() + p.status.slice(1) : '';
+                        const endStr = (p.status === 'finished' && p.end_date) ? new Date(p.end_date).toLocaleString('en-US', {
+                            month: 'long',
+                            day: 'numeric',
+                            year: 'numeric'
+                        }) : '';
                         const imgSrc = p.image ? ('backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(p.image)) : 'assets/default-image.jpg';
                         return `
                         <div class="col-12 col-md-6 col-lg-4">
                           <div class="card project-card h-100">
                             <img src="${imgSrc}" class="card-img-top" alt="${p.title||'Project'}">
                             <div class="card-body d-flex flex-column">
-                              ${ dateStr ? `<span class=\"badge-date mb-2\"><i class=\"fas fa-calendar-alt me-1\"></i>${dateStr}</span>` : '' }
+                                                            ${ dateStr ? `<span class=\"badge-date mb-2\"><i class=\"fas fa-calendar-alt me-1\"></i>${dateStr}</span>` : '' }
                               <h5 class="card-title">${p.title || ''}</h5>
-                              <p class="card-text text-muted">${p.description || ''}</p>
-                              ${ p.location ? `<div class=\"mt-auto text-muted\"><i class=\"fas fa-map-marker-alt me-1\"></i>${p.location}</div>` : '' }
+                                                            ${ p.partner ? `<div class=\"text-muted mb-1\"><i class=\"fas fa-handshake me-1\"></i>${p.partner}</div>` : '' }
+                                                            <div class="text-muted">
+                                                                ${ statusStr ? `<span class=\"me-2\">${statusStr}</span>` : '' }
+                                                                ${ endStr ? `<span class=\"text-nowrap\">End: ${endStr}</span>` : '' }
+                                                            </div>
                             </div>
                           </div>
                         </div>`;

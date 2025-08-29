@@ -24,18 +24,28 @@
                         <label for="projectTitle" class="form-label">Title</label>
                         <input type="text" id="projectTitle" name="title" class="form-control" required>
                     </div>
-                    <div class="mb-3">
-                        <label for="projectDescription" class="form-label">Description</label>
-                        <textarea id="projectDescription" name="description" class="form-control" rows="3" required></textarea>
-                    </div>
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label for="projectDate" class="form-label">Date</label>
-                            <input type="date" id="projectDate" name="date" class="form-control">
+                            <label for="projectPartner" class="form-label">Partner</label>
+                            <input type="text" id="projectPartner" name="partner" class="form-control">
                         </div>
                         <div class="col-md-6">
-                            <label for="projectLocation" class="form-label">Location</label>
-                            <input type="text" id="projectLocation" name="location" class="form-control">
+                            <label for="projectDate" class="form-label">Start/Reference Date</label>
+                            <input type="date" id="projectDate" name="date" class="form-control">
+                        </div>
+                    </div>
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
+                            <label for="projectStatus" class="form-label">Status</label>
+                            <select id="projectStatus" name="status" class="form-select">
+                                <option value="scheduling">Scheduling</option>
+                                <option value="ongoing">Ongoing</option>
+                                <option value="finished">Finished</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="projectEndDate" class="form-label">End Date (when Finished)</label>
+                            <input type="date" id="projectEndDate" name="end_date" class="form-control" disabled>
                         </div>
                     </div>
                     <div class="mb-3 mt-3">
@@ -91,8 +101,12 @@
                             </div>
                             <div class="col-md-9">
                                 <h5 class="mb-1">${p.title || ''}</h5>
-                                <div class="text-muted mb-1">${ p.date ? new Date(p.date).toLocaleDateString() : '' } ${ p.location ? ' • ' + p.location : '' }</div>
-                                <p class="mb-2">${p.description || ''}</p>
+                                <div class="text-muted mb-1">
+                                    ${ p.date ? new Date(p.date).toLocaleDateString() : '' }
+                                    ${ p.status ? ' • ' + p.status.charAt(0).toUpperCase()+p.status.slice(1) : '' }
+                                    ${ p.status === 'finished' && p.end_date ? ' • End: ' + new Date(p.end_date).toLocaleDateString() : '' }
+                                </div>
+                                ${ p.partner ? `<div class="text-muted mb-2"><i class=\"fas fa-handshake me-1\"></i>${p.partner}</div>` : '' }
                                 <div>
                                     <button class="btn btn-primary btn-sm edit-project" data-id="${p.project_id}">Edit</button>
                                     <button class="btn btn-danger btn-sm delete-project ms-2" data-id="${p.project_id}">Delete</button>
@@ -120,9 +134,11 @@
                     const p = data.project;
                     document.getElementById('projectId').value = p.project_id;
                     document.getElementById('projectTitle').value = p.title || '';
-                    document.getElementById('projectDescription').value = p.description || '';
+                    document.getElementById('projectPartner').value = p.partner || '';
                     document.getElementById('projectDate').value = p.date || '';
-                    document.getElementById('projectLocation').value = p.location || '';
+                    document.getElementById('projectStatus').value = p.status || 'scheduling';
+                    document.getElementById('projectEndDate').value = p.end_date || '';
+                    document.getElementById('projectEndDate').disabled = (p.status !== 'finished');
                     modalTitle.textContent = 'Edit Project';
                     new bootstrap.Modal(modal).show();
                 });
@@ -172,5 +188,13 @@
         });
 
         fetchProjects();
+    });
+
+    // Enable/disable end date based on status
+    document.getElementById('projectStatus').addEventListener('change', (e) => {
+        const isFinished = e.target.value === 'finished';
+        const endInput = document.getElementById('projectEndDate');
+        endInput.disabled = !isFinished;
+        if (!isFinished) endInput.value = '';
     });
 </script>
