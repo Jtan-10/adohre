@@ -44,8 +44,8 @@
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label for="projectEndDate" class="form-label">End Date (when Finished)</label>
-                            <input type="date" id="projectEndDate" name="end_date" class="form-control" disabled>
+                            <label for="projectEndDate" class="form-label">End Date (optional)</label>
+                            <input type="date" id="projectEndDate" name="end_date" class="form-control">
                         </div>
                     </div>
                     <div class="mb-3 mt-3">
@@ -138,7 +138,6 @@
                     document.getElementById('projectDate').value = p.date || '';
                     document.getElementById('projectStatus').value = p.status || 'scheduling';
                     document.getElementById('projectEndDate').value = p.end_date || '';
-                    document.getElementById('projectEndDate').disabled = (p.status !== 'finished');
                     modalTitle.textContent = 'Edit Project';
                     new bootstrap.Modal(modal).show();
                 });
@@ -190,11 +189,5 @@
         fetchProjects();
     });
 
-    // Enable/disable end date based on status
-    document.getElementById('projectStatus').addEventListener('change', (e) => {
-        const isFinished = e.target.value === 'finished';
-        const endInput = document.getElementById('projectEndDate');
-        endInput.disabled = !isFinished;
-        if (!isFinished) endInput.value = '';
-    });
+    // End date is optional for all statuses; no toggle needed.
 </script>
