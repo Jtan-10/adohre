@@ -1,21 +1,24 @@
 <?php
+// Enable error reporting for debugging (temporarily)
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+
 require_once 'backend/db/db_connect.php';
 
 // Configure session security based on environment
 configureSessionSecurity();
 
-// Disable error display for production
-ini_set('display_errors', 0);
-error_reporting(0);
+// Start the session
+session_start();
+
+// Log session state
+error_log('INDEX.PHP - Session ID: ' . session_id());
+error_log('INDEX.PHP - Session Data: ' . json_encode($_SESSION));
 
 // Send security headers
 header("X-Content-Type-Options: nosniff");
 
-
-
-// Start the session and include your database connection.
-session_start();
-require_once 'backend/db/db_connect.php';
+// Include access control utilities
 require_once 'backend/utils/access_control.php';
 
 // Check if user is authenticated (but don't require it for homepage)

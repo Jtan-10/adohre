@@ -100,12 +100,17 @@ if (!function_exists('configureSessionSecurity')) {
         // Use less restrictive SameSite for development if not HTTPS
         $sameSite = $isHttps ? 'Strict' : 'Lax';
 
+        // DEBUG: Print very basic session settings
+        error_log("Session configuration: Secure=" . ($isHttps ? 'true' : 'false') . ", SameSite=$sameSite");
+
+        // Force simpler session parameters for development
         session_set_cookie_params([
-            'lifetime' => 0,
-            'path'     => '/',
-            'secure'   => $isHttps,      // Only secure on HTTPS
-            'httponly' => true,
-            'samesite' => $sameSite      // Less restrictive for development
+            'lifetime' => 0,        // Session expires when browser closes
+            'path'     => '/',      // Available across the entire domain
+            'domain'   => '',       // Let browser determine domain
+            'secure'   => false,    // Allow HTTP for development
+            'httponly' => true,     // Prevent JavaScript access
+            'samesite' => 'Lax'     // Allow cross-site GET requests
         ]);
     }
 }

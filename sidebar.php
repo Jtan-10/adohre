@@ -1,11 +1,20 @@
 <?php
+// Ensure we have access to database functions
+require_once 'backend/db/db_connect.php';
+
 if (session_status() === PHP_SESSION_NONE) {
+    // Configure session security based on environment
+    configureSessionSecurity();
     session_start();
 }
 
+// Log session state for debugging
+error_log('SIDEBAR.PHP - Session ID: ' . session_id());
+error_log('SIDEBAR.PHP - Session Data: ' . (isset($_SESSION['user_id']) ? 'User ID: ' . $_SESSION['user_id'] : 'Not logged in'));
+
 // Check if $conn exists and is alive. If not, re-establish the connection.
 if (!isset($conn) || !$conn->ping()) {
-    require 'backend/db/db_connect.php';
+    require_once 'backend/db/db_connect.php';
 }
 
 // Generate a unique nonce for inline scripts.
@@ -14,6 +23,10 @@ $scriptNonce = bin2hex(random_bytes(16));
 // Get the current page name and determine submenu active state.
 $current_page = basename($_SERVER['PHP_SELF']);
 $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appointments.php' || $current_page == 'medical_assistance.php');
+
+// Check if the user is logged in
+$isLoggedIn = isset($_SESSION['user_id']);
+$userRole = $isLoggedIn ? ($_SESSION['role'] ?? 'member') : 'guest';
 ?>
 
 <!-- Sidebar Styles -->

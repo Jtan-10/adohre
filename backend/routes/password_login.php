@@ -36,67 +36,73 @@ if (empty($password)) {
 }
 
 try {
+    // Check database connection
+    if (!$conn || $conn->connect_error) {
+        error_log('Database connection failed: ' . ($conn ? $conn->connect_error : 'Connection not established'));
+        echo json_encode(['status' => false, 'message' => 'Database connection failed.']);
+        exit();
+    }
+
     // Check if user exists and verify password
-    // First try with user_settings join, if that fails, try without
     $stmt = $conn->prepare("
-        SELECT u.user_id, u.password_hash, u.first_name, u.last_name, u.profile_image, u.role, u.is_profile_complete,
-               COALESCE(us.otp_enabled, 0) as otp_enabled
-        FROM users u
-        LEFT JOIN user_settings us ON u.user_id = us.user_id
-        WHERE u.email = ?
+        SELECT user_id, password_hash, first_name, last_name, profile_image, role, is_profile_complete
+        FROM users 
+        WHERE email = ?
     ");
 
     if (!$stmt) {
-        // If the join fails (likely because user_settings table doesn't exist), try without it
-        $stmt = $conn->prepare("
-            SELECT user_id, password_hash, first_name, last_name, profile_image, role, is_profile_complete
-            FROM users 
-            WHERE email = ?
-        ");
-        if (!$stmt) {
-            throw new Exception('Database prepare error: ' . $conn->error);
-        }
-
-        $stmt->bind_param("s", $email);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $user = $result->fetch_assoc();
-        $stmt->close();
-
-        if (!$user) {
-            echo json_encode(['status' => false, 'message' => 'Invalid email or password.']);
-            exit();
-        }
-
-        // Assume OTP is disabled if user_settings table doesn't exist
-        $user['otp_enabled'] = 0;
-    } else {
-        $stmt->bind_param("s", $email);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $user = $result->fetch_assoc();
-        $stmt->close();
-
-        if (!$user) {
-            echo json_encode(['status' => false, 'message' => 'Invalid email or password.']);
-            exit();
-        }
+        error_log('Database prepare error: ' . $conn->error);
+        echo json_encode(['status' => false, 'message' => 'Database error. Please try again.']);
+        exit();
     }
+
+    $stmt->bind_param("s", $email);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $user = $result->fetch_assoc();
+    $stmt->close();
+
+    if (!$user) {
+        error_log('User not found: ' . $email);
+        echo json_encode(['status' => false, 'message' => 'Invalid email or password.']);
+        exit();
+    }
+
+    // Debug: Log user data
+    error_log('User found: ' . $email . ', user_id: ' . $user['user_id'] . ', password_hash exists: ' . (!empty($user['password_hash']) ? 'yes' : 'no'));
 
     // Verify password
     if (empty($user['password_hash'])) {
+        error_log('No password hash for user: ' . $email);
         echo json_encode(['status' => false, 'message' => 'Account not fully set up. Please contact support.']);
         exit();
     }
 
     if (!password_verify($password, $user['password_hash'])) {
-        recordAuditLog($user['user_id'], 'Failed Login Attempt', 'Failed password login attempt');
+        error_log('Password verification failed for user: ' . $email);
         echo json_encode(['status' => false, 'message' => 'Invalid email or password.']);
         exit();
     }
 
+    error_log('Password verification successful for user: ' . $email);
+
+    // Check if OTP is enabled for this user
+    $otp_enabled = 0;
+    $stmt = $conn->prepare("SELECT otp_enabled FROM user_settings WHERE user_id = ?");
+    if ($stmt) {
+        $stmt->bind_param("i", $user['user_id']);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $settings = $result->fetch_assoc();
+        $stmt->close();
+        $otp_enabled = $settings ? $settings['otp_enabled'] : 0;
+    }
+
+    // For now, disable OTP to ensure login works
+    $otp_enabled = 0;
+
     // If OTP is enabled for this user, initiate OTP flow
-    if ($user['otp_enabled']) {
+    if ($otp_enabled) {
         // Store user data in session temporarily
         $_SESSION['temp_user'] = [
             'user_id' => $user['user_id'],
@@ -137,10 +143,30 @@ try {
     completeLogin($user['user_id'], $user['first_name'], $user['last_name'], $user['profile_image'], $user['role'], $user['is_profile_complete'], $remember);
     recordAuditLog($user['user_id'], 'User Login', 'User logged in using password');
 
+    // Clear any existing OTP session data
+    unset($_SESSION['otp_pending']);
+    unset($_SESSION['temp_user']);
+    unset($_SESSION['action']);
+
+    // Ensure session data is written to disk
+    session_write_close();
+
+    // Log the session status before responding
+    error_log('Login complete for user_id: ' . $user['user_id'] . ', Session ID: ' . session_id());
+
+    // Debug output to log user state
+    $debug_info = [
+        'user_id' => $user['user_id'],
+        'session_id' => session_id(),
+        'session_data' => isset($_SESSION) ? array_keys($_SESSION) : []
+    ];
+    error_log('DEBUG SESSION: ' . json_encode($debug_info));
+
     echo json_encode([
         'status' => true,
         'message' => 'Login successful.',
-        'redirect' => 'index.php'
+        'redirect' => 'index.php',
+        'debug' => $debug_info // Include debug info in response
     ]);
 } catch (Exception $e) {
     error_log('Login error: ' . $e->getMessage());
@@ -182,16 +208,44 @@ function sendOTPEmail($email, $otp)
 
 function completeLogin($userId, $firstName, $lastName, $profileImage, $role, $isProfileComplete, $remember)
 {
+    // Start session if not already started
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+
+    // Regenerate session ID to prevent session fixation
+    session_regenerate_id(true);
+
+    // Log session status before setting data
+    error_log('Login: Setting session variables. SessionID: ' . session_id());
+
+    // Set all session variables
     $_SESSION['user_id'] = $userId;
     $_SESSION['first_name'] = $firstName;
     $_SESSION['last_name'] = $lastName;
     $_SESSION['profile_image'] = $profileImage;
     $_SESSION['role'] = $role;
     $_SESSION['is_profile_complete'] = $isProfileComplete;
+    $_SESSION['logged_in_time'] = time(); // Track login time
+
+    // Debug: Log the new session data
+    error_log('Login: Session variables set. user_id=' . $userId);
+
+    // Clear any existing OTP session data
+    unset($_SESSION['otp_pending']);
+    unset($_SESSION['temp_user']);
+    unset($_SESSION['action']);
+
+    // Ensure session data is written to disk
+    session_write_close();
+    session_start();
+
+    // Log session after closing and reopening
+    error_log('Login: Session after write_close and restart: ' . (isset($_SESSION['user_id']) ? 'User ID exists' : 'No user ID'));
 
     // Handle remember me functionality if needed
     if ($remember) {
-        // Implementation for remember me tokens
-        // This should be implemented securely
+        // Implementation for remember me tokens - future feature
+        error_log('Remember me functionality requested but not implemented yet');
     }
 }

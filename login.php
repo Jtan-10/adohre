@@ -262,16 +262,26 @@ $scriptNonce = bin2hex(random_bytes(16));
                     const result = await response.json();
                     hideLoading();
 
+                    console.log('Login response:', result); // Debug log
+
                     if (result.status) {
+                        console.log('Login successful, redirecting...'); // Debug log
                         if (result.requiresOTP) {
                             sessionStorage.setItem('email', document.getElementById('email-password').value);
                             sessionStorage.setItem('action', 'login');
                             window.location.href = result.redirect;
                         } else {
+                            // Force redirect to index.php - use direct method
+                            console.log('Redirecting to index.php...');
                             window.location.href = 'index.php';
+                            // If that doesn't work, try after a small delay
+                            setTimeout(function() {
+                                window.location = 'index.php';
+                            }, 100);
                         }
                     } else {
-                        showModal('Error', result.message);
+                        console.log('Login failed:', result.message); // Debug log
+                        showModal('Error', result.message || 'Login failed');
                     }
                 } catch (error) {
                     hideLoading();
