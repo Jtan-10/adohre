@@ -49,6 +49,8 @@ if ($passwordValidation !== true) {
 // Check if email has been verified
 if (
     !isset($_SESSION['email_verified']) ||
+    !isset($_SESSION['email_verified']['email']) ||
+    !isset($_SESSION['email_verified']['verified_at']) ||
     $_SESSION['email_verified']['email'] !== $email ||
     strtotime($_SESSION['email_verified']['verified_at']) < (time() - 3600)
 ) { // 1 hour expiry
@@ -57,16 +59,21 @@ if (
 }
 
 try {
+    // Verify database connection
+    if (!$conn || $conn->connect_error) {
+        throw new Exception('Database connection failed: ' . ($conn ? $conn->connect_error : 'Connection not established'));
+    }
+
     // Start transaction
     $conn->begin_transaction();
 
     // Hash password
     $passwordHash = password_hash($password, PASSWORD_DEFAULT);
 
-    // Insert or update user
+    // Insert or update user - handle missing columns gracefully
     $stmt = $conn->prepare("
-        INSERT INTO users (email, first_name, last_name, password_hash, is_profile_complete, created_at)
-        VALUES (?, ?, ?, ?, 1, NOW())
+        INSERT INTO users (email, first_name, last_name, password_hash, is_profile_complete, created_at, updated_at)
+        VALUES (?, ?, ?, ?, 1, NOW(), NOW())
         ON DUPLICATE KEY UPDATE
             first_name = VALUES(first_name),
             last_name = VALUES(last_name),
@@ -76,12 +83,45 @@ try {
     ");
 
     if (!$stmt) {
-        throw new Exception('Database prepare error: ' . $conn->error);
+        // Try without the missing columns if they don't exist
+        $stmt = $conn->prepare("
+            INSERT INTO users (email, first_name, last_name, password_hash, created_at)
+            VALUES (?, ?, ?, ?, NOW())
+            ON DUPLICATE KEY UPDATE
+                first_name = VALUES(first_name),
+                last_name = VALUES(last_name),
+                password_hash = VALUES(password_hash)
+        ");
+
+        if (!$stmt) {
+            throw new Exception('Database prepare error: ' . $conn->error . '. Please ensure the database schema is up to date.');
+        }
     }
 
     $stmt->bind_param("ssss", $email, $firstName, $lastName, $passwordHash);
-    $stmt->execute();
-    $userId = $stmt->insert_id ?: $conn->query("SELECT user_id FROM users WHERE email = '$email'")->fetch_object()->user_id;
+    $result = $stmt->execute();
+
+    if (!$result) {
+        throw new Exception('Database execute error: ' . $stmt->error);
+    }
+
+    // Get the user ID safely
+    $userId = $stmt->insert_id;
+    if ($userId === 0) {
+        // User was updated (duplicate key), get existing user ID
+        $idStmt = $conn->prepare("SELECT user_id FROM users WHERE email = ?");
+        $idStmt->bind_param("s", $email);
+        $idStmt->execute();
+        $idResult = $idStmt->get_result();
+        $userRow = $idResult->fetch_assoc();
+        $userId = $userRow['user_id'] ?? 0;
+        $idStmt->close();
+    }
+
+    if ($userId === 0) {
+        throw new Exception('Failed to get user ID after insertion/update');
+    }
+
     $stmt->close();
 
     // Set session variables
@@ -93,8 +133,13 @@ try {
     // Clear email verification session
     unset($_SESSION['email_verified']);
 
-    // Record signup in audit log
-    recordAuditLog($userId, 'User Registration', 'New user registered successfully.');
+    // Record signup in audit log (don't fail if this fails)
+    try {
+        recordAuditLog($userId, 'User Registration', 'New user registered successfully.');
+    } catch (Exception $auditError) {
+        error_log("Audit log failed but continuing: " . $auditError->getMessage());
+        // Continue with registration even if audit log fails
+    }
 
     // Commit transaction
     $conn->commit();
@@ -106,11 +151,27 @@ try {
     ]);
 } catch (Exception $e) {
     // Rollback transaction on error
-    $conn->rollback();
+    if ($conn) {
+        $conn->rollback();
+    }
 
-    error_log("Registration error: " . $e->getMessage());
+    // Log the detailed error
+    error_log("Registration error for email $email: " . $e->getMessage());
+
+    // Provide specific error messages based on the error type
+    $errorMessage = 'Registration failed. Please check your information and try again.';
+
+    if (strpos($e->getMessage(), 'Duplicate entry') !== false) {
+        $errorMessage = 'An account with this email already exists. Please try logging in instead.';
+    } elseif (strpos($e->getMessage(), 'database schema') !== false) {
+        $errorMessage = 'Database configuration issue. Please contact support.';
+    } elseif (strpos($e->getMessage(), 'connection') !== false) {
+        $errorMessage = 'Database connection issue. Please try again later.';
+    }
+
+    // Return user-friendly error message
     echo json_encode([
         'status' => false,
-        'message' => 'An error occurred during registration. Please try again later.'
+        'message' => $errorMessage
     ]);
 }

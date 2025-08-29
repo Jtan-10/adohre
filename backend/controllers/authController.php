@@ -13,7 +13,7 @@ function login($email, $password)
     // Sanitize input
     $email = filter_var($email, FILTER_SANITIZE_EMAIL);
 
-    $stmt = $conn->prepare('SELECT user_id, first_name, profile_image, role, password FROM users WHERE email = ?');
+    $stmt = $conn->prepare('SELECT user_id, first_name, profile_image, role, password_hash FROM users WHERE email = ?');
     $stmt->bind_param('s', $email);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -22,7 +22,7 @@ function login($email, $password)
         $user = $result->fetch_assoc();
 
         // Verify password
-        if (password_verify($password, $user['password'])) {
+        if (password_verify($password, $user['password_hash'])) {
             // Log successful login
             recordAuditLog($user['user_id'], "User Login", "User logged in successfully using email: $email");
             return [
