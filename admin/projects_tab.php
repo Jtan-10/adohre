@@ -30,8 +30,8 @@
                             <input type="text" id="projectPartner" name="partner" class="form-control">
                         </div>
                         <div class="col-md-6">
-                            <label for="projectDate" class="form-label">Start/Reference Date</label>
-                            <input type="date" id="projectDate" name="date" class="form-control">
+                            <label for="projectDate" class="form-label">Start/Reference Month</label>
+                            <input type="month" id="projectDate" name="date" class="form-control">
                         </div>
                     </div>
                     <div class="row g-3 mt-1">
@@ -44,8 +44,8 @@
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label for="projectEndDate" class="form-label">End Date (optional)</label>
-                            <input type="date" id="projectEndDate" name="end_date" class="form-control">
+                            <label for="projectEndDate" class="form-label">End Month (optional)</label>
+                            <input type="month" id="projectEndDate" name="end_date" class="form-control">
                         </div>
                     </div>
                     <div class="mb-3 mt-3">
@@ -102,9 +102,9 @@
                             <div class="col-md-9">
                                 <h5 class="mb-1">${p.title || ''}</h5>
                                 <div class="text-muted mb-1">
-                                    ${ p.date ? new Date(p.date).toLocaleDateString() : '' }
+                                    ${ p.date ? new Date(p.date).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) : '' }
                                     ${ p.status ? ' • ' + p.status.charAt(0).toUpperCase()+p.status.slice(1) : '' }
-                                    ${ p.status === 'finished' && p.end_date ? ' • End: ' + new Date(p.end_date).toLocaleDateString() : '' }
+                                    ${ p.end_date ? ' • End: ' + new Date(p.end_date).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) : '' }
                                 </div>
                                 ${ p.partner ? `<div class="text-muted mb-2"><i class=\"fas fa-handshake me-1\"></i>${p.partner}</div>` : '' }
                                 <div>
@@ -135,9 +135,9 @@
                     document.getElementById('projectId').value = p.project_id;
                     document.getElementById('projectTitle').value = p.title || '';
                     document.getElementById('projectPartner').value = p.partner || '';
-                    document.getElementById('projectDate').value = p.date || '';
+                    document.getElementById('projectDate').value = p.date ? p.date.slice(0, 7) : '';
                     document.getElementById('projectStatus').value = p.status || 'scheduling';
-                    document.getElementById('projectEndDate').value = p.end_date || '';
+                    document.getElementById('projectEndDate').value = p.end_date ? p.end_date.slice(0, 7) : '';
                     modalTitle.textContent = 'Edit Project';
                     new bootstrap.Modal(modal).show();
                 });
@@ -164,6 +164,19 @@
 
         saveBtn.addEventListener('click', () => {
             const fd = new FormData(form);
+            // Normalize month inputs to YYYY-MM-01 for DB DATE fields, or remove if empty
+            const startMonth = document.getElementById('projectDate').value; // YYYY-MM
+            const endMonth = document.getElementById('projectEndDate').value; // YYYY-MM
+            if (startMonth) {
+                fd.set('date', `${startMonth}-01`);
+            } else {
+                fd.delete('date');
+            }
+            if (endMonth) {
+                fd.set('end_date', `${endMonth}-01`);
+            } else {
+                fd.delete('end_date');
+            }
             const id = document.getElementById('projectId').value;
             fd.append('action', id ? 'update_project' : 'add_project');
             const csrf = form.querySelector('input[name="csrf_token"]').value;

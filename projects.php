@@ -124,13 +124,11 @@ if (!isset($_SESSION['user_id'])) {
                     const cards = data.projects.map(p => {
                         const dateStr = p.date ? new Date(p.date).toLocaleString('en-US', {
                             month: 'long',
-                            day: 'numeric',
                             year: 'numeric'
                         }) : '';
                         const statusStr = p.status ? p.status.charAt(0).toUpperCase() + p.status.slice(1) : '';
                         const endStr = p.end_date ? new Date(p.end_date).toLocaleString('en-US', {
                             month: 'long',
-                            day: 'numeric',
                             year: 'numeric'
                         }) : '';
                         const imgSrc = p.image ? ('backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(p.image)) : 'assets/default-image.jpg';
