@@ -1,0 +1,28 @@
+# Security hardening for capstone-php
+
+# Deny access to .env and env variants
+
+<IfModule mod_authz_core.c>
+    <FilesMatch "^\.env(\..*)?$">
+        Require all denied
+    </FilesMatch>
+    # Deny access to other sensitive files
+    <FilesMatch "^(composer\.json|composer\.lock|package\.json|yarn\.lock|webpack\.config\.js|phpunit\.xml|\.gitignore|\.git|\.env|\.htaccess)$">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+
+<IfModule !mod_authz_core.c>
+<FilesMatch "^\.env(\..\*)?$">
+        Order allow,deny
+        Deny from all
+    </FilesMatch>
+    <FilesMatch "^(composer\.json|composer\.lock|package\.json|yarn\.lock|webpack\.config\.js|phpunit\.xml|\.gitignore|\.git|\.env|\.htaccess)$">
+Order allow,deny
+Deny from all
+</FilesMatch>
+</IfModule>
+
+# Disable directory listing
+
+Options -Indexes
