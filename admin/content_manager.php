@@ -14,6 +14,10 @@ if ($_SESSION['role'] !== 'admin') {
     header('Location: ../index.php');
     exit();
 }
+// Ensure CSRF token exists for modals/forms used within tabs
+if (!isset($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
 ?>
 
 <!DOCTYPE html>
@@ -26,34 +30,34 @@ if ($_SESSION['role'] !== 'admin') {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
     <style>
-    .form-section {
-        margin: 20px 0;
-        padding: 15px;
-        border: 1px solid #ddd;
-        border-radius: 10px;
-        background: #f9f9f9;
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-    }
+        .form-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            background: #f9f9f9;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
 
-    main.container {
-        display: flex;
-        flex-direction: column;
-        gap: 30px;
-        margin-bottom: 30px;
-    }
+        main.container {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
 
-    .content-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 15px;
-        padding: 10px;
-        border: 1px solid #ddd;
-        border-radius: 5px;
-        background: #fff;
-    }
+        .content-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #fff;
+        }
     </style>
 </head>
 
@@ -76,6 +80,10 @@ if ($_SESSION['role'] !== 'admin') {
                         type="button" role="tab" aria-controls="announcements"
                         aria-selected="false">Announcements</button>
                 </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="news-tab" data-bs-toggle="tab" data-bs-target="#news"
+                        type="button" role="tab" aria-controls="news" aria-selected="false">News</button>
+                </li>
                 <!-- Trainings tab removed -->
             </ul>
 
@@ -86,6 +94,9 @@ if ($_SESSION['role'] !== 'admin') {
                 </div>
                 <div class="tab-pane fade" id="announcements" role="tabpanel" aria-labelledby="announcements-tab">
                     <?php include 'announcements_tab.php'; ?>
+                </div>
+                <div class="tab-pane fade" id="news" role="tabpanel" aria-labelledby="news-tab">
+                    <?php include 'news_tab.php'; ?>
                 </div>
                 <!-- Trainings content removed -->
             </div>
