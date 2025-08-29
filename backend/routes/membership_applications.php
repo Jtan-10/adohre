@@ -39,7 +39,14 @@ try {
                 echo json_encode(['status' => false, 'message' => 'Database error: ' . $conn->error]);
                 break;
             }
-            $data = $id ? $result->fetch_assoc() : $result->fetch_all(MYSQLI_ASSOC);
+            if ($id) {
+                $data = $result->fetch_assoc();
+            } else {
+                $data = [];
+                while ($row = $result->fetch_assoc()) {
+                    $data[] = $row;
+                }
+            }
             echo json_encode($data);
             break;
 
