@@ -190,21 +190,6 @@ $scriptNonce = bin2hex(random_bytes(16));
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script nonce="<?php echo $scriptNonce; ?>">
         document.addEventListener('DOMContentLoaded', function() {
-            // Toggle between login options
-            const loginOptions = document.querySelectorAll('.login-option');
-            loginOptions.forEach(option => {
-                option.addEventListener('click', function() {
-                    loginOptions.forEach(opt => opt.classList.remove('active'));
-                    this.classList.add('active');
-
-                    const formType = this.dataset.option;
-                    document.querySelectorAll('.form-section').forEach(form => {
-                        form.classList.remove('active');
-                    });
-                    document.getElementById(formType + 'LoginForm').classList.add('active');
-                });
-            });
-
             // Password visibility toggle
             const passwordInput = document.getElementById('password');
             const togglePassword = document.getElementById('togglePassword');
@@ -291,44 +276,6 @@ $scriptNonce = bin2hex(random_bytes(16));
                 } catch (error) {
                     hideLoading();
                     showModal('Error', 'An error occurred during login.');
-                }
-            });
-
-            // OTP Login Form Handler
-            document.getElementById('otpLoginForm').addEventListener('submit', async function(e) {
-                e.preventDefault();
-                if (!this.checkValidity()) {
-                    e.stopPropagation();
-                    this.classList.add('was-validated');
-                    return;
-                }
-
-                showLoading();
-                try {
-                    const response = await fetch('backend/routes/send_otp.php', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            email: document.getElementById('email-otp').value,
-                            action: 'login'
-                        })
-                    });
-
-                    const result = await response.json();
-                    hideLoading();
-
-                    if (result.status) {
-                        sessionStorage.setItem('email', document.getElementById('email-otp').value);
-                        sessionStorage.setItem('action', 'login');
-                        showModal('Success', 'OTP sent successfully!', 'otp.php');
-                    } else {
-                        showModal('Error', result.message);
-                    }
-                } catch (error) {
-                    hideLoading();
-                    showModal('Error', 'An error occurred while sending OTP.');
                 }
             });
 
