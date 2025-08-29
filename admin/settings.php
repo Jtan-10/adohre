@@ -29,10 +29,8 @@ function getSetting($key)
 $currentHeaderName = getSetting('header_name');
 $currentHeaderLogo = getSetting('header_logo');
 
-
-        $stmt->execute();
-        $stmt->close();
-        $currentFaceValidation = $defaultValue;
+// Get face validation setting
+$currentFaceValidation = getSetting('face_validation') ?? '0';  // Default to disabled if not set
 
 
 // Fetch recent audit logs.
@@ -94,7 +92,14 @@ if ($result) {
 
             <h2>Security Settings</h2>
             <form id="securitySettingsForm">
-
+                <div class="mb-3">
+                    <label for="face_validation" class="form-label">Face Validation</label>
+                    <select class="form-select" id="face_validation" name="face_validation">
+                        <option value="0" <?php echo ($currentFaceValidation == '0') ? 'selected' : ''; ?>>Disabled</option>
+                        <option value="1" <?php echo ($currentFaceValidation == '1') ? 'selected' : ''; ?>>Enabled</option>
+                    </select>
+                    <div class="form-text">When enabled, users are required to complete face validation during the membership application process.</div>
+                </div>
                 <button type="submit" class="btn btn-primary">Update Security Settings</button>
             </form>
 
@@ -191,7 +196,9 @@ if ($result) {
     document.getElementById('securitySettingsForm').addEventListener('submit', function(e) {
         e.preventDefault();
         const form = this;
-        const formData = new FormData();
+        const formData = new FormData(form);
+        const faceValidationSelect = form.querySelector('#face_validation');
+        formData.append('face_validation', faceValidationSelect.value);
 
         fetch('../backend/routes/settings_api.php?action=update_security_settings', {
                 method: 'POST',

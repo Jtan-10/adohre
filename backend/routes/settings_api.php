@@ -205,17 +205,41 @@ switch ($action) {
         break;
 
     case 'update_security_settings':
-        $message = "Security settings updated.";
-        recordAuditLog(
-            $_SESSION['user_id'],
-            'Update Security Settings',
-            "Security settings updated"
-        );
-
-        echo json_encode([
-            'status' => true,
-            'message' => $message
-        ]);
+        // Get the face validation setting
+        $faceValidation = $_POST['face_validation'] ?? '0';
+        $faceValidation = filter_var($faceValidation, FILTER_VALIDATE_INT) ? $faceValidation : '0';
+        
+        try {
+            // Update or insert the face_validation setting
+            $stmt = $conn->prepare("INSERT INTO settings (`key`, value) VALUES ('face_validation', ?) 
+                                  ON DUPLICATE KEY UPDATE value = ?");
+            $stmt->bind_param('ss', $faceValidation, $faceValidation);
+            $success = $stmt->execute();
+            $stmt->close();
+            
+            if (!$success) {
+                throw new Exception("Failed to update face validation setting: " . $conn->error);
+            }
+            
+            $message = "Security settings updated successfully.";
+            
+            recordAuditLog(
+                $_SESSION['user_id'],
+                'Update Security Settings',
+                "Face validation setting updated to: " . ($faceValidation == '1' ? 'Enabled' : 'Disabled')
+            );
+            
+            echo json_encode([
+                'status' => true,
+                'message' => $message
+            ]);
+        } catch (Exception $e) {
+            error_log("Error updating security settings: " . $e->getMessage());
+            echo json_encode([
+                'status' => false,
+                'message' => "Failed to update security settings: " . $e->getMessage()
+            ]);
+        }
         break;
 
     case 'backup_database':
