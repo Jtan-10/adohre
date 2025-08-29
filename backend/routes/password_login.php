@@ -1,6 +1,11 @@
 <?php
 require_once '../db/db_connect.php';
 require_once '../utils/password_policy.php';
+require_once '../../vendor/autoload.php';
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
 header('Content-Type: application/json');
 
 // Configure session security based on environment
@@ -120,9 +125,33 @@ function generateOTP($length = 6)
 
 function sendOTPEmail($email, $otp)
 {
-    // Implementation should be in a separate email utility file
-    // For now, return true assuming email was sent
-    return true;
+    // Load PHPMailer
+    require_once '../../vendor/autoload.php';
+
+    $mail = new PHPMailer(true);
+    try {
+        // SMTP setup
+        $mail->isSMTP();
+        $mail->Host       = $_ENV['SMTP_HOST'];
+        $mail->SMTPAuth   = true;
+        $mail->Username   = $_ENV['SMTP_USER'];
+        $mail->Password   = $_ENV['SMTP_PASS'];
+        $mail->SMTPSecure = $_ENV['SMTP_SECURE'];
+        $mail->Port       = $_ENV['SMTP_PORT'];
+
+        // Set sender and recipient
+        $mail->setFrom($_ENV['SMTP_FROM'], $_ENV['SMTP_FROM_NAME']);
+        $mail->addAddress($email);
+        $mail->Subject = 'Your OTP Code for Login';
+        $mail->Body = "Your OTP for login is: $otp. This code will expire in 5 minutes.";
+
+        // Attempt to send the email
+        $mail->send();
+        return true;
+    } catch (Exception $e) {
+        error_log("OTP Email Error: " . $mail->ErrorInfo);
+        return false;
+    }
 }
 
 function completeLogin($userId, $firstName, $lastName, $profileImage, $role, $isProfileComplete, $remember)

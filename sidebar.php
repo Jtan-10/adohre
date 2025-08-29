@@ -145,8 +145,23 @@ $submenuActive = ($current_page == 'consultation.php' || $current_page == 'appoi
             <li <?php if ($current_page == 'index.php') echo 'class="active"'; ?>><a href="index.php">Home</a></li>
             <li <?php if ($current_page == 'about.php') echo 'class="active"'; ?>><a href="about.php">About Us</a></li>
             <li <?php if ($current_page == 'news.php') echo 'class="active"'; ?>><a href="news.php">News</a></li>
-            <li <?php if ($current_page == 'membership_form.php') echo 'class="active"'; ?>><a
-                    href="membership_form.php">Member Application</a></li>
+            <?php
+            // Show Member Application link only if user is not logged in OR if logged in but no membership application exists
+            $showMembershipLink = true;
+            if (isset($_SESSION['user_id'])) {
+                $stmt = $conn->prepare("SELECT COUNT(*) as count FROM membership_applications WHERE user_id = ?");
+                $stmt->bind_param("i", $_SESSION['user_id']);
+                $stmt->execute();
+                $result = $stmt->get_result()->fetch_assoc();
+                $stmt->close();
+                if ($result['count'] > 0) {
+                    $showMembershipLink = false; // Hide if membership application already exists
+                }
+            }
+            if ($showMembershipLink):
+            ?>
+                <li <?php if ($current_page == 'membership_form.php') echo 'class="active"'; ?>><a href="membership_form.php">Member Application</a></li>
+            <?php endif; ?>
             <li <?php if ($current_page == 'faqs.php') echo 'class="active"'; ?>><a href="faqs.php">FAQs</a></li>
             <?php if (isset($_SESSION['user_id'])): ?>
                 <li>
