@@ -77,8 +77,12 @@ if ($result) {
                     <input type="file" class="form-control" id="header_logo" name="header_logo" accept="image/*">
                     <?php if ($currentHeaderLogo): ?>
                         <p>Current Logo:
-                            <img src="../backend/routes/decrypt_image.php?image_url=<?= urlencode($currentHeaderLogo) ?>"
+                            <img src="../decrypt_image_simple.php?image_url=<?= urlencode($currentHeaderLogo) ?>"
                                 alt="Header Logo" style="max-height: 50px;">
+                            <br>
+                            <a href="../fix_header_logo.php" class="btn btn-sm btn-outline-info mt-2">
+                                <i class="bi bi-tools"></i> Fix Header Logo Issues
+                            </a>
                         </p>
                     <?php endif; ?>
                 </div>
