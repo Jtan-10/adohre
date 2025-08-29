@@ -27,7 +27,7 @@ $scriptNonce = bin2hex(random_bytes(16));
         :root {
             --form-bg: rgba(255, 255, 255, 0.95);
         }
-        
+
         body {
             background-image: url('assets/green_bg.png');
             background-size: cover;
@@ -124,20 +124,9 @@ $scriptNonce = bin2hex(random_bytes(16));
 
     <div class="login-card">
         <h2 class="text-center mb-4">Welcome Back</h2>
-        
-        <div class="login-options mb-4">
-            <div class="login-option active" data-option="password">
-                <i class="bi bi-key"></i>
-                <div>Password</div>
-            </div>
-            <div class="login-option" data-option="otp">
-                <i class="bi bi-shield-lock"></i>
-                <div>OTP</div>
-            </div>
-        </div>
 
-        <!-- Password Login Form -->
-        <form id="passwordLoginForm" class="form-section active needs-validation" novalidate>
+        <!-- Login Form -->
+        <form id="loginForm" class="form-section active needs-validation" novalidate>
             <div class="mb-3">
                 <label for="email-password" class="form-label">Email</label>
                 <input type="email" class="form-control" id="email-password" name="email" required>
@@ -164,22 +153,10 @@ $scriptNonce = bin2hex(random_bytes(16));
             </div>
         </form>
 
-        <!-- OTP Login Form -->
-        <form id="otpLoginForm" class="form-section needs-validation" novalidate>
-            <div class="mb-3">
-                <label for="email-otp" class="form-label">Email</label>
-                <input type="email" class="form-control" id="email-otp" name="email" required>
-                <div class="invalid-feedback">Please enter a valid email address.</div>
-            </div>
-            <div class="d-grid">
-                <button type="submit" class="btn btn-primary">Send OTP</button>
-            </div>
-        </form>
-
         <hr class="my-4">
-        
+
         <p class="text-center">
-            Don't have an account? 
+            Don't have an account?
             <a href="signup.php">Sign up</a>
         </p>
     </div>
@@ -219,7 +196,7 @@ $scriptNonce = bin2hex(random_bytes(16));
                 option.addEventListener('click', function() {
                     loginOptions.forEach(opt => opt.classList.remove('active'));
                     this.classList.add('active');
-                    
+
                     const formType = this.dataset.option;
                     document.querySelectorAll('.form-section').forEach(form => {
                         form.classList.remove('active');
@@ -231,7 +208,7 @@ $scriptNonce = bin2hex(random_bytes(16));
             // Password visibility toggle
             const passwordInput = document.getElementById('password');
             const togglePassword = document.getElementById('togglePassword');
-            
+
             togglePassword.addEventListener('click', () => {
                 const icon = togglePassword.querySelector('i');
                 if (passwordInput.type === 'password') {
@@ -253,29 +230,31 @@ $scriptNonce = bin2hex(random_bytes(16));
                 }
 
                 fetch('backend/routes/reset_password.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ email: email })
-                })
-                .then(response => response.json())
-                .then(result => {
-                    if (result.status) {
-                        sessionStorage.setItem('email', email);
-                        sessionStorage.setItem('action', 'reset');
-                        showModal('Success', 'Password reset OTP sent to your email.', 'otp.php');
-                    } else {
-                        showModal('Error', result.message);
-                    }
-                })
-                .catch(error => {
-                    showModal('Error', 'An error occurred while requesting password reset.');
-                });
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            email: email
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.status) {
+                            sessionStorage.setItem('email', email);
+                            sessionStorage.setItem('action', 'reset');
+                            showModal('Success', 'Password reset OTP sent to your email.', 'otp.php');
+                        } else {
+                            showModal('Error', result.message);
+                        }
+                    })
+                    .catch(error => {
+                        showModal('Error', 'An error occurred while requesting password reset.');
+                    });
             });
 
-            // Password Login Form Handler
-            document.getElementById('passwordLoginForm').addEventListener('submit', async function(e) {
+            // Login Form Handler
+            document.getElementById('loginForm').addEventListener('submit', async function(e) {
                 e.preventDefault();
                 if (!this.checkValidity()) {
                     e.stopPropagation();
@@ -370,7 +349,9 @@ $scriptNonce = bin2hex(random_bytes(16));
                 if (redirect) {
                     modal._element.addEventListener('hidden.bs.modal', () => {
                         window.location.href = redirect;
-                    }, { once: true });
+                    }, {
+                        once: true
+                    });
                 }
 
                 modal.show();

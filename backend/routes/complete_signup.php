@@ -47,9 +47,10 @@ if ($passwordValidation !== true) {
 }
 
 try {
-    // Check if OTP was verified
-    if (!isset($_SESSION['otp_verified']) || $_SESSION['action'] !== 'signup') {
-        throw new Exception('OTP verification required.');
+    // Check if email has been verified
+    if (!isset($_SESSION['email_verified']) || !isset($_SESSION['verified_email']) || $_SESSION['verified_email'] !== $email) {
+        echo json_encode(['status' => false, 'message' => 'Email verification required.']);
+        exit();
     }
 
     // Start transaction
@@ -85,12 +86,12 @@ try {
     $_SESSION['last_name'] = $lastName;
     $_SESSION['role'] = 'member'; // Default role for new users
 
-    // Clear OTP verification session
-    unset($_SESSION['otp_verified']);
-    unset($_SESSION['action']);
-
     // Record signup in audit log
     recordAuditLog($userId, 'User Registration', 'New user registered successfully.');
+
+    // Clear email verification session data
+    unset($_SESSION['email_verified']);
+    unset($_SESSION['verified_email']);
 
     // Commit transaction
     $conn->commit();
