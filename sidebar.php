@@ -178,11 +178,7 @@ $userRole = $isLoggedIn ? ($_SESSION['role'] ?? 'member') : 'guest';
             <li <?php if ($current_page == 'membership_form.php') echo 'class="active"'; ?>><a href="membership_form.php">Member Application</a></li>
         <?php endif; ?>
         <li <?php if ($current_page == 'faqs.php') echo 'class="active"'; ?>><a href="faqs.php">FAQs</a></li>
-        <?php if (isset($_SESSION['user_id'])): ?>
-            <li>
-                <a href="#" id="virtualIdLink" data-user-id="<?php echo $_SESSION['user_id']; ?>">Virtual ID</a>
-            </li>
-        <?php endif; ?>
+
         <li <?php if ($current_page == 'health.php') echo 'class="active"'; ?>>
             <a data-bs-toggle="offcanvas" href="#offcanvasHealth" role="button"
                 aria-controls="offcanvasHealth">Health Tips</a>
@@ -218,24 +214,7 @@ $userRole = $isLoggedIn ? ($_SESSION['role'] ?? 'member') : 'guest';
     </div>
 </div>
 
-<!-- PDF Password Modal (if needed) -->
-<div class="modal fade" id="pdfPasswordModal" tabindex="-1" aria-labelledby="pdfPasswordModalLabel"
-    aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="pdfPasswordModalLabel">Your PDF Password</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p id="pdfPasswordText"></p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
-            </div>
-        </div>
-    </div>
-</div>
+
 
 
 
@@ -265,7 +244,7 @@ $userRole = $isLoggedIn ? ($_SESSION['role'] ?? 'member') : 'guest';
 
 </script>
 
-<!-- Main Sidebar and Face Validation Logic -->
+<!-- Main Sidebar Logic -->
 <script nonce="<?php echo $scriptNonce; ?>" defer>
     document.addEventListener('DOMContentLoaded', async function() {
         // SIDEBAR TOGGLE
@@ -310,53 +289,6 @@ $userRole = $isLoggedIn ? ($_SESSION['role'] ?? 'member') : 'guest';
                 memberServicesSubmenu.classList.toggle('show');
             });
         }
-        // FACE VALIDATION
-        const virtualIdLink = document.getElementById('virtualIdLink');
-        const faceValidationModalEl = document.getElementById('faceValidationModal');
-        const storedFacePreview = document.getElementById('storedFacePreview');
-        const videoInput = document.getElementById('videoInput');
-        const validateFaceBtn = document.getElementById('validateFaceBtn');
-        const faceValidationResult = document.getElementById('faceValidationResult');
-        const userFaceCanvas = document.getElementById('userFaceCanvas');
 
-        if (virtualIdLink) {
-            virtualIdLink.addEventListener('click', async function(e) {
-                e.preventDefault();
-
-                // Generate a stronger, random 12-character password
-                function generatePassword(length = 12) {
-                    const charset =
-                        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+";
-                    let retVal = "";
-                    const randomValues = new Uint32Array(length);
-                    window.crypto.getRandomValues(randomValues);
-                    for (let i = 0; i < length; i++) {
-                        retVal += charset[randomValues[i] % charset.length];
-                    }
-                    return retVal;
-                }
-
-                const pdfPassword = generatePassword();
-                const userId = virtualIdLink.getAttribute('data-user-id');
-                const downloadUrl =
-                    `backend/models/generate_virtual_id.php?user_id=${userId}&pdf_password=${encodeURIComponent(pdfPassword)}`;
-
-                // Set the generated PDF password in the PDF Password Modal
-                document.getElementById('pdfPasswordText').textContent =
-                    "Your PDF password is: " + pdfPassword;
-
-                // Show the PDF Password Modal
-                const pdfModalEl = document.getElementById('pdfPasswordModal');
-                const pdfModal = new bootstrap.Modal(pdfModalEl);
-                pdfModal.show();
-
-                // When the PDF Password Modal is closed, redirect to the download URL
-                pdfModalEl.addEventListener('hidden.bs.modal', () => {
-                    window.location.href = downloadUrl;
-                }, {
-                    once: true
-                });
-            });
-        }
     });
 </script>

@@ -22,10 +22,7 @@
         <button class="nav-link" id="notifications-tab" data-bs-toggle="tab" data-bs-target="#notifications"
             type="button" role="tab" aria-controls="notifications" aria-selected="false">Notifications</button>
     </li>
-    <li class="nav-item">
-        <button class="nav-link" id="virtual-id-tab" data-bs-toggle="tab" data-bs-target="#virtual-id" type="button"
-            role="tab" aria-controls="virtual-id" aria-selected="false">Virtual ID</button>
-    </li>
+
 </ul>
 
 <!-- Tab Contents -->
@@ -233,13 +230,5 @@
         </script>
     </div>
 
-    <!-- Virtual ID -->
-    <div class="tab-pane fade" id="virtual-id" role="tabpanel" aria-labelledby="virtual-id-tab">
-        <h4>Virtual ID</h4>
-        <div class="form-group">
-            <label for="virtualId">Virtual ID</label>
-            <input type="text" id="virtualId" class="form-control" value="Loading..." readonly>
-            <button class="btn btn-primary mt-2" id="regenerateIdBtn">Regenerate Virtual ID</button>
-        </div>
-    </div>
+
 </div>

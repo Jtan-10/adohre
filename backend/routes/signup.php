@@ -134,11 +134,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         global $conn;
         if (!emailExists($email)) {
             $visually_impaired = (isset($_SESSION['visually_impaired']) && $_SESSION['visually_impaired']) ? 1 : 0;
-            $virtual_id = generateVirtualId();
             $role = 'user';
 
-            $stmt = $conn->prepare("INSERT INTO users (email, role, virtual_id, visually_impaired) VALUES (?, ?, ?, ?)");
-            $stmt->bind_param("sssi", $email, $role, $virtual_id, $visually_impaired);
+            $stmt = $conn->prepare("INSERT INTO users (email, role, visually_impaired) VALUES (?, ?, ?)");
+            $stmt->bind_param("ssi", $email, $role, $visually_impaired);
 
             if (!$stmt->execute()) {
                 error_log("Failed to create a temporary user record for email: $email");

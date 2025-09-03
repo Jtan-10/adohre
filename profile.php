@@ -81,48 +81,12 @@ header("X-Content-Type-Options: nosniff");
             <h1 class="text-center">My Profile</h1>
             <?php include('profile_tabs.php'); ?>
         </div>
-        <!-- Face Validation Modal (New) -->
-        <div class="modal fade" id="faceValidationModal" tabindex="-1" aria-labelledby="faceValidationModalLabel"
-            aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered" style="max-width:600px;">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="faceValidationModalLabel">Face Validation</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <!-- Stored Face Reference -->
-                        <div class="mb-3">
-                            <h5>Stored Face Reference</h5>
-                            <img id="storedFacePreview"
-                                src="<?php echo isset($_SESSION['face_image']) ? 'backend/routes/decrypt_image.php?face_url=' . urlencode($_SESSION['face_image']) : 'assets/default-profile.jpeg'; ?>"
-                                alt="Stored Face Reference"
-                                style="width:100%; max-width:320px; border:1px solid #ccc; display:block;">
-                        </div>
-                        <!-- Live Face Capture -->
-                        <div class="mb-3">
-                            <h5>Capture Your Face</h5>
-                            <video id="videoInput" width="320" height="240" autoplay muted
-                                style="border:1px solid #ccc;"></video>
-                        </div>
-                        <button type="button" class="btn btn-primary" id="validateFaceBtn">Validate Face</button>
-                        <canvas id="userFaceCanvas" style="display:none;"></canvas>
-                        <p id="faceValidationResult" class="mt-3" style="font-weight:bold;"></p>
-                    </div>
-                    <div class="modal-footer">
-                        <!-- The Close button remains disabled until validation passes -->
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"
-                            id="faceValidationCloseBtn" disabled>Close</button>
-                    </div>
-                </div>
-            </div>
-        </div>
     </main>
     <?php include('footer.php'); ?>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous">
     </script>
-    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+
 
     <script>
         document.addEventListener("DOMContentLoaded", async function() { // changed to async
@@ -331,7 +295,7 @@ header("X-Content-Type-Options: nosniff");
                             `${baseUrl}/backend/routes/decrypt_image.php?image_url=${encodeURIComponent(user.profile_image)}&t=${new Date().getTime()}` :
                             'assets/default-profile.jpeg';
 
-                        document.getElementById('virtualId').value = user.virtual_id || 'Not assigned';
+
                     } else {
                         showToast('Failed to load profile data.', 'danger');
                     }
@@ -381,135 +345,7 @@ header("X-Content-Type-Options: nosniff");
                     .catch(() => showToast('Error updating profile.', 'danger'));
             });
 
-            // ------------------ New Face Validation Flow for Regenerate Virtual ID ------------------
-            async function loadFaceModels() {
-                // Ensure all models are loaded before inference
-                await faceapi.nets.tinyFaceDetector.loadFromUri('backend/models/weights');
-                await faceapi.nets.faceLandmark68Net.loadFromUri('backend/models/weights');
-                await faceapi.nets.faceRecognitionNet.loadFromUri('backend/models/weights');
-            }
-            await loadFaceModels(); // added await
 
-            let referenceDescriptor = null;
-            async function loadReferenceDescriptor() {
-                const img = new Image();
-                img.crossOrigin = "anonymous";
-                img.src = document.getElementById('storedFacePreview').src;
-                await new Promise((resolve, reject) => {
-                    img.onload = resolve;
-                    img.onerror = reject;
-                });
-                const detection = await faceapi
-                    .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({
-                        inputSize: 416,
-                        scoreThreshold: 0.5
-                    }))
-                    .withFaceLandmarks()
-                    .withFaceDescriptor();
-                if (detection) {
-                    referenceDescriptor = detection.descriptor;
-                } else {
-                    console.error("No face detected in the stored reference image.");
-                }
-            }
-            await loadReferenceDescriptor(); // added await
-
-            // Override the Regenerate Virtual ID button flow
-            document.getElementById('regenerateIdBtn').addEventListener('click', function() {
-                // Reset face validation UI elements
-                document.getElementById('faceValidationResult').innerText = '';
-                document.getElementById('faceValidationCloseBtn').disabled = true;
-                // Request webcam access
-                navigator.mediaDevices.getUserMedia({
-                        video: {}
-                    })
-                    .then(stream => {
-                        document.getElementById('videoInput').srcObject = stream;
-                        const faceValidationModal = new bootstrap.Modal(document.getElementById(
-                            'faceValidationModal'));
-                        faceValidationModal.show();
-                    })
-                    .catch(err => {
-                        console.error("Webcam access error:", err);
-                        alert(
-                            'Unable to access webcam for face validation. Please check your permissions.'
-                        );
-                    });
-            });
-
-            document.getElementById('validateFaceBtn').addEventListener('click', async function() {
-                const video = document.getElementById('videoInput');
-                const canvas = document.getElementById('userFaceCanvas');
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const detection = await faceapi
-                    .detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions({
-                        inputSize: 416,
-                        scoreThreshold: 0.5
-                    }))
-                    .withFaceLandmarks()
-                    .withFaceDescriptor();
-                if (!detection) {
-                    document.getElementById('faceValidationResult').innerText =
-                        'No face detected. Please try again.';
-                    return;
-                }
-                if (!referenceDescriptor) {
-                    document.getElementById('faceValidationResult').innerText =
-                        'Reference face not loaded. Please try again later.';
-                    return;
-                }
-                const distance = faceapi.euclideanDistance(detection.descriptor,
-                    referenceDescriptor);
-                if (distance < 0.6) {
-                    document.getElementById('faceValidationResult').innerText =
-                        'Face matched successfully!';
-                    // Stop webcam stream
-                    const stream = video.srcObject;
-                    if (stream) {
-                        stream.getTracks().forEach(track => track.stop());
-                        video.srcObject = null;
-                    }
-                    // Enable the close button so that the hidden.bs.modal event triggers regeneration
-                    document.getElementById('faceValidationCloseBtn').disabled = false;
-                    // Automatically close the Face Validation modal
-                    const modal = bootstrap.Modal.getInstance(document.getElementById(
-                        'faceValidationModal'));
-                    modal.hide();
-                } else {
-                    document.getElementById('faceValidationResult').innerText =
-                        'Face did not match. Please try again.';
-                }
-            });
-
-            // When Face Validation Modal is closed and validation passed, then regenerate Virtual ID
-            document.getElementById('faceValidationModal').addEventListener('hidden.bs.modal', function() {
-                if (!document.getElementById('faceValidationCloseBtn').disabled) {
-                    fetch('backend/routes/user.php', {
-                            method: 'PUT',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                regenerate_virtual_id: true
-                            }),
-                            credentials: 'include'
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.status) {
-                                document.getElementById('virtualId').value = data.virtual_id;
-                                showToast(data.message, 'success');
-                            } else {
-                                showToast(data.message, 'danger');
-                            }
-                        })
-                        .catch(() => showToast('Error regenerating Virtual ID.', 'danger'));
-                }
-            });
-            // ------------------ End Face Validation Flow ------------------
 
             // Fetch the joined events when the "Events" tab is clicked
             const eventsTabEl = document.getElementById('events-tab');

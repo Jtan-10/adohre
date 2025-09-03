@@ -163,7 +163,7 @@ try {
                 echo json_encode(['status' => false, 'message' => 'Forbidden']);
                 exit();
             }
-            $stmt = $conn->prepare('SELECT user_id, first_name, last_name, email, role, profile_image, virtual_id FROM users WHERE user_id = ?');
+            $stmt = $conn->prepare('SELECT user_id, first_name, last_name, email, role, profile_image FROM users WHERE user_id = ?');
             $stmt->bind_param('i', $user_id);
             $stmt->execute();
             $result = $stmt->get_result();
@@ -198,13 +198,9 @@ try {
                 exit();
             }
 
-            // Include the controller that contains generateVirtualId()
-            // Generate a unique virtual ID using the helper function.
-            $virtual_id = generateVirtualId(16);
-
-            // Insert new user record into the database including the virtual_id
-            $stmt = $conn->prepare('INSERT INTO users (first_name, last_name, email, role, virtual_id) VALUES (?, ?, ?, ?, ?)');
-            $stmt->bind_param('sssss', $first_name, $last_name, $email, $role, $virtual_id);
+            // Insert new user record into the database
+            $stmt = $conn->prepare('INSERT INTO users (first_name, last_name, email, role) VALUES (?, ?, ?, ?)');
+            $stmt->bind_param('ssss', $first_name, $last_name, $email, $role);
 
             if ($stmt->execute()) {
                 // Get the newly inserted user's ID
@@ -221,7 +217,7 @@ try {
                 }
 
                 // Record an audit log for the creation event.
-                recordAuditLog($auth_user_id, 'Admin Create User', "Admin created new user: $first_name $last_name, email: $email, role: $role, virtual_id: $virtual_id");
+                recordAuditLog($auth_user_id, 'Admin Create User', "Admin created new user: $first_name $last_name, email: $email, role: $role");
                 echo json_encode(['status' => true, 'message' => 'User created successfully.']);
             } else {
                 error_log('DB insert error: ' . $stmt->error);
@@ -378,26 +374,6 @@ try {
     } elseif ($method === 'PUT') {
         // Decode the JSON payload at the very start
         $data = json_decode(file_get_contents("php://input"), true);
-
-        // Check if the request is to regenerate the virtual ID (allow any user to do so)
-        if (isset($data['regenerate_virtual_id']) && filter_var($data['regenerate_virtual_id'], FILTER_VALIDATE_BOOLEAN)) {
-            $new_virtual_id = generateVirtualId(16);
-            $stmt = $conn->prepare("UPDATE users SET virtual_id = ? WHERE user_id = ?");
-            $stmt->bind_param("si", $new_virtual_id, $auth_user_id);
-            if ($stmt->execute()) {
-                $stmt->close();
-                echo json_encode([
-                    'status' => true,
-                    'message' => 'Virtual ID regenerated successfully.',
-                    'virtual_id' => $new_virtual_id
-                ]);
-                exit();
-            } else {
-                http_response_code(500);
-                echo json_encode(['status' => false, 'message' => 'Error regenerating Virtual ID.']);
-                exit();
-            }
-        }
 
         // --- Admin updating other users ---
         if ($auth_user_role !== 'admin') {

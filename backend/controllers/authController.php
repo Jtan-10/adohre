@@ -308,7 +308,4 @@ function generateVerificationCode($length = 6)
     return $code;
 }
 
-function generateVirtualId($length = 16)
-{
-    return bin2hex(random_bytes($length / 2)); // Generates a random hex string
-}
+// generateVirtualId removed: Virtual ID feature deprecated.

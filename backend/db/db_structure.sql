@@ -474,6 +474,7 @@ CREATE TABLE `training_registrations` (
 
 CREATE TABLE `users` (
   `user_id` int(11) NOT NULL,
+  -- virtual_id deprecated; safe to drop column after migrating away
   `virtual_id` varchar(255) DEFAULT NULL,
   `first_name` varchar(255) DEFAULT NULL,
   `last_name` varchar(255) DEFAULT NULL,
@@ -706,6 +707,7 @@ ALTER TABLE `users`
   ADD PRIMARY KEY (`user_id`),
   ADD UNIQUE KEY `email` (`email`),
   ADD UNIQUE KEY `unique_email` (`email`),
+  -- virtual_id unique key deprecated; can be dropped
   ADD UNIQUE KEY `virtual_id` (`virtual_id`);
 
 --
