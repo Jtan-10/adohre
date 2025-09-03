@@ -26,7 +26,8 @@ $homeSettings = [
     'home_hero_title' => null,
     'home_hero_subtitle' => null,
     'home_about_html' => null,
-    'home_contact_address' => null
+    'home_contact_address' => null,
+    'home_hero_image_url' => null
 ];
 $keys = array_keys($homeSettings);
 $placeholders = implode(',', array_fill(0, count($keys), '?'));
@@ -342,7 +343,13 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
         <?php include('carousel.php'); ?>
 
         <!-- Hero Section -->
-        <section class="hero-section text-center">
+        <?php
+        $homeHeroBg = $homeSettings['home_hero_image_url'] ?? '';
+        if ($homeHeroBg && strpos($homeHeroBg, '/s3proxy/') !== false) {
+            $homeHeroBg = 'backend/routes/decrypt_image.php?image_url=' . urlencode($homeHeroBg);
+        }
+        ?>
+        <section class="hero-section text-center" <?php if (!empty($homeHeroBg)): ?>style="background-image: url('<?= htmlspecialchars($homeHeroBg, ENT_QUOTES) ?>'); background-size: cover; background-position: center;" <?php endif; ?>>
             <div class="container">
                 <h1>
                     <?= htmlspecialchars($homeSettings['home_hero_title'] ?? 'THE ASSOCIATION OF DEPARTMENT OF HEALTH (DOH) RETIRED EMPLOYEES, PHILIPPINES, INC. (ADOHRE)', ENT_QUOTES) ?>

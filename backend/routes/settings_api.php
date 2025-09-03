@@ -368,7 +368,8 @@ switch ($action) {
                 'home_hero_title',
                 'home_hero_subtitle',
                 'home_about_html',
-                'home_contact_address'
+                'home_contact_address',
+                'home_hero_image_url'
             ];
         } elseif ($page === 'about') {
             $allowedKeys = [
@@ -377,7 +378,8 @@ switch ($action) {
                 'about_purpose_text',
                 'about_mission_text',
                 'about_vision_text',
-                'about_objectives_html'
+                'about_objectives_html',
+                'about_hero_image_url'
             ];
         } else {
             echo json_encode(['status' => false, 'message' => 'Unknown page']);
@@ -416,9 +418,9 @@ switch ($action) {
         }
         $allowed = [];
         if ($page === 'home') {
-            $allowed = ['home_hero_title', 'home_hero_subtitle', 'home_about_html', 'home_contact_address'];
+            $allowed = ['home_hero_title', 'home_hero_subtitle', 'home_about_html', 'home_contact_address', 'home_hero_image_url'];
         } elseif ($page === 'about') {
-            $allowed = ['about_hero_title', 'about_hero_subtitle', 'about_purpose_text', 'about_mission_text', 'about_vision_text', 'about_objectives_html'];
+            $allowed = ['about_hero_title', 'about_hero_subtitle', 'about_purpose_text', 'about_mission_text', 'about_vision_text', 'about_objectives_html', 'about_hero_image_url'];
         } else {
             echo json_encode(['status' => false, 'message' => 'Unknown page']);
             break;
@@ -437,6 +439,89 @@ switch ($action) {
         $stmt->close();
         recordAuditLog($_SESSION['user_id'], 'Update Page Content', 'Updated page: ' . $page);
         echo json_encode(['status' => true, 'message' => 'Saved']);
+        break;
+
+    case 'upload_page_image':
+        // Upload hero or other page image securely to S3 as encrypted PNG and store proxy URL in settings
+        $page = $_POST['page'] ?? '';
+        $field = $_POST['field'] ?? '';
+        if (!$page || !$field) {
+            echo json_encode(['status' => false, 'message' => 'Missing page or field']);
+            break;
+        }
+        if (!isset($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+            echo json_encode(['status' => false, 'message' => 'No image uploaded']);
+            break;
+        }
+        // Validate mime
+        $mime = mime_content_type($_FILES['image']['tmp_name']);
+        $allowed = ['image/jpeg', 'image/png', 'image/webp'];
+        if (!in_array($mime, $allowed, true)) {
+            echo json_encode(['status' => false, 'message' => 'Unsupported image type']);
+            break;
+        }
+        // Build S3 key
+        $safePage = preg_replace('/[^a-z0-9_-]+/i', '-', $page);
+        $safeField = preg_replace('/[^a-z0-9_-]+/i', '-', $field);
+        $s3Key = 'uploads/pages/' . $safePage . '/' . $safeField . '_' . time() . '.png';
+        // Encrypt + embed as PNG (consistent with other image storage)
+        $clear = file_get_contents($_FILES['image']['tmp_name']);
+        $cipher = "AES-256-CBC";
+        $ivlen = openssl_cipher_iv_length($cipher);
+        $iv = openssl_random_pseudo_bytes($ivlen);
+        $rawKey = getenv('ENCRYPTION_KEY');
+        $encryptionKey = hash('sha256', $rawKey, true);
+        $encryptedData = openssl_encrypt($clear, $cipher, $encryptionKey, OPENSSL_RAW_DATA, $iv);
+        $payload = $iv . $encryptedData;
+        $pngImage = embedDataInPng($payload, 100);
+        $tmpEncrypted = tempnam(sys_get_temp_dir(), 'pageimg_') . '.png';
+        imagepng($pngImage, $tmpEncrypted);
+        imagedestroy($pngImage);
+        try {
+            $result = $s3->putObject([
+                'Bucket' => $bucketName,
+                'Key' => $s3Key,
+                'Body' => fopen($tmpEncrypted, 'rb'),
+                'ACL' => 'public-read',
+                'ContentType' => 'image/png'
+            ]);
+            @unlink($tmpEncrypted);
+            $proxyUrl = str_replace(
+                "https://{$bucketName}.s3." . $_ENV['AWS_REGION'] . ".amazonaws.com/",
+                "/s3proxy/",
+                $result['ObjectURL']
+            );
+            // Delete previous image if any
+            $settingKey = $page . '_' . $field;
+            $stmtExisting = $conn->prepare("SELECT value FROM settings WHERE `key` = ?");
+            if ($stmtExisting) {
+                $stmtExisting->bind_param('s', $settingKey);
+                $stmtExisting->execute();
+                $res = $stmtExisting->get_result();
+                if ($row = $res->fetch_assoc()) {
+                    $oldUrl = $row['value'];
+                    if (!empty($oldUrl) && strpos($oldUrl, '/s3proxy/') === 0) {
+                        $existingS3Key = urldecode(str_replace('/s3proxy/', '', $oldUrl));
+                        try {
+                            $s3->deleteObject(['Bucket' => $bucketName, 'Key' => $existingS3Key]);
+                        } catch (Exception $e) { /* ignore */
+                        }
+                    }
+                }
+                $stmtExisting->close();
+            }
+            // Save setting
+            $stmt = $conn->prepare("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)");
+            if ($stmt) {
+                $stmt->bind_param('ss', $settingKey, $proxyUrl);
+                $stmt->execute();
+                $stmt->close();
+            }
+            echo json_encode(['status' => true, 'url' => $proxyUrl]);
+        } catch (Exception $e) {
+            error_log('Page image upload error: ' . $e->getMessage());
+            echo json_encode(['status' => false, 'message' => 'Upload failed']);
+        }
         break;
 
     case 'get_membership_form_schema':

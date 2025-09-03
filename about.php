@@ -34,7 +34,8 @@ $aboutSettings = [
     'about_purpose_text' => null,
     'about_mission_text' => null,
     'about_vision_text' => null,
-    'about_objectives_html' => null
+    'about_objectives_html' => null,
+    'about_hero_image_url' => null
 ];
 $aKeys = array_keys($aboutSettings);
 $placeholders = implode(',', array_fill(0, count($aKeys), '?'));
@@ -368,7 +369,13 @@ if ($stmtS) {
     <!-- Main Content -->
     <main role="main">
         <!-- Hero Section -->
-        <section class="about-hero">
+        <?php
+        $aboutHeroBg = $aboutSettings['about_hero_image_url'] ?? '';
+        if ($aboutHeroBg && strpos($aboutHeroBg, '/s3proxy/') !== false) {
+            $aboutHeroBg = 'backend/routes/decrypt_image.php?image_url=' . urlencode($aboutHeroBg);
+        }
+        ?>
+        <section class="about-hero" <?php if (!empty($aboutHeroBg)): ?>style="background-image: url('<?= htmlspecialchars($aboutHeroBg, ENT_QUOTES) ?>'); background-size: cover; background-position: center;" <?php endif; ?>>
             <div class="container">
                 <h1><?= htmlspecialchars($aboutSettings['about_hero_title'] ?? 'About ADOHRE', ENT_QUOTES) ?></h1>
                 <p><?= htmlspecialchars($aboutSettings['about_hero_subtitle'] ?? 'Discover ADOHRE: Your Best Chapter is Here!', ENT_QUOTES) ?></p>
