@@ -53,9 +53,10 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                 'Age upon Membership',
                 'Membership Status',
                 'Membership Certification',
-                'Membership Fee'
+                'Membership Fee',
+                'Annual Dues'
             ];
-            head.innerHTML = '<tr>' + fixed.map(h => `<th>${h}</th>`).join('') + years.map(y => `<th>${y} (Status)</th><th>${y} (Amount)</th>`).join('') + '<th>Actions</th></tr>';
+            head.innerHTML = '<tr>' + fixed.map(h => `<th>${h}</th>`).join('') + '<th>Actions</th></tr>';
         }
 
         function renderBody(years, members) {
@@ -66,26 +67,15 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                 const year = m.year_of_membership || '';
                 const age = m.age_upon_membership || '';
                 const fee = m.membership_fee || '';
-                const duesCells = years.map(y => {
-                    const d = m.dues[String(y)] || {
-                        status: y === 2021 ? 'Waived' : 'Unpaid',
-                        amount: ''
-                    };
-                    return `
-                    <td>
-                        <select class="form-select form-select-sm" data-user="${m.user_id}" data-field="dues_status_${y}">
-                            <option value="Paid" ${d.status==='Paid'?'selected':''}>Paid</option>
-                            <option value="Unpaid" ${d.status==='Unpaid'?'selected':''}>Unpaid</option>
-                            <option value="Waived" ${d.status==='Waived'?'selected':''}>Waived</option>
-                        </select>
-                    </td>
-                    <td>
-                        <input type="number" step="0.01" class="form-control form-control-sm" data-user="${m.user_id}" data-field="dues_amount_${y}" value="${d.amount ?? ''}">
-                    </td>
-                `;
-                }).join('');
+                const latestYear = years[years.length - 1];
+                const dLatest = m.dues[String(latestYear)] || {
+                    status: (latestYear === 2021 ? 'Waived' : 'Unpaid'),
+                    amount: ''
+                };
+                const yearOptions = years.map(y => `<option value="${y}" ${y===latestYear?'selected':''}>${y}</option>`).join('');
+                const duesEnc = encodeURIComponent(JSON.stringify(m.dues || {}));
                 return `
-                <tr data-user-id="${m.user_id}">
+                <tr data-user-id="${m.user_id}" data-dues-enc="${duesEnc}">
                     <td>${name}</td>
                     <td><input type="number" class="form-control form-control-sm" data-field="year_of_membership" value="${year}"></td>
                     <td><input type="number" class="form-control form-control-sm" data-field="age_upon_membership" value="${age}"></td>
@@ -102,7 +92,23 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                         </select>
                     </td>
                     <td><input type="number" step="0.01" class="form-control form-control-sm" data-field="membership_fee" value="${fee}"></td>
-                    ${duesCells}
+                    <td>
+                        <div class="row g-1 align-items-center">
+                            <div class="col-auto">
+                                <select class="form-select form-select-sm" data-field="dues_year">${yearOptions}</select>
+                            </div>
+                            <div class="col-auto">
+                                <select class="form-select form-select-sm" data-field="dues_status">
+                                    <option value="Paid" ${dLatest.status==='Paid'?'selected':''}>Paid</option>
+                                    <option value="Unpaid" ${dLatest.status==='Unpaid'?'selected':''}>Unpaid</option>
+                                    <option value="Waived" ${dLatest.status==='Waived'?'selected':''}>Waived</option>
+                                </select>
+                            </div>
+                            <div class="col-auto">
+                                <input type="number" step="0.01" class="form-control form-control-sm" data-field="dues_amount" value="${dLatest.amount ?? ''}" placeholder="Amount">
+                            </div>
+                        </div>
+                    </td>
                     <td>
                         <button class="btn btn-sm btn-success" data-action="save" data-user="${m.user_id}">Save</button>
                     </td>
@@ -122,6 +128,28 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
         }
 
         document.getElementById('refreshBtn').addEventListener('click', loadGrid);
+
+        // When dues year changes, load status/amount for that year from the dues map
+        body.addEventListener('change', (e) => {
+            const sel = e.target.closest('[data-field="dues_year"]');
+            if (!sel) return;
+            const tr = sel.closest('tr');
+            const enc = tr.getAttribute('data-dues-enc') || encodeURIComponent('{}');
+            let duesMap = {};
+            try {
+                duesMap = JSON.parse(decodeURIComponent(enc));
+            } catch {}
+            const y = sel.value;
+            const defStatus = (parseInt(y, 10) === 2021) ? 'Waived' : 'Unpaid';
+            const d = duesMap[y] || {
+                status: defStatus,
+                amount: ''
+            };
+            const statusEl = tr.querySelector('[data-field="dues_status"]');
+            const amountEl = tr.querySelector('[data-field="dues_amount"]');
+            if (statusEl) statusEl.value = d.status || defStatus;
+            if (amountEl) amountEl.value = (d.amount ?? '');
+        });
 
         body.addEventListener('click', async (e) => {
             const btn = e.target.closest('[data-action="save"]');
@@ -147,24 +175,15 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                 return;
             }
 
-            // Collect dues
-            const tds = Array.from(tr.querySelectorAll('[data-user]'));
-            const map = {};
-            tds.forEach(el => {
-                const attr = el.getAttribute('data-field');
-                if (!attr) return;
-                const parts = attr.split('_'); // dues_status_YYYY or dues_amount_YYYY
-                const kind = parts[1]; // status or amount
-                const year = parts[2];
-                map[year] = map[year] || {
-                    year: parseInt(year, 10),
-                    status: 'Unpaid',
-                    amount: ''
-                };
-                if (kind === 'status') map[year].status = el.value;
-                if (kind === 'amount') map[year].amount = el.value;
-            });
-            const dues = Object.values(map);
+            // Collect dues for the selected year only
+            const selYear = tr.querySelector('[data-field="dues_year"]').value;
+            const selStatus = tr.querySelector('[data-field="dues_status"]').value;
+            const selAmount = tr.querySelector('[data-field="dues_amount"]').value;
+            const dues = [{
+                year: parseInt(selYear, 10),
+                status: selStatus,
+                amount: selAmount
+            }];
             const fdDues = new FormData();
             fdDues.append('action', 'save_dues');
             fdDues.append('user_id', String(userId));
