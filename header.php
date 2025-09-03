@@ -128,7 +128,9 @@ if ($stmt) {
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" id="resourcesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">Resources</a>
                     <ul class="dropdown-menu" aria-labelledby="resourcesDropdown">
-                        <li><a class="dropdown-item" href="documents.php">Documents</a></li>
+                        <?php if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member'): ?>
+                            <li><a class="dropdown-item" href="documents.php">Documents</a></li>
+                        <?php endif; ?>
                         <li><a class="dropdown-item" href="faqs.php">FAQs</a></li>
                     </ul>
                 </li>
