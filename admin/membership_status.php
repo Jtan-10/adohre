@@ -48,6 +48,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
         const api = async (url, opts = {}) => (await fetch(url, opts)).json();
         const head = document.getElementById('gridHead');
         const body = document.getElementById('gridBody');
+        let gridDT = null; // hold a single DataTable instance
 
         function renderHead(years) {
             const fixed = [
@@ -63,16 +64,14 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
         }
 
         function renderBody(years, members) {
-            // If DataTable is already initialized, clear and destroy it before rebuilding rows
-            if (window.jQuery && $.fn && $.fn.DataTable) {
-                const id = '#gridTable';
-                if ($.fn.DataTable.isDataTable(id)) {
-                    const dt = $(id).DataTable();
-                    dt.clear();
-                    dt.destroy();
-                }
+            // Destroy existing DataTable instance once, to avoid duplicated DOM management
+            if (gridDT) {
+                try {
+                    gridDT.destroy();
+                } catch {}
+                gridDT = null;
             }
-
+            // Rebuild rows
             body.innerHTML = members.map(m => {
                 const name = `${m.last_name}, ${m.first_name}`;
                 const cert = m.certification || 'Regular';
@@ -137,14 +136,13 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                 </tr>
             `;
             }).join('');
-            // Initialize or reinitialize DataTable like in admin users
+            // Initialize DataTable once per render
             if (window.jQuery && $.fn && $.fn.DataTable) {
                 const id = '#gridTable';
-                $(id).DataTable({
+                gridDT = $(id).DataTable({
                     pageLength: 10,
                     order: [],
-                    autoWidth: false,
-                    destroy: true
+                    autoWidth: false
                 });
             }
         }
