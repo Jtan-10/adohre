@@ -1,5 +1,15 @@
 <?php
 require_once 'header.php';
+// Enforce member-only access
+if (!isset($_SESSION['user_id'])) {
+    header('Location: login.php');
+    exit;
+}
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'member') {
+    http_response_code(403);
+    echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Forbidden</title></head><body><div class="container py-5"><h1>403 Forbidden</h1><p>Documents are accessible to members only.</p></div></body></html>';
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">

@@ -701,6 +701,12 @@ try {
         }
         exit();
     } elseif ($action === 'fetch_documents') {
+        // Member-only: ensure user is logged in and role is 'member'
+        if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role'] !== 'member') {
+            http_response_code(403);
+            echo json_encode(['status' => false, 'message' => 'Forbidden']);
+            exit();
+        }
         // Fetch all documents
         $docs = [];
         $res = $conn->query("SELECT document_id, name, type, file_url, uploaded_by, uploaded_at FROM documents ORDER BY uploaded_at DESC");

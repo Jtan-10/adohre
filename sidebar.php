@@ -157,6 +157,9 @@ $userRole = $isLoggedIn ? ($_SESSION['role'] ?? 'member') : 'guest';
         <li <?php if ($current_page == 'index.php') echo 'class="active"'; ?>><a href="index.php">Home</a></li>
         <li <?php if ($current_page == 'about.php') echo 'class="active"'; ?>><a href="about.php">About Us</a></li>
         <li <?php if ($current_page == 'news.php') echo 'class="active"'; ?>><a href="news.php">News</a></li>
+        <?php if ($isLoggedIn && $userRole === 'member'): ?>
+            <li <?php if ($current_page == 'documents.php') echo 'class="active"'; ?>><a href="documents.php">Documents</a></li>
+        <?php endif; ?>
         <?php
         // Show Member Application link only if user is logged in AND no membership application exists
         $showMembershipLink = false;
