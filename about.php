@@ -50,6 +50,10 @@ if ($stmtS) {
     }
     $stmtS->close();
 }
+
+// Admin inline edit mode support (used by Admin > Pages tab via iframe)
+$isAdmin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
+$editMode = $isAdmin && isset($_GET['edit']) && $_GET['edit'] == '1';
 ?>
 
 <!DOCTYPE html>
@@ -349,6 +353,39 @@ if ($stmtS) {
         #readPageBtn:hover {
             background-color: #218838;
         }
+
+        <?php if ($editMode): ?>
+
+        /* Inline edit helpers (admin-only) */
+        .edit-outline {
+            outline: 2px dashed rgba(40, 167, 69, 0.6);
+            outline-offset: 4px;
+        }
+
+        .edit-toolbar {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+        }
+
+        .edit-toolbar .btn {
+            padding: 4px 8px;
+        }
+
+        .edit-hint {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(33, 37, 41, 0.9);
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            z-index: 1050;
+        }
+
+        <?php endif; ?>
     </style>
     <!-- Pass the visually impaired flag to JavaScript -->
     <script>
@@ -375,10 +412,16 @@ if ($stmtS) {
             $aboutHeroBg = 'backend/routes/decrypt_image.php?image_url=' . urlencode($aboutHeroBg);
         }
         ?>
-        <section class="about-hero" <?php if (!empty($aboutHeroBg)): ?>style="background-image: url('<?= htmlspecialchars($aboutHeroBg, ENT_QUOTES) ?>'); background-size: cover; background-position: center;" <?php endif; ?>>
+        <section class="about-hero position-relative" <?php if (!empty($aboutHeroBg)): ?>style="background-image: url('<?= htmlspecialchars($aboutHeroBg, ENT_QUOTES) ?>'); background-size: cover; background-position: center;" <?php endif; ?>>
+            <?php if ($editMode): ?>
+                <div class="edit-toolbar">
+                    <button class="btn btn-light btn-sm" id="btnAboutHeroImg"><i class="fa fa-image me-1"></i>Change Hero Image</button>
+                    <input type="file" id="aboutHeroFileInline" accept="image/*" class="d-none">
+                </div>
+            <?php endif; ?>
             <div class="container">
-                <h1><?= htmlspecialchars($aboutSettings['about_hero_title'] ?? 'About ADOHRE', ENT_QUOTES) ?></h1>
-                <p><?= htmlspecialchars($aboutSettings['about_hero_subtitle'] ?? 'Discover ADOHRE: Your Best Chapter is Here!', ENT_QUOTES) ?></p>
+                <h1 <?php if ($editMode): ?>contenteditable="true" data-edit-key="about_hero_title" class="edit-outline" <?php endif; ?>><?= htmlspecialchars($aboutSettings['about_hero_title'] ?? 'About ADOHRE', ENT_QUOTES) ?></h1>
+                <p <?php if ($editMode): ?>contenteditable="true" data-edit-key="about_hero_subtitle" class="edit-outline" <?php endif; ?>><?= htmlspecialchars($aboutSettings['about_hero_subtitle'] ?? 'Discover ADOHRE: Your Best Chapter is Here!', ENT_QUOTES) ?></p>
             </div>
         </section>
 
@@ -406,7 +449,7 @@ if ($stmtS) {
                                     <div class="card-body">
                                         <h3 class="card-title text-success">Purpose</h3>
                                         <p class="card-text">
-                                            <?= nl2br(htmlspecialchars($aboutSettings['about_purpose_text'] ?? 'Our goals: develop and strengthen partnerships; improve member and team capabilities; provide relevant and quality programs and services; enhance systems for effective and efficient performance; and ensure better communication and awareness toward policy enhancement and development.', ENT_QUOTES)) ?>
+                                            <span <?php if ($editMode): ?>contenteditable="true" data-edit-key="about_purpose_text" class="edit-outline" <?php endif; ?>><?= nl2br(htmlspecialchars($aboutSettings['about_purpose_text'] ?? 'Our goals: develop and strengthen partnerships; improve member and team capabilities; provide relevant and quality programs and services; enhance systems for effective and efficient performance; and ensure better communication and awareness toward policy enhancement and development.', ENT_QUOTES)) ?></span>
                                         </p>
                                     </div>
                                 </div>
@@ -419,7 +462,7 @@ if ($stmtS) {
                                     <div class="card-body">
                                         <h3 class="card-title text-success">Mission</h3>
                                         <p class="card-text">
-                                            <?= nl2br(htmlspecialchars($aboutSettings['about_mission_text'] ?? 'We serve the health sector by developing and improving capabilities of members and partnership, providing relevant and responsive programs and services, continuous systems development and ensuring better communication processes and promote awareness on health.', ENT_QUOTES)) ?>
+                                            <span <?php if ($editMode): ?>contenteditable="true" data-edit-key="about_mission_text" class="edit-outline" <?php endif; ?>><?= nl2br(htmlspecialchars($aboutSettings['about_mission_text'] ?? 'We serve the health sector by developing and improving capabilities of members and partnership, providing relevant and responsive programs and services, continuous systems development and ensuring better communication processes and promote awareness on health.', ENT_QUOTES)) ?></span>
                                         </p>
                                     </div>
                                 </div>
@@ -431,7 +474,7 @@ if ($stmtS) {
                                 <div class="card text-center" style="max-width:600px;">
                                     <div class="card-body">
                                         <h3 class="card-title text-success">Vision</h3>
-                                        <p class="card-text"><?= nl2br(htmlspecialchars($aboutSettings['about_vision_text'] ?? '“Responsive and relevant partner for better health outcomes for Filipinos.“', ENT_QUOTES)) ?></p>
+                                        <p class="card-text"><span <?php if ($editMode): ?>contenteditable="true" data-edit-key="about_vision_text" class="edit-outline" <?php endif; ?>><?= nl2br(htmlspecialchars($aboutSettings['about_vision_text'] ?? '“Responsive and relevant partner for better health outcomes for Filipinos.“', ENT_QUOTES)) ?></span></p>
                                     </div>
                                 </div>
                             </div>
@@ -461,7 +504,7 @@ if ($stmtS) {
                     <span class="arrow">▼</span>
                 </h2>
                 <div class="collapse" id="objectivesCollapse">
-                    <?= $aboutSettings['about_objectives_html'] ?? '<ul><li>Provide services and products in the form of technical assistance, expert advice, consulting services, learning and development services, and related activities to the DOH, other partners and stakeholders.</li><li>Develop, promote, and implement concerted action for the empowerment, protection, well-being and welfare of its members.</li><li>Foster cooperation, camaraderie and solidarity among the members of the Association.</li><li>Improve ADOHRE’s organizational systems that foster integrity, good governance, efficiency and effectiveness.</li><li>Advocate and raise awareness on health and relevant issues while communicating and promoting ADOHRE’s programs and support it can offer.</li><li>Develop and market ADOHRE brand of technical expertise and assistance.</li><li>Participate and network with other organizations and government agencies towards the attainment of the goals of the Association most specially in promoting health as a right for every Filipino.</li></ul>' ?>
+                    <div <?php if ($editMode): ?>contenteditable="true" data-edit-key="about_objectives_html" class="edit-outline" <?php endif; ?>><?= $aboutSettings['about_objectives_html'] ?? '<ul><li>Provide services and products in the form of technical assistance, expert advice, consulting services, learning and development services, and related activities to the DOH, other partners and stakeholders.</li><li>Develop, promote, and implement concerted action for the empowerment, protection, well-being and welfare of its members.</li><li>Foster cooperation, camaraderie and solidarity among the members of the Association.</li><li>Improve ADOHRE’s organizational systems that foster integrity, good governance, efficiency and effectiveness.</li><li>Advocate and raise awareness on health and relevant issues while communicating and promoting ADOHRE’s programs and support it can offer.</li><li>Develop and market ADOHRE brand of technical expertise and assistance.</li><li>Participate and network with other organizations and government agencies towards the attainment of the goals of the Association most specially in promoting health as a right for every Filipino.</li></ul>' ?></div>
                 </div>
             </div>
         </section>
@@ -854,6 +897,126 @@ if ($stmtS) {
             }
             TTS.speakTextInChunks(textToRead);
         });
+        <?php if ($editMode): ?>
+                // --- Inline edit mode logic (About) ---
+                (function() {
+                    const page = 'about';
+                    let dirty = false;
+                    let latestHeroUrl = <?= json_encode($aboutSettings['about_hero_image_url'] ?? '') ?>;
+
+                    const markDirty = () => {
+                        if (!dirty) {
+                            dirty = true;
+                            try {
+                                parent.postMessage({
+                                    type: 'pageEditChange',
+                                    page
+                                }, '*');
+                            } catch (e) {}
+                        }
+                    };
+
+                    document.addEventListener('click', (e) => {
+                        const a = e.target.closest('a');
+                        if (a) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        }
+                    }, true);
+
+                    document.querySelectorAll('[data-edit-key]').forEach(el => {
+                        el.addEventListener('input', markDirty);
+                        el.addEventListener('blur', markDirty);
+                    });
+
+                    const btn = document.getElementById('btnAboutHeroImg');
+                    const file = document.getElementById('aboutHeroFileInline');
+                    if (btn && file) {
+                        btn.addEventListener('click', () => file.click());
+                        file.addEventListener('change', async (e) => {
+                            const f = e.target.files && e.target.files[0];
+                            if (!f) return;
+                            const fd = new FormData();
+                            fd.append('page', 'about');
+                            fd.append('field', 'hero_image_url');
+                            fd.append('image', f);
+                            try {
+                                const res = await fetch('backend/routes/settings_api.php?action=upload_page_image', {
+                                    method: 'POST',
+                                    body: fd
+                                });
+                                const j = await res.json();
+                                if (j.status) {
+                                    latestHeroUrl = j.url;
+                                    const url = j.url.includes('/s3proxy/') ? ('backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(j.url)) : j.url;
+                                    const hero = document.querySelector('.about-hero');
+                                    if (hero) hero.style.backgroundImage = `url('${url}')`;
+                                    markDirty();
+                                    alert('Image uploaded');
+                                } else {
+                                    alert(j.message || 'Upload failed');
+                                }
+                            } catch (err) {
+                                alert('Upload error');
+                            }
+                        });
+                    }
+
+                    window.addEventListener('message', async (event) => {
+                        const data = event.data || {};
+                        if (data.type === 'pageSave') {
+                            try {
+                                const payload = {};
+                                document.querySelectorAll('[data-edit-key]').forEach(el => {
+                                    const key = el.getAttribute('data-edit-key');
+                                    if (!key) return;
+                                    if (key.endsWith('_html')) payload[key] = el.innerHTML;
+                                    else payload[key] = el.innerText.trim();
+                                });
+                                if (latestHeroUrl) payload['about_hero_image_url'] = latestHeroUrl;
+                                const fd = new FormData();
+                                fd.append('page', page);
+                                fd.append('data', JSON.stringify(payload));
+                                const res = await fetch('backend/routes/settings_api.php?action=update_page_content', {
+                                    method: 'POST',
+                                    body: fd
+                                });
+                                const j = await res.json();
+                                if (j.status) {
+                                    dirty = false;
+                                    try {
+                                        parent.postMessage({
+                                            type: 'pageEditSaved',
+                                            page
+                                        }, '*');
+                                    } catch (e) {}
+                                } else {
+                                    try {
+                                        parent.postMessage({
+                                            type: 'pageEditError',
+                                            page,
+                                            message: j.message || 'Failed'
+                                        }, '*');
+                                    } catch (e) {}
+                                }
+                            } catch (err) {
+                                try {
+                                    parent.postMessage({
+                                        type: 'pageEditError',
+                                        page,
+                                        message: 'Save error'
+                                    }, '*');
+                                } catch (e) {}
+                            }
+                        }
+                    });
+
+                    const hint = document.createElement('div');
+                    hint.className = 'edit-hint';
+                    hint.textContent = 'Editing mode: click text to modify. Use the toolbar to change hero image. Save from the admin tab.';
+                    document.body.appendChild(hint);
+                })();
+        <?php endif; ?>
     </script>
 
     <!-- Org Structure Modal (full-screen with zoom controls) -->

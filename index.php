@@ -61,6 +61,10 @@ if (isset($_SESSION['user_id'])) {
     $stmt->close();
 }
 
+// Admin inline edit mode support (used by Admin > Pages tab via iframe)
+$isAdmin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
+$editMode = $isAdmin && isset($_GET['edit']) && $_GET['edit'] == '1';
+
 
 // Check if the logged-in user is a member and does not have a membership application record.
 if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
@@ -306,6 +310,39 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
         .section-subtitle {
             color: var(--muted);
         }
+
+        /* Inline editor helpers (admin-only edit mode) */
+        <?php if ($editMode): ?>.edit-outline {
+            outline: 2px dashed rgba(40, 167, 69, 0.6);
+            outline-offset: 4px;
+        }
+
+        .edit-toolbar {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            z-index: 10;
+            display: flex;
+            gap: 6px;
+        }
+
+        .edit-toolbar .btn {
+            padding: 4px 8px;
+        }
+
+        .edit-hint {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(33, 37, 41, 0.9);
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            z-index: 1050;
+        }
+
+        <?php endif; ?>
     </style>
 
     <!-- Pass the visually impaired flag to JavaScript -->
@@ -349,12 +386,18 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
             $homeHeroBg = 'backend/routes/decrypt_image.php?image_url=' . urlencode($homeHeroBg);
         }
         ?>
-        <section class="hero-section text-center" <?php if (!empty($homeHeroBg)): ?>style="background-image: url('<?= htmlspecialchars($homeHeroBg, ENT_QUOTES) ?>'); background-size: cover; background-position: center;" <?php endif; ?>>
+        <section class="hero-section text-center position-relative" <?php if (!empty($homeHeroBg)): ?>style="background-image: url('<?= htmlspecialchars($homeHeroBg, ENT_QUOTES) ?>'); background-size: cover; background-position: center;" <?php endif; ?>>
+            <?php if ($editMode): ?>
+                <div class="edit-toolbar">
+                    <button class="btn btn-light btn-sm" id="btnHomeHeroImg"><i class="fa fa-image me-1"></i>Change Hero Image</button>
+                    <input type="file" id="homeHeroFileInline" accept="image/*" class="d-none">
+                </div>
+            <?php endif; ?>
             <div class="container">
-                <h1>
+                <h1 <?php if ($editMode): ?>contenteditable="true" data-edit-key="home_hero_title" class="edit-outline" <?php endif; ?>>
                     <?= htmlspecialchars($homeSettings['home_hero_title'] ?? 'THE ASSOCIATION OF DEPARTMENT OF HEALTH (DOH) RETIRED EMPLOYEES, PHILIPPINES, INC. (ADOHRE)', ENT_QUOTES) ?>
                 </h1>
-                <p class="lead">
+                <p class="lead" <?php if ($editMode): ?>contenteditable="true" data-edit-key="home_hero_subtitle" class="edit-outline" <?php endif; ?>>
                     <?= htmlspecialchars($homeSettings['home_hero_subtitle'] ?? 'Discover ADOHRE: Your Best Chapter is Here!', ENT_QUOTES) ?>
                 </p>
                 <a href="membership_form.php" class="btn btn-custom btn-lg">Join Us</a>
@@ -379,7 +422,7 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
                     </div>
                     <div class="col-md-6 about-text">
                         <h2>About ADOHRE</h2>
-                        <div>
+                        <div id="homeAboutContent" <?php if ($editMode): ?>contenteditable="true" data-edit-key="home_about_html" class="edit-outline" <?php endif; ?>>
                             <?= $homeSettings['home_about_html'] ?? '<p>The “Association of Department of Health (DOH) Retired Employees – Central Office,” an association of retired Department of Health personnel was established in 2014 with fifteen (15) founding members. It is a non-stock, non-profit organization registered with the Securities and Exchange Commission. In 2018, the Association amended its articles of incorporation, renaming the organization to the “Association of DOH Retired Employees, Philippines, Inc.” (ADOHRE) with the forethought of broadening its membership base, to include retirees not only from the central offices but also from DOH regional offices, hospitals, rehabilitation centers, and even attached agencies. It also filed for an amendment of its By-Laws defining anew its membership, meetings, functions of its Board of Trustees, officers, committees, roles, funds, logo, and other significant policies and processes.</p><p>After more than ten (10) years of existence, ADOHRE has more than seventy (70) members of good standing out of the more than one hundred (100) registered members. It is now expanding to hospitals and regional offices with the Centers for Health Development CALABARZON as pilot region.</p>' ?>
                         </div>
                     </div>
@@ -473,7 +516,7 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
         <section class="section-padding text-center bg-light">
             <div class="container">
                 <h2>Where We Are</h2>
-                <p><?= htmlspecialchars($homeSettings['home_contact_address'] ?? '5th Floor, Philippine Blood Center, 6512 Quezon Avenue, Diliman, Quezon City 1101', ENT_QUOTES) ?></p>
+                <p><?php if ($editMode): ?><span contenteditable="true" data-edit-key="home_contact_address" class="edit-outline"><?php endif; ?><?= htmlspecialchars($homeSettings['home_contact_address'] ?? '5th Floor, Philippine Blood Center, 6512 Quezon Avenue, Diliman, Quezon City 1101', ENT_QUOTES) ?><?php if ($editMode): ?></span><?php endif; ?></p>
                 <a href="membership_form.php" class="btn btn-custom">Join Us</a>
             </div>
         </section>
@@ -500,6 +543,135 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
     </script>
 
     <script>
+        <?php if ($editMode): ?>
+                // --- Inline edit mode logic (Home) ---
+                (function() {
+                    const page = 'home';
+                    let dirty = false;
+                    let latestHeroUrl = <?= json_encode($homeSettings['home_hero_image_url'] ?? '') ?>;
+
+                    const markDirty = () => {
+                        if (!dirty) {
+                            dirty = true;
+                            try {
+                                parent.postMessage({
+                                    type: 'pageEditChange',
+                                    page
+                                }, '*');
+                            } catch (e) {}
+                        }
+                    };
+
+                    // Prevent navigation inside iframe while editing
+                    document.addEventListener('click', (e) => {
+                        const a = e.target.closest('a');
+                        if (a) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        }
+                    }, true);
+
+                    // Track edits
+                    document.querySelectorAll('[data-edit-key]').forEach(el => {
+                        el.addEventListener('input', markDirty);
+                        el.addEventListener('blur', markDirty);
+                    });
+
+                    // Hero image change
+                    const btn = document.getElementById('btnHomeHeroImg');
+                    const file = document.getElementById('homeHeroFileInline');
+                    if (btn && file) {
+                        btn.addEventListener('click', () => file.click());
+                        file.addEventListener('change', async (e) => {
+                            const f = e.target.files && e.target.files[0];
+                            if (!f) return;
+                            const fd = new FormData();
+                            fd.append('page', 'home');
+                            fd.append('field', 'hero_image_url');
+                            fd.append('image', f);
+                            try {
+                                const res = await fetch('backend/routes/settings_api.php?action=upload_page_image', {
+                                    method: 'POST',
+                                    body: fd
+                                });
+                                const j = await res.json();
+                                if (j.status) {
+                                    latestHeroUrl = j.url;
+                                    // update BG now
+                                    const url = j.url.includes('/s3proxy/') ? ('backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(j.url)) : j.url;
+                                    const hero = document.querySelector('.hero-section');
+                                    if (hero) hero.style.backgroundImage = `url('${url}')`;
+                                    markDirty();
+                                    alert('Image uploaded');
+                                } else {
+                                    alert(j.message || 'Upload failed');
+                                }
+                            } catch (err) {
+                                alert('Upload error');
+                            }
+                        });
+                    }
+
+                    // Handle save from parent
+                    window.addEventListener('message', async (event) => {
+                        const data = event.data || {};
+                        if (data.type === 'pageSave') {
+                            try {
+                                const payload = {};
+                                document.querySelectorAll('[data-edit-key]').forEach(el => {
+                                    const key = el.getAttribute('data-edit-key');
+                                    if (!key) return;
+                                    if (key.endsWith('_html')) {
+                                        payload[key] = el.innerHTML;
+                                    } else {
+                                        payload[key] = el.innerText.trim();
+                                    }
+                                });
+                                if (latestHeroUrl) payload['home_hero_image_url'] = latestHeroUrl;
+                                const fd = new FormData();
+                                fd.append('page', page);
+                                fd.append('data', JSON.stringify(payload));
+                                const res = await fetch('backend/routes/settings_api.php?action=update_page_content', {
+                                    method: 'POST',
+                                    body: fd
+                                });
+                                const j = await res.json();
+                                if (j.status) {
+                                    dirty = false;
+                                    try {
+                                        parent.postMessage({
+                                            type: 'pageEditSaved',
+                                            page
+                                        }, '*');
+                                    } catch (e) {}
+                                } else {
+                                    try {
+                                        parent.postMessage({
+                                            type: 'pageEditError',
+                                            page,
+                                            message: j.message || 'Failed'
+                                        }, '*');
+                                    } catch (e) {}
+                                }
+                            } catch (err) {
+                                try {
+                                    parent.postMessage({
+                                        type: 'pageEditError',
+                                        page,
+                                        message: 'Save error'
+                                    }, '*');
+                                } catch (e) {}
+                            }
+                        }
+                    });
+
+                    // Little hint
+                    const hint = document.createElement('div');
+                    hint.className = 'edit-hint';
+                    hint.textContent = 'Editing mode: click text to modify. Use the toolbar to change hero image. Save from the admin tab.';
+                    document.body.appendChild(hint);
+                })();
+        <?php endif; ?>
         // Back-to-top button logic
         const backToTopBtn = document.getElementById("backToTopBtn");
         window.onscroll = function() {
