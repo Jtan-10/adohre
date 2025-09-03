@@ -5,9 +5,9 @@ if (!isset($_SESSION['user_id'])) {
     header('Location: login.php');
     exit;
 }
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'member') {
+if (!isset($_SESSION['role']) || !in_array($_SESSION['role'], ['member', 'admin'], true)) {
     http_response_code(403);
-    echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Forbidden</title></head><body><div class="container py-5"><h1>403 Forbidden</h1><p>Documents are accessible to members only.</p></div></body></html>';
+    echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Forbidden</title></head><body><div class="container py-5"><h1>403 Forbidden</h1><p>Documents are accessible to members and admins only.</p></div></body></html>';
     exit;
 }
 ?>

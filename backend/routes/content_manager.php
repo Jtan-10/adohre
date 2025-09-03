@@ -701,8 +701,8 @@ try {
         }
         exit();
     } elseif ($action === 'fetch_documents') {
-        // Member-only: ensure user is logged in and role is 'member'
-        if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role'] !== 'member') {
+        // Member or Admin: ensure user is logged in and role is 'member' or 'admin'
+        if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || !in_array($_SESSION['role'], ['member', 'admin'], true)) {
             http_response_code(403);
             echo json_encode(['status' => false, 'message' => 'Forbidden']);
             exit();
