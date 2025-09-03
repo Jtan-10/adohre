@@ -153,7 +153,6 @@ try {
         $year_of_membership = $_POST['year_of_membership'] !== '' ? intval($_POST['year_of_membership']) : null;
         $age = $_POST['age_upon_membership'] !== '' ? intval($_POST['age_upon_membership']) : null;
         $cert = $_POST['certification'] ?? 'Regular';
-        $fee = $_POST['membership_fee'] !== '' ? floatval($_POST['membership_fee']) : null;
         $status = $_POST['membership_status'] ?? null; // optional, updates members table
         if (!$user_id) {
             echo json_encode(['status' => false, 'message' => 'Missing user_id']);
@@ -161,10 +160,10 @@ try {
         }
 
         // Upsert profile
-        $stmt = $conn->prepare("INSERT INTO membership_profiles (user_id, year_of_membership, age_upon_membership, certification, membership_fee)
-                                VALUES (?,?,?,?,?)
-                                ON DUPLICATE KEY UPDATE year_of_membership=VALUES(year_of_membership), age_upon_membership=VALUES(age_upon_membership), certification=VALUES(certification), membership_fee=VALUES(membership_fee)");
-        $stmt->bind_param('iiisd', $user_id, $year_of_membership, $age, $cert, $fee);
+        $stmt = $conn->prepare("INSERT INTO membership_profiles (user_id, year_of_membership, age_upon_membership, certification)
+                VALUES (?,?,?,?)
+                ON DUPLICATE KEY UPDATE year_of_membership=VALUES(year_of_membership), age_upon_membership=VALUES(age_upon_membership), certification=VALUES(certification)");
+        $stmt->bind_param('iiis', $user_id, $year_of_membership, $age, $cert);
         $ok = $stmt->execute();
         $stmt->close();
 
@@ -188,11 +187,12 @@ try {
             exit;
         }
         $stmt = $conn->prepare("INSERT INTO membership_dues (user_id, year, status, amount) VALUES (?,?,?,?)
-                                ON DUPLICATE KEY UPDATE status=VALUES(status), amount=VALUES(amount)");
+                ON DUPLICATE KEY UPDATE status=VALUES(status), amount=VALUES(amount)");
         foreach ($dues as $d) {
             $y = intval($d['year']);
             $s = in_array($d['status'], ['Paid', 'Unpaid', 'Waived'], true) ? $d['status'] : 'Unpaid';
-            $a = isset($d['amount']) && $d['amount'] !== '' ? floatval($d['amount']) : null;
+            // Default annual dues amount to 200 if not provided
+            $a = isset($d['amount']) && $d['amount'] !== '' ? floatval($d['amount']) : 200.00;
             $stmt->bind_param('iisd', $user_id, $y, $s, $a);
             $stmt->execute();
         }
@@ -208,17 +208,8 @@ try {
         }
         // Pull amount and build payment payload
         if ($type === 'membership_fee') {
-            $stmt = $conn->prepare("SELECT COALESCE(mp.membership_fee,0) AS amount FROM membership_profiles mp WHERE mp.user_id = ?");
-            $stmt->bind_param('i', $user_id);
-            $stmt->execute();
-            $res = $stmt->get_result();
-            $row = $res->fetch_assoc();
-            $stmt->close();
-            $amount = isset($row['amount']) ? floatval($row['amount']) : 0.0;
-            if ($amount <= 0) {
-                echo json_encode(['status' => false, 'message' => 'Membership fee amount is missing']);
-                exit;
-            }
+            // Fixed membership fee amount (₱300)
+            $amount = 300.00;
             // Create a payment record via direct insert
             $payment_type = 'Membership Fee';
             $status = 'New';
@@ -230,23 +221,10 @@ try {
             echo json_encode(['status' => (bool)$ok]);
         } else { // annual_dues
             $year = intval($_POST['year'] ?? 0);
-            $amount = isset($_POST['amount']) && $_POST['amount'] !== '' ? floatval($_POST['amount']) : null;
+            // Fixed annual dues amount (₱200)
+            $amount = 200.00;
             if (!$year) {
                 echo json_encode(['status' => false, 'message' => 'Missing year']);
-                exit;
-            }
-            // If amount not provided, fall back to dues amount table if exists
-            if ($amount === null) {
-                $stmt = $conn->prepare("SELECT amount FROM membership_dues WHERE user_id = ? AND year = ?");
-                $stmt->bind_param('ii', $user_id, $year);
-                $stmt->execute();
-                $res = $stmt->get_result();
-                $row = $res->fetch_assoc();
-                $stmt->close();
-                $amount = isset($row['amount']) ? floatval($row['amount']) : 0.0;
-            }
-            if ($amount <= 0) {
-                echo json_encode(['status' => false, 'message' => 'Annual dues amount is missing']);
                 exit;
             }
             $payment_type = 'Annual Dues ' . $year;

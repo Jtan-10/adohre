@@ -69,7 +69,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                 const status = m.membership_status || 'inactive';
                 const year = m.year_of_membership || '';
                 const age = m.age_upon_membership || '';
-                const fee = m.membership_fee || '';
+                // membership_fee input removed; we will show payment status badge in the Membership Fee column
                 const latestYear = years[years.length - 1];
                 const dLatest = m.dues[String(latestYear)] || {
                     status: (latestYear === 2021 ? 'Waived' : 'Unpaid'),
@@ -87,7 +87,6 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                             <option value="active" ${status==='active'?'selected':''}>Active</option>
                             <option value="inactive" ${status!=='active'?'selected':''}>Inactive</option>
                         </select>
-                        <div class="small mt-1">Fee Payment: <span class="badge bg-secondary" data-field="badge_fee">—</span></div>
                     </td>
                     <td>
                         <select class="form-select form-select-sm" data-field="certification">
@@ -95,7 +94,9 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                             <option value="Honorary" ${cert==='Honorary'?'selected':''}>Honorary</option>
                         </select>
                     </td>
-                    <td><input type="number" step="0.01" class="form-control form-control-sm" data-field="membership_fee" value="${fee}"></td>
+                    <td>
+                        <div class="small">Fee Payment: <span class="badge bg-secondary" data-field="badge_fee">—</span></div>
+                    </td>
                     <td>
                         <div class="row g-1 align-items-center">
                             <div class="col-auto">
@@ -109,9 +110,6 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                                 </select>
                             </div>
                             <div class="col-auto">
-                                <input type="number" step="0.01" class="form-control form-control-sm" data-field="dues_amount" value="${dLatest.amount ?? ''}" placeholder="Amount">
-                            </div>
-                            <div class="col-auto">
                                 <div class="small">Dues Payment: <span class="badge bg-secondary" data-field="badge_dues">—</span></div>
                             </div>
                         </div>
@@ -121,8 +119,8 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                             <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">Action</button>
                             <ul class="dropdown-menu">
                                 <li><a class="dropdown-item" href="#" data-action="save" data-user="${m.user_id}">Save</a></li>
-                                <li><a class="dropdown-item" href="#" data-action="notice_fee" data-user="${m.user_id}">Send Fee Notice</a></li>
-                                <li><a class="dropdown-item" href="#" data-action="notice_dues" data-user="${m.user_id}">Send Dues Notice</a></li>
+                                <li><a class="dropdown-item" href="#" data-action="notice_fee" data-user="${m.user_id}">Send Membership Fee Notice (₱300)</a></li>
+                                <li><a class="dropdown-item" href="#" data-action="notice_dues" data-user="${m.user_id}">Send Annual Due Notice (₱200)</a></li>
                             </ul>
                         </div>
                     </td>
@@ -172,9 +170,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                 amount: ''
             };
             const statusEl = tr.querySelector('[data-field="dues_status"]');
-            const amountEl = tr.querySelector('[data-field="dues_amount"]');
             if (statusEl) statusEl.value = d.status || defStatus;
-            if (amountEl) amountEl.value = (d.amount ?? '');
         });
 
         body.addEventListener('click', async (e) => {
@@ -192,7 +188,6 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
             fdProfile.append('age_upon_membership', get('age_upon_membership')?.value || '');
             fdProfile.append('membership_status', get('membership_status')?.value || 'inactive');
             fdProfile.append('certification', get('certification')?.value || 'Regular');
-            fdProfile.append('membership_fee', get('membership_fee')?.value || '');
             const r1 = await api('../backend/routes/membership_status.php', {
                 method: 'POST',
                 body: fdProfile
@@ -205,11 +200,9 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
             // Collect dues for the selected year only
             const selYear = tr.querySelector('[data-field="dues_year"]').value;
             const selStatus = tr.querySelector('[data-field="dues_status"]').value;
-            const selAmount = tr.querySelector('[data-field="dues_amount"]').value;
             const dues = [{
                 year: parseInt(selYear, 10),
-                status: selStatus,
-                amount: selAmount
+                status: selStatus
             }];
             const fdDues = new FormData();
             fdDues.append('action', 'save_dues');
@@ -223,6 +216,15 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                 alert(r2.message || 'Save dues failed');
                 return;
             }
+            // Update cached dues map on the row for immediate consistency
+            try {
+                const enc = tr.getAttribute('data-dues-enc') || encodeURIComponent('{}');
+                const map = JSON.parse(decodeURIComponent(enc));
+                map[String(selYear)] = {
+                    status: selStatus
+                };
+                tr.setAttribute('data-dues-enc', encodeURIComponent(JSON.stringify(map)));
+            } catch {}
             alert('Saved');
         });
 
@@ -235,12 +237,6 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
             const tr = e.target.closest('tr');
             const userId = parseInt(tr.getAttribute('data-user-id'), 10);
             if (btnFee) {
-                // Ensure we have a membership fee amount
-                const fee = tr.querySelector('[data-field="membership_fee"]').value;
-                if (!fee || parseFloat(fee) <= 0) {
-                    alert('Set membership fee amount first.');
-                    return;
-                }
                 const fd = new FormData();
                 fd.append('action', 'send_notice');
                 fd.append('type', 'membership_fee');
@@ -254,21 +250,15 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                     return;
                 }
                 pollRowState(tr);
-                alert('Fee notice sent');
+                alert('Membership fee notice sent (₱300)');
             }
             if (btnDues) {
                 const year = tr.querySelector('[data-field="dues_year"]').value;
-                const amount = tr.querySelector('[data-field="dues_amount"]').value;
-                if (!amount || parseFloat(amount) <= 0) {
-                    alert('Set annual dues amount first.');
-                    return;
-                }
                 const fd = new FormData();
                 fd.append('action', 'send_notice');
                 fd.append('type', 'annual_dues');
                 fd.append('user_id', String(userId));
                 fd.append('year', String(year));
-                fd.append('amount', String(amount));
                 const res = await api('../backend/routes/membership_status.php', {
                     method: 'POST',
                     body: fd
@@ -278,7 +268,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                     return;
                 }
                 pollRowState(tr);
-                alert('Dues notice sent');
+                alert('Annual dues notice sent (₱200)');
             }
         });
 
