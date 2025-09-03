@@ -484,7 +484,7 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
         </section>
 
         <!-- Upcoming Events Preview (hidden for role 'user') -->
-        <?php if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'user'): ?>
+        <?php if ($isLoggedIn && (!isset($_SESSION['role']) || $_SESSION['role'] !== 'user')): ?>
             <section class="section-padding">
                 <div class="container">
                     <div class="d-flex align-items-end justify-content-between mb-3">
