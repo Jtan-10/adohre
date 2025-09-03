@@ -63,6 +63,16 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
         }
 
         function renderBody(years, members) {
+            // If DataTable is already initialized, clear and destroy it before rebuilding rows
+            if (window.jQuery && $.fn && $.fn.DataTable) {
+                const id = '#gridTable';
+                if ($.fn.DataTable.isDataTable(id)) {
+                    const dt = $(id).DataTable();
+                    dt.clear();
+                    dt.destroy();
+                }
+            }
+
             body.innerHTML = members.map(m => {
                 const name = `${m.last_name}, ${m.first_name}`;
                 const cert = m.certification || 'Regular';
@@ -130,13 +140,11 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
             // Initialize or reinitialize DataTable like in admin users
             if (window.jQuery && $.fn && $.fn.DataTable) {
                 const id = '#gridTable';
-                if ($.fn.DataTable.isDataTable(id)) {
-                    $(id).DataTable().destroy();
-                }
                 $(id).DataTable({
                     pageLength: 10,
                     order: [],
-                    autoWidth: false
+                    autoWidth: false,
+                    destroy: true
                 });
             }
         }
