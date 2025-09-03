@@ -369,7 +369,8 @@ switch ($action) {
                 'home_hero_subtitle',
                 'home_about_html',
                 'home_contact_address',
-                'home_hero_image_url'
+                'home_hero_image_url',
+                'home_carousel_json'
             ];
         } elseif ($page === 'about') {
             $allowedKeys = [
@@ -418,7 +419,7 @@ switch ($action) {
         }
         $allowed = [];
         if ($page === 'home') {
-            $allowed = ['home_hero_title', 'home_hero_subtitle', 'home_about_html', 'home_contact_address', 'home_hero_image_url'];
+            $allowed = ['home_hero_title', 'home_hero_subtitle', 'home_about_html', 'home_contact_address', 'home_hero_image_url', 'home_carousel_json'];
         } elseif ($page === 'about') {
             $allowed = ['about_hero_title', 'about_hero_subtitle', 'about_purpose_text', 'about_mission_text', 'about_vision_text', 'about_objectives_html', 'about_hero_image_url'];
         } else {

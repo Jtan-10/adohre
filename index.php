@@ -627,6 +627,16 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
                                         payload[key] = el.innerText.trim();
                                     }
                                 });
+                                // Include carousel slides JSON if available
+                                try {
+                                    if (window.carouselEditor && typeof window.carouselEditor.getData === 'function') {
+                                        const slidesJson = window.carouselEditor.getData();
+                                        if (slidesJson) {
+                                            payload['home_carousel_json'] = slidesJson;
+                                        }
+                                    }
+                                } catch (e) {
+                                    /* ignore carousel read errors */ }
                                 if (latestHeroUrl) payload['home_hero_image_url'] = latestHeroUrl;
                                 const fd = new FormData();
                                 fd.append('page', page);
