@@ -54,6 +54,17 @@ if ($stmtS) {
 // Admin inline edit mode support (used by Admin > Pages tab via iframe)
 $isAdmin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
 $editMode = $isAdmin && isset($_GET['edit']) && $_GET['edit'] == '1';
+
+// Member directory data (list all users with role 'member')
+$memberDirectory = [];
+if ($stmtM = $conn->prepare("SELECT first_name, last_name FROM users WHERE role = 'member' ORDER BY last_name, first_name")) {
+    $stmtM->execute();
+    $resM = $stmtM->get_result();
+    while ($row = $resM->fetch_assoc()) {
+        $memberDirectory[] = $row;
+    }
+    $stmtM->close();
+}
 ?>
 
 <!DOCTYPE html>
@@ -801,6 +812,38 @@ $editMode = $isAdmin && isset($_GET['edit']) && $_GET['edit'] == '1';
                         </div>
                     </div>
                 </div>
+            </div>
+        </section>
+
+        <!-- Member Directory -->
+        <section class="section-padding bg-white">
+            <div class="container">
+                <h2 class="text-center mb-4">Member Directory</h2>
+                <?php if (!empty($memberDirectory)): ?>
+                    <div class="row g-2 g-md-3">
+                        <?php foreach ($memberDirectory as $m): ?>
+                            <?php
+                            $fn = isset($m['first_name']) ? $m['first_name'] : '';
+                            $ln = isset($m['last_name']) ? $m['last_name'] : '';
+                            $name = trim($fn . ' ' . $ln);
+                            if ($name === '') {
+                                $name = 'Unnamed Member';
+                            }
+                            ?>
+                            <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                                <div class="border rounded px-3 py-2 bg-light h-100">
+                                    <span class="fw-semibold">
+                                        <?= htmlspecialchars($name, ENT_QUOTES) ?>
+                                    </span>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php else: ?>
+                    <div class="alert alert-info" role="alert">
+                        No members found yet.
+                    </div>
+                <?php endif; ?>
             </div>
         </section>
 
