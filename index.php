@@ -21,6 +21,27 @@ header("X-Content-Type-Options: nosniff");
 // Include access control utilities
 require_once 'backend/utils/access_control.php';
 
+// Pull editable page content from settings
+$homeSettings = [
+    'home_hero_title' => null,
+    'home_hero_subtitle' => null,
+    'home_about_html' => null,
+    'home_contact_address' => null
+];
+$keys = array_keys($homeSettings);
+$placeholders = implode(',', array_fill(0, count($keys), '?'));
+$types = str_repeat('s', count($keys));
+$stmtSettings = $conn->prepare("SELECT `key`, value FROM settings WHERE `key` IN ($placeholders)");
+if ($stmtSettings) {
+    $stmtSettings->bind_param($types, ...$keys);
+    $stmtSettings->execute();
+    $res = $stmtSettings->get_result();
+    while ($row = $res->fetch_assoc()) {
+        $homeSettings[$row['key']] = $row['value'];
+    }
+    $stmtSettings->close();
+}
+
 // Check if user is authenticated (but don't require it for homepage)
 $isLoggedIn = isset($_SESSION['user_id']);
 $isOTPRequired = isset($_SESSION['otp_pending']) && $_SESSION['otp_pending'] === true;
@@ -80,215 +101,215 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
 
     <!-- Inline Styles for Quick Tweaks -->
     <style>
-    /* Base Typography & Colors */
-    body {
-        font-family: 'Montserrat', sans-serif;
-        line-height: 1.6;
-        color: #333;
-        background-color: #fff;
-    }
+        /* Base Typography & Colors */
+        body {
+            font-family: 'Montserrat', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #fff;
+        }
 
-    :root {
-        --accent-color: #28A745;
-        --accent-dark: #1e7e34;
-        --text-dark: #1f2937;
-        --muted: #6b7280;
-        --card-bg: #ffffff;
-    }
+        :root {
+            --accent-color: #28A745;
+            --accent-dark: #1e7e34;
+            --text-dark: #1f2937;
+            --muted: #6b7280;
+            --card-bg: #ffffff;
+        }
 
-    /* Hero Section with Overlay */
-    .hero-section {
-        position: relative;
-        background: url('assets/pexels-fauxels-3184429.jpg') no-repeat center center/cover;
-        color: #fff;
-        padding: 120px 0;
-        overflow: hidden;
-    }
+        /* Hero Section with Overlay */
+        .hero-section {
+            position: relative;
+            background: url('assets/pexels-fauxels-3184429.jpg') no-repeat center center/cover;
+            color: #fff;
+            padding: 120px 0;
+            overflow: hidden;
+        }
 
-    .hero-section::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(135deg, rgba(0, 0, 0, .6) 0%, rgba(0, 0, 0, .25) 100%);
-        z-index: 1;
-    }
+        .hero-section::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(0, 0, 0, .6) 0%, rgba(0, 0, 0, .25) 100%);
+            z-index: 1;
+        }
 
-    .hero-section .container {
-        position: relative;
-        z-index: 2;
-    }
+        .hero-section .container {
+            position: relative;
+            z-index: 2;
+        }
 
-    .hero-section h1 {
-        font-size: clamp(2rem, 3.2vw, 3rem);
-        font-weight: 800;
-        margin-bottom: 20px;
-        letter-spacing: .2px;
-    }
+        .hero-section h1 {
+            font-size: clamp(2rem, 3.2vw, 3rem);
+            font-weight: 800;
+            margin-bottom: 20px;
+            letter-spacing: .2px;
+        }
 
-    .hero-section p {
-        font-size: 1.125rem;
-        margin-bottom: 30px;
-    }
+        .hero-section p {
+            font-size: 1.125rem;
+            margin-bottom: 30px;
+        }
 
-    /* Section Headings */
-    section h2 {
-        color: var(--accent-color, #28A745);
-        margin-bottom: 20px;
-    }
+        /* Section Headings */
+        section h2 {
+            color: var(--accent-color, #28A745);
+            margin-bottom: 20px;
+        }
 
-    /* Custom Button Styling */
-    .btn-custom {
-        background-color: var(--accent-color);
-        border: none;
-        color: #fff;
-        padding: 12px 30px;
-        font-size: 1rem;
-        border-radius: 4px;
-        transition: background-color 0.3s ease, transform 0.3s ease;
-    }
+        /* Custom Button Styling */
+        .btn-custom {
+            background-color: var(--accent-color);
+            border: none;
+            color: #fff;
+            padding: 12px 30px;
+            font-size: 1rem;
+            border-radius: 4px;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+        }
 
-    .btn-custom:hover {
-        background-color: var(--accent-dark);
-        transform: translateY(-2px);
-    }
+        .btn-custom:hover {
+            background-color: var(--accent-dark);
+            transform: translateY(-2px);
+        }
 
-    /* Section Padding */
-    .section-padding {
-        padding: 60px 0;
-    }
+        /* Section Padding */
+        .section-padding {
+            padding: 60px 0;
+        }
 
-    /* About Section Text */
-    .about-text p {
-        font-size: 1rem;
-        line-height: 1.8;
-        margin-bottom: 1rem;
-    }
+        /* About Section Text */
+        .about-text p {
+            font-size: 1rem;
+            line-height: 1.8;
+            margin-bottom: 1rem;
+        }
 
-    /* Feature Cards */
-    .feature-card {
-        border: 0;
-        border-radius: 16px;
-        box-shadow: 0 10px 20px rgba(0, 0, 0, .06);
-        transition: transform .2s ease, box-shadow .2s ease;
-        background: var(--card-bg);
-    }
+        /* Feature Cards */
+        .feature-card {
+            border: 0;
+            border-radius: 16px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, .06);
+            transition: transform .2s ease, box-shadow .2s ease;
+            background: var(--card-bg);
+        }
 
-    .feature-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 12px 24px rgba(0, 0, 0, .08);
-    }
+        .feature-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, .08);
+        }
 
-    .feature-icon {
-        font-size: 2rem;
-        color: var(--accent-color);
-    }
+        .feature-icon {
+            font-size: 2rem;
+            color: var(--accent-color);
+        }
 
-    /* Section decorations */
-    .shape-divider {
-        line-height: 0;
-    }
+        /* Section decorations */
+        .shape-divider {
+            line-height: 0;
+        }
 
-    .shape-divider svg {
-        display: block;
-        width: 100%;
-        height: 60px;
-    }
+        .shape-divider svg {
+            display: block;
+            width: 100%;
+            height: 60px;
+        }
 
-    /* Empowerment Section Overlay */
-    .empower-section {
-        position: relative;
-        background: url('assets/background-image.png') no-repeat center center/cover;
-    }
+        /* Empowerment Section Overlay */
+        .empower-section {
+            position: relative;
+            background: url('assets/background-image.png') no-repeat center center/cover;
+        }
 
-    .empower-section::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 1;
-    }
+        .empower-section::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1;
+        }
 
-    .empower-section .container {
-        position: relative;
-        z-index: 2;
-    }
+        .empower-section .container {
+            position: relative;
+            z-index: 2;
+        }
 
-    /* Back to Top Button */
-    #backToTopBtn {
-        display: none;
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 99;
-        border: none;
-        outline: none;
-        background-color: var(--accent-color, #28A745);
-        color: white;
-        cursor: pointer;
-        padding: 12px 20px;
-        border-radius: 50%;
-        font-size: 1.2rem;
-        transition: background-color 0.3s ease;
-    }
+        /* Back to Top Button */
+        #backToTopBtn {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 99;
+            border: none;
+            outline: none;
+            background-color: var(--accent-color, #28A745);
+            color: white;
+            cursor: pointer;
+            padding: 12px 20px;
+            border-radius: 50%;
+            font-size: 1.2rem;
+            transition: background-color 0.3s ease;
+        }
 
-    #backToTopBtn:hover {
-        background-color: #218838;
-    }
+        #backToTopBtn:hover {
+            background-color: #218838;
+        }
 
-    /* Read Page Button - Always visible in top right for visually impaired users */
-    #readPageBtn {
-        display: none;
-        /* Shown only if isVisuallyImpaired == 1 */
-        position: fixed;
-        top: 70px;
-        right: 20px;
-        z-index: 99;
-        border: none;
-        outline: none;
-        background-color: var(--accent-color, #28A745);
-        color: white;
-        cursor: pointer;
-        padding: 12px 20px;
-        border-radius: 30%;
-        font-size: 1.2rem;
-        transition: background-color 0.3s ease;
-    }
+        /* Read Page Button - Always visible in top right for visually impaired users */
+        #readPageBtn {
+            display: none;
+            /* Shown only if isVisuallyImpaired == 1 */
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 99;
+            border: none;
+            outline: none;
+            background-color: var(--accent-color, #28A745);
+            color: white;
+            cursor: pointer;
+            padding: 12px 20px;
+            border-radius: 30%;
+            font-size: 1.2rem;
+            transition: background-color 0.3s ease;
+        }
 
-    #readPageBtn:hover {
-        background-color: #218838;
-    }
+        #readPageBtn:hover {
+            background-color: #218838;
+        }
 
-    /* Cards for event/news preview */
-    .preview-card img {
-        height: 180px;
-        object-fit: cover;
-    }
+        /* Cards for event/news preview */
+        .preview-card img {
+            height: 180px;
+            object-fit: cover;
+        }
 
-    .preview-card {
-        border: 0;
-        border-radius: 14px;
-        overflow: hidden;
-        box-shadow: 0 6px 14px rgba(0, 0, 0, .06);
-    }
+        .preview-card {
+            border: 0;
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 6px 14px rgba(0, 0, 0, .06);
+        }
 
-    .preview-card .card-body {
-        min-height: 150px;
-    }
+        .preview-card .card-body {
+            min-height: 150px;
+        }
 
-    .section-subtitle {
-        color: var(--muted);
-    }
+        .section-subtitle {
+            color: var(--muted);
+        }
     </style>
 
     <!-- Pass the visually impaired flag to JavaScript -->
     <script>
-    var isVisuallyImpaired = <?php echo json_encode($isVisuallyImpaired); ?>;
+        var isVisuallyImpaired = <?php echo json_encode($isVisuallyImpaired); ?>;
     </script>
     <!-- Include the global TTS module (adjust the path if necessary) -->
     <script src="tts.js"></script>
@@ -307,12 +328,12 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
 
     <!-- Membership Warning -->
     <?php if (isset($showMembershipWarning) && $showMembershipWarning): ?>
-    <div class="alert alert-warning alert-dismissible fade show text-center" role="alert">
-        <i class="fas fa-exclamation-triangle me-2"></i>
-        <strong>Membership Required:</strong> You must complete your membership application to access all features.
-        <a href="membership_form.php" class="alert-link">Complete Application</a>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
+        <div class="alert alert-warning alert-dismissible fade show text-center" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>Membership Required:</strong> You must complete your membership application to access all features.
+            <a href="membership_form.php" class="alert-link">Complete Application</a>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
     <?php endif; ?>
 
     <!-- Main Content -->
@@ -324,10 +345,10 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
         <section class="hero-section text-center">
             <div class="container">
                 <h1>
-                    THE ASSOCIATION OF DEPARTMENT OF HEALTH (DOH) RETIRED EMPLOYEES, PHILIPPINES, INC. (ADOHRE)
+                    <?= htmlspecialchars($homeSettings['home_hero_title'] ?? 'THE ASSOCIATION OF DEPARTMENT OF HEALTH (DOH) RETIRED EMPLOYEES, PHILIPPINES, INC. (ADOHRE)', ENT_QUOTES) ?>
                 </h1>
                 <p class="lead">
-                    Discover ADOHRE: Your Best Chapter is Here!
+                    <?= htmlspecialchars($homeSettings['home_hero_subtitle'] ?? 'Discover ADOHRE: Your Best Chapter is Here!', ENT_QUOTES) ?>
                 </p>
                 <a href="membership_form.php" class="btn btn-custom btn-lg">Join Us</a>
             </div>
@@ -351,26 +372,9 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
                     </div>
                     <div class="col-md-6 about-text">
                         <h2>About ADOHRE</h2>
-                        <p>
-                            The “Association of Department of Health (DOH) Retired Employees – Central
-                            Office,” an association of retired Department of Health personnel was
-                            established in 2014 with fifteen (15) founding members. It is a non-stock,
-                            non-profit organization registered with the Securities and Exchange
-                            Commission. In 2018, the Association amended its articles of incorporation,
-                            renaming the organization to the “Association of DOH Retired Employees,
-                            Philippines, Inc.” (ADOHRE) with the forethought of broadening its
-                            membership base, to include retirees not only from the central offices but also
-                            from DOH regional offices, hospitals, rehabilitation centers, and even
-                            attached agencies. It also filed for an amendment of its By-Laws defining
-                            anew its membership, meetings, functions of its Board of Trustees, officers,
-                            committees, roles, funds, logo, and other significant policies and processes.
-                        </p>
-                        <p>
-                            After more than ten (10) years of existence, ADOHRE has more than seventy
-                            (70) members of good standing out of the more than one hundred (100)
-                            registered members. It is now expanding to hospitals and regional offices with
-                            the Centers for Health Development CALABARZON as pilot region.
-                        </p>
+                        <div>
+                            <?= $homeSettings['home_about_html'] ?? '<p>The “Association of Department of Health (DOH) Retired Employees – Central Office,” an association of retired Department of Health personnel was established in 2014 with fifteen (15) founding members. It is a non-stock, non-profit organization registered with the Securities and Exchange Commission. In 2018, the Association amended its articles of incorporation, renaming the organization to the “Association of DOH Retired Employees, Philippines, Inc.” (ADOHRE) with the forethought of broadening its membership base, to include retirees not only from the central offices but also from DOH regional offices, hospitals, rehabilitation centers, and even attached agencies. It also filed for an amendment of its By-Laws defining anew its membership, meetings, functions of its Board of Trustees, officers, committees, roles, funds, logo, and other significant policies and processes.</p><p>After more than ten (10) years of existence, ADOHRE has more than seventy (70) members of good standing out of the more than one hundred (100) registered members. It is now expanding to hospitals and regional offices with the Centers for Health Development CALABARZON as pilot region.</p>' ?>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -462,7 +466,7 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
         <section class="section-padding text-center bg-light">
             <div class="container">
                 <h2>Where We Are</h2>
-                <p>5th Floor, Philippine Blood Center, 6512 Quezon Avenue, Diliman, Quezon City 1101</p>
+                <p><?= htmlspecialchars($homeSettings['home_contact_address'] ?? '5th Floor, Philippine Blood Center, 6512 Quezon Avenue, Diliman, Quezon City 1101', ENT_QUOTES) ?></p>
                 <a href="membership_form.php" class="btn btn-custom">Join Us</a>
             </div>
         </section>
@@ -489,64 +493,64 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
     </script>
 
     <script>
-    // Back-to-top button logic
-    const backToTopBtn = document.getElementById("backToTopBtn");
-    window.onscroll = function() {
-        if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
-            backToTopBtn.style.display = "block";
-        } else {
-            backToTopBtn.style.display = "none";
-        }
-    };
-    backToTopBtn.addEventListener("click", function() {
-        window.scrollTo({
-            top: 0,
-            behavior: "smooth"
+        // Back-to-top button logic
+        const backToTopBtn = document.getElementById("backToTopBtn");
+        window.onscroll = function() {
+            if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+                backToTopBtn.style.display = "block";
+            } else {
+                backToTopBtn.style.display = "none";
+            }
+        };
+        backToTopBtn.addEventListener("click", function() {
+            window.scrollTo({
+                top: 0,
+                behavior: "smooth"
+            });
         });
-    });
 
-    // When window loads, show the Read Page button if visually impaired
-    window.addEventListener('load', function() {
-        console.log("Window loaded. isVisuallyImpaired =", isVisuallyImpaired);
-        if (isVisuallyImpaired == 1) {
-            document.getElementById("readPageBtn").style.display = "block";
-        }
-    });
+        // When window loads, show the Read Page button if visually impaired
+        window.addEventListener('load', function() {
+            console.log("Window loaded. isVisuallyImpaired =", isVisuallyImpaired);
+            if (isVisuallyImpaired == 1) {
+                document.getElementById("readPageBtn").style.display = "block";
+            }
+        });
 
-    // Read Page button: Read text from the main element only using innerText
-    document.getElementById("readPageBtn").addEventListener("click", function() {
-        console.log("Read Page button clicked.");
-        const mainElement = document.querySelector('main');
-        let textToRead = "";
-        if (mainElement) {
-            textToRead = mainElement.innerText.trim();
-            console.log("Reading from main element, length:", textToRead.length);
-        } else {
-            textToRead = document.body.innerText.trim();
-            console.log("No main element found, reading entire body, length:", textToRead.length);
-        }
-        TTS.speakTextInChunks(textToRead);
-    });
+        // Read Page button: Read text from the main element only using innerText
+        document.getElementById("readPageBtn").addEventListener("click", function() {
+            console.log("Read Page button clicked.");
+            const mainElement = document.querySelector('main');
+            let textToRead = "";
+            if (mainElement) {
+                textToRead = mainElement.innerText.trim();
+                console.log("Reading from main element, length:", textToRead.length);
+            } else {
+                textToRead = document.body.innerText.trim();
+                console.log("No main element found, reading entire body, length:", textToRead.length);
+            }
+            TTS.speakTextInChunks(textToRead);
+        });
 
-    // Populate Upcoming Events
-    (function loadEvents() {
-        const target = document.getElementById('homeEvents');
-        if (!target) return;
-        fetch('backend/routes/content_manager.php?action=fetch')
-            .then(r => r.json())
-            .then(data => {
-                if (!data || !data.status || !Array.isArray(data.events)) throw new Error(
-                    'Invalid events response');
-                const now = new Date();
-                const upcoming = data.events
-                    .filter(e => new Date(e.date) >= now)
-                    .sort((a, b) => new Date(a.date) - new Date(b.date))
-                    .slice(0, 3);
-                if (upcoming.length === 0) {
-                    target.innerHTML = '<p class="text-muted">No upcoming events.</p>';
-                    return;
-                }
-                target.innerHTML = upcoming.map(e => `
+        // Populate Upcoming Events
+        (function loadEvents() {
+            const target = document.getElementById('homeEvents');
+            if (!target) return;
+            fetch('backend/routes/content_manager.php?action=fetch')
+                .then(r => r.json())
+                .then(data => {
+                    if (!data || !data.status || !Array.isArray(data.events)) throw new Error(
+                        'Invalid events response');
+                    const now = new Date();
+                    const upcoming = data.events
+                        .filter(e => new Date(e.date) >= now)
+                        .sort((a, b) => new Date(a.date) - new Date(b.date))
+                        .slice(0, 3);
+                    if (upcoming.length === 0) {
+                        target.innerHTML = '<p class="text-muted">No upcoming events.</p>';
+                        return;
+                    }
+                    target.innerHTML = upcoming.map(e => `
                                         <div class="col-md-6 col-lg-4">
                                             <div class="card preview-card h-100">
                                                 <img src="${'backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(e.image || '/capstone-php/assets/default-image.jpg')}" class="card-img-top" alt="${(e.title||'Event')}">
@@ -561,28 +565,28 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
                                                 </div>
                                             </div>
                                         </div>`).join('');
-            })
-            .catch(err => {
-                console.error('Events load error', err);
-                target.innerHTML = '<p class="text-muted">Unable to load events right now.</p>';
-            });
-    })();
+                })
+                .catch(err => {
+                    console.error('Events load error', err);
+                    target.innerHTML = '<p class="text-muted">Unable to load events right now.</p>';
+                });
+        })();
 
-    // Populate Latest News
-    (function loadNews() {
-        const target = document.getElementById('homeNews');
-        if (!target) return;
-        fetch('backend/routes/news_manager.php?action=fetch')
-            .then(r => r.json())
-            .then(data => {
-                if (!data || !data.status || !Array.isArray(data.news)) throw new Error(
-                    'Invalid news response');
-                const items = data.news.slice(0, 3);
-                if (items.length === 0) {
-                    target.innerHTML = '<p class="text-muted">No news yet.</p>';
-                    return;
-                }
-                target.innerHTML = items.map(n => `
+        // Populate Latest News
+        (function loadNews() {
+            const target = document.getElementById('homeNews');
+            if (!target) return;
+            fetch('backend/routes/news_manager.php?action=fetch')
+                .then(r => r.json())
+                .then(data => {
+                    if (!data || !data.status || !Array.isArray(data.news)) throw new Error(
+                        'Invalid news response');
+                    const items = data.news.slice(0, 3);
+                    if (items.length === 0) {
+                        target.innerHTML = '<p class="text-muted">No news yet.</p>';
+                        return;
+                    }
+                    target.innerHTML = items.map(n => `
                                         <div class="col-md-6 col-lg-4">
                                             <div class="card preview-card h-100">
                                                 <img src="${ n.image ? ('backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(n.image)) : 'assets/default-image.jpg' }" class="card-img-top" alt="${(n.title||'News')}">
@@ -594,12 +598,12 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
                                                 </div>
                                             </div>
                                         </div>`).join('');
-            })
-            .catch(err => {
-                console.error('News load error', err);
-                target.innerHTML = '<p class="text-muted">Unable to load news right now.</p>';
-            });
-    })();
+                })
+                .catch(err => {
+                    console.error('News load error', err);
+                    target.innerHTML = '<p class="text-muted">Unable to load news right now.</p>';
+                });
+        })();
     </script>
 </body>
 

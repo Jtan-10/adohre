@@ -360,6 +360,212 @@ switch ($action) {
             ]);
         }
         break;
+    case 'get_page_content':
+        $page = $_GET['page'] ?? '';
+        $allowedKeys = [];
+        if ($page === 'home') {
+            $allowedKeys = [
+                'home_hero_title',
+                'home_hero_subtitle',
+                'home_about_html',
+                'home_contact_address'
+            ];
+        } elseif ($page === 'about') {
+            $allowedKeys = [
+                'about_hero_title',
+                'about_hero_subtitle',
+                'about_purpose_text',
+                'about_mission_text',
+                'about_vision_text',
+                'about_objectives_html'
+            ];
+        } else {
+            echo json_encode(['status' => false, 'message' => 'Unknown page']);
+            break;
+        }
+        if (empty($allowedKeys)) {
+            echo json_encode(['status' => true, 'data' => []]);
+            break;
+        }
+        $placeholders = rtrim(str_repeat('?,', count($allowedKeys)), ',');
+        $types = str_repeat('s', count($allowedKeys));
+        $stmt = $conn->prepare("SELECT `key`, value FROM settings WHERE `key` IN ($placeholders)");
+        if (!$stmt) {
+            echo json_encode(['status' => false, 'message' => 'DB error']);
+            break;
+        }
+        $stmt->bind_param($types, ...$allowedKeys);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $data = array_fill_keys($allowedKeys, null);
+        while ($row = $res->fetch_assoc()) {
+            $data[$row['key']] = $row['value'];
+        }
+        $stmt->close();
+        echo json_encode(['status' => true, 'data' => $data]);
+        break;
+
+    case 'update_page_content':
+        // Only admins (already enforced at top)
+        $page = $_POST['page'] ?? '';
+        $dataRaw = $_POST['data'] ?? '';
+        $payload = json_decode($dataRaw, true);
+        if (!is_array($payload)) {
+            echo json_encode(['status' => false, 'message' => 'Invalid data']);
+            break;
+        }
+        $allowed = [];
+        if ($page === 'home') {
+            $allowed = ['home_hero_title', 'home_hero_subtitle', 'home_about_html', 'home_contact_address'];
+        } elseif ($page === 'about') {
+            $allowed = ['about_hero_title', 'about_hero_subtitle', 'about_purpose_text', 'about_mission_text', 'about_vision_text', 'about_objectives_html'];
+        } else {
+            echo json_encode(['status' => false, 'message' => 'Unknown page']);
+            break;
+        }
+        // Upsert each allowed key present in payload
+        $stmt = $conn->prepare("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)");
+        if (!$stmt) {
+            echo json_encode(['status' => false, 'message' => 'DB error']);
+            break;
+        }
+        foreach ($payload as $k => $v) {
+            if (!in_array($k, $allowed, true)) continue;
+            $stmt->bind_param('ss', $k, $v);
+            $stmt->execute();
+        }
+        $stmt->close();
+        recordAuditLog($_SESSION['user_id'], 'Update Page Content', 'Updated page: ' . $page);
+        echo json_encode(['status' => true, 'message' => 'Saved']);
+        break;
+
+    case 'get_membership_form_schema':
+        // Try to get schema from settings; if none, return defaults
+        $schema = null;
+        $stmt = $conn->prepare("SELECT value FROM settings WHERE `key`='membership_form_schema' LIMIT 1");
+        if ($stmt) {
+            $stmt->execute();
+            $stmt->bind_result($val);
+            if ($stmt->fetch()) {
+                $schema = json_decode($val, true);
+            }
+            $stmt->close();
+        }
+        if (!$schema) {
+            $schema = [
+                'section1' => [
+                    'title' => '1. Personal Information',
+                    'fields' => [
+                        'name' => ['label' => 'Name (Family Name, Given Name, Middle Name)', 'required' => true, 'type' => 'text', 'maxlength' => 255],
+                        'dob' => ['label' => 'Date of Birth', 'required' => true, 'type' => 'date'],
+                        'sex' => ['label' => 'Sex', 'required' => true, 'type' => 'select', 'options' => ['Male', 'Female']],
+                        'current_address' => ['label' => 'Current Address', 'required' => true],
+                        'permanent_address' => ['label' => 'Permanent Address', 'required' => false],
+                        'email' => ['label' => 'Email Address', 'required' => true, 'type' => 'email'],
+                        'landline' => ['label' => 'Landline #', 'required' => false],
+                        'mobile' => ['label' => 'Mobile Phone #', 'required' => true],
+                        'place_of_birth' => ['label' => 'Place of Birth', 'required' => true],
+                        'marital_status' => ['label' => 'Marital Status', 'required' => false],
+                        'emergency_contact' => ['label' => 'Emergency Contact', 'required' => true, 'placeholder' => 'Full Name, Relationship, Phone, Email']
+                    ]
+                ],
+                'section2' => [
+                    'title' => '2. Employment Record with DOH',
+                    'fields' => [
+                        'doh_agency' => ['label' => 'DOH Agency', 'required' => true],
+                        'address' => ['label' => 'Address', 'required' => false],
+                        'employment_start' => ['label' => 'Start Date', 'required' => true, 'type' => 'month'],
+                        'employment_end' => ['label' => 'End Date', 'required' => false, 'type' => 'month']
+                    ]
+                ],
+                'section3' => [
+                    'title' => '3. Highest Educational Background',
+                    'fields' => [
+                        'school' => ['label' => 'School', 'required' => true],
+                        'degree' => ['label' => 'Degree/Course Attained', 'required' => true],
+                        'year_graduated' => ['label' => 'Year Graduated', 'required' => true, 'type' => 'number', 'min' => 1900, 'max' => 2100]
+                    ]
+                ],
+                'section4' => [
+                    'title' => '4. Current Engagement',
+                    'group' => [
+                        'name' => 'current_engagement',
+                        'type' => 'radio',
+                        'options' => ['None', 'Working Full-time', 'Working Part-time', 'Civic Activities'],
+                        'includeOthers' => true,
+                        'othersLabel' => 'Others (Specify):'
+                    ]
+                ],
+                'section5' => [
+                    'title' => '5. Key Expertise',
+                    'groups' => [
+                        [
+                            'name' => 'key_expertise',
+                            'label' => 'Key Expertise',
+                            'type' => 'radio',
+                            'required' => true,
+                            'options' => ['Research', 'Training/Teaching/Facilitation', 'Monitoring & Evaluation', 'Statistics', 'Finance Management', 'Procurement & Supply Chain', 'HR/Personnel Development', 'Policy Development', 'Planning', 'Project Management', 'Project Proposal Development', 'Digital Health', 'Administration'],
+                            'includeOthers' => true,
+                            'othersLabel' => 'Others (Specify):'
+                        ],
+                        [
+                            'name' => 'specific_field',
+                            'label' => 'Indicate specific field:',
+                            'type' => 'radio',
+                            'required' => true,
+                            'options' => ['Clinical Care', 'Public Health', 'Health Regulation', 'Health System'],
+                            'includeOthers' => true,
+                            'othersLabel' => 'Others (Specify):'
+                        ]
+                    ]
+                ],
+                'section6' => [
+                    'title' => '6. Other Skills',
+                    'fields' => [
+                        'special_skills' => ['label' => 'a. Special Skills', 'required' => false, 'placeholder' => 'Enter your special skills'],
+                        'hobbies' => ['label' => 'b. Hobbies', 'required' => false, 'placeholder' => 'Enter your hobbies']
+                    ]
+                ],
+                'section7' => [
+                    'title' => '7. Committees',
+                    'group' => [
+                        'name' => 'committees',
+                        'type' => 'radio',
+                        'required' => true,
+                        'options' => ['Membership & Training Committee', 'Advocacy Committee', 'Finance Committee', 'Project Committee', 'Ad Hoc Committee'],
+                        'includeOthers' => true,
+                        'othersLabel' => 'Others (Specify):'
+                    ]
+                ]
+            ];
+        }
+        echo json_encode(['status' => true, 'schema' => $schema]);
+        break;
+
+    case 'update_membership_form_schema':
+        $dataRaw = $_POST['schema'] ?? '';
+        $schema = json_decode($dataRaw, true);
+        if (!is_array($schema)) {
+            echo json_encode(['status' => false, 'message' => 'Invalid schema']);
+            break;
+        }
+        $json = json_encode($schema, JSON_UNESCAPED_UNICODE);
+        $stmt = $conn->prepare("INSERT INTO settings (`key`, value) VALUES ('membership_form_schema', ?) ON DUPLICATE KEY UPDATE value = VALUES(value)");
+        if (!$stmt) {
+            echo json_encode(['status' => false, 'message' => 'DB error']);
+            break;
+        }
+        $stmt->bind_param('s', $json);
+        $ok = $stmt->execute();
+        $stmt->close();
+        if ($ok) {
+            recordAuditLog($_SESSION['user_id'], 'Update Membership Form Schema');
+            echo json_encode(['status' => true, 'message' => 'Schema saved']);
+        } else {
+            echo json_encode(['status' => false, 'message' => 'Failed to save']);
+        }
+        break;
+
     case 'restore_database':
         if (isset($_FILES['restore_file']) && $_FILES['restore_file']['error'] === UPLOAD_ERR_OK) {
             // Get the encryption password

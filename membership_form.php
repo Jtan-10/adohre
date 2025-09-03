@@ -239,6 +239,192 @@ if (isset($_SESSION['user_id'])) {
         <?php endif; ?>
 
     </div>
+    <script>
+        // Apply admin-configured membership form schema (labels/placeholders/required/options) if available
+        (async function applyMembershipSchema() {
+            try {
+                const res = await fetch('backend/routes/settings_api.php?action=get_membership_form_schema', {
+                    credentials: 'same-origin'
+                });
+                const j = await res.json();
+                if (!j.status || !j.schema) return;
+                const s = j.schema;
+
+                // Helper to set label text for input/select by for/id
+                function setLabel(id, text) {
+                    const lbl = document.querySelector(`label[for="${id}"]`);
+                    if (lbl && text) {
+                        lbl.textContent = text;
+                    }
+                }
+
+                function setRequired(id, required) {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        if (required) {
+                            el.setAttribute('required', 'required');
+                        } else {
+                            el.removeAttribute('required');
+                        }
+                    }
+                }
+
+                function setPlaceholder(id, ph) {
+                    const el = document.getElementById(id);
+                    if (el && ph != null) {
+                        el.setAttribute('placeholder', ph);
+                    }
+                }
+
+                function setSelectOptions(id, options) {
+                    const el = document.getElementById(id);
+                    if (el && el.tagName === 'SELECT' && Array.isArray(options)) {
+                        el.innerHTML = '';
+                        options.forEach(v => {
+                            const o = document.createElement('option');
+                            o.value = v;
+                            o.textContent = v;
+                            el.appendChild(o);
+                        });
+                    }
+                }
+                // Section 1
+                if (s.section1 && s.section1.fields) {
+                    for (const [k, cfg] of Object.entries(s.section1.fields)) {
+                        if (cfg.label) setLabel(k, cfg.label);
+                        if ('required' in cfg) setRequired(k, !!cfg.required);
+                        if (cfg.placeholder) setPlaceholder(k, cfg.placeholder);
+                        if (cfg.type === 'select' && cfg.options) setSelectOptions(k, cfg.options);
+                        if (cfg.maxlength) {
+                            const el = document.getElementById(k);
+                            if (el) el.maxLength = parseInt(cfg.maxlength, 10) || el.maxLength;
+                        }
+                        if (cfg.min && document.getElementById(k)) document.getElementById(k).min = cfg.min;
+                        if (cfg.max && document.getElementById(k)) document.getElementById(k).max = cfg.max;
+                    }
+                }
+                // Section 2
+                if (s.section2 && s.section2.fields) {
+                    for (const [k, cfg] of Object.entries(s.section2.fields)) {
+                        if (cfg.label) setLabel(k, cfg.label);
+                        if ('required' in cfg) setRequired(k, !!cfg.required);
+                    }
+                }
+                // Section 3
+                if (s.section3 && s.section3.fields) {
+                    for (const [k, cfg] of Object.entries(s.section3.fields)) {
+                        if (cfg.label) setLabel(k, cfg.label);
+                        if ('required' in cfg) setRequired(k, !!cfg.required);
+                        if (cfg.min && document.getElementById(k)) document.getElementById(k).min = cfg.min;
+                        if (cfg.max && document.getElementById(k)) document.getElementById(k).max = cfg.max;
+                    }
+                }
+                // Section 4 radio options (current_engagement)
+                if (s.section4 && s.section4.group) {
+                    const grp = s.section4.group;
+                    const container = document.querySelector('div.form-section .form-title ~ .form-check input[name="current_engagement"]')?.closest('.form-section');
+                    // Safer: find section4 by title text
+                    const sec4 = Array.from(document.querySelectorAll('.form-section')).find(d => d.querySelector('.form-title')?.textContent?.trim().startsWith('4.'));
+                    if (sec4) {
+                        // Rebuild group
+                        const area = sec4;
+                        area.querySelectorAll('.form-check').forEach(e => e.remove());
+                        if (Array.isArray(grp.options)) {
+                            grp.options.forEach((opt, i) => {
+                                const id = (opt.toLowerCase().replace(/[^a-z0-9]+/g, '_')) || ('opt_' + i);
+                                const wrap = document.createElement('div');
+                                wrap.className = 'form-check';
+                                wrap.innerHTML = `<input class="form-check-input" type="radio" name="current_engagement" id="${id}" value="${opt}">` +
+                                    `<label class="form-check-label" for="${id}">${opt}</label>`;
+                                area.appendChild(wrap);
+                            });
+                        }
+                        if (grp.includeOthers) {
+                            const wrap = document.createElement('div');
+                            wrap.className = 'form-check';
+                            wrap.innerHTML = `<input class="form-check-input" type="radio" name="current_engagement" id="others_current_engagement" value="Others">` +
+                                `<label class="form-check-label" for="others_current_engagement">${grp.othersLabel||'Others (Specify):'}</label>` +
+                                `<input type="text" id="others_engagement_specify" name="others_engagement_specify" class="form-control mt-2" placeholder="Specify here..." disabled>`;
+                            area.appendChild(wrap);
+                        }
+                    }
+                }
+                // Section 5 groups (key_expertise & specific_field)
+                if (s.section5 && Array.isArray(s.section5.groups)) {
+                    const sec5 = Array.from(document.querySelectorAll('.form-section')).find(d => d.querySelector('.form-title')?.textContent?.trim().startsWith('5.'));
+                    if (sec5) {
+                        // Remove old groups and rebuild
+                        sec5.querySelectorAll('.form-check').forEach(e => e.remove());
+                        s.section5.groups.forEach(g => {
+                            if (Array.isArray(g.options)) {
+                                const labelEl = document.createElement('div');
+                                if (g.label) {
+                                    const lbl = document.createElement('label');
+                                    lbl.textContent = g.label;
+                                    lbl.className = 'mt-4 d-block';
+                                    labelEl.appendChild(lbl);
+                                }
+                                sec5.appendChild(labelEl);
+                                g.options.forEach((opt, i) => {
+                                    const id = (g.name + '_' + i);
+                                    const wrap = document.createElement('div');
+                                    wrap.className = 'form-check';
+                                    wrap.innerHTML = `<input type="radio" id="${id}" name="${g.name}" value="${opt}" class="form-check-input">` +
+                                        `<label for="${id}" class="form-check-label">${opt}</label>`;
+                                    sec5.appendChild(wrap);
+                                });
+                                if (g.includeOthers) {
+                                    const wrap = document.createElement('div');
+                                    wrap.className = 'form-check';
+                                    const specId = g.name === 'key_expertise' ? 'others_expertise_specify' : 'others_specific_field_specify';
+                                    const othersId = g.name === 'key_expertise' ? 'others_key_expertise' : 'others_specific_field';
+                                    wrap.innerHTML = `<input type="radio" id="${othersId}" name="${g.name}" value="Others" class="form-check-input">` +
+                                        `<label for="${othersId}" class="form-check-label">${g.othersLabel||'Others (Specify):'}</label>` +
+                                        `<input type="text" id="${specId}" name="${specId}" class="form-control mt-2" placeholder="Specify here..." disabled>`;
+                                    sec5.appendChild(wrap);
+                                }
+                            }
+                        });
+                    }
+                }
+                // Section 6 simple fields
+                if (s.section6 && s.section6.fields) {
+                    for (const [k, cfg] of Object.entries(s.section6.fields)) {
+                        if (cfg.label) setLabel(k, cfg.label);
+                        if (cfg.placeholder) setPlaceholder(k, cfg.placeholder);
+                        if ('required' in cfg) setRequired(k, !!cfg.required);
+                    }
+                }
+                // Section 7 committees
+                if (s.section7 && s.section7.group) {
+                    const sec7 = Array.from(document.querySelectorAll('.form-section')).find(d => d.querySelector('.form-title')?.textContent?.trim().startsWith('7.'));
+                    if (sec7) {
+                        sec7.querySelectorAll('.form-check').forEach(e => e.remove());
+                        const grp = s.section7.group;
+                        if (Array.isArray(grp.options)) {
+                            grp.options.forEach((opt, i) => {
+                                const id = 'committee_' + i;
+                                const wrap = document.createElement('div');
+                                wrap.className = 'form-check';
+                                wrap.innerHTML = `<input type="radio" id="${id}" name="${grp.name}" value="${opt}" class="form-check-input">` +
+                                    `<label for="${id}" class="form-check-label">${opt}</label>`;
+                                sec7.appendChild(wrap);
+                            });
+                        }
+                        if (grp.includeOthers) {
+                            const wrap = document.createElement('div');
+                            wrap.className = 'form-check';
+                            wrap.innerHTML = `<input type="radio" id="others_committees" name="${grp.name}" value="Others" class="form-check-input">` +
+                                `<label for="others_committees" class="form-check-label">${grp.othersLabel||'Others (Specify):'}</label>` +
+                                `<input type="text" id="others_committee_specify" name="others_committee_specify" class="form-control mt-2" placeholder="Specify here..." disabled>`;
+                            sec7.appendChild(wrap);
+                        }
+                    }
+                }
+            } catch (e) {
+                /* ignore */ }
+        })();
+    </script>
     <script nonce="<?php echo $csp_nonce; ?>"
         src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
     <!-- Load OCR Script externally -->

@@ -26,6 +26,29 @@ if (isset($_SESSION['user_id'])) {
     }
     $stmt->close();
 }
+
+// Load editable content from settings
+$aboutSettings = [
+    'about_hero_title' => null,
+    'about_hero_subtitle' => null,
+    'about_purpose_text' => null,
+    'about_mission_text' => null,
+    'about_vision_text' => null,
+    'about_objectives_html' => null
+];
+$aKeys = array_keys($aboutSettings);
+$placeholders = implode(',', array_fill(0, count($aKeys), '?'));
+$types = str_repeat('s', count($aKeys));
+$stmtS = $conn->prepare("SELECT `key`, value FROM settings WHERE `key` IN ($placeholders)");
+if ($stmtS) {
+    $stmtS->bind_param($types, ...$aKeys);
+    $stmtS->execute();
+    $resS = $stmtS->get_result();
+    while ($row = $resS->fetch_assoc()) {
+        $aboutSettings[$row['key']] = $row['value'];
+    }
+    $stmtS->close();
+}
 ?>
 
 <!DOCTYPE html>
@@ -52,283 +75,283 @@ if (isset($_SESSION['user_id'])) {
 
     <!-- Inline Styles for Page-Specific Tweaks -->
     <style>
-    body {
-        font-family: 'Montserrat', sans-serif;
-        line-height: 1.6;
-        color: #333;
-    }
+        body {
+            font-family: 'Montserrat', sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
 
-    /* Hero Section for About Page */
-    .about-hero {
-        position: relative;
-        background: url('assets/pexels-fauxels-3184434.jpg') no-repeat center center/cover;
-        padding: 120px 0;
-        color: #fff;
-        text-align: center;
-    }
+        /* Hero Section for About Page */
+        .about-hero {
+            position: relative;
+            background: url('assets/pexels-fauxels-3184434.jpg') no-repeat center center/cover;
+            padding: 120px 0;
+            color: #fff;
+            text-align: center;
+        }
 
-    .about-hero::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.6);
-        z-index: 1;
-    }
+        .about-hero::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1;
+        }
 
-    .about-hero .container {
-        position: relative;
-        z-index: 2;
-    }
+        .about-hero .container {
+            position: relative;
+            z-index: 2;
+        }
 
-    .about-hero h1 {
-        font-size: 2.8rem;
-        font-weight: 700;
-        margin-bottom: 20px;
-    }
+        .about-hero h1 {
+            font-size: 2.8rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
 
-    .about-hero p {
-        font-size: 1.2rem;
-    }
+        .about-hero p {
+            font-size: 1.2rem;
+        }
 
-    /* Section Headings */
-    h2 {
-        color: var(--accent-color, #28A745);
-        margin-bottom: 20px;
-    }
+        /* Section Headings */
+        h2 {
+            color: var(--accent-color, #28A745);
+            margin-bottom: 20px;
+        }
 
-    /* Carousel (Horizontal Slider) for PMV */
-    .carousel-item .card {
-        border: none;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        margin: auto;
-        max-width: 600px;
-    }
+        /* Carousel (Horizontal Slider) for PMV */
+        .carousel-item .card {
+            border: none;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin: auto;
+            max-width: 600px;
+        }
 
-    .carousel-item .card-body {
-        padding: 2rem;
-    }
+        .carousel-item .card-body {
+            padding: 2rem;
+        }
 
-    .section-padding {
-        padding: 60px 0;
-    }
+        .section-padding {
+            padding: 60px 0;
+        }
 
-    /* Improve arrow visibility on the Core Pillars carousel */
-    #pmvCarousel .carousel-control-prev,
-    #pmvCarousel .carousel-control-next {
-        width: 48px;
-        height: 48px;
-        top: 50%;
-        transform: translateY(-50%);
-        background: rgba(255, 255, 255, 0.95);
-        border-radius: 50%;
-        opacity: 1;
-    }
+        /* Improve arrow visibility on the Core Pillars carousel */
+        #pmvCarousel .carousel-control-prev,
+        #pmvCarousel .carousel-control-next {
+            width: 48px;
+            height: 48px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 50%;
+            opacity: 1;
+        }
 
-    #pmvCarousel .carousel-control-prev-icon,
-    #pmvCarousel .carousel-control-next-icon {
-        background-size: 24px 24px;
-    }
+        #pmvCarousel .carousel-control-prev-icon,
+        #pmvCarousel .carousel-control-next-icon {
+            background-size: 24px 24px;
+        }
 
-    #pmvCarousel .carousel-control-prev-icon {
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%2328A745' viewBox='0 0 16 16'%3E%3Cpath d='M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z'/%3E%3C/svg%3E");
-    }
+        #pmvCarousel .carousel-control-prev-icon {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%2328A745' viewBox='0 0 16 16'%3E%3Cpath d='M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z'/%3E%3C/svg%3E");
+        }
 
-    #pmvCarousel .carousel-control-next-icon {
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%2328A745' viewBox='0 0 16 16'%3E%3Cpath d='M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
-    }
+        #pmvCarousel .carousel-control-next-icon {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%2328A745' viewBox='0 0 16 16'%3E%3Cpath d='M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+        }
 
-    /* Core Values Card Styling */
-    .core-value-card {
-        border: none;
-        text-align: center;
-        margin-bottom: 20px;
-    }
+        /* Core Values Card Styling */
+        .core-value-card {
+            border: none;
+            text-align: center;
+            margin-bottom: 20px;
+        }
 
-    .core-value-card h4 {
-        font-size: 2rem;
-        color: var(--accent-color, #28A745);
-    }
+        .core-value-card h4 {
+            font-size: 2rem;
+            color: var(--accent-color, #28A745);
+        }
 
-    .core-value-card p {
-        font-size: 1rem;
-    }
+        .core-value-card p {
+            font-size: 1rem;
+        }
 
-    .core-value-card p span {
-        color: var(--accent-color, #28A745);
-        font-weight: bold;
-    }
+        .core-value-card p span {
+            color: var(--accent-color, #28A745);
+            font-weight: bold;
+        }
 
-    /* Expertise and Interests Section */
-    .expertise-section {
-        background: url('assets/expertise-bg.jpg') no-repeat center center/cover;
-        color: #fff;
-        padding: 60px 0;
-        position: relative;
-    }
+        /* Expertise and Interests Section */
+        .expertise-section {
+            background: url('assets/expertise-bg.jpg') no-repeat center center/cover;
+            color: #fff;
+            padding: 60px 0;
+            position: relative;
+        }
 
-    .expertise-section::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(41, 41, 48, 0.7);
-        /* Dark blue overlay */
-        z-index: 1;
-    }
+        .expertise-section::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(41, 41, 48, 0.7);
+            /* Dark blue overlay */
+            z-index: 1;
+        }
 
-    .expertise-section .container {
-        position: relative;
-        z-index: 2;
-    }
+        .expertise-section .container {
+            position: relative;
+            z-index: 2;
+        }
 
-    .expertise-section h2 {
-        color: #fff;
-        /* White heading */
-        text-align: center;
-        margin-bottom: 40px;
-    }
+        .expertise-section h2 {
+            color: #fff;
+            /* White heading */
+            text-align: center;
+            margin-bottom: 40px;
+        }
 
-    .expertise-card {
-        background: rgba(255, 255, 255, 0.1);
-        /* Semi-transparent white background */
-        border: none;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
+        .expertise-card {
+            background: rgba(255, 255, 255, 0.1);
+            /* Semi-transparent white background */
+            border: none;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
 
-    .expertise-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-    }
+        .expertise-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        }
 
-    .expertise-card .card-header {
-        background-color: var(--accent-color, #28A745) !important;
-        color: #fff !important;
-        text-align: center;
-        font-weight: 700;
-        border-radius: 8px 8px 0 0;
-    }
+        .expertise-card .card-header {
+            background-color: var(--accent-color, #28A745) !important;
+            color: #fff !important;
+            text-align: center;
+            font-weight: 700;
+            border-radius: 8px 8px 0 0;
+        }
 
-    .expertise-card .card-body {
-        padding: 1.5rem;
-        color: #fff;
-        /* White text */
-    }
+        .expertise-card .card-body {
+            padding: 1.5rem;
+            color: #fff;
+            /* White text */
+        }
 
-    .expertise-card ul {
-        list-style-type: disc;
-        padding-left: 20px;
-        margin: 0;
-    }
+        .expertise-card ul {
+            list-style-type: disc;
+            padding-left: 20px;
+            margin: 0;
+        }
 
-    .expertise-card ul li {
-        margin-bottom: 10px;
-    }
+        .expertise-card ul li {
+            margin-bottom: 10px;
+        }
 
-    /* Organizational Objectives Section */
-    .objectives-section {
-        background: url('assets/objectives-bg.jpg') no-repeat center center/cover;
-        color: #fff;
-        /* White text */
-        padding: 60px 0;
-        position: relative;
-    }
+        /* Organizational Objectives Section */
+        .objectives-section {
+            background: url('assets/objectives-bg.jpg') no-repeat center center/cover;
+            color: #fff;
+            /* White text */
+            padding: 60px 0;
+            position: relative;
+        }
 
-    .objectives-section::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 51, 0.7);
-        /* Dark blue overlay */
-        z-index: 1;
-    }
+        .objectives-section::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 51, 0.7);
+            /* Dark blue overlay */
+            z-index: 1;
+        }
 
-    .objectives-section .container {
-        position: relative;
-        z-index: 2;
-    }
+        .objectives-section .container {
+            position: relative;
+            z-index: 2;
+        }
 
-    .objectives-section h2 {
-        color: #fff;
-        /* White heading */
-        cursor: pointer;
-    }
+        .objectives-section h2 {
+            color: #fff;
+            /* White heading */
+            cursor: pointer;
+        }
 
-    .objectives-section h2 .arrow {
-        color: #FFD700;
-        /* Gold arrow */
-        font-size: 1.5rem;
-        transition: transform 0.3s ease;
-    }
+        .objectives-section h2 .arrow {
+            color: #FFD700;
+            /* Gold arrow */
+            font-size: 1.5rem;
+            transition: transform 0.3s ease;
+        }
 
-    .objectives-section h2 .arrow.rotate {
-        transform: rotate(180deg);
-    }
+        .objectives-section h2 .arrow.rotate {
+            transform: rotate(180deg);
+        }
 
-    .objectives-section ul {
-        list-style-type: disc;
-        padding-left: 20px;
-        color: #F0F0F0;
-        /* Light gray text */
-    }
+        .objectives-section ul {
+            list-style-type: disc;
+            padding-left: 20px;
+            color: #F0F0F0;
+            /* Light gray text */
+        }
 
-    /* Back to Top Button */
-    #backToTopBtn {
-        display: none;
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 99;
-        border: none;
-        outline: none;
-        background-color: var(--accent-color, #28A745);
-        color: white;
-        cursor: pointer;
-        padding: 12px 20px;
-        border-radius: 50%;
-        font-size: 1.2rem;
-        transition: background-color 0.3s ease;
-    }
+        /* Back to Top Button */
+        #backToTopBtn {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 99;
+            border: none;
+            outline: none;
+            background-color: var(--accent-color, #28A745);
+            color: white;
+            cursor: pointer;
+            padding: 12px 20px;
+            border-radius: 50%;
+            font-size: 1.2rem;
+            transition: background-color 0.3s ease;
+        }
 
-    #backToTopBtn:hover {
-        background-color: #218838;
-    }
+        #backToTopBtn:hover {
+            background-color: #218838;
+        }
 
-    /* Read Page Button - Always visible in top right for visually impaired users */
-    #readPageBtn {
-        display: none;
-        /* Shown only if isVisuallyImpaired == 1 */
-        position: fixed;
-        top: 70px;
-        right: 20px;
-        z-index: 99;
-        border: none;
-        outline: none;
-        background-color: var(--accent-color, #28A745);
-        color: white;
-        cursor: pointer;
-        padding: 12px 20px;
-        border-radius: 30%;
-        font-size: 1.2rem;
-        transition: background-color 0.3s ease;
-    }
+        /* Read Page Button - Always visible in top right for visually impaired users */
+        #readPageBtn {
+            display: none;
+            /* Shown only if isVisuallyImpaired == 1 */
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 99;
+            border: none;
+            outline: none;
+            background-color: var(--accent-color, #28A745);
+            color: white;
+            cursor: pointer;
+            padding: 12px 20px;
+            border-radius: 30%;
+            font-size: 1.2rem;
+            transition: background-color 0.3s ease;
+        }
 
-    #readPageBtn:hover {
-        background-color: #218838;
-    }
+        #readPageBtn:hover {
+            background-color: #218838;
+        }
     </style>
     <!-- Pass the visually impaired flag to JavaScript -->
     <script>
-    var isVisuallyImpaired = <?php echo json_encode($isVisuallyImpaired); ?>;
+        var isVisuallyImpaired = <?php echo json_encode($isVisuallyImpaired); ?>;
     </script>
     <script src="tts.js"></script>
 </head>
@@ -347,8 +370,8 @@ if (isset($_SESSION['user_id'])) {
         <!-- Hero Section -->
         <section class="about-hero">
             <div class="container">
-                <h1>About ADOHRE</h1>
-                <p>Discover ADOHRE: Your Best Chapter is Here!</p>
+                <h1><?= htmlspecialchars($aboutSettings['about_hero_title'] ?? 'About ADOHRE', ENT_QUOTES) ?></h1>
+                <p><?= htmlspecialchars($aboutSettings['about_hero_subtitle'] ?? 'Discover ADOHRE: Your Best Chapter is Here!', ENT_QUOTES) ?></p>
             </div>
         </section>
 
@@ -376,10 +399,7 @@ if (isset($_SESSION['user_id'])) {
                                     <div class="card-body">
                                         <h3 class="card-title text-success">Purpose</h3>
                                         <p class="card-text">
-                                            Our goals: develop and strengthen partnerships; improve member and team
-                                            capabilities; provide relevant and quality programs and services; enhance
-                                            systems for effective and efficient performance; and ensure better
-                                            communication and awareness toward policy enhancement and development.
+                                            <?= nl2br(htmlspecialchars($aboutSettings['about_purpose_text'] ?? 'Our goals: develop and strengthen partnerships; improve member and team capabilities; provide relevant and quality programs and services; enhance systems for effective and efficient performance; and ensure better communication and awareness toward policy enhancement and development.', ENT_QUOTES)) ?>
                                         </p>
                                     </div>
                                 </div>
@@ -392,10 +412,7 @@ if (isset($_SESSION['user_id'])) {
                                     <div class="card-body">
                                         <h3 class="card-title text-success">Mission</h3>
                                         <p class="card-text">
-                                            We serve the health sector by developing and improving capabilities of
-                                            members and partnership, providing relevant and responsive programs and
-                                            services, continuous systems development and ensuring better communication
-                                            processes and promote awareness on health.
+                                            <?= nl2br(htmlspecialchars($aboutSettings['about_mission_text'] ?? 'We serve the health sector by developing and improving capabilities of members and partnership, providing relevant and responsive programs and services, continuous systems development and ensuring better communication processes and promote awareness on health.', ENT_QUOTES)) ?>
                                         </p>
                                     </div>
                                 </div>
@@ -407,8 +424,7 @@ if (isset($_SESSION['user_id'])) {
                                 <div class="card text-center" style="max-width:600px;">
                                     <div class="card-body">
                                         <h3 class="card-title text-success">Vision</h3>
-                                        <p class="card-text">“Responsive and relevant partner for better health outcomes
-                                            for Filipinos.“</p>
+                                        <p class="card-text"><?= nl2br(htmlspecialchars($aboutSettings['about_vision_text'] ?? '“Responsive and relevant partner for better health outcomes for Filipinos.“', ENT_QUOTES)) ?></p>
                                     </div>
                                 </div>
                             </div>
@@ -438,22 +454,7 @@ if (isset($_SESSION['user_id'])) {
                     <span class="arrow">▼</span>
                 </h2>
                 <div class="collapse" id="objectivesCollapse">
-                    <ul>
-                        <li>Provide services and products in the form of technical assistance, expert advice, consulting
-                            services, learning and development services, and related activities to the DOH, other
-                            partners and stakeholders.</li>
-                        <li>Develop, promote, and implement concerted action for the empowerment, protection, well-being
-                            and welfare of its members.</li>
-                        <li>Foster cooperation, camaraderie and solidarity among the members of the Association.</li>
-                        <li>Improve ADOHRE’s organizational systems that foster integrity, good governance, efficiency
-                            and effectiveness.</li>
-                        <li>Advocate and raise awareness on health and relevant issues while communicating and promoting
-                            ADOHRE’s programs and support it can offer.</li>
-                        <li>Develop and market ADOHRE brand of technical expertise and assistance.</li>
-                        <li>Participate and network with other organizations and government agencies towards the
-                            attainment of the goals of the Association most specially in promoting health as a right for
-                            every Filipino.</li>
-                    </ul>
+                    <?= $aboutSettings['about_objectives_html'] ?? '<ul><li>Provide services and products in the form of technical assistance, expert advice, consulting services, learning and development services, and related activities to the DOH, other partners and stakeholders.</li><li>Develop, promote, and implement concerted action for the empowerment, protection, well-being and welfare of its members.</li><li>Foster cooperation, camaraderie and solidarity among the members of the Association.</li><li>Improve ADOHRE’s organizational systems that foster integrity, good governance, efficiency and effectiveness.</li><li>Advocate and raise awareness on health and relevant issues while communicating and promoting ADOHRE’s programs and support it can offer.</li><li>Develop and market ADOHRE brand of technical expertise and assistance.</li><li>Participate and network with other organizations and government agencies towards the attainment of the goals of the Association most specially in promoting health as a right for every Filipino.</li></ul>' ?>
                 </div>
             </div>
         </section>
@@ -617,28 +618,28 @@ if (isset($_SESSION['user_id'])) {
 
                 <figure class="text-center">
                     <?php if ($orgImgExists): ?>
-                    <img src="<?php echo $orgImg; ?>"
-                        alt="ADOHRE Organizational Structure chart for 2025 showing the General Assembly at the top; the Board of Trustees; Officers; External Auditor; Management Committee; Administrative Staff; Project Implementation/Management Teams; Finance, Membership & Training, Advocacy, Project, and Ad-hoc/Special Committees; and Project Development Teams."
-                        class="img-fluid shadow-sm rounded" style="cursor: zoom-in; max-height: 70vh;"
-                        id="orgStructureImg">
-                    <figcaption class="mt-2 text-muted small">Click the image to open full-screen. You can also download
-                        it or read the text outline below.</figcaption>
+                        <img src="<?php echo $orgImg; ?>"
+                            alt="ADOHRE Organizational Structure chart for 2025 showing the General Assembly at the top; the Board of Trustees; Officers; External Auditor; Management Committee; Administrative Staff; Project Implementation/Management Teams; Finance, Membership & Training, Advocacy, Project, and Ad-hoc/Special Committees; and Project Development Teams."
+                            class="img-fluid shadow-sm rounded" style="cursor: zoom-in; max-height: 70vh;"
+                            id="orgStructureImg">
+                        <figcaption class="mt-2 text-muted small">Click the image to open full-screen. You can also download
+                            it or read the text outline below.</figcaption>
                     <?php else: ?>
-                    <div class="alert alert-warning text-start" role="alert">
-                        Organizational structure image not found. Please copy your file to
-                        <code>assets/org-structure-2025.png</code>.
-                    </div>
+                        <div class="alert alert-warning text-start" role="alert">
+                            Organizational structure image not found. Please copy your file to
+                            <code>assets/org-structure-2025.png</code>.
+                        </div>
                     <?php endif; ?>
                 </figure>
 
                 <div class="d-flex flex-wrap justify-content-center gap-2 mt-2">
                     <?php if ($orgImgExists): ?>
-                    <a href="<?php echo $orgImg; ?>" download class="btn btn-outline-secondary">
-                        <i class="fa fa-download me-1"></i> Download PNG
-                    </a>
-                    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#orgStructureModal">
-                        <i class="fa fa-up-right-and-down-left-from-center me-1"></i> View full-screen
-                    </button>
+                        <a href="<?php echo $orgImg; ?>" download class="btn btn-outline-secondary">
+                            <i class="fa fa-download me-1"></i> Download PNG
+                        </a>
+                        <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#orgStructureModal">
+                            <i class="fa fa-up-right-and-down-left-from-center me-1"></i> View full-screen
+                        </button>
                     <?php endif; ?>
                     <button type="button" class="btn btn-outline-dark" data-bs-toggle="collapse"
                         data-bs-target="#orgTextOutline" aria-expanded="false" aria-controls="orgTextOutline">
@@ -795,57 +796,57 @@ if (isset($_SESSION['user_id'])) {
 
     <!-- JavaScript for Back to Top Button and Objectives Toggle -->
     <script>
-    // Back to Top Button
-    const backToTopBtn = document.getElementById("backToTopBtn");
+        // Back to Top Button
+        const backToTopBtn = document.getElementById("backToTopBtn");
 
-    window.onscroll = function() {
-        if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
-            backToTopBtn.style.display = "block";
-        } else {
-            backToTopBtn.style.display = "none";
-        }
-    };
+        window.onscroll = function() {
+            if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+                backToTopBtn.style.display = "block";
+            } else {
+                backToTopBtn.style.display = "none";
+            }
+        };
 
-    backToTopBtn.addEventListener("click", function() {
-        window.scrollTo({
-            top: 0,
-            behavior: "smooth"
+        backToTopBtn.addEventListener("click", function() {
+            window.scrollTo({
+                top: 0,
+                behavior: "smooth"
+            });
         });
-    });
 
-    // On window load, show the Read Page button if visually impaired.
-    window.addEventListener('load', function() {
-        console.log("Window loaded. isVisuallyImpaired =", isVisuallyImpaired);
-        if (isVisuallyImpaired == 1) {
-            document.getElementById("readPageBtn").style.display = "block";
-        }
-    });
+        // On window load, show the Read Page button if visually impaired.
+        window.addEventListener('load', function() {
+            console.log("Window loaded. isVisuallyImpaired =", isVisuallyImpaired);
+            if (isVisuallyImpaired == 1) {
+                document.getElementById("readPageBtn").style.display = "block";
+            }
+        });
 
 
-    // Objectives Toggle
-    const objectivesHeading = document.getElementById("objectivesHeading");
-    const arrow = objectivesHeading.querySelector(".arrow");
-    const objectivesCollapse = document.getElementById("objectivesCollapse");
+        // Objectives Toggle
+        const objectivesHeading = document.getElementById("objectivesHeading");
+        const arrow = objectivesHeading.querySelector(".arrow");
+        const objectivesCollapse = document.getElementById("objectivesCollapse");
 
-    objectivesHeading.addEventListener("click", function() {
-        objectivesCollapse.classList.toggle("show");
-        arrow.classList.toggle("rotate");
-    });
+        objectivesHeading.addEventListener("click", function() {
+            objectivesCollapse.classList.toggle("show");
+            arrow.classList.toggle("rotate");
+        });
 
-    // Read Page button: read text from <main> only using innerText
-    document.getElementById("readPageBtn").addEventListener("click", function() {
-        console.log("Read Page button clicked in about.php");
-        const mainElement = document.querySelector('main');
-        let textToRead = "";
-        if (mainElement) {
-            textToRead = mainElement.innerText.trim();
-            console.log("Reading from main element, length:", textToRead.length);
-        } else {
-            textToRead = document.body.innerText.trim();
-            console.log("No main found, reading entire body, length:", textToRead.length);
-        }
-        TTS.speakTextInChunks(textToRead);
-    });
+        // Read Page button: read text from <main> only using innerText
+        document.getElementById("readPageBtn").addEventListener("click", function() {
+            console.log("Read Page button clicked in about.php");
+            const mainElement = document.querySelector('main');
+            let textToRead = "";
+            if (mainElement) {
+                textToRead = mainElement.innerText.trim();
+                console.log("Reading from main element, length:", textToRead.length);
+            } else {
+                textToRead = document.body.innerText.trim();
+                console.log("No main found, reading entire body, length:", textToRead.length);
+            }
+            TTS.speakTextInChunks(textToRead);
+        });
     </script>
 
     <!-- Org Structure Modal (full-screen with zoom controls) -->
@@ -859,10 +860,10 @@ if (isset($_SESSION['user_id'])) {
                 </div>
                 <div class="modal-body d-flex justify-content-center align-items-center p-0">
                     <?php if ($orgImgExists): ?>
-                    <div class="w-100 text-center" style="overflow:auto;">
-                        <img src="<?php echo $orgImg; ?>" alt="Enlarged organizational structure image" id="orgZoomImg"
-                            class="img-fluid" style="transform-origin: center center; cursor: grab;" />
-                    </div>
+                        <div class="w-100 text-center" style="overflow:auto;">
+                            <img src="<?php echo $orgImg; ?>" alt="Enlarged organizational structure image" id="orgZoomImg"
+                                class="img-fluid" style="transform-origin: center center; cursor: grab;" />
+                        </div>
                     <?php endif; ?>
                 </div>
                 <div class="modal-footer border-0 justify-content-between">
@@ -872,9 +873,9 @@ if (isset($_SESSION['user_id'])) {
                         <button type="button" class="btn btn-light" id="zoomInBtn">+</button>
                     </div>
                     <?php if ($orgImgExists): ?>
-                    <a href="<?php echo $orgImg; ?>" download class="btn btn-success">
-                        <i class="fa fa-download me-1"></i> Download
-                    </a>
+                        <a href="<?php echo $orgImg; ?>" download class="btn btn-success">
+                            <i class="fa fa-download me-1"></i> Download
+                        </a>
                     <?php endif; ?>
                 </div>
             </div>
@@ -882,51 +883,51 @@ if (isset($_SESSION['user_id'])) {
     </div>
 
     <script>
-    // Open modal when clicking the inline image
-    const orgInlineImg = document.getElementById('orgStructureImg');
-    if (orgInlineImg) {
-        orgInlineImg.addEventListener('click', function() {
-            const modal = new bootstrap.Modal(document.getElementById('orgStructureModal'));
-            modal.show();
-        });
-    }
+        // Open modal when clicking the inline image
+        const orgInlineImg = document.getElementById('orgStructureImg');
+        if (orgInlineImg) {
+            orgInlineImg.addEventListener('click', function() {
+                const modal = new bootstrap.Modal(document.getElementById('orgStructureModal'));
+                modal.show();
+            });
+        }
 
-    // Simple zoom controls for the modal image
-    (function() {
-        const img = document.getElementById('orgZoomImg');
-        if (!img) return;
-        let scale = 1;
-        const apply = () => img.style.transform = `scale(${scale})`;
-        document.getElementById('zoomInBtn').addEventListener('click', () => {
-            scale = Math.min(5, scale * 1.2);
-            apply();
-        });
-        document.getElementById('zoomOutBtn').addEventListener('click', () => {
-            scale = Math.max(0.5, scale / 1.2);
-            apply();
-        });
-        document.getElementById('zoomResetBtn').addEventListener('click', () => {
-            scale = 1;
-            apply();
-        });
-    })();
+        // Simple zoom controls for the modal image
+        (function() {
+            const img = document.getElementById('orgZoomImg');
+            if (!img) return;
+            let scale = 1;
+            const apply = () => img.style.transform = `scale(${scale})`;
+            document.getElementById('zoomInBtn').addEventListener('click', () => {
+                scale = Math.min(5, scale * 1.2);
+                apply();
+            });
+            document.getElementById('zoomOutBtn').addEventListener('click', () => {
+                scale = Math.max(0.5, scale / 1.2);
+                apply();
+            });
+            document.getElementById('zoomResetBtn').addEventListener('click', () => {
+                scale = 1;
+                apply();
+            });
+        })();
     </script>
     <script>
-    // Robust toggle for the Text outline to ensure it collapses on second click
-    (function() {
-        const outlineEl = document.getElementById('orgTextOutline');
-        const outlineBtn = document.querySelector('[data-bs-target="#orgTextOutline"]');
-        if (!outlineEl || !outlineBtn || typeof bootstrap === 'undefined' || !bootstrap.Collapse) return;
-        const collapse = new bootstrap.Collapse(outlineEl, {
-            toggle: false
-        });
-        outlineBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            collapse.toggle();
-        });
-        outlineEl.addEventListener('shown.bs.collapse', () => outlineBtn.setAttribute('aria-expanded', 'true'));
-        outlineEl.addEventListener('hidden.bs.collapse', () => outlineBtn.setAttribute('aria-expanded', 'false'));
-    })();
+        // Robust toggle for the Text outline to ensure it collapses on second click
+        (function() {
+            const outlineEl = document.getElementById('orgTextOutline');
+            const outlineBtn = document.querySelector('[data-bs-target="#orgTextOutline"]');
+            if (!outlineEl || !outlineBtn || typeof bootstrap === 'undefined' || !bootstrap.Collapse) return;
+            const collapse = new bootstrap.Collapse(outlineEl, {
+                toggle: false
+            });
+            outlineBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                collapse.toggle();
+            });
+            outlineEl.addEventListener('shown.bs.collapse', () => outlineBtn.setAttribute('aria-expanded', 'true'));
+            outlineEl.addEventListener('hidden.bs.collapse', () => outlineBtn.setAttribute('aria-expanded', 'false'));
+        })();
     </script>
 </body>
 

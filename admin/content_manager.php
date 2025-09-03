@@ -89,8 +89,16 @@ if (!isset($_SESSION['csrf_token'])) {
                         type="button" role="tab" aria-controls="projects" aria-selected="false">Projects</button>
                 </li>
                 <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="pages-tab" data-bs-toggle="tab" data-bs-target="#pages"
+                        type="button" role="tab" aria-controls="pages" aria-selected="false">Pages</button>
+                </li>
+                <li class="nav-item" role="presentation">
                     <button class="nav-link" id="documents-tab" data-bs-toggle="tab" data-bs-target="#documents"
                         type="button" role="tab" aria-controls="documents" aria-selected="false">Documents</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="membership-form-tab" data-bs-toggle="tab" data-bs-target="#membership-form"
+                        type="button" role="tab" aria-controls="membership-form" aria-selected="false">Membership Form</button>
                 </li>
                 <!-- Trainings tab removed -->
             </ul>
@@ -109,8 +117,14 @@ if (!isset($_SESSION['csrf_token'])) {
                 <div class="tab-pane fade" id="projects" role="tabpanel" aria-labelledby="projects-tab">
                     <?php include 'projects_tab.php'; ?>
                 </div>
+                <div class="tab-pane fade" id="pages" role="tabpanel" aria-labelledby="pages-tab">
+                    <?php include 'pages_tab.php'; ?>
+                </div>
                 <div class="tab-pane fade" id="documents" role="tabpanel" aria-labelledby="documents-tab">
                     <?php include 'documents_tab.php'; ?>
+                </div>
+                <div class="tab-pane fade" id="membership-form" role="tabpanel" aria-labelledby="membership-form-tab">
+                    <?php include 'membership_form_tab.php'; ?>
                 </div>
                 <!-- Trainings content removed -->
             </div>
