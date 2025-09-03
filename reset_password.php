@@ -257,9 +257,7 @@ if (!isset($_SESSION['otp_verified']) || $_SESSION['action'] !== 'reset') {
                 showLoading();
                 try {
                     const formData = new FormData();
-                    formData.append('email', sessionStorage.getItem('email'));
                     formData.append('password', password);
-                    formData.append('otp', sessionStorage.getItem('otp'));
 
                     const response = await fetch('backend/routes/reset_password.php', {
                         method: 'POST',
@@ -270,12 +268,7 @@ if (!isset($_SESSION['otp_verified']) || $_SESSION['action'] !== 'reset') {
                     hideLoading();
 
                     if (result.status) {
-                        // Clear session storage
-                        sessionStorage.removeItem('email');
-                        sessionStorage.removeItem('otp');
-                        sessionStorage.removeItem('action');
-
-                        showModal('Success', result.message, 'login.php');
+                        showModal('Success', result.message, result.redirect || 'login.php');
                     } else {
                         showModal('Error', result.message);
                     }

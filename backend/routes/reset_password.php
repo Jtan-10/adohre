@@ -14,24 +14,19 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit();
 }
 
-// Get input
-$email = $_POST['email'] ?? '';
+// Must be coming from verified OTP reset flow
+if (!isset($_SESSION['otp_verified']) || $_SESSION['otp_verified'] !== true || !isset($_SESSION['action']) || $_SESSION['action'] !== 'reset' || empty($_SESSION['email'])) {
+    http_response_code(403);
+    echo json_encode(['status' => false, 'message' => 'Session expired or invalid. Please restart the reset process.']);
+    exit();
+}
+
+$email = $_SESSION['email'];
 $newPassword = $_POST['password'] ?? '';
-$otp = $_POST['otp'] ?? '';
 
 // Validate input
-if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-    echo json_encode(['status' => false, 'message' => 'Invalid email format.']);
-    exit();
-}
-
 if (empty($newPassword)) {
     echo json_encode(['status' => false, 'message' => 'New password is required.']);
-    exit();
-}
-
-if (empty($otp)) {
-    echo json_encode(['status' => false, 'message' => 'OTP is required.']);
     exit();
 }
 
@@ -46,12 +41,6 @@ if ($passwordValidation !== true) {
 }
 
 try {
-    // Verify OTP first
-    if (!verifyOTP($email, $otp)) {
-        echo json_encode(['status' => false, 'message' => 'Invalid or expired OTP.']);
-        exit();
-    }
-
     // Update password
     $passwordHash = password_hash($newPassword, PASSWORD_DEFAULT);
 
@@ -84,6 +73,14 @@ try {
     $userStmt->close();
 
     recordAuditLog($userId, 'Password Reset', 'Password was reset successfully.');
+
+    // Clear OTP and related session flags
+    unset($_SESSION['otp_verified']);
+    unset($_SESSION['otp_pending']);
+    unset($_SESSION['otp_email']);
+    unset($_SESSION['otp_action']);
+    unset($_SESSION['temp_user']);
+    unset($_SESSION['action']);
 
     echo json_encode([
         'status' => true,

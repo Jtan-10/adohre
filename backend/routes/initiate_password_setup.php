@@ -63,6 +63,9 @@ $_SESSION['temp_user'] = [
 $_SESSION['email'] = $email;
 $_SESSION['action'] = 'reset';
 $_SESSION['otp_pending'] = true;
+// Ensure resend endpoint has access to email
+$_SESSION['otp_email'] = $email;
+$_SESSION['otp_action'] = 'reset';
 
 // Send OTP mail
 $mail = new PHPMailer(true);

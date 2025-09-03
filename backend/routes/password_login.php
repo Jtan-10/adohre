@@ -85,6 +85,9 @@ try {
         ];
         $_SESSION['email'] = $email;
         $_SESSION['action'] = 'reset';
+        // For resend support, set otp session identifiers
+        $_SESSION['otp_email'] = $email;
+        $_SESSION['otp_action'] = 'reset';
 
         // Generate and send OTP
         $otp = generateOTP();
@@ -151,6 +154,9 @@ try {
 
         // Store email in session for OTP verification
         $_SESSION['email'] = $email;
+        // For resend support, set otp session identifiers
+        $_SESSION['otp_email'] = $email;
+        $_SESSION['otp_action'] = 'login';
 
         // Generate and send OTP
         $otp = generateOTP();

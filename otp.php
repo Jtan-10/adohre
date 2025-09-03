@@ -305,19 +305,15 @@ if ($action === 'login' && !empty($email)) {
                     hideLoading();
 
                     if (result.status) {
-                        if (action === 'signup') {
-                            showModal('Success', 'OTP Verified. Proceed to enter details.');
-                            document.getElementById('otp-section').style.display = 'none';
-                            document.getElementById('signup-section').style.display = 'block';
-                        } else if (action === 'login') {
-                            if (incomplete) {
-                                showModal('Info', 'Your profile is incomplete. Please update your details.');
-                                document.getElementById('otp-section').style.display = 'none';
-                                document.getElementById('update-details-section').style.display = 'block';
-                            } else {
-                                showModal('Success', 'Login successful!', 'index.php');
-                            }
-                        }
+                        // Always prefer backend-provided redirect when available
+                        const redirectTo = result.redirect || (action === 'reset' ? 'reset_password.php' : 'index.php');
+                        // Clear OTP input to avoid re-submission
+                        document.getElementById('otp').value = '';
+                        // Hard redirect to next step
+                        window.location.replace(redirectTo);
+                        setTimeout(() => {
+                            window.location.href = redirectTo;
+                        }, 300);
                     } else {
                         showModal('Error', result.message);
                     }
@@ -330,35 +326,17 @@ if ($action === 'login' && !empty($email)) {
 
             // RESEND OTP BUTTON HANDLER
             document.getElementById('resendOtpBtn').addEventListener('click', async () => {
-                const emailInput = document.getElementById('email') ? document.getElementById('email').value : email;
-                if (!emailInput) {
-                    showModal('Error', 'Email is required.');
-                    return;
-                }
-
                 try {
                     showLoading();
                     const response = await fetch('backend/routes/resend_otp.php', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            email: emailInput
-                        })
+                        method: 'POST'
                     });
-
-                    if (!response.ok) {
-                        throw new Error('Failed to resend OTP');
-                    }
-
                     const result = await response.json();
                     hideLoading();
-
                     if (result.status) {
                         showModal('Success', 'A new OTP has been sent to your email.');
                     } else {
-                        showModal('Error', result.message);
+                        showModal('Error', result.message || 'Failed to resend OTP.');
                     }
                 } catch (error) {
                     hideLoading();
