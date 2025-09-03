@@ -27,8 +27,18 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label for="projectPartner" class="form-label">Partner</label>
-                            <select id="projectPartner" name="partner" class="form-select">
-                                <option value="">Select partner</option>
+                            <input type="text" id="projectPartner" name="partner" class="form-control" placeholder="e.g., DSWD Region IV-A">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="projectDate" class="form-label">Start/Reference Month</label>
+                            <input type="month" id="projectDate" name="date" class="form-control">
+                        </div>
+                    </div>
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
+                            <label for="projectPartnerType" class="form-label">Partner Type</label>
+                            <select id="projectPartnerType" name="partner_type" class="form-select">
+                                <option value="">Select type</option>
                                 <option value="National Government Agencies (NGA)">National Government Agencies (NGA)</option>
                                 <option value="Local Government Units (LGU)">Local Government Units (LGU)</option>
                                 <option value="Private Sector / Businesses">Private Sector / Businesses</option>
@@ -36,13 +46,8 @@
                                 <option value="Academe / Research Institutions">Academe / Research Institutions</option>
                                 <option value="Development Partners / International Organizations">Development Partners / International Organizations</option>
                                 <option value="Community / People’s Organizations (POs)">Community / People’s Organizations (POs)</option>
-                                <option value="Other">Other (specify)</option>
+                                <option value="Other">Other</option>
                             </select>
-                            <input type="text" id="projectPartnerOther" class="form-control mt-2 d-none" placeholder="Specify partner">
-                        </div>
-                        <div class="col-md-6">
-                            <label for="projectDate" class="form-label">Start/Reference Month</label>
-                            <input type="month" id="projectDate" name="date" class="form-control">
                         </div>
                     </div>
                     <div class="row g-3 mt-1">
@@ -86,8 +91,7 @@
         const modalTitle = document.getElementById('projectModalLabel');
         const form = document.getElementById('projectForm');
         const saveBtn = document.getElementById('saveProjectBtn');
-        const partnerSelect = document.getElementById('projectPartner');
-        const partnerOther = document.getElementById('projectPartnerOther');
+        const partnerTypeSelect = document.getElementById('projectPartnerType');
 
         modal.addEventListener('show.bs.modal', (e) => {
             const trigger = e.relatedTarget;
@@ -95,26 +99,11 @@
                 form.reset();
                 document.getElementById('projectId').value = '';
                 modalTitle.textContent = 'Add Project';
-                // Reset partner other field
-                if (partnerOther) {
-                    partnerOther.classList.add('d-none');
-                    partnerOther.value = '';
-                }
+                // nothing special to reset for partner type
             }
         });
 
-        // Toggle display of Other partner input
-        if (partnerSelect) {
-            partnerSelect.addEventListener('change', () => {
-                if (partnerSelect.value === 'Other') {
-                    partnerOther.classList.remove('d-none');
-                    partnerOther.focus();
-                } else {
-                    partnerOther.classList.add('d-none');
-                    partnerOther.value = '';
-                }
-            });
-        }
+        // No special toggles needed; partner is free text, partner type is a fixed dropdown
 
         function fetchProjects() {
             fetch('../backend/routes/content_manager.php?action=fetch_projects')
@@ -170,21 +159,10 @@
                     const p = data.project;
                     document.getElementById('projectId').value = p.project_id;
                     document.getElementById('projectTitle').value = p.title || '';
-                    // Handle partner select and Other
-                    const partnerVal = p.partner || '';
-                    const optionVals = Array.from(partnerSelect.options).map(o => o.value);
-                    if (partnerVal && optionVals.includes(partnerVal)) {
-                        partnerSelect.value = partnerVal;
-                        partnerOther.classList.add('d-none');
-                        partnerOther.value = '';
-                    } else if (partnerVal) {
-                        partnerSelect.value = 'Other';
-                        partnerOther.classList.remove('d-none');
-                        partnerOther.value = partnerVal;
-                    } else {
-                        partnerSelect.value = '';
-                        partnerOther.classList.add('d-none');
-                        partnerOther.value = '';
+                    document.getElementById('projectPartner').value = p.partner || '';
+                    if (partnerTypeSelect) {
+                        const types = Array.from(partnerTypeSelect.options).map(o => o.value);
+                        partnerTypeSelect.value = (p.partner_type && types.includes(p.partner_type)) ? p.partner_type : '';
                     }
                     document.getElementById('projectDescription').value = p.description || '';
                     document.getElementById('projectDate').value = p.date ? p.date.slice(0, 7) : '';
@@ -229,11 +207,7 @@
             } else {
                 fd.delete('end_date');
             }
-            // Map Partner 'Other' to provided text
-            if (partnerSelect && partnerSelect.value === 'Other') {
-                const otherVal = (partnerOther.value || '').trim();
-                fd.set('partner', otherVal || 'Other');
-            }
+            // No mapping needed; partner is free text, partner_type is sent via the form
             const id = document.getElementById('projectId').value;
             fd.append('action', id ? 'update_project' : 'add_project');
             const csrf = form.querySelector('input[name="csrf_token"]').value;

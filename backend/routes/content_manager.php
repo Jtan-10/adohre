@@ -171,11 +171,18 @@ try {
             'trainings' => $trainings
         ]);
     } elseif ($action === 'fetch_projects') {
-        // Fetch projects list (new schema: partner, description, date, status, end_date, image)
+        // Fetch projects list (supports partner_type and description if present)
         $hasDesc = cm_hasColumn($conn, 'projects', 'description');
-        $select = $hasDesc
-            ? "SELECT project_id, title, partner, description, date, status, end_date, image FROM projects ORDER BY COALESCE(date, created_at) DESC"
-            : "SELECT project_id, title, partner, date, status, end_date, image FROM projects ORDER BY COALESCE(date, created_at) DESC";
+        $hasPType = cm_hasColumn($conn, 'projects', 'partner_type');
+        if ($hasDesc && $hasPType) {
+            $select = "SELECT project_id, title, partner, partner_type, description, date, status, end_date, image FROM projects ORDER BY COALESCE(date, created_at) DESC";
+        } elseif ($hasDesc) {
+            $select = "SELECT project_id, title, partner, description, date, status, end_date, image FROM projects ORDER BY COALESCE(date, created_at) DESC";
+        } elseif ($hasPType) {
+            $select = "SELECT project_id, title, partner, partner_type, date, status, end_date, image FROM projects ORDER BY COALESCE(date, created_at) DESC";
+        } else {
+            $select = "SELECT project_id, title, partner, date, status, end_date, image FROM projects ORDER BY COALESCE(date, created_at) DESC";
+        }
         $result = $conn->query($select);
         $projects = [];
         if ($result) {
@@ -526,12 +533,14 @@ try {
         $title = $_POST['title'];
         $partner = $_POST['partner'] ?? null;
         $description = $_POST['description'] ?? null;
+        $partner_type = $_POST['partner_type'] ?? null;
         $date = $_POST['date'] ?? null; // YYYY-MM-DD (start date or relevant date)
         $status = $_POST['status'] ?? 'scheduling';
         $end_date = $_POST['end_date'] ?? null; // Only for finished
         $project_id = $_POST['id'] ?? null;
         $userId = $_SESSION['user_id'];
         $hasDesc = cm_hasColumn($conn, 'projects', 'description');
+        $hasPType = cm_hasColumn($conn, 'projects', 'partner_type');
 
         $relativeImagePath = null;
         if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
@@ -603,9 +612,15 @@ try {
         }
 
         if ($action === 'add_project') {
-            if ($hasDesc) {
+            if ($hasDesc && $hasPType) {
+                $stmt = $conn->prepare("INSERT INTO projects (title, partner, partner_type, description, date, status, end_date, image, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param('ssssssssi', $title, $partner, $partner_type, $description, $date, $status, $end_date, $relativeImagePath, $userId);
+            } elseif ($hasDesc) {
                 $stmt = $conn->prepare("INSERT INTO projects (title, partner, description, date, status, end_date, image, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
                 $stmt->bind_param('sssssssi', $title, $partner, $description, $date, $status, $end_date, $relativeImagePath, $userId);
+            } elseif ($hasPType) {
+                $stmt = $conn->prepare("INSERT INTO projects (title, partner, partner_type, date, status, end_date, image, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param('sssssssi', $title, $partner, $partner_type, $date, $status, $end_date, $relativeImagePath, $userId);
             } else {
                 $stmt = $conn->prepare("INSERT INTO projects (title, partner, date, status, end_date, image, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)");
                 $stmt->bind_param('ssssssi', $title, $partner, $date, $status, $end_date, $relativeImagePath, $userId);
@@ -614,9 +629,15 @@ try {
             recordAuditLog($userId, 'Add Project', "Project '$title' added.");
             echo json_encode(['status' => true, 'message' => 'Project added successfully.']);
         } else {
-            if ($hasDesc) {
+            if ($hasDesc && $hasPType) {
+                $stmt = $conn->prepare("UPDATE projects SET title = ?, partner = ?, partner_type = ?, description = ?, date = ?, status = ?, end_date = ?, image = IFNULL(?, image) WHERE project_id = ?");
+                $stmt->bind_param('ssssssssi', $title, $partner, $partner_type, $description, $date, $status, $end_date, $relativeImagePath, $project_id);
+            } elseif ($hasDesc) {
                 $stmt = $conn->prepare("UPDATE projects SET title = ?, partner = ?, description = ?, date = ?, status = ?, end_date = ?, image = IFNULL(?, image) WHERE project_id = ?");
                 $stmt->bind_param('sssssssi', $title, $partner, $description, $date, $status, $end_date, $relativeImagePath, $project_id);
+            } elseif ($hasPType) {
+                $stmt = $conn->prepare("UPDATE projects SET title = ?, partner = ?, partner_type = ?, date = ?, status = ?, end_date = ?, image = IFNULL(?, image) WHERE project_id = ?");
+                $stmt->bind_param('sssssssi', $title, $partner, $partner_type, $date, $status, $end_date, $relativeImagePath, $project_id);
             } else {
                 $stmt = $conn->prepare("UPDATE projects SET title = ?, partner = ?, date = ?, status = ?, end_date = ?, image = IFNULL(?, image) WHERE project_id = ?");
                 $stmt->bind_param('ssssssi', $title, $partner, $date, $status, $end_date, $relativeImagePath, $project_id);
