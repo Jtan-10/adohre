@@ -25,83 +25,15 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
         <div id="content" class="content p-4" style="width: 100%;">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h3 class="mb-0">Membership Status</h3>
+                <button id="refreshBtn" class="btn btn-outline-secondary">Refresh</button>
             </div>
-
-            <div class="card mb-3">
+            <div class="card">
                 <div class="card-body">
-                    <div class="row g-2 align-items-end">
-                        <div class="col-md-6">
-                            <label class="form-label">Select Member</label>
-                            <select id="memberSelect" class="form-select">
-                                <option value="">Loading...</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6 text-end">
-                            <button id="refreshBtn" class="btn btn-outline-secondary">Refresh</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="memberForms" class="d-none">
-                <div class="card mb-3">
-                    <div class="card-header">Profile</div>
-                    <div class="card-body">
-                        <form id="profileForm" class="row g-3">
-                            <input type="hidden" id="pf_user_id">
-                            <div class="col-md-6">
-                                <label class="form-label">Name</label>
-                                <input type="text" id="pf_name" class="form-control" disabled>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Membership Status</label>
-                                <select id="pf_membership_status" class="form-select">
-                                    <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Year of Membership</label>
-                                <input type="number" id="pf_year" class="form-control" min="1900" max="2100">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Age upon Membership</label>
-                                <input type="number" id="pf_age" class="form-control" min="0" max="150">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Membership Certification</label>
-                                <select id="pf_cert" class="form-select">
-                                    <option value="Regular">Regular</option>
-                                    <option value="Honorary">Honorary</option>
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Membership Fee</label>
-                                <input type="number" step="0.01" id="pf_fee" class="form-control">
-                            </div>
-                            <div class="col-12">
-                                <button type="submit" class="btn btn-success">Save Profile</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-header">Annual Dues</div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-bordered align-middle" id="duesTable">
-                                <thead>
-                                    <tr>
-                                        <th>Year</th>
-                                        <th>Status</th>
-                                        <th>Amount</th>
-                                    </tr>
-                                </thead>
-                                <tbody></tbody>
-                            </table>
-                        </div>
-                        <button id="saveDuesBtn" class="btn btn-success">Save Dues</button>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered" id="gridTable">
+                            <thead id="gridHead"></thead>
+                            <tbody id="gridBody"></tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -110,116 +42,145 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" nonce="<?= $cspNonce ?>"></script>
     <script nonce="<?= $cspNonce ?>">
-        const api = async (url, opts = {}) => {
-            const res = await fetch(url, Object.assign({
-                headers: {
-                    'X-Requested-With': 'fetch'
-                }
-            }, opts));
-            return res.json();
-        };
+        const api = async (url, opts = {}) => (await fetch(url, opts)).json();
+        const head = document.getElementById('gridHead');
+        const body = document.getElementById('gridBody');
 
-        const memberSelect = document.getElementById('memberSelect');
-        const memberForms = document.getElementById('memberForms');
-        const profileForm = document.getElementById('profileForm');
-        const duesTableBody = document.querySelector('#duesTable tbody');
-
-        async function loadMembers() {
-            memberSelect.innerHTML = '<option value="">Loading...</option>';
-            const data = await api('../backend/routes/membership_status.php?action=list');
-            if (!data.status) {
-                memberSelect.innerHTML = '<option value="">Failed to load</option>';
-                return;
-            }
-            memberSelect.innerHTML = '<option value="">Select member...</option>' + data.data.map(u =>
-                `<option value="${u.user_id}">${u.last_name}, ${u.first_name}</option>`
-            ).join('');
+        function renderHead(years) {
+            const fixed = [
+                'Name',
+                'Year of Membership',
+                'Age upon Membership',
+                'Membership Status',
+                'Membership Certification',
+                'Membership Fee'
+            ];
+            head.innerHTML = '<tr>' + fixed.map(h => `<th>${h}</th>`).join('') + years.map(y => `<th>${y} (Status)</th><th>${y} (Amount)</th>`).join('') + '<th>Actions</th></tr>';
         }
 
-        async function loadMember(user_id) {
-            if (!user_id) {
-                memberForms.classList.add('d-none');
-                return;
-            }
-            const data = await api(`../backend/routes/membership_status.php?action=get_member&user_id=${user_id}`);
-            if (!data.status) {
-                alert(data.message || 'Load failed');
-                return;
-            }
-            memberForms.classList.remove('d-none');
-            // Fill profile
-            document.getElementById('pf_user_id').value = data.profile.user_id;
-            document.getElementById('pf_name').value = `${data.profile.last_name}, ${data.profile.first_name}`;
-            document.getElementById('pf_membership_status').value = data.profile.membership_status || 'inactive';
-            document.getElementById('pf_year').value = data.profile.year_of_membership || '';
-            document.getElementById('pf_age').value = data.profile.age_upon_membership || '';
-            document.getElementById('pf_cert').value = data.profile.certification || 'Regular';
-            document.getElementById('pf_fee').value = data.profile.membership_fee || '';
-            // Fill dues
-            duesTableBody.innerHTML = data.dues.map(d => `
-        <tr>
-            <td>${d.year}</td>
-            <td>
-                <select class="form-select form-select-sm" data-year="${d.year}">
-                    <option value="Paid" ${d.status==='Paid'?'selected':''}>Paid</option>
-                    <option value="Unpaid" ${d.status==='Unpaid'?'selected':''}>Unpaid</option>
-                    <option value="Waived" ${d.status==='Waived'?'selected':''}>Waived</option>
-                </select>
-            </td>
-            <td><input type="number" step="0.01" class="form-control form-control-sm" data-amount-year="${d.year}" value="${d.amount ?? ''}"></td>
-        </tr>
-    `).join('');
+        function renderBody(years, members) {
+            body.innerHTML = members.map(m => {
+                const name = `${m.last_name}, ${m.first_name}`;
+                const cert = m.certification || 'Regular';
+                const status = m.membership_status || 'inactive';
+                const year = m.year_of_membership || '';
+                const age = m.age_upon_membership || '';
+                const fee = m.membership_fee || '';
+                const duesCells = years.map(y => {
+                    const d = m.dues[String(y)] || {
+                        status: y === 2021 ? 'Waived' : 'Unpaid',
+                        amount: ''
+                    };
+                    return `
+                    <td>
+                        <select class="form-select form-select-sm" data-user="${m.user_id}" data-field="dues_status_${y}">
+                            <option value="Paid" ${d.status==='Paid'?'selected':''}>Paid</option>
+                            <option value="Unpaid" ${d.status==='Unpaid'?'selected':''}>Unpaid</option>
+                            <option value="Waived" ${d.status==='Waived'?'selected':''}>Waived</option>
+                        </select>
+                    </td>
+                    <td>
+                        <input type="number" step="0.01" class="form-control form-control-sm" data-user="${m.user_id}" data-field="dues_amount_${y}" value="${d.amount ?? ''}">
+                    </td>
+                `;
+                }).join('');
+                return `
+                <tr data-user-id="${m.user_id}">
+                    <td>${name}</td>
+                    <td><input type="number" class="form-control form-control-sm" data-field="year_of_membership" value="${year}"></td>
+                    <td><input type="number" class="form-control form-control-sm" data-field="age_upon_membership" value="${age}"></td>
+                    <td>
+                        <select class="form-select form-select-sm" data-field="membership_status">
+                            <option value="active" ${status==='active'?'selected':''}>Active</option>
+                            <option value="inactive" ${status!=='active'?'selected':''}>Inactive</option>
+                        </select>
+                    </td>
+                    <td>
+                        <select class="form-select form-select-sm" data-field="certification">
+                            <option value="Regular" ${cert==='Regular'?'selected':''}>Regular</option>
+                            <option value="Honorary" ${cert==='Honorary'?'selected':''}>Honorary</option>
+                        </select>
+                    </td>
+                    <td><input type="number" step="0.01" class="form-control form-control-sm" data-field="membership_fee" value="${fee}"></td>
+                    ${duesCells}
+                    <td>
+                        <button class="btn btn-sm btn-success" data-action="save" data-user="${m.user_id}">Save</button>
+                    </td>
+                </tr>
+            `;
+            }).join('');
         }
 
-        memberSelect.addEventListener('change', (e) => loadMember(e.target.value));
-        document.getElementById('refreshBtn').addEventListener('click', loadMembers);
+        async function loadGrid() {
+            const j = await api('../backend/routes/membership_status.php?action=grid');
+            if (!j.status) {
+                body.innerHTML = '<tr><td colspan="3">Failed to load</td></tr>';
+                return;
+            }
+            renderHead(j.years);
+            renderBody(j.years, j.members);
+        }
 
-        profileForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const user_id = document.getElementById('pf_user_id').value;
-            const fd = new FormData();
-            fd.append('action', 'save_profile');
-            fd.append('user_id', user_id);
-            fd.append('membership_status', document.getElementById('pf_membership_status').value);
-            fd.append('year_of_membership', document.getElementById('pf_year').value);
-            fd.append('age_upon_membership', document.getElementById('pf_age').value);
-            fd.append('certification', document.getElementById('pf_cert').value);
-            fd.append('membership_fee', document.getElementById('pf_fee').value);
-            const res = await api('../backend/routes/membership_status.php', {
+        document.getElementById('refreshBtn').addEventListener('click', loadGrid);
+
+        body.addEventListener('click', async (e) => {
+            const btn = e.target.closest('[data-action="save"]');
+            if (!btn) return;
+            const userId = parseInt(btn.getAttribute('data-user'), 10);
+            const tr = btn.closest('tr');
+            // Collect profile fields
+            const get = (sel) => tr.querySelector(`[data-field="${sel}"]`);
+            const fdProfile = new FormData();
+            fdProfile.append('action', 'save_profile');
+            fdProfile.append('user_id', String(userId));
+            fdProfile.append('year_of_membership', get('year_of_membership')?.value || '');
+            fdProfile.append('age_upon_membership', get('age_upon_membership')?.value || '');
+            fdProfile.append('membership_status', get('membership_status')?.value || 'inactive');
+            fdProfile.append('certification', get('certification')?.value || 'Regular');
+            fdProfile.append('membership_fee', get('membership_fee')?.value || '');
+            const r1 = await api('../backend/routes/membership_status.php', {
                 method: 'POST',
-                body: fd
+                body: fdProfile
             });
-            if (!res.status) return alert(res.message || 'Save failed');
-            alert('Profile saved');
-        });
+            if (!r1.status) {
+                alert(r1.message || 'Save profile failed');
+                return;
+            }
 
-        document.getElementById('saveDuesBtn').addEventListener('click', async () => {
-            const user_id = document.getElementById('pf_user_id').value;
-            const rows = Array.from(duesTableBody.querySelectorAll('tr'));
-            const dues = rows.map(r => {
-                const y = parseInt(r.children[0].textContent, 10);
-                const s = r.querySelector('select').value;
-                const a = r.querySelector('input').value;
-                return {
-                    year: y,
-                    status: s,
-                    amount: a
+            // Collect dues
+            const tds = Array.from(tr.querySelectorAll('[data-user]'));
+            const map = {};
+            tds.forEach(el => {
+                const attr = el.getAttribute('data-field');
+                if (!attr) return;
+                const parts = attr.split('_'); // dues_status_YYYY or dues_amount_YYYY
+                const kind = parts[1]; // status or amount
+                const year = parts[2];
+                map[year] = map[year] || {
+                    year: parseInt(year, 10),
+                    status: 'Unpaid',
+                    amount: ''
                 };
+                if (kind === 'status') map[year].status = el.value;
+                if (kind === 'amount') map[year].amount = el.value;
             });
-            const fd = new FormData();
-            fd.append('action', 'save_dues');
-            fd.append('user_id', user_id);
-            fd.append('dues', JSON.stringify(dues));
-            const res = await api('../backend/routes/membership_status.php', {
+            const dues = Object.values(map);
+            const fdDues = new FormData();
+            fdDues.append('action', 'save_dues');
+            fdDues.append('user_id', String(userId));
+            fdDues.append('dues', JSON.stringify(dues));
+            const r2 = await api('../backend/routes/membership_status.php', {
                 method: 'POST',
-                body: fd
+                body: fdDues
             });
-            if (!res.status) return alert(res.message || 'Save failed');
-            alert('Dues saved');
+            if (!r2.status) {
+                alert(r2.message || 'Save dues failed');
+                return;
+            }
+            alert('Saved');
         });
 
-        // Initial loads
-        loadMembers();
+        loadGrid();
     </script>
 </body>
 

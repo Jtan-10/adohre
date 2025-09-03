@@ -60,6 +60,49 @@ try {
             }
         }
         echo json_encode(['status' => true, 'data' => $rows]);
+    } elseif ($action === 'grid') {
+        // Return dynamic years and all members with dues map for each year
+        ensureAdmin();
+        $startYear = 2014;
+        $endYear = intval(date('Y'));
+        $years = [];
+        for ($y = $startYear; $y <= $endYear; $y++) {
+            $years[] = $y;
+        }
+        $sql = "SELECT u.user_id, u.first_name, u.last_name, COALESCE(m.membership_status, 'inactive') AS membership_status,
+                       mp.year_of_membership, mp.age_upon_membership, mp.certification, mp.membership_fee
+                FROM users u
+                LEFT JOIN members m ON m.user_id = u.user_id
+                LEFT JOIN membership_profiles mp ON mp.user_id = u.user_id
+                WHERE u.role IN ('member')
+                ORDER BY u.last_name, u.first_name";
+        $res = $conn->query($sql);
+        $members = [];
+        while ($row = $res->fetch_assoc()) {
+            $user_id = intval($row['user_id']);
+            // Fetch dues for this member
+            $duesMap = [];
+            $stmt = $conn->prepare("SELECT year, status, amount FROM membership_dues WHERE user_id = ?");
+            $stmt->bind_param('i', $user_id);
+            $stmt->execute();
+            $r2 = $stmt->get_result();
+            while ($d = $r2->fetch_assoc()) {
+                $duesMap[intval($d['year'])] = ['status' => $d['status'], 'amount' => $d['amount']];
+            }
+            $stmt->close();
+            // Fill missing years with defaults
+            $dues = [];
+            for ($y = $startYear; $y <= $endYear; $y++) {
+                if (!isset($duesMap[$y])) {
+                    $dues[(string)$y] = ['status' => ($y == 2021 ? 'Waived' : 'Unpaid'), 'amount' => null];
+                } else {
+                    $dues[(string)$y] = $duesMap[$y];
+                }
+            }
+            $row['dues'] = $dues;
+            $members[] = $row;
+        }
+        echo json_encode(['status' => true, 'years' => $years, 'members' => $members]);
     } elseif ($action === 'get_member') {
         ensureAdmin();
         $user_id = intval($_GET['user_id'] ?? 0);
