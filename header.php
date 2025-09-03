@@ -115,7 +115,9 @@ if ($stmt) {
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="programsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">Programs</a>
                         <ul class="dropdown-menu" aria-labelledby="programsDropdown">
-                            <li><a class="dropdown-item" href="projects.php">Projects</a></li>
+                            <?php if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'user'): ?>
+                                <li><a class="dropdown-item" href="projects.php">Projects</a></li>
+                            <?php endif; ?>
                             <?php if (isset($_SESSION['role']) && $_SESSION['role'] !== 'user'): ?>
                                 <li><a class="dropdown-item" href="events.php">Events</a></li>
                             <?php endif; ?>

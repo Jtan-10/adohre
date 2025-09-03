@@ -483,19 +483,21 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
             </div>
         </section>
 
-        <!-- Upcoming Events Preview -->
-        <section class="section-padding">
-            <div class="container">
-                <div class="d-flex align-items-end justify-content-between mb-3">
-                    <div>
-                        <h2 class="mb-0">Upcoming Events</h2>
-                        <small class="section-subtitle">Don’t miss what’s next</small>
+        <!-- Upcoming Events Preview (hidden for role 'user') -->
+        <?php if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'user'): ?>
+            <section class="section-padding">
+                <div class="container">
+                    <div class="d-flex align-items-end justify-content-between mb-3">
+                        <div>
+                            <h2 class="mb-0">Upcoming Events</h2>
+                            <small class="section-subtitle">Don’t miss what’s next</small>
+                        </div>
+                        <a href="events.php" class="btn btn-outline-success btn-sm">View all</a>
                     </div>
-                    <a href="events.php" class="btn btn-outline-success btn-sm">View all</a>
+                    <div class="row g-4" id="homeEvents"></div>
                 </div>
-                <div class="row g-4" id="homeEvents"></div>
-            </div>
-        </section>
+            </section>
+        <?php endif; ?>
 
         <!-- Latest News Preview -->
         <section class="section-padding bg-light">
@@ -636,7 +638,8 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
                                         }
                                     }
                                 } catch (e) {
-                                    /* ignore carousel read errors */ }
+                                    /* ignore carousel read errors */
+                                }
                                 if (latestHeroUrl) payload['home_hero_image_url'] = latestHeroUrl;
                                 const fd = new FormData();
                                 fd.append('page', page);
