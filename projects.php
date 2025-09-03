@@ -140,6 +140,7 @@ if (!isset($_SESSION['user_id'])) {
                                                             ${ dateStr ? `<span class=\"badge-date mb-2\"><i class=\"fas fa-calendar-alt me-1\"></i>${dateStr}</span>` : '' }
                               <h5 class="card-title">${p.title || ''}</h5>
                                                             ${ p.partner ? `<div class=\"text-muted mb-1\"><i class=\"fas fa-handshake me-1\"></i>${p.partner}</div>` : '' }
+                                                            ${ p.description ? `<p class=\"mb-2 small\">${(p.description||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>` : '' }
                                                             <div class="text-muted">
                                                                 ${ statusStr ? `<span class=\"me-2\">${statusStr}</span>` : '' }
                                                                 ${ endStr ? `<span class=\"text-nowrap\">End: ${endStr}</span>` : '' }

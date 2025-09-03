@@ -49,6 +49,10 @@
                         </div>
                     </div>
                     <div class="mb-3 mt-3">
+                        <label for="projectDescription" class="form-label">Description</label>
+                        <textarea id="projectDescription" name="description" class="form-control" rows="4" placeholder="Short description of the project"></textarea>
+                    </div>
+                    <div class="mb-3 mt-3">
                         <label for="projectImage" class="form-label">Image</label>
                         <input type="file" id="projectImage" name="image" class="form-control" accept="image/*">
                     </div>
@@ -107,6 +111,7 @@
                                     ${ p.end_date ? ' • End: ' + new Date(p.end_date).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) : '' }
                                 </div>
                                 ${ p.partner ? `<div class="text-muted mb-2"><i class=\"fas fa-handshake me-1\"></i>${p.partner}</div>` : '' }
+                                ${ p.description ? `<div class="mb-2 small">${p.description.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>` : '' }
                                 <div>
                                     <button class="btn btn-primary btn-sm edit-project" data-id="${p.project_id}">Edit</button>
                                     <button class="btn btn-danger btn-sm delete-project ms-2" data-id="${p.project_id}">Delete</button>
@@ -135,6 +140,7 @@
                     document.getElementById('projectId').value = p.project_id;
                     document.getElementById('projectTitle').value = p.title || '';
                     document.getElementById('projectPartner').value = p.partner || '';
+                    document.getElementById('projectDescription').value = p.description || '';
                     document.getElementById('projectDate').value = p.date ? p.date.slice(0, 7) : '';
                     document.getElementById('projectStatus').value = p.status || 'scheduling';
                     document.getElementById('projectEndDate').value = p.end_date ? p.end_date.slice(0, 7) : '';

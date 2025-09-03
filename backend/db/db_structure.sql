@@ -365,6 +365,7 @@ CREATE TABLE `projects` (
   `project_id` int(10) UNSIGNED NOT NULL,
   `title` varchar(255) NOT NULL,
   `partner` varchar(255) DEFAULT NULL,
+  `description` text DEFAULT NULL,
   `date` date DEFAULT NULL,
   `status` enum('scheduling','ongoing','finished') NOT NULL DEFAULT 'scheduling',
   `end_date` date DEFAULT NULL,
@@ -376,6 +377,8 @@ CREATE TABLE `projects` (
 
 -- Optional seed: To load sample projects (new schema), run the following after creating the projects table:
 -- INSERT INTO projects (title, partner, date, status, end_date, image, created_by) VALUES
+-- Migration note: If upgrading an existing database, run:
+-- ALTER TABLE projects ADD COLUMN description TEXT NULL AFTER partner;
 -- ('Building CSO Partnerships to Strengthen Open Government Program Commitments in Tobacco Control Implementation', 'Vital Strategies Limited, NY,NY, USA', NULL, 'ongoing', NULL, NULL, NULL),
 -- ('Growing Expertise in E-health Knowledge and Skills (GEEKS) program for DOH informatics capacity building (Cohort 2)', 'The Task Force for Global Health, GA, USA', NULL, 'ongoing', NULL, NULL, NULL),
 -- ('Service Provider to Facilitate the Process of Training and Certification Examination for DOH KMITS staff', 'Philippine Business for Social Progress, Metro Manila', NULL, 'scheduling', NULL, NULL, NULL),

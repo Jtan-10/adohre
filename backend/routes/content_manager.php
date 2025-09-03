@@ -69,6 +69,24 @@ function ensureAuthenticated()
 
 $action = $_POST['action'] ?? $_GET['action'] ?? null;
 
+// Utility: check if a column exists to allow backward-compatible migrations
+function cm_hasColumn(mysqli $conn, string $table, string $column): bool
+{
+    $dbRes = $conn->query('SELECT DATABASE() AS db');
+    if (!$dbRes) return false;
+    $dbRow = $dbRes->fetch_assoc();
+    $db = $dbRow ? $dbRow['db'] : null;
+    if (!$db) return false;
+    $stmt = $conn->prepare('SELECT COUNT(*) AS cnt FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?');
+    if (!$stmt) return false;
+    $stmt->bind_param('sss', $db, $table, $column);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $row = $res ? $res->fetch_assoc() : null;
+    $stmt->close();
+    return $row && intval($row['cnt']) > 0;
+}
+
 try {
     if ($action === 'fetch') {
         // ----------------------------
@@ -153,8 +171,12 @@ try {
             'trainings' => $trainings
         ]);
     } elseif ($action === 'fetch_projects') {
-        // Fetch projects list (new schema: partner, date, status, end_date, image)
-        $result = $conn->query("SELECT project_id, title, partner, date, status, end_date, image FROM projects ORDER BY COALESCE(date, created_at) DESC");
+        // Fetch projects list (new schema: partner, description, date, status, end_date, image)
+        $hasDesc = cm_hasColumn($conn, 'projects', 'description');
+        $select = $hasDesc
+            ? "SELECT project_id, title, partner, description, date, status, end_date, image FROM projects ORDER BY COALESCE(date, created_at) DESC"
+            : "SELECT project_id, title, partner, date, status, end_date, image FROM projects ORDER BY COALESCE(date, created_at) DESC";
+        $result = $conn->query($select);
         $projects = [];
         if ($result) {
             while ($row = $result->fetch_assoc()) {
@@ -503,11 +525,13 @@ try {
         ensureAuthenticated();
         $title = $_POST['title'];
         $partner = $_POST['partner'] ?? null;
+        $description = $_POST['description'] ?? null;
         $date = $_POST['date'] ?? null; // YYYY-MM-DD (start date or relevant date)
         $status = $_POST['status'] ?? 'scheduling';
         $end_date = $_POST['end_date'] ?? null; // Only for finished
         $project_id = $_POST['id'] ?? null;
         $userId = $_SESSION['user_id'];
+        $hasDesc = cm_hasColumn($conn, 'projects', 'description');
 
         $relativeImagePath = null;
         if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
@@ -579,14 +603,24 @@ try {
         }
 
         if ($action === 'add_project') {
-            $stmt = $conn->prepare("INSERT INTO projects (title, partner, date, status, end_date, image, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param('ssssssi', $title, $partner, $date, $status, $end_date, $relativeImagePath, $userId);
+            if ($hasDesc) {
+                $stmt = $conn->prepare("INSERT INTO projects (title, partner, description, date, status, end_date, image, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param('sssssssi', $title, $partner, $description, $date, $status, $end_date, $relativeImagePath, $userId);
+            } else {
+                $stmt = $conn->prepare("INSERT INTO projects (title, partner, date, status, end_date, image, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param('ssssssi', $title, $partner, $date, $status, $end_date, $relativeImagePath, $userId);
+            }
             $stmt->execute();
             recordAuditLog($userId, 'Add Project', "Project '$title' added.");
             echo json_encode(['status' => true, 'message' => 'Project added successfully.']);
         } else {
-            $stmt = $conn->prepare("UPDATE projects SET title = ?, partner = ?, date = ?, status = ?, end_date = ?, image = IFNULL(?, image) WHERE project_id = ?");
-            $stmt->bind_param('ssssssi', $title, $partner, $date, $status, $end_date, $relativeImagePath, $project_id);
+            if ($hasDesc) {
+                $stmt = $conn->prepare("UPDATE projects SET title = ?, partner = ?, description = ?, date = ?, status = ?, end_date = ?, image = IFNULL(?, image) WHERE project_id = ?");
+                $stmt->bind_param('sssssssi', $title, $partner, $description, $date, $status, $end_date, $relativeImagePath, $project_id);
+            } else {
+                $stmt = $conn->prepare("UPDATE projects SET title = ?, partner = ?, date = ?, status = ?, end_date = ?, image = IFNULL(?, image) WHERE project_id = ?");
+                $stmt->bind_param('ssssssi', $title, $partner, $date, $status, $end_date, $relativeImagePath, $project_id);
+            }
             $stmt->execute();
             recordAuditLog($userId, 'Update Project', "Project ID $project_id updated.");
             echo json_encode(['status' => true, 'message' => 'Project updated successfully.']);
