@@ -109,17 +109,29 @@ if ($stmt) {
                 <li class="nav-item"><a class="nav-link" href="index.php">Home</a></li>
                 <li class="nav-item"><a class="nav-link" href="about.php">About Us</a></li>
                 <li class="nav-item"><a class="nav-link" href="news.php">News</a></li>
-                <!-- Added FAQ nav item -->
-                <li class="nav-item"><a class="nav-link" href="faqs.php">FAQs</a></li>
-                <?php if (isset($_SESSION['user_id'])): ?>
-                    <li class="nav-item"><a class="nav-link" href="projects.php">Projects</a></li>
+
+                <!-- Grouped: Programs -->
+                <?php if ($isLoggedIn): ?>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="programsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">Programs</a>
+                        <ul class="dropdown-menu" aria-labelledby="programsDropdown">
+                            <li><a class="dropdown-item" href="projects.php">Projects</a></li>
+                            <?php if (isset($_SESSION['role']) && $_SESSION['role'] !== 'user'): ?>
+                                <li><a class="dropdown-item" href="events.php">Events</a></li>
+                            <?php endif; ?>
+                            <li><a class="dropdown-item" href="trainings.php">Trainings</a></li>
+                        </ul>
+                    </li>
                 <?php endif; ?>
-                <?php if ($isLoggedIn && (isset($_SESSION['role']) && $_SESSION['role'] !== 'user')): ?>
-                    <li class="nav-item"><a class="nav-link" href="events.php">Events</a></li>
-                <?php endif; ?>
-                <?php if (isset($_SESSION['user_id'])): ?>
-                    <li class="nav-item"><a class="nav-link" href="trainings.php">Trainings</a></li>
-                <?php endif; ?>
+
+                <!-- Grouped: Resources -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="resourcesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">Resources</a>
+                    <ul class="dropdown-menu" aria-labelledby="resourcesDropdown">
+                        <li><a class="dropdown-item" href="documents.php">Documents</a></li>
+                        <li><a class="dropdown-item" href="faqs.php">FAQs</a></li>
+                    </ul>
+                </li>
                 <?php if ($isLoggedIn): ?>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"

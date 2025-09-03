@@ -392,6 +392,21 @@ CREATE TABLE `projects` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `documents`
+--
+
+CREATE TABLE `documents` (
+  `document_id` int(11) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `type` varchar(100) DEFAULT NULL COMMENT 'e.g., Policy, Report, Form',
+  `file_url` varchar(512) NOT NULL COMMENT 'Stored as /s3proxy/<key> path',
+  `uploaded_by` int(11) DEFAULT NULL,
+  `uploaded_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+
+--
 -- Table structure for table `remember_tokens`
 --
 

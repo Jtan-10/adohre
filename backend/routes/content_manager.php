@@ -700,6 +700,138 @@ try {
             echo json_encode(['status' => false, 'message' => 'Training not found.']);
         }
         exit();
+    } elseif ($action === 'fetch_documents') {
+        // Fetch all documents
+        $docs = [];
+        $res = $conn->query("SELECT document_id, name, type, file_url, uploaded_by, uploaded_at FROM documents ORDER BY uploaded_at DESC");
+        if ($res) {
+            while ($row = $res->fetch_assoc()) {
+                $docs[] = $row;
+            }
+        }
+        echo json_encode(['status' => true, 'documents' => $docs]);
+    } elseif ($action === 'add_document' || $action === 'update_document') {
+        ensureAuthenticated();
+        $doc_id = $_POST['id'] ?? null;
+        $name = trim($_POST['name'] ?? '');
+        $type = trim($_POST['type'] ?? '');
+        $userId = $_SESSION['user_id'];
+
+        if ($name === '') {
+            echo json_encode(['status' => false, 'message' => 'Name is required.']);
+            exit();
+        }
+
+        $relativeFilePath = null;
+        if (isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
+            // Limit to 20MB
+            if ($_FILES['file']['size'] > 20 * 1024 * 1024) {
+                echo json_encode(['status' => false, 'message' => 'File too large. Max 20MB.']);
+                exit();
+            }
+            // Strictly allow PDFs
+            $mime = mime_content_type($_FILES['file']['tmp_name']);
+            $origName = $_FILES['file']['name'];
+            $isPdf = (strtolower(pathinfo($origName, PATHINFO_EXTENSION)) === 'pdf') || (stripos($mime, 'pdf') !== false);
+            if (!$isPdf) {
+                echo json_encode(['status' => false, 'message' => 'Invalid file type. Only PDF allowed.']);
+                exit();
+            }
+
+            // S3 key
+            $safeName = preg_replace('/[^A-Za-z0-9_.-]/', '_', basename($origName));
+            $s3Key = 'uploads/documents/' . time() . '_' . $safeName;
+
+            // If updating, delete old file if exists
+            if ($action === 'update_document') {
+                $stmtOld = $conn->prepare("SELECT file_url FROM documents WHERE document_id = ?");
+                $stmtOld->bind_param('i', $doc_id);
+                $stmtOld->execute();
+                $resOld = $stmtOld->get_result();
+                if ($resOld && $resOld->num_rows > 0) {
+                    $old = $resOld->fetch_assoc();
+                    if (!empty($old['file_url']) && strpos($old['file_url'], '/s3proxy/') === 0) {
+                        $existingS3Key = urldecode(str_replace('/s3proxy/', '', $old['file_url']));
+                        try {
+                            $s3->deleteObject(['Bucket' => $bucketName, 'Key' => $existingS3Key]);
+                        } catch (Aws\Exception\AwsException $e) {
+                            error_log('S3 deletion error: ' . $e->getMessage());
+                        }
+                    }
+                }
+                $stmtOld->close();
+            }
+
+            // Upload PDF to S3 (no encryption)
+            try {
+                $result = $s3->putObject([
+                    'Bucket'      => $bucketName,
+                    'Key'         => $s3Key,
+                    'Body'        => fopen($_FILES['file']['tmp_name'], 'rb'),
+                    'ACL'         => 'public-read',
+                    'ContentType' => 'application/pdf'
+                ]);
+                // Prefer a stable internal path instead of relying on ObjectURL base
+                $relativeFilePath = '/s3proxy/' . $s3Key;
+            } catch (Aws\Exception\AwsException $e) {
+                error_log('S3 upload error: ' . $e->getMessage());
+                echo json_encode(['status' => false, 'message' => 'Failed to upload document to S3.']);
+                exit();
+            }
+        }
+
+        if ($action === 'add_document') {
+            $stmt = $conn->prepare("INSERT INTO documents (name, type, file_url, uploaded_by) VALUES (?, ?, ?, ?)");
+            $stmt->bind_param('sssi', $name, $type, $relativeFilePath, $userId);
+            $stmt->execute();
+            recordAuditLog($userId, 'Add Document', "Document '$name' added.");
+            echo json_encode(['status' => true, 'message' => 'Document added successfully.']);
+        } else {
+            $stmt = $conn->prepare("UPDATE documents SET name = ?, type = ?, file_url = IFNULL(?, file_url) WHERE document_id = ?");
+            $stmt->bind_param('sssi', $name, $type, $relativeFilePath, $doc_id);
+            $stmt->execute();
+            recordAuditLog($userId, 'Update Document', "Document ID $doc_id updated.");
+            echo json_encode(['status' => true, 'message' => 'Document updated successfully.']);
+        }
+    } elseif ($action === 'delete_document') {
+        ensureAuthenticated();
+        $doc_id = intval($_POST['id'] ?? 0);
+        $userId = $_SESSION['user_id'];
+        // Fetch the file_url for deletion
+        $stmt = $conn->prepare("SELECT file_url FROM documents WHERE document_id = ?");
+        $stmt->bind_param('i', $doc_id);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        if ($res && $res->num_rows > 0) {
+            $row = $res->fetch_assoc();
+            if (!empty($row['file_url']) && strpos($row['file_url'], '/s3proxy/') === 0) {
+                $existingS3Key = urldecode(str_replace('/s3proxy/', '', $row['file_url']));
+                try {
+                    $s3->deleteObject(['Bucket' => $bucketName, 'Key' => $existingS3Key]);
+                } catch (Aws\Exception\AwsException $e) {
+                    error_log('S3 deletion error: ' . $e->getMessage());
+                }
+            }
+        }
+        $stmt->close();
+        // Delete DB record
+        $stmt = $conn->prepare("DELETE FROM documents WHERE document_id = ?");
+        $stmt->bind_param('i', $doc_id);
+        $stmt->execute();
+        recordAuditLog($userId, 'Delete Document', "Document ID $doc_id deleted.");
+        echo json_encode(['status' => true, 'message' => 'Document deleted successfully.']);
+    } elseif ($action === 'get_document') {
+        $doc_id = intval($_GET['id'] ?? 0);
+        $stmt = $conn->prepare("SELECT * FROM documents WHERE document_id = ?");
+        $stmt->bind_param('i', $doc_id);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        if ($res && $res->num_rows > 0) {
+            echo json_encode(['status' => true, 'document' => $res->fetch_assoc()]);
+        } else {
+            echo json_encode(['status' => false, 'message' => 'Document not found.']);
+        }
+        exit();
     } else {
         echo json_encode(['status' => false, 'message' => 'Invalid action.']);
     }

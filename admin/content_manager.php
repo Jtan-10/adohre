@@ -88,6 +88,10 @@ if (!isset($_SESSION['csrf_token'])) {
                     <button class="nav-link" id="projects-tab" data-bs-toggle="tab" data-bs-target="#projects"
                         type="button" role="tab" aria-controls="projects" aria-selected="false">Projects</button>
                 </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="documents-tab" data-bs-toggle="tab" data-bs-target="#documents"
+                        type="button" role="tab" aria-controls="documents" aria-selected="false">Documents</button>
+                </li>
                 <!-- Trainings tab removed -->
             </ul>
 
@@ -104,6 +108,9 @@ if (!isset($_SESSION['csrf_token'])) {
                 </div>
                 <div class="tab-pane fade" id="projects" role="tabpanel" aria-labelledby="projects-tab">
                     <?php include 'projects_tab.php'; ?>
+                </div>
+                <div class="tab-pane fade" id="documents" role="tabpanel" aria-labelledby="documents-tab">
+                    <?php include 'documents_tab.php'; ?>
                 </div>
                 <!-- Trainings content removed -->
             </div>
