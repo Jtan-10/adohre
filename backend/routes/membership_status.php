@@ -198,6 +198,103 @@ try {
         }
         $stmt->close();
         echo json_encode(['status' => true]);
+    } elseif ($action === 'send_notice') {
+        ensureAdmin();
+        $type = $_POST['type'] ?? '';
+        $user_id = intval($_POST['user_id'] ?? 0);
+        if (!$user_id || !in_array($type, ['membership_fee', 'annual_dues'], true)) {
+            echo json_encode(['status' => false, 'message' => 'Invalid payload']);
+            exit;
+        }
+        // Pull amount and build payment payload
+        if ($type === 'membership_fee') {
+            $stmt = $conn->prepare("SELECT COALESCE(mp.membership_fee,0) AS amount FROM membership_profiles mp WHERE mp.user_id = ?");
+            $stmt->bind_param('i', $user_id);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            $row = $res->fetch_assoc();
+            $stmt->close();
+            $amount = isset($row['amount']) ? floatval($row['amount']) : 0.0;
+            if ($amount <= 0) {
+                echo json_encode(['status' => false, 'message' => 'Membership fee amount is missing']);
+                exit;
+            }
+            // Create a payment record via direct insert
+            $payment_type = 'Membership Fee';
+            $status = 'New';
+            $due_date = date('Y-m-d', strtotime('+30 days'));
+            $stmt2 = $conn->prepare("INSERT INTO payments (user_id, payment_type, amount, status, due_date) VALUES (?,?,?,?,?)");
+            $stmt2->bind_param('isdss', $user_id, $payment_type, $amount, $status, $due_date);
+            $ok = $stmt2->execute();
+            $stmt2->close();
+            echo json_encode(['status' => (bool)$ok]);
+        } else { // annual_dues
+            $year = intval($_POST['year'] ?? 0);
+            $amount = isset($_POST['amount']) && $_POST['amount'] !== '' ? floatval($_POST['amount']) : null;
+            if (!$year) {
+                echo json_encode(['status' => false, 'message' => 'Missing year']);
+                exit;
+            }
+            // If amount not provided, fall back to dues amount table if exists
+            if ($amount === null) {
+                $stmt = $conn->prepare("SELECT amount FROM membership_dues WHERE user_id = ? AND year = ?");
+                $stmt->bind_param('ii', $user_id, $year);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                $row = $res->fetch_assoc();
+                $stmt->close();
+                $amount = isset($row['amount']) ? floatval($row['amount']) : 0.0;
+            }
+            if ($amount <= 0) {
+                echo json_encode(['status' => false, 'message' => 'Annual dues amount is missing']);
+                exit;
+            }
+            $payment_type = 'Annual Dues ' . $year;
+            $status = 'New';
+            $due_date = date('Y-m-d', strtotime('+30 days'));
+            $stmt2 = $conn->prepare("INSERT INTO payments (user_id, payment_type, amount, status, due_date) VALUES (?,?,?,?,?)");
+            $stmt2->bind_param('isdss', $user_id, $payment_type, $amount, $status, $due_date);
+            $ok = $stmt2->execute();
+            $stmt2->close();
+            echo json_encode(['status' => (bool)$ok]);
+        }
+    } elseif ($action === 'payment_state') {
+        // Return quick state of membership fee and annual dues payments for given user (and year for dues)
+        ensureAdmin();
+        $user_id = intval($_GET['user_id'] ?? 0);
+        $year = isset($_GET['year']) ? intval($_GET['year']) : null;
+        if (!$user_id) {
+            echo json_encode(['status' => false, 'message' => 'Missing user_id']);
+            exit;
+        }
+        $state = [
+            'membership_fee' => null,
+            'annual_dues' => null
+        ];
+        // Membership fee latest status
+        $q1 = "SELECT status FROM payments WHERE user_id = ? AND payment_type = 'Membership Fee' AND is_archived = 0 ORDER BY payment_id DESC LIMIT 1";
+        $stmt1 = $conn->prepare($q1);
+        $stmt1->bind_param('i', $user_id);
+        $stmt1->execute();
+        $r1 = $stmt1->get_result();
+        if ($row = $r1->fetch_assoc()) {
+            $state['membership_fee'] = $row['status'];
+        }
+        $stmt1->close();
+        // Annual dues for a specific year
+        if ($year) {
+            $pt = 'Annual Dues ' . $year;
+            $q2 = "SELECT status FROM payments WHERE user_id = ? AND payment_type = ? AND is_archived = 0 ORDER BY payment_id DESC LIMIT 1";
+            $stmt2 = $conn->prepare($q2);
+            $stmt2->bind_param('is', $user_id, $pt);
+            $stmt2->execute();
+            $r2 = $stmt2->get_result();
+            if ($row2 = $r2->fetch_assoc()) {
+                $state['annual_dues'] = $row2['status'];
+            }
+            $stmt2->close();
+        }
+        echo json_encode(['status' => true, 'state' => $state]);
     } else {
         echo json_encode(['status' => false, 'message' => 'Unknown action']);
     }

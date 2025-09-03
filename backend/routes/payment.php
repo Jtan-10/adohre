@@ -530,8 +530,8 @@ if ($method === 'GET') {
 
             // If the new status is "Completed", update membership and register for event/training.
             if (strtolower($newStatus) === 'completed') {
-                // Retrieve full payment record
-                $stmtPayment = $conn->prepare("SELECT user_id, payment_type, event_id, training_id FROM payments WHERE payment_id = ?");
+                // Retrieve full payment record (include amount)
+                $stmtPayment = $conn->prepare("SELECT user_id, payment_type, amount, event_id, training_id FROM payments WHERE payment_id = ?");
                 $stmtPayment->bind_param("i", $payment_id);
                 $stmtPayment->execute();
                 $resultPayment = $stmtPayment->get_result();
@@ -550,6 +550,33 @@ if ($method === 'GET') {
                         $stmtReg->bind_param("ii", $paymentRecord['user_id'], $paymentRecord['training_id']);
                         $stmtReg->execute();
                         $stmtReg->close();
+                    }
+
+                    // If this is an Annual Dues payment, update membership_dues table as Paid
+                    if (stripos($paymentRecord['payment_type'], 'Annual Dues') === 0) {
+                        // Expect format: "Annual Dues YYYY" or "Annual Dues: YYYY"
+                        $year = null;
+                        if (preg_match('/Annual Dues\s*[:]?\s*(\d{4})/i', $paymentRecord['payment_type'], $m)) {
+                            $year = intval($m[1]);
+                        }
+                        if ($year) {
+                            // Ensure table exists (defensive)
+                            $conn->query("CREATE TABLE IF NOT EXISTS membership_dues (
+                                user_id INT(11) NOT NULL,
+                                year YEAR NOT NULL,
+                                status ENUM('Paid','Unpaid','Waived') DEFAULT 'Unpaid',
+                                amount DECIMAL(10,2) DEFAULT NULL,
+                                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                                PRIMARY KEY (user_id, year),
+                                CONSTRAINT fk_md_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+                            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+                            $stmtMD = $conn->prepare("INSERT INTO membership_dues (user_id, year, status, amount) VALUES (?,?, 'Paid', ?)
+                                                      ON DUPLICATE KEY UPDATE status='Paid', amount=VALUES(amount)");
+                            $amt = isset($paymentRecord['amount']) ? floatval($paymentRecord['amount']) : null;
+                            $stmtMD->bind_param('iid', $paymentRecord['user_id'], $year, $amt);
+                            $stmtMD->execute();
+                            $stmtMD->close();
+                        }
                     }
                 }
                 $stmtPayment->close();

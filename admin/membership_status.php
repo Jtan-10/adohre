@@ -84,6 +84,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                             <option value="active" ${status==='active'?'selected':''}>Active</option>
                             <option value="inactive" ${status!=='active'?'selected':''}>Inactive</option>
                         </select>
+                        <div class="small mt-1">Fee Payment: <span class="badge bg-secondary" data-field="badge_fee">—</span></div>
                     </td>
                     <td>
                         <select class="form-select form-select-sm" data-field="certification">
@@ -107,10 +108,15 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                             <div class="col-auto">
                                 <input type="number" step="0.01" class="form-control form-control-sm" data-field="dues_amount" value="${dLatest.amount ?? ''}" placeholder="Amount">
                             </div>
+                            <div class="col-auto">
+                                <div class="small">Dues Payment: <span class="badge bg-secondary" data-field="badge_dues">—</span></div>
+                            </div>
                         </div>
                     </td>
                     <td>
                         <button class="btn btn-sm btn-success" data-action="save" data-user="${m.user_id}">Save</button>
+                        <button class="btn btn-sm btn-outline-primary" data-action="notice_fee" data-user="${m.user_id}">Send Fee Notice</button>
+                        <button class="btn btn-sm btn-outline-primary" data-action="notice_dues" data-user="${m.user_id}">Send Dues Notice</button>
                     </td>
                 </tr>
             `;
@@ -197,6 +203,112 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                 return;
             }
             alert('Saved');
+        });
+
+        // Send notices
+        body.addEventListener('click', async (e) => {
+            const btnFee = e.target.closest('[data-action="notice_fee"]');
+            const btnDues = e.target.closest('[data-action="notice_dues"]');
+            if (!btnFee && !btnDues) return;
+            const tr = e.target.closest('tr');
+            const userId = parseInt(tr.getAttribute('data-user-id'), 10);
+            if (btnFee) {
+                // Ensure we have a membership fee amount
+                const fee = tr.querySelector('[data-field="membership_fee"]').value;
+                if (!fee || parseFloat(fee) <= 0) {
+                    alert('Set membership fee amount first.');
+                    return;
+                }
+                const fd = new FormData();
+                fd.append('action', 'send_notice');
+                fd.append('type', 'membership_fee');
+                fd.append('user_id', String(userId));
+                const res = await api('../backend/routes/membership_status.php', {
+                    method: 'POST',
+                    body: fd
+                });
+                if (!res.status) {
+                    alert(res.message || 'Failed sending fee notice');
+                    return;
+                }
+                pollRowState(tr);
+                alert('Fee notice sent');
+            }
+            if (btnDues) {
+                const year = tr.querySelector('[data-field="dues_year"]').value;
+                const amount = tr.querySelector('[data-field="dues_amount"]').value;
+                if (!amount || parseFloat(amount) <= 0) {
+                    alert('Set annual dues amount first.');
+                    return;
+                }
+                const fd = new FormData();
+                fd.append('action', 'send_notice');
+                fd.append('type', 'annual_dues');
+                fd.append('user_id', String(userId));
+                fd.append('year', String(year));
+                fd.append('amount', String(amount));
+                const res = await api('../backend/routes/membership_status.php', {
+                    method: 'POST',
+                    body: fd
+                });
+                if (!res.status) {
+                    alert(res.message || 'Failed sending dues notice');
+                    return;
+                }
+                pollRowState(tr);
+                alert('Dues notice sent');
+            }
+        });
+
+        // Polling helpers for live status
+        async function fetchState(userId, year) {
+            const url = new URL('../backend/routes/membership_status.php', window.location.href);
+            url.searchParams.set('action', 'payment_state');
+            url.searchParams.set('user_id', String(userId));
+            if (year) url.searchParams.set('year', String(year));
+            const res = await fetch(url.toString());
+            return res.json();
+        }
+
+        async function updateBadges(tr) {
+            const userId = parseInt(tr.getAttribute('data-user-id'), 10);
+            const year = tr.querySelector('[data-field="dues_year"]').value;
+            const r = await fetchState(userId, year);
+            if (!r.status) return;
+            const feeBadge = tr.querySelector('[data-field="badge_fee"]');
+            const duesBadge = tr.querySelector('[data-field="badge_dues"]');
+            const paint = (el, val) => {
+                if (!el) return;
+                el.classList.remove('bg-secondary', 'bg-warning', 'bg-success', 'bg-danger', 'bg-info');
+                let cls = 'bg-secondary';
+                if (val === 'New') cls = 'bg-info';
+                else if (val === 'Pending') cls = 'bg-warning';
+                else if (val === 'Completed') cls = 'bg-success';
+                else if (val === 'Canceled') cls = 'bg-danger';
+                el.classList.add(cls);
+                el.textContent = val || '—';
+            };
+            paint(feeBadge, r.state.membership_fee);
+            paint(duesBadge, r.state.annual_dues);
+        }
+
+        function pollRowState(tr) {
+            updateBadges(tr);
+            // Light polling for 60s
+            let count = 0;
+            const iv = setInterval(async () => {
+                count++;
+                await updateBadges(tr);
+                if (count >= 12) clearInterval(iv); // every 5s * 12 = 60s
+            }, 5000);
+        }
+
+        // Trigger initial badge state after grid loads
+        const observer = new MutationObserver(() => {
+            document.querySelectorAll('#gridBody tr').forEach(tr => pollRowState(tr));
+        });
+        observer.observe(body, {
+            childList: true
         });
 
         loadGrid();
