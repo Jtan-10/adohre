@@ -27,7 +27,18 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label for="projectPartner" class="form-label">Partner</label>
-                            <input type="text" id="projectPartner" name="partner" class="form-control">
+                            <select id="projectPartner" name="partner" class="form-select">
+                                <option value="">Select partner</option>
+                                <option value="National Government Agencies (NGA)">National Government Agencies (NGA)</option>
+                                <option value="Local Government Units (LGU)">Local Government Units (LGU)</option>
+                                <option value="Private Sector / Businesses">Private Sector / Businesses</option>
+                                <option value="Civil Society Organizations (CSOs) / NGOs">Civil Society Organizations (CSOs) / NGOs</option>
+                                <option value="Academe / Research Institutions">Academe / Research Institutions</option>
+                                <option value="Development Partners / International Organizations">Development Partners / International Organizations</option>
+                                <option value="Community / People’s Organizations (POs)">Community / People’s Organizations (POs)</option>
+                                <option value="Other">Other (specify)</option>
+                            </select>
+                            <input type="text" id="projectPartnerOther" class="form-control mt-2 d-none" placeholder="Specify partner">
                         </div>
                         <div class="col-md-6">
                             <label for="projectDate" class="form-label">Start/Reference Month</label>
@@ -75,6 +86,8 @@
         const modalTitle = document.getElementById('projectModalLabel');
         const form = document.getElementById('projectForm');
         const saveBtn = document.getElementById('saveProjectBtn');
+        const partnerSelect = document.getElementById('projectPartner');
+        const partnerOther = document.getElementById('projectPartnerOther');
 
         modal.addEventListener('show.bs.modal', (e) => {
             const trigger = e.relatedTarget;
@@ -82,8 +95,26 @@
                 form.reset();
                 document.getElementById('projectId').value = '';
                 modalTitle.textContent = 'Add Project';
+                // Reset partner other field
+                if (partnerOther) {
+                    partnerOther.classList.add('d-none');
+                    partnerOther.value = '';
+                }
             }
         });
+
+        // Toggle display of Other partner input
+        if (partnerSelect) {
+            partnerSelect.addEventListener('change', () => {
+                if (partnerSelect.value === 'Other') {
+                    partnerOther.classList.remove('d-none');
+                    partnerOther.focus();
+                } else {
+                    partnerOther.classList.add('d-none');
+                    partnerOther.value = '';
+                }
+            });
+        }
 
         function fetchProjects() {
             fetch('../backend/routes/content_manager.php?action=fetch_projects')
@@ -139,7 +170,22 @@
                     const p = data.project;
                     document.getElementById('projectId').value = p.project_id;
                     document.getElementById('projectTitle').value = p.title || '';
-                    document.getElementById('projectPartner').value = p.partner || '';
+                    // Handle partner select and Other
+                    const partnerVal = p.partner || '';
+                    const optionVals = Array.from(partnerSelect.options).map(o => o.value);
+                    if (partnerVal && optionVals.includes(partnerVal)) {
+                        partnerSelect.value = partnerVal;
+                        partnerOther.classList.add('d-none');
+                        partnerOther.value = '';
+                    } else if (partnerVal) {
+                        partnerSelect.value = 'Other';
+                        partnerOther.classList.remove('d-none');
+                        partnerOther.value = partnerVal;
+                    } else {
+                        partnerSelect.value = '';
+                        partnerOther.classList.add('d-none');
+                        partnerOther.value = '';
+                    }
                     document.getElementById('projectDescription').value = p.description || '';
                     document.getElementById('projectDate').value = p.date ? p.date.slice(0, 7) : '';
                     document.getElementById('projectStatus').value = p.status || 'scheduling';
@@ -182,6 +228,11 @@
                 fd.set('end_date', `${endMonth}-01`);
             } else {
                 fd.delete('end_date');
+            }
+            // Map Partner 'Other' to provided text
+            if (partnerSelect && partnerSelect.value === 'Other') {
+                const otherVal = (partnerOther.value || '').trim();
+                fd.set('partner', otherVal || 'Other');
             }
             const id = document.getElementById('projectId').value;
             fd.append('action', id ? 'update_project' : 'add_project');
