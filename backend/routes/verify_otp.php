@@ -77,10 +77,16 @@ if (verifyOTP($email, $otp)) {
         $_SESSION['role']          = $user['role'];
         $_SESSION['otp_pending']   = false; // Clear OTP pending status
 
-        // Record successful login
-        recordAuditLog($user['user_id'], 'Login Successful', 'User logged in successfully.');
-
-        echo json_encode(['status' => true, 'message' => 'OTP verified! Login successful.']);
+        // Determine action: if session indicates reset flow, mark otp_verified and allow reset page
+        if (isset($_SESSION['action']) && $_SESSION['action'] === 'reset') {
+            $_SESSION['otp_verified'] = true;
+            recordAuditLog($user['user_id'], 'OTP Verified', 'OTP verified for password setup.');
+            echo json_encode(['status' => true, 'message' => 'OTP verified. You can now set your password.', 'redirect' => 'reset_password.php']);
+        } else {
+            // Normal login success
+            recordAuditLog($user['user_id'], 'Login Successful', 'User logged in successfully.');
+            echo json_encode(['status' => true, 'message' => 'OTP verified! Login successful.']);
+        }
     } else {
         // Do not reveal details about whether the email exists
         echo json_encode(['status' => false, 'message' => 'Invalid credentials.']);

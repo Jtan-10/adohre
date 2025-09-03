@@ -125,31 +125,39 @@ $scriptNonce = bin2hex(random_bytes(16));
     <div class="login-card">
         <h2 class="text-center mb-4">Welcome Back</h2>
 
-        <!-- Login Form -->
+        <!-- Login Form (Email-first) -->
         <form id="loginForm" class="form-section active needs-validation" novalidate>
-            <div class="mb-3">
-                <label for="email-password" class="form-label">Email</label>
-                <input type="email" class="form-control" id="email-password" name="email" required>
-                <div class="invalid-feedback">Please enter a valid email address.</div>
-            </div>
-            <div class="mb-3">
-                <label for="password" class="form-label">Password</label>
-                <div class="input-group">
-                    <input type="password" class="form-control" id="password" name="password" required>
-                    <button class="btn btn-outline-secondary" type="button" id="togglePassword">
-                        <i class="bi bi-eye"></i>
-                    </button>
+            <div id="emailStep">
+                <div class="mb-3">
+                    <label for="email-password" class="form-label">Email</label>
+                    <input type="email" class="form-control" id="email-password" name="email" required>
+                    <div class="invalid-feedback">Please enter a valid email address.</div>
                 </div>
+                <div class="d-grid mb-3">
+                    <button type="button" id="continueBtn" class="btn btn-primary">Continue</button>
+                </div>
+                <p class="small text-muted">If your account doesn’t have a password yet, we’ll send a one-time code to set it.</p>
             </div>
-            <div class="mb-3 form-check">
-                <input type="checkbox" class="form-check-input" id="rememberMe" name="rememberMe">
-                <label class="form-check-label" for="rememberMe">Remember me</label>
-            </div>
-            <div class="d-grid mb-3">
-                <button type="submit" class="btn btn-primary">Log In</button>
-            </div>
-            <div class="text-center mb-3">
-                <a href="#" id="forgotPasswordLink">Forgot Password?</a>
+            <div id="passwordStep" style="display:none;">
+                <div class="mb-3">
+                    <label for="password" class="form-label">Password</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="password" name="password">
+                        <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="rememberMe" name="rememberMe">
+                    <label class="form-check-label" for="rememberMe">Remember me</label>
+                </div>
+                <div class="d-grid mb-3">
+                    <button type="submit" class="btn btn-primary">Log In</button>
+                </div>
+                <div class="text-center mb-3">
+                    <a href="#" id="forgotPasswordLink">Forgot Password?</a>
+                </div>
             </div>
         </form>
 
@@ -238,7 +246,62 @@ $scriptNonce = bin2hex(random_bytes(16));
                     });
             });
 
-            // Login Form Handler
+            // Email-first flow: Continue -> precheck -> either show password or send OTP for setup
+            document.getElementById('continueBtn').addEventListener('click', async function() {
+                const emailEl = document.getElementById('email-password');
+                if (!emailEl.checkValidity()) {
+                    emailEl.reportValidity();
+                    return;
+                }
+                showLoading();
+                try {
+                    const res = await fetch('backend/routes/account_precheck.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            email: emailEl.value
+                        })
+                    });
+                    const j = await res.json();
+                    hideLoading();
+                    if (!j.status) {
+                        showModal('Error', j.message || 'Unable to continue');
+                        return;
+                    }
+                    if (!j.exists) {
+                        showModal('Error', 'Email not registered.');
+                        return;
+                    }
+                    if (j.hasPassword) {
+                        // Show password step
+                        document.getElementById('emailStep').style.display = 'none';
+                        document.getElementById('passwordStep').style.display = 'block';
+                    } else {
+                        // Initiate password setup via OTP, redirect to OTP page
+                        const fd = new FormData();
+                        fd.append('email', emailEl.value);
+                        const resp = await fetch('backend/routes/initiate_password_setup.php', {
+                            method: 'POST',
+                            body: fd
+                        });
+                        const jr = await resp.json();
+                        if (jr.status && jr.requiresOTP) {
+                            sessionStorage.setItem('email', emailEl.value);
+                            sessionStorage.setItem('action', 'reset');
+                            window.location.replace(jr.redirect || 'otp.php');
+                        } else {
+                            showModal('Error', jr.message || 'Failed to start password setup.');
+                        }
+                    }
+                } catch (err) {
+                    hideLoading();
+                    showModal('Error', 'An error occurred.');
+                }
+            });
+
+            // Login Form Handler (password step)
             document.getElementById('loginForm').addEventListener('submit', async function(e) {
                 e.preventDefault();
                 if (!this.checkValidity()) {
@@ -266,7 +329,15 @@ $scriptNonce = bin2hex(random_bytes(16));
 
                     if (result.status) {
                         console.log('Login successful, redirecting...', result); // Debug log with result
-                        if (result.requiresOTP) {
+                        if (result.needsPasswordSetup) {
+                            // First-time login: password not set. Go to OTP, then reset_password
+                            sessionStorage.setItem('email', document.getElementById('email-password').value);
+                            sessionStorage.setItem('action', 'reset');
+                            window.location.replace(result.redirect || 'otp.php');
+                            setTimeout(function() {
+                                window.location.href = result.redirect || 'otp.php';
+                            }, 300);
+                        } else if (result.requiresOTP) {
                             console.log('OTP required, redirecting to OTP page...');
                             sessionStorage.setItem('email', document.getElementById('email-password').value);
                             sessionStorage.setItem('action', 'login');

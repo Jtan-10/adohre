@@ -71,10 +71,45 @@ try {
     // Debug: Log user data
     error_log('User found: ' . $email . ', user_id: ' . $user['user_id'] . ', password_hash exists: ' . (!empty($user['password_hash']) ? 'yes' : 'no'));
 
-    // Verify password
+    // If user has no password set (created by admin/import), trigger password setup via OTP flow
     if (empty($user['password_hash'])) {
-        error_log('No password hash for user: ' . $email);
-        echo json_encode(['status' => false, 'message' => 'Account not fully set up. Please contact support.']);
+        // Set session for password reset flow via OTP
+        $_SESSION['temp_user'] = [
+            'user_id' => $user['user_id'],
+            'first_name' => $user['first_name'],
+            'last_name' => $user['last_name'],
+            'profile_image' => $user['profile_image'],
+            'role' => $user['role'],
+            'is_profile_complete' => $user['is_profile_complete'],
+            'remember' => $remember
+        ];
+        $_SESSION['email'] = $email;
+        $_SESSION['action'] = 'reset';
+
+        // Generate and send OTP
+        $otp = generateOTP();
+        $expiry = date('Y-m-d H:i:s', strtotime('+5 minutes'));
+        $stmt = $conn->prepare("UPDATE users SET otp_code = ?, otp_expiry = ? WHERE user_id = ?");
+        $stmt->bind_param("ssi", $otp, $expiry, $user['user_id']);
+        $stmt->execute();
+        $stmt->close();
+
+        if (sendOTPEmail($email, $otp)) {
+            $_SESSION['otp_pending'] = true;
+            // Ensure session data is written to disk
+            session_write_close();
+            session_start();
+            echo json_encode([
+                'status' => true,
+                'message' => 'Please set your password. We sent an OTP to your email.',
+                'requiresOTP' => true,
+                'needsPasswordSetup' => true,
+                'redirect' => 'otp.php'
+            ]);
+        } else {
+            error_log('Failed to send OTP email for password setup to: ' . $email);
+            echo json_encode(['status' => false, 'message' => 'Failed to send OTP email.']);
+        }
         exit();
     }
 
