@@ -17,6 +17,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
     <title>Membership Status - Admin</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/2.1.8/css/dataTables.dataTables.css" />
 </head>
 
 <body>
@@ -41,6 +42,8 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" nonce="<?= $cspNonce ?>"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" nonce="<?= $cspNonce ?>" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script src="https://cdn.datatables.net/2.1.8/js/dataTables.js" nonce="<?= $cspNonce ?>"></script>
     <script nonce="<?= $cspNonce ?>">
         const api = async (url, opts = {}) => (await fetch(url, opts)).json();
         const head = document.getElementById('gridHead');
@@ -114,13 +117,30 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                         </div>
                     </td>
                     <td>
-                        <button class="btn btn-sm btn-success" data-action="save" data-user="${m.user_id}">Save</button>
-                        <button class="btn btn-sm btn-outline-primary" data-action="notice_fee" data-user="${m.user_id}">Send Fee Notice</button>
-                        <button class="btn btn-sm btn-outline-primary" data-action="notice_dues" data-user="${m.user_id}">Send Dues Notice</button>
+                        <div class="dropdown">
+                            <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">Action</button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#" data-action="save" data-user="${m.user_id}">Save</a></li>
+                                <li><a class="dropdown-item" href="#" data-action="notice_fee" data-user="${m.user_id}">Send Fee Notice</a></li>
+                                <li><a class="dropdown-item" href="#" data-action="notice_dues" data-user="${m.user_id}">Send Dues Notice</a></li>
+                            </ul>
+                        </div>
                     </td>
                 </tr>
             `;
             }).join('');
+            // Initialize or reinitialize DataTable like in admin users
+            if (window.jQuery && $.fn && $.fn.DataTable) {
+                const id = '#gridTable';
+                if ($.fn.DataTable.isDataTable(id)) {
+                    $(id).DataTable().destroy();
+                }
+                $(id).DataTable({
+                    pageLength: 10,
+                    order: [],
+                    autoWidth: false
+                });
+            }
         }
 
         async function loadGrid() {
@@ -160,6 +180,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
         body.addEventListener('click', async (e) => {
             const btn = e.target.closest('[data-action="save"]');
             if (!btn) return;
+            e.preventDefault();
             const userId = parseInt(btn.getAttribute('data-user'), 10);
             const tr = btn.closest('tr');
             // Collect profile fields
@@ -210,6 +231,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
             const btnFee = e.target.closest('[data-action="notice_fee"]');
             const btnDues = e.target.closest('[data-action="notice_dues"]');
             if (!btnFee && !btnDues) return;
+            e.preventDefault();
             const tr = e.target.closest('tr');
             const userId = parseInt(tr.getAttribute('data-user-id'), 10);
             if (btnFee) {
