@@ -28,7 +28,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     <script src="https://cdn.datatables.net/2.1.8/js/dataTables.js" nonce="<?= $cspNonce ?>"></script>
     <!-- Inline script with nonce to set CSRF token -->
     <script nonce="<?= $cspNonce ?>">
-    const CSRF_TOKEN = '<?= $_SESSION['csrf_token'] ?>';
+        const CSRF_TOKEN = '<?= $_SESSION['csrf_token'] ?>';
     </script>
 </head>
 
@@ -40,9 +40,14 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
         <div id="content" class="content p-4" style="width: 100%;">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h3 class="mb-0">List of System Users</h3>
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createUserModal">
-                    <i class="bi bi-plus"></i> Create New
-                </button>
+                <div class="btn-group">
+                    <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#importCsvModal">
+                        <i class="bi bi-file-earmark-arrow-up"></i> Import CSV
+                    </button>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createUserModal">
+                        <i class="bi bi-plus"></i> Create New
+                    </button>
+                </div>
             </div>
             <div class="card">
                 <div class="card-body">
@@ -191,38 +196,65 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
         </div>
     </div>
 
+    <!-- Import CSV Modal -->
+    <div class="modal fade" id="importCsvModal" tabindex="-1" aria-labelledby="importCsvModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="importCsvForm" enctype="multipart/form-data">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="importCsvModalLabel">Import Users from CSV</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="small text-muted">Required columns (header row): first_name, last_name, email, role</p>
+                        <input type="hidden" name="action" value="import_csv">
+                        <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+                        <div class="mb-3">
+                            <label for="csvFile" class="form-label">CSV File</label>
+                            <input class="form-control" type="file" id="csvFile" name="csv_file" accept=".csv" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Upload</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Inline Scripts with nonce -->
     <script nonce="<?= $cspNonce ?>">
-    $(document).ready(function() {
-        $('#usersTable').DataTable({
-            processing: true,
-            serverSide: true,
-            ajax: {
-                url: "../backend/routes/user.php",
-                type: "GET",
-                dataSrc: "data",
-            },
-            columns: [{
-                    data: null,
-                    render: (data, type, row, meta) => meta.row + 1,
-                    orderable: false
+        $(document).ready(function() {
+            $('#usersTable').DataTable({
+                processing: true,
+                serverSide: true,
+                ajax: {
+                    url: "../backend/routes/user.php",
+                    type: "GET",
+                    dataSrc: "data",
                 },
-                {
-                    data: "first_name"
-                },
-                {
-                    data: "last_name"
-                },
-                {
-                    data: "email"
-                },
-                {
-                    data: "role"
-                },
-                {
-                    data: null,
-                    render: function(data, type, row) {
-                        return `
+                columns: [{
+                        data: null,
+                        render: (data, type, row, meta) => meta.row + 1,
+                        orderable: false
+                    },
+                    {
+                        data: "first_name"
+                    },
+                    {
+                        data: "last_name"
+                    },
+                    {
+                        data: "email"
+                    },
+                    {
+                        data: "role"
+                    },
+                    {
+                        data: null,
+                        render: function(data, type, row) {
+                            return `
                             <div class="dropdown">
                                 <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                     Action
@@ -233,122 +265,151 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                                     <li><a class="dropdown-item text-danger delete-user" href="#" data-user-id="${row.user_id}">Delete</a></li>
                                 </ul>
                             </div>`;
+                        },
                     },
-                },
-            ],
-        });
+                ],
+            });
 
-        window.editUser = function(userId) {
-            fetch(`../backend/routes/user.php?user_id=${userId}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status) {
-                        $('#editUserId').val(data.data.user_id);
-                        $('#editFirstName').val(data.data.first_name);
-                        $('#editLastName').val(data.data.last_name);
-                        $('#editEmail').val(data.data.email);
-                        $('#editRole').val(data.data.role);
-                        $('#editUserModal').modal('show');
-                    } else {
-                        alert(data.message || 'Failed to fetch user details.');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching user:', error);
-                    alert('An error occurred while fetching user details.');
-                });
-        };
-
-        $('#editUserForm').on('submit', function(e) {
-            e.preventDefault();
-            const userId = $('#editUserId').val();
-            const formData = {
-                user_id: userId,
-                first_name: $('#editFirstName').val(),
-                last_name: $('#editLastName').val(),
-                email: $('#editEmail').val(),
-                role: $('#editRole').val(),
-                csrf_token: CSRF_TOKEN
+            window.editUser = function(userId) {
+                fetch(`../backend/routes/user.php?user_id=${userId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status) {
+                            $('#editUserId').val(data.data.user_id);
+                            $('#editFirstName').val(data.data.first_name);
+                            $('#editLastName').val(data.data.last_name);
+                            $('#editEmail').val(data.data.email);
+                            $('#editRole').val(data.data.role);
+                            $('#editUserModal').modal('show');
+                        } else {
+                            alert(data.message || 'Failed to fetch user details.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching user:', error);
+                        alert('An error occurred while fetching user details.');
+                    });
             };
-            fetch(`../backend/routes/user.php`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(formData)
-                })
-                .then(response => response.json())
-                .then(data => {
-                    alert(data.message);
-                    $('#editUserModal').modal('hide');
-                    $('#usersTable').DataTable().ajax.reload();
-                });
-        });
 
-        window.deleteUser = function(userId) {
-            if (confirm("Are you sure you want to delete this user? This action cannot be undone.")) {
+            $('#editUserForm').on('submit', function(e) {
+                e.preventDefault();
+                const userId = $('#editUserId').val();
+                const formData = {
+                    user_id: userId,
+                    first_name: $('#editFirstName').val(),
+                    last_name: $('#editLastName').val(),
+                    email: $('#editEmail').val(),
+                    role: $('#editRole').val(),
+                    csrf_token: CSRF_TOKEN
+                };
                 fetch(`../backend/routes/user.php`, {
-                        method: 'DELETE',
+                        method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({
-                            user_id: userId,
-                            csrf_token: CSRF_TOKEN
-                        })
+                        body: JSON.stringify(formData)
                     })
                     .then(response => response.json())
                     .then(data => {
-                        if (data.message) {
-                            alert(data.message);
-                        } else if (data.error) {
-                            alert(data.error);
-                        }
+                        alert(data.message);
+                        $('#editUserModal').modal('hide');
                         $('#usersTable').DataTable().ajax.reload();
-                    })
-                    .catch(error => {
-                        console.error("Error deleting user:", error);
-                        alert("An error occurred while deleting the user.");
                     });
-            }
-        };
+            });
 
-        // Delegated event listeners to replace inline event handlers
-        $(document).on('click', '.edit-user', function(e) {
-            e.preventDefault();
-            var userId = $(this).data('user-id');
-            editUser(userId);
-        });
-
-        $(document).on('click', '.delete-user', function(e) {
-            e.preventDefault();
-            var userId = $(this).data('user-id');
-            deleteUser(userId);
-        });
-
-        // Create user form submission moved inside document ready
-        $('#createUserForm').on('submit', function(e) {
-            e.preventDefault();
-            $.ajax({
-                url: "../backend/routes/user.php",
-                type: "POST",
-                data: $(this).serialize(),
-                dataType: "json",
-                success: function(data) {
-                    alert(data.message);
-                    if (data.status) {
-                        $('#createUserModal').modal('hide');
-                        $('#usersTable').DataTable().ajax.reload();
-                        $('#createUserForm')[0].reset();
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error("Error creating user:", error);
-                    alert("An error occurred while creating the user.");
+            window.deleteUser = function(userId) {
+                if (confirm("Are you sure you want to delete this user? This action cannot be undone.")) {
+                    fetch(`../backend/routes/user.php`, {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                user_id: userId,
+                                csrf_token: CSRF_TOKEN
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.message) {
+                                alert(data.message);
+                            } else if (data.error) {
+                                alert(data.error);
+                            }
+                            $('#usersTable').DataTable().ajax.reload();
+                        })
+                        .catch(error => {
+                            console.error("Error deleting user:", error);
+                            alert("An error occurred while deleting the user.");
+                        });
                 }
+            };
+
+            // Delegated event listeners to replace inline event handlers
+            $(document).on('click', '.edit-user', function(e) {
+                e.preventDefault();
+                var userId = $(this).data('user-id');
+                editUser(userId);
+            });
+
+            $(document).on('click', '.delete-user', function(e) {
+                e.preventDefault();
+                var userId = $(this).data('user-id');
+                deleteUser(userId);
+            });
+
+            // Create user form submission moved inside document ready
+            $('#createUserForm').on('submit', function(e) {
+                e.preventDefault();
+                $.ajax({
+                    url: "../backend/routes/user.php",
+                    type: "POST",
+                    data: $(this).serialize(),
+                    dataType: "json",
+                    success: function(data) {
+                        alert(data.message);
+                        if (data.status) {
+                            $('#createUserModal').modal('hide');
+                            $('#usersTable').DataTable().ajax.reload();
+                            $('#createUserForm')[0].reset();
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error("Error creating user:", error);
+                        alert("An error occurred while creating the user.");
+                    }
+                });
+            });
+
+            // Import CSV submission
+            $('#importCsvForm').on('submit', function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                fetch('../backend/routes/user.php', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (!data.status) {
+                            alert(data.message || 'Import failed');
+                            return;
+                        }
+                        const msg = `Imported: ${data.created}, Skipped: ${data.skipped}`;
+                        if (Array.isArray(data.errors) && data.errors.length) {
+                            console.warn('Import errors:', data.errors);
+                        }
+                        alert(msg);
+                        $('#importCsvModal').modal('hide');
+                        $('#usersTable').DataTable().ajax.reload();
+                        $('#importCsvForm')[0].reset();
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        alert('Error importing CSV');
+                    });
             });
         });
-    });
     </script>
 </body>
 

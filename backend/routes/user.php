@@ -179,6 +179,129 @@ try {
             exit();
         }
     } elseif ($method === 'POST') {
+        // --- Admin CSV Import ---
+        if (isset($_POST['action']) && $_POST['action'] === 'import_csv') {
+            if ($auth_user_role !== 'admin') {
+                http_response_code(403);
+                echo json_encode(['status' => false, 'message' => 'Forbidden']);
+                exit();
+            }
+
+            if (!isset($_FILES['csv_file']) || $_FILES['csv_file']['error'] !== UPLOAD_ERR_OK) {
+                http_response_code(400);
+                echo json_encode(['status' => false, 'message' => 'CSV file upload failed.']);
+                exit();
+            }
+
+            $allowedMime = ['text/csv', 'application/vnd.ms-excel', 'text/plain'];
+            $finfo = new finfo(FILEINFO_MIME_TYPE);
+            $mimeType = $finfo->file($_FILES['csv_file']['tmp_name']);
+            if (!in_array($mimeType, $allowedMime)) {
+                http_response_code(400);
+                echo json_encode(['status' => false, 'message' => 'Invalid file type. Please upload a CSV.']);
+                exit();
+            }
+
+            $handle = fopen($_FILES['csv_file']['tmp_name'], 'r');
+            if (!$handle) {
+                http_response_code(400);
+                echo json_encode(['status' => false, 'message' => 'Unable to read CSV file.']);
+                exit();
+            }
+
+            $created = 0;
+            $skipped = 0;
+            $errors = [];
+            $line = 0;
+            $header = null;
+            $map = [];
+            while (($row = fgetcsv($handle)) !== false) {
+                $line++;
+                // Skip BOM in first cell if present
+                if ($line === 1 && isset($row[0])) {
+                    $row[0] = preg_replace('/^\xEF\xBB\xBF/', '', $row[0]);
+                }
+                if ($header === null) {
+                    $header = array_map(function ($h) {
+                        return strtolower(trim($h));
+                    }, $row);
+                    // Build index map
+                    $required = ['first_name', 'last_name', 'email', 'role'];
+                    foreach ($required as $col) {
+                        $idx = array_search($col, $header);
+                        if ($idx === false) {
+                            fclose($handle);
+                            http_response_code(400);
+                            echo json_encode(['status' => false, 'message' => 'Missing required column: ' . $col]);
+                            exit();
+                        }
+                        $map[$col] = $idx;
+                    }
+                    continue;
+                }
+                // Skip empty lines
+                if (count($row) === 1 && trim($row[0]) === '') {
+                    continue;
+                }
+
+                $first_name = trim($row[$map['first_name']] ?? '');
+                $last_name  = trim($row[$map['last_name']] ?? '');
+                $email      = trim($row[$map['email']] ?? '');
+                $role       = trim($row[$map['role']] ?? '');
+
+                if ($first_name === '' || $last_name === '' || $email === '' || $role === '') {
+                    $skipped++;
+                    $errors[] = ['line' => $line, 'reason' => 'Missing required fields'];
+                    continue;
+                }
+                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $skipped++;
+                    $errors[] = ['line' => $line, 'reason' => 'Invalid email'];
+                    continue;
+                }
+                $role = strtolower($role);
+                if (!in_array($role, ['admin', 'member', 'trainer', 'user'], true)) {
+                    $skipped++;
+                    $errors[] = ['line' => $line, 'reason' => 'Invalid role'];
+                    continue;
+                }
+
+                // Insert user, handle duplicates by skipping
+                $stmt = $conn->prepare('INSERT INTO users (first_name, last_name, email, role) VALUES (?, ?, ?, ?)');
+                if (!$stmt) {
+                    $skipped++;
+                    $errors[] = ['line' => $line, 'reason' => 'DB prepare failed'];
+                    continue;
+                }
+                $stmt->bind_param('ssss', $first_name, $last_name, $email, $role);
+                if ($stmt->execute()) {
+                    $newUserId = $conn->insert_id;
+                    $created++;
+                    $stmt->close();
+                    if ($role === 'member') {
+                        $initialStatus = 'inactive';
+                        $stmtMember = $conn->prepare("INSERT IGNORE INTO members (user_id, membership_status) VALUES (?, ?)");
+                        if ($stmtMember) {
+                            $stmtMember->bind_param('is', $newUserId, $initialStatus);
+                            $stmtMember->execute();
+                            $stmtMember->close();
+                        }
+                    }
+                } else {
+                    // Duplicate email or other error
+                    $code = $stmt->errno;
+                    $msg = $stmt->error;
+                    $stmt->close();
+                    $skipped++;
+                    $errors[] = ['line' => $line, 'reason' => ($code == 1062 ? 'Duplicate email' : 'DB error: ' . $msg)];
+                }
+            }
+            fclose($handle);
+
+            recordAuditLog($auth_user_id, 'Admin Import Users CSV', "Imported: $created, Skipped: $skipped");
+            echo json_encode(['status' => true, 'created' => $created, 'skipped' => $skipped, 'errors' => $errors]);
+            exit();
+        }
         if (isset($_POST['action']) && $_POST['action'] === 'create_user') {
             // Validate inputs
             $first_name = trim($_POST['first_name'] ?? '');
