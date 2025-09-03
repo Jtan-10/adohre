@@ -89,6 +89,10 @@ $currentPage = basename($_SERVER['PHP_SELF']);
             class="nav-link <?php echo $currentPage === 'membership_applications.php' ? 'active' : ''; ?>">
             <i class="bi bi-file-earmark-person"></i> <span>Membership Applications</span>
         </a>
+        <a href="membership_status.php"
+            class="nav-link <?php echo $currentPage === 'membership_status.php' ? 'active' : ''; ?>">
+            <i class="bi bi-card-list"></i> <span>Membership Status</span>
+        </a>
         <a href="consultations.php"
             class="nav-link <?php echo $currentPage === 'consultations.php' ? 'active' : ''; ?>">
             <i class="bi bi-chat-left-text"></i><span>Consultation Management</span>
