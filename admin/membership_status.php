@@ -50,6 +50,17 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
         const body = document.getElementById('gridBody');
         let gridDT = null; // hold a single DataTable instance
 
+        // Ensure unique members by user_id
+        function dedupeMembers(members) {
+            const seen = new Set();
+            return members.filter(m => {
+                const id = String(m.user_id);
+                if (seen.has(id)) return false;
+                seen.add(id);
+                return true;
+            });
+        }
+
         function renderHead(years) {
             const fixed = [
                 'Name',
@@ -136,6 +147,14 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                 </tr>
             `;
             }).join('');
+
+            // Safety: remove any duplicate DOM rows by data-user-id (in case of legacy DOM state)
+            const seenIds = new Set();
+            Array.from(body.querySelectorAll('tr')).forEach(tr => {
+                const id = tr.getAttribute('data-user-id');
+                if (seenIds.has(id)) tr.remove();
+                else seenIds.add(id);
+            });
             // Initialize DataTable once per render
             if (window.jQuery && $.fn && $.fn.DataTable) {
                 const id = '#gridTable';
@@ -153,8 +172,9 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                 body.innerHTML = '<tr><td colspan="3">Failed to load</td></tr>';
                 return;
             }
+            const uniqMembers = dedupeMembers(j.members || []);
             renderHead(j.years);
-            renderBody(j.years, j.members);
+            renderBody(j.years, uniqMembers);
         }
 
         document.getElementById('refreshBtn').addEventListener('click', loadGrid);
