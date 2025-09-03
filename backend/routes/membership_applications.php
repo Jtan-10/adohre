@@ -55,6 +55,76 @@ try {
             // Update application
             $data = json_decode(file_get_contents('php://input'), true);
 
+            // Full details update
+            if (isset($data['action']) && $data['action'] === 'update_details' && isset($data['id'])) {
+                $applicationId = intval($data['id']);
+                // Whitelist fields for update
+                $allowed = [
+                    'name',
+                    'dob',
+                    'sex',
+                    'current_address',
+                    'permanent_address',
+                    'email',
+                    'landline',
+                    'mobile',
+                    'place_of_birth',
+                    'marital_status',
+                    'emergency_contact',
+                    'doh_agency',
+                    'doh_address',
+                    'employment_start',
+                    'employment_end',
+                    'school',
+                    'degree',
+                    'year_graduated',
+                    'current_engagement',
+                    'key_expertise',
+                    'specific_field',
+                    'special_skills',
+                    'hobbies',
+                    'committees',
+                    'status'
+                ];
+                $setParts = [];
+                $values = [];
+                $types = '';
+                foreach ($allowed as $field) {
+                    if (array_key_exists($field, $data)) {
+                        $setParts[] = "$field = ?";
+                        $values[] = $data[$field];
+                        // Infer type: year_graduated is numeric, everything else string except dob which is date (string to DB)
+                        if ($field === 'year_graduated') {
+                            $types .= 'i';
+                        } else {
+                            $types .= 's';
+                        }
+                    }
+                }
+                if (empty($setParts)) {
+                    echo json_encode(['status' => false, 'message' => 'No fields to update']);
+                    break;
+                }
+                $sql = "UPDATE membership_applications SET " . implode(', ', $setParts) . " WHERE application_id = ?";
+                $stmt = $conn->prepare($sql);
+                $types .= 'i';
+                $values[] = $applicationId;
+                $stmt->bind_param($types, ...$values);
+                $ok = $stmt->execute();
+                $stmt->close();
+                if ($ok) {
+                    $adminId = $_SESSION['user_id'] ?? null;
+                    if ($adminId) {
+                        recordAuditLog($adminId, 'Update Membership Details', "Application ID {$applicationId} fields updated.");
+                    }
+                    echo json_encode(['status' => true, 'message' => 'Application details updated.']);
+                } else {
+                    echo json_encode(['status' => false, 'message' => 'Failed to update details.']);
+                }
+                break;
+            }
+
+            // Status-only update (legacy path)
             if (isset($data['id']) && isset($data['status'])) {
                 $adminId = $_SESSION['user_id']; // admin performing the action
 

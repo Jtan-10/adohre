@@ -53,6 +53,137 @@ require_once 'admin_header.php';
         </div>
     </div>
 
+    <!-- Edit Details Modal -->
+    <div class="modal fade" id="editDetailsModal" tabindex="-1" aria-labelledby="editDetailsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editDetailsModalLabel">Edit Membership Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="edit-details-form">
+                        <input type="hidden" id="edit-application-id">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Name</label>
+                                <input class="form-control" id="edit-name">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">DOB</label>
+                                <input type="date" class="form-control" id="edit-dob">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Sex</label>
+                                <select class="form-select" id="edit-sex">
+                                    <option>Male</option>
+                                    <option>Female</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Current Address</label>
+                                <input class="form-control" id="edit-current_address">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Permanent Address</label>
+                                <input class="form-control" id="edit-permanent_address">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Email</label>
+                                <input class="form-control" id="edit-email">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Landline</label>
+                                <input class="form-control" id="edit-landline">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Mobile</label>
+                                <input class="form-control" id="edit-mobile">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Place of Birth</label>
+                                <input class="form-control" id="edit-place_of_birth">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Marital Status</label>
+                                <input class="form-control" id="edit-marital_status">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Emergency Contact</label>
+                                <input class="form-control" id="edit-emergency_contact">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">DOH Agency</label>
+                                <input class="form-control" id="edit-doh_agency">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">DOH Address</label>
+                                <input class="form-control" id="edit-doh_address">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Employment Start (YYYY-MM)</label>
+                                <input class="form-control" id="edit-employment_start" placeholder="YYYY-MM">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Employment End (YYYY-MM)</label>
+                                <input class="form-control" id="edit-employment_end" placeholder="YYYY-MM">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">School</label>
+                                <input class="form-control" id="edit-school">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Degree</label>
+                                <input class="form-control" id="edit-degree">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Year Graduated</label>
+                                <input type="number" class="form-control" id="edit-year_graduated" min="1900" max="2099">
+                            </div>
+                            <div class="col-md-9">
+                                <label class="form-label">Current Engagement</label>
+                                <input class="form-control" id="edit-current_engagement">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Key Expertise</label>
+                                <input class="form-control" id="edit-key_expertise">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Specific Field</label>
+                                <input class="form-control" id="edit-specific_field">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Special Skills</label>
+                                <input class="form-control" id="edit-special_skills">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Hobbies</label>
+                                <input class="form-control" id="edit-hobbies">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Committees</label>
+                                <input class="form-control" id="edit-committees">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Status</label>
+                                <select class="form-select" id="edit-status">
+                                    <option>Pending</option>
+                                    <option>Reviewed</option>
+                                    <option>Approved</option>
+                                    <option>Rejected</option>
+                                </select>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="save-details-btn">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- View/Update Modal -->
     <div class="modal fade" id="applicationModal" tabindex="-1" aria-labelledby="applicationModalLabel"
         aria-hidden="true">
@@ -128,11 +259,12 @@ require_once 'admin_header.php';
                         ${app.status}
                       </span>
                     </td>
-                    <td>
-                      <button class="btn btn-primary btn-sm view-btn" data-id="${app.application_id}">View</button>
-                      <button class="btn btn-secondary btn-sm details-btn" data-id="${app.application_id}">Details</button>
-                      <button class="btn btn-danger btn-sm delete-btn" data-id="${app.application_id}">Delete</button>
-                    </td>
+                                        <td>
+                                            <button class="btn btn-primary btn-sm view-btn" data-id="${app.application_id}">Update Status</button>
+                                            <button class="btn btn-outline-primary btn-sm edit-details-btn" data-id="${app.application_id}">Edit Details</button>
+                                            <button class="btn btn-secondary btn-sm details-btn" data-id="${app.application_id}">View Details</button>
+                                            <button class="btn btn-danger btn-sm delete-btn" data-id="${app.application_id}">Delete</button>
+                                        </td>
                 `;
                     tableBody.appendChild(row);
                 });
@@ -146,6 +278,8 @@ require_once 'admin_header.php';
         document.querySelector('#applications-table tbody').addEventListener('click', function(e) {
             if (e.target.matches('.view-btn')) {
                 viewApplication(e.target.dataset.id);
+            } else if (e.target.matches('.edit-details-btn')) {
+                openEditDetails(e.target.dataset.id);
             } else if (e.target.matches('.details-btn')) {
                 viewDetails(e.target.dataset.id);
             } else if (e.target.matches('.delete-btn')) {
@@ -317,6 +451,55 @@ require_once 'admin_header.php';
 
         // Initial Fetch
         fetchApplications();
+    </script>
+
+    <script nonce="<?= $cspNonce ?>">
+        async function openEditDetails(id) {
+            try {
+                const {
+                    data: app
+                } = await axios.get(`${apiUrl}?id=${id}`);
+                document.getElementById('edit-application-id').value = app.application_id;
+                const map = field => document.getElementById('edit-' + field);
+                const assign = (f, v) => {
+                    const el = map(f);
+                    if (el) el.value = v || '';
+                };
+                ['name', 'dob', 'sex', 'current_address', 'permanent_address', 'email', 'landline', 'mobile', 'place_of_birth', 'marital_status', 'emergency_contact', 'doh_agency', 'doh_address', 'employment_start', 'employment_end', 'school', 'degree', 'year_graduated', 'current_engagement', 'key_expertise', 'specific_field', 'special_skills', 'hobbies', 'committees', 'status']
+                .forEach(f => assign(f, app[f]));
+                new bootstrap.Modal(document.getElementById('editDetailsModal')).show();
+            } catch (e) {
+                showMessage('Failed to load application.', 'danger');
+            }
+        }
+
+        document.getElementById('save-details-btn').addEventListener('click', async () => {
+            const id = document.getElementById('edit-application-id').value;
+            const collect = f => ({
+                [f]: (document.getElementById('edit-' + f)?.value || '').trim()
+            });
+            const fields = ['name', 'dob', 'sex', 'current_address', 'permanent_address', 'email', 'landline', 'mobile', 'place_of_birth', 'marital_status', 'emergency_contact', 'doh_agency', 'doh_address', 'employment_start', 'employment_end', 'school', 'degree', 'year_graduated', 'current_engagement', 'key_expertise', 'specific_field', 'special_skills', 'hobbies', 'committees', 'status'];
+            const payload = fields.reduce((acc, f) => Object.assign(acc, collect(f)), {
+                id,
+                action: 'update_details'
+            });
+            try {
+                const res = await axios.post(apiUrl, payload, {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                if (res.data?.status) {
+                    showMessage('Details saved.', 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('editDetailsModal')).hide();
+                    fetchApplications();
+                } else {
+                    showMessage(res.data?.message || 'Failed to save.', 'danger');
+                }
+            } catch (e) {
+                showMessage('Failed to save details.', 'danger');
+            }
+        });
     </script>
 </body>
 
