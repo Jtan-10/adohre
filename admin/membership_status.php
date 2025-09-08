@@ -85,6 +85,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
             // Rebuild rows
             body.innerHTML = members.map(m => {
                 const name = `${m.last_name}, ${m.first_name}`;
+                const nameSort = name.toLowerCase();
                 const cert = m.certification || 'Regular';
                 const status = m.membership_status || 'inactive';
                 const year = m.year_of_membership || '';
@@ -99,16 +100,16 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                 const duesEnc = encodeURIComponent(JSON.stringify(m.dues || {}));
                 return `
                 <tr data-user-id="${m.user_id}" data-dues-enc="${duesEnc}">
-                    <td>${name}</td>
-                    <td><input type="number" class="form-control form-control-sm" data-field="year_of_membership" value="${year}"></td>
-                    <td><input type="number" class="form-control form-control-sm" data-field="age_upon_membership" value="${age}"></td>
-                    <td>
+                    <td data-order="${nameSort}">${name}</td>
+                    <td data-order="${year || ''}"><input type="number" class="form-control form-control-sm" data-field="year_of_membership" value="${year}"></td>
+                    <td data-order="${age || ''}"><input type="number" class="form-control form-control-sm" data-field="age_upon_membership" value="${age}"></td>
+                    <td data-order="${status.toLowerCase()}">
                         <select class="form-select form-select-sm" data-field="membership_status">
                             <option value="active" ${status==='active'?'selected':''}>Active</option>
                             <option value="inactive" ${status!=='active'?'selected':''}>Inactive</option>
                         </select>
                     </td>
-                    <td>
+                    <td data-order="${cert.toLowerCase()}">
                         <select class="form-select form-select-sm" data-field="certification">
                             <option value="Regular" ${cert==='Regular'?'selected':''}>Regular</option>
                             <option value="Honorary" ${cert==='Honorary'?'selected':''}>Honorary</option>
@@ -199,6 +200,15 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
             if (statusEl) statusEl.value = d.status || defStatus;
         });
 
+        // Keep data-order synced for status and certification selects
+        body.addEventListener('change', (e) => {
+            const st = e.target.closest('select[data-field="membership_status"]');
+            const certSel = e.target.closest('select[data-field="certification"]');
+            if (!st && !certSel) return;
+            const td = e.target.closest('td');
+            if (td) td.setAttribute('data-order', (e.target.value || '').toLowerCase());
+        });
+
         body.addEventListener('click', async (e) => {
             const btn = e.target.closest('[data-action="save"]');
             if (!btn) return;
@@ -252,6 +262,16 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                 tr.setAttribute('data-dues-enc', encodeURIComponent(JSON.stringify(map)));
             } catch {}
             alert('Saved');
+        });
+
+        // Keep sorting values in sync when inputs change (year/age)
+        body.addEventListener('input', (e) => {
+            const yearInp = e.target.closest('input[data-field="year_of_membership"]');
+            const ageInp = e.target.closest('input[data-field="age_upon_membership"]');
+            const inp = yearInp || ageInp;
+            if (!inp) return;
+            const td = inp.closest('td');
+            if (td) td.setAttribute('data-order', inp.value || '');
         });
 
         // Send notices
