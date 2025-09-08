@@ -150,6 +150,8 @@ error_reporting(0);
             height: 220px;
             display: grid;
             gap: 6px;
+            border-radius: 12px 12px 0 0;
+            overflow: hidden;
         }
 
         .evt-collage.one {
@@ -183,8 +185,10 @@ error_reporting(0);
             height: 100%;
             background-size: cover;
             background-position: center;
-            border-radius: 8px;
+            border-radius: 0;
             overflow: hidden;
+            border: 0;
+            box-shadow: none;
         }
 
         .evt-collage .more {
@@ -279,12 +283,14 @@ error_reporting(0);
             border-radius: 4px;
             opacity: .7;
             cursor: pointer;
-            border: 2px solid transparent;
+            border: 0;
+            outline: 2px solid transparent;
+            box-shadow: none;
         }
 
         .evt-thumbs img.active {
             opacity: 1;
-            border-color: #28a745;
+            outline-color: #28a745;
         }
     </style>
 </head>
@@ -554,7 +560,7 @@ error_reporting(0);
                     return `
             <div class="col-12">
                             <div class="event-card">
-                                <div class="card-img-top p-2">
+                                <div class="card-img-top">
                                         ${stack}
                                 </div>
                 <div class="event-card-body">
@@ -587,7 +593,7 @@ error_reporting(0);
                     return `
             <div class="col-12">
                             <div class="event-card">
-                                <div class="card-img-top p-2">
+                                <div class="card-img-top">
                                         ${stack}
                                 </div>
                 <div class="event-card-body">
