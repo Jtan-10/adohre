@@ -15,6 +15,41 @@ if (!isset($_SESSION['user_id'])) {
     header("Location: ../login.php");
     exit;
 }
+$conn->query("CREATE TABLE IF NOT EXISTS app_settings (
+    setting_key VARCHAR(100) NOT NULL PRIMARY KEY,
+    setting_value VARCHAR(255) NOT NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+function getSetting(mysqli $conn, string $key, $default)
+{
+    $stmt = $conn->prepare("SELECT setting_value FROM app_settings WHERE setting_key = ? LIMIT 1");
+    if ($stmt) {
+        $stmt->bind_param('s', $key);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        if ($row = $res->fetch_assoc()) {
+            $val = $row['setting_value'];
+            $stmt->close();
+            if (is_numeric($val)) return (float)$val;
+            return $val;
+        }
+        $stmt->close();
+    }
+    return $default;
+}
+
+function setSetting(mysqli $conn, string $key, string $value)
+{
+    $stmt = $conn->prepare("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
+    if ($stmt) {
+        $stmt->bind_param('ss', $key, $value);
+        $ok = $stmt->execute();
+        $stmt->close();
+        return $ok;
+    }
+    return false;
+}
 
 $method = $_SERVER['REQUEST_METHOD'];
 
@@ -159,6 +194,16 @@ if ($method === 'GET') {
         $stmt->close();
         echo json_encode(['status' => true, 'payments' => $payments]);
         exit;
+    } elseif ($action === 'get_fee_settings') {
+        // Only admin can view fee settings
+        if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+            echo json_encode(['status' => false, 'message' => 'Forbidden']);
+            exit;
+        }
+        $membership = getSetting($conn, 'membership_fee_amount', 300.00);
+        $annual = getSetting($conn, 'annual_dues_amount', 200.00);
+        echo json_encode(['status' => true, 'membership_fee_amount' => (float)$membership, 'annual_dues_amount' => (float)$annual]);
+        exit;
     } else {
         echo json_encode(['status' => false, 'message' => 'Invalid GET action']);
         exit;
@@ -166,7 +211,23 @@ if ($method === 'GET') {
 } elseif ($method === 'POST') {
     $action = isset($_GET['action']) ? $_GET['action'] : 'push_payment';
 
-    if ($action === 'update_payment_fee') {
+    if ($action === 'set_fee_settings') {
+        // Only admin can set fee settings
+        if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+            echo json_encode(['status' => false, 'message' => 'Forbidden']);
+            exit;
+        }
+        $membership = isset($_POST['membership_fee_amount']) ? trim($_POST['membership_fee_amount']) : '';
+        $annual = isset($_POST['annual_dues_amount']) ? trim($_POST['annual_dues_amount']) : '';
+        if ($membership === '' || $annual === '' || !is_numeric($membership) || !is_numeric($annual)) {
+            echo json_encode(['status' => false, 'message' => 'Invalid amounts']);
+            exit;
+        }
+        $ok1 = setSetting($conn, 'membership_fee_amount', $membership);
+        $ok2 = setSetting($conn, 'annual_dues_amount', $annual);
+        echo json_encode(['status' => (bool)($ok1 && $ok2)]);
+        exit;
+    } elseif ($action === 'update_payment_fee') {
         // Retrieve and validate required fields for fee update
         $payment_id = isset($_POST['payment_id']) ? trim($_POST['payment_id']) : '';
         $reference_number = isset($_POST['reference_number']) ? trim($_POST['reference_number']) : '';

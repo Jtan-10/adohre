@@ -80,6 +80,8 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
         const body = document.getElementById('gridBody');
         let gridDT = null; // hold a single DataTable instance
         let YEARS = []; // dynamic years from backend
+        let FEE = 300.00,
+            DUES = 200.00; // dynamic amounts
         let bulkModal, currentBulkRow = null;
 
         // Ensure unique members by user_id
@@ -160,9 +162,9 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                             <option value="0" ${!lifetime?'selected':''}>No</option>
                         </select>
                     </td>
-                    <td>
+            <td>
                         <div class="d-flex flex-column gap-1">
-                            <div class="small">Fee Payment: <span class="badge bg-secondary" data-field="badge_fee">—</span></div>
+                <div class="small">Fee Payment: <span class="badge bg-secondary" data-field="badge_fee">—</span></div>
                             <div class="small text-muted" data-field="fee_simple_text">Status: —</div>
                         </div>
                     </td>
@@ -191,8 +193,8 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                             <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">Action</button>
                             <ul class="dropdown-menu">
                                 <li><a class="dropdown-item" href="#" data-action="save" data-user="${m.user_id}">Save</a></li>
-                                <li><a class="dropdown-item" href="#" data-action="notice_fee" data-user="${m.user_id}">Send Membership Fee Notice (₱300)</a></li>
-                                <li><a class="dropdown-item" href="#" data-action="notice_dues" data-user="${m.user_id}">Send Annual Due Notice (₱200)</a></li>
+                                <li><a class="dropdown-item" href="#" data-action="notice_fee" data-user="${m.user_id}">Send Membership Fee Notice (₱${FEE.toFixed(0)})</a></li>
+                                <li><a class="dropdown-item" href="#" data-action="notice_dues" data-user="${m.user_id}">Send Annual Due Notice (₱${DUES.toFixed(0)})</a></li>
                             </ul>
                         </div>
                     </td>
@@ -225,6 +227,8 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                 return;
             }
             YEARS = j.years || [];
+            FEE = (typeof j.fee_amount !== 'undefined') ? parseFloat(j.fee_amount) : 300.00;
+            DUES = (typeof j.annual_dues_amount !== 'undefined') ? parseFloat(j.annual_dues_amount) : 200.00;
             const uniqMembers = dedupeMembers(j.members || []);
             renderHead(j.years);
             renderBody(j.years, uniqMembers);
@@ -359,7 +363,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                     return;
                 }
                 pollRowState(tr);
-                alert('Membership fee notice sent (₱300)');
+                alert(`Membership fee notice sent (₱${FEE.toFixed(0)})`);
             }
             if (btnDues) {
                 const year = tr.querySelector('[data-field="dues_year"]').value;
@@ -377,7 +381,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                     return;
                 }
                 pollRowState(tr);
-                alert('Annual dues notice sent (₱200)');
+                alert(`Annual dues notice sent (₱${DUES.toFixed(0)})`);
             }
         });
 

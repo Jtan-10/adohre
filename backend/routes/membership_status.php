@@ -44,6 +44,32 @@ $conn->query("CREATE TABLE IF NOT EXISTS membership_dues (
     CONSTRAINT fk_md_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
 
+// App settings table for dynamic fees
+$conn->query("CREATE TABLE IF NOT EXISTS app_settings (
+    setting_key VARCHAR(100) NOT NULL PRIMARY KEY,
+    setting_value VARCHAR(255) NOT NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+function getSetting(mysqli $conn, string $key, $default)
+{
+    $stmt = $conn->prepare("SELECT setting_value FROM app_settings WHERE setting_key = ? LIMIT 1");
+    if ($stmt) {
+        $stmt->bind_param('s', $key);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        if ($row = $res->fetch_assoc()) {
+            $val = $row['setting_value'];
+            $stmt->close();
+            // Try to cast numeric values
+            if (is_numeric($val)) return (float)$val;
+            return $val;
+        }
+        $stmt->close();
+    }
+    return $default;
+}
+
 $action = $_POST['action'] ?? $_GET['action'] ?? null;
 
 try {
@@ -106,7 +132,10 @@ try {
             $row['dues'] = $dues;
             $members[] = $row;
         }
-        echo json_encode(['status' => true, 'years' => $years, 'members' => $members]);
+        // Include current fee settings for frontend labels
+        $feeAmt = getSetting($conn, 'membership_fee_amount', 300.00);
+        $duesAmt = getSetting($conn, 'annual_dues_amount', 200.00);
+        echo json_encode(['status' => true, 'years' => $years, 'members' => $members, 'fee_amount' => $feeAmt, 'annual_dues_amount' => $duesAmt]);
     } elseif ($action === 'get_member') {
         ensureAdmin();
         $user_id = intval($_GET['user_id'] ?? 0);
@@ -197,8 +226,9 @@ try {
         foreach ($dues as $d) {
             $y = intval($d['year']);
             $s = in_array($d['status'], ['Paid', 'Unpaid', 'Waived'], true) ? $d['status'] : 'Unpaid';
-            // Default annual dues amount to 200 if not provided
-            $a = isset($d['amount']) && $d['amount'] !== '' ? floatval($d['amount']) : 200.00;
+            // Default annual dues amount to setting if not provided
+            $defaultDues = getSetting($conn, 'annual_dues_amount', 200.00);
+            $a = isset($d['amount']) && $d['amount'] !== '' ? floatval($d['amount']) : (float)$defaultDues;
             $stmt->bind_param('iisd', $user_id, $y, $s, $a);
             $stmt->execute();
         }
@@ -214,8 +244,8 @@ try {
         }
         // Pull amount and build payment payload
         if ($type === 'membership_fee') {
-            // Fixed membership fee amount (₱300)
-            $amount = 300.00;
+            // Membership fee amount from settings
+            $amount = (float) getSetting($conn, 'membership_fee_amount', 300.00);
             // Create a payment record via direct insert
             $payment_type = 'Membership Fee';
             $status = 'New';
@@ -227,8 +257,8 @@ try {
             echo json_encode(['status' => (bool)$ok]);
         } else { // annual_dues
             $year = intval($_POST['year'] ?? 0);
-            // Fixed annual dues amount (₱200)
-            $amount = 200.00;
+            // Annual dues amount from settings
+            $amount = (float) getSetting($conn, 'annual_dues_amount', 200.00);
             if (!$year) {
                 echo json_encode(['status' => false, 'message' => 'Missing year']);
                 exit;
