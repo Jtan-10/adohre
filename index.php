@@ -889,7 +889,7 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
                                                 <img src="${'backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(e.image || '/capstone-php/assets/default-image.jpg')}" class="card-img-top" alt="${(e.title||'Event')}">
                                                 <div class="card-body">
                                                     <h5 class="card-title mb-1">${e.title || ''}</h5>
-                                                    <small class="text-muted d-block mb-2"><i class="fa-regular fa-calendar me-1"></i>${new Date(e.date).toLocaleString()}</small>
+                                                    <small class="text-muted d-block mb-2"><i class="fa-regular fa-calendar me-1"></i>${new Date(e.date).toLocaleString('en-US', { month: 'long', year: 'numeric' })}</small>
                                                     <p class="card-text mb-2">${(e.description || '').toString().slice(0,120)}${(e.description||'').length>120?'…':''}</p>
                                                     <div class="d-flex justify-content-between align-items-center">
                                                         <span class="badge bg-success">${(e.fee && parseFloat(e.fee)>0)? ('₱'+e.fee):'Free'}</span>

@@ -375,11 +375,7 @@ error_reporting(0);
                     const eventDate = new Date(event.date);
                     const dateStr = eventDate.toLocaleString('en-US', {
                         month: 'long',
-                        day: 'numeric',
-                        year: 'numeric',
-                        hour: 'numeric',
-                        minute: 'numeric',
-                        hour12: true
+                        year: 'numeric'
                     });
                     let joinBtn;
                     if (event.joined) {
@@ -437,11 +433,7 @@ error_reporting(0);
                     const eventDate = new Date(event.date);
                     const dateStr = eventDate.toLocaleString('en-US', {
                         month: 'long',
-                        day: 'numeric',
-                        year: 'numeric',
-                        hour: 'numeric',
-                        minute: 'numeric',
-                        hour12: true
+                        year: 'numeric'
                     });
                     const pastBtn = `<button class="btn btn-secondary btn-sm" disabled>Past Event</button>`;
                     return `

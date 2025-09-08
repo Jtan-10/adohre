@@ -51,8 +51,9 @@
                     </div>
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label for="eventDate" class="form-label">Event Date &amp; Time</label>
-                            <input type="datetime-local" id="eventDate" name="date" class="form-control" required>
+                            <label for="eventDate" class="form-label">Event Month</label>
+                            <input type="month" id="eventDate" name="date" class="form-control" required>
+                            <div class="form-text">Stores as the first day of the month; shown as Month and Year only.</div>
                         </div>
                         <div class="col-md-6">
                             <label for="eventLocation" class="form-label">Event Location</label>
@@ -105,6 +106,11 @@
         // Save (Add/Update)
         saveEventBtn.addEventListener('click', () => {
             const formData = new FormData(eventForm);
+            // Normalize month-only input to first day of month (YYYY-MM-01)
+            const monthVal = formData.get('date');
+            if (monthVal && /^\d{4}-\d{2}$/.test(monthVal)) {
+                formData.set('date', monthVal + '-01');
+            }
             const id = document.getElementById('eventId').value;
             const action = id ? 'update_event' : 'add_event';
             formData.append('action', action);
@@ -140,7 +146,7 @@
                                     <div class="card-body">
                                         <h5 class="card-title">${event.title}</h5>
                                         <p class="card-text">${event.description}</p>
-                                        <p><strong>Date:</strong> ${event.date}</p>
+                                        <p><strong>Date:</strong> ${new Date(event.date).toLocaleString('en-US', { month: 'long', year: 'numeric' })}</p>
                                         <p><strong>Location:</strong> ${event.location}</p>
                                         <p><strong>Fee:</strong> ${event.fee && parseFloat(event.fee) > 0 ? '₱' + event.fee : 'Free'}</p>
                                         <div>
@@ -164,7 +170,7 @@
                                     <div class="card-body">
                                         <h5 class="card-title">${event.title}</h5>
                                         <p class="card-text">${event.description}</p>
-                                        <p><strong>Date:</strong> ${event.date}</p>
+                                        <p><strong>Date:</strong> ${new Date(event.date).toLocaleString('en-US', { month: 'long', year: 'numeric' })}</p>
                                         <p><strong>Location:</strong> ${event.location}</p>
                                         <p><strong>Fee:</strong> ${event.fee && parseFloat(event.fee) > 0 ? '₱' + event.fee : 'Free'}</p>
                                         <div>
@@ -208,7 +214,15 @@
                         document.getElementById('eventId').value = event.event_id;
                         document.getElementById('eventTitle').value = event.title;
                         document.getElementById('eventDescription').value = event.description;
-                        document.getElementById('eventDate').value = event.date;
+                        // If stored as full date, set the month input to yyyy-MM
+                        try {
+                            const d = new Date(event.date);
+                            const mm = String(d.getMonth() + 1).padStart(2, '0');
+                            const yyyy = d.getFullYear();
+                            document.getElementById('eventDate').value = `${yyyy}-${mm}`;
+                        } catch (e) {
+                            document.getElementById('eventDate').value = '';
+                        }
                         document.getElementById('eventLocation').value = event.location;
                         document.getElementById('eventFee').value = event.fee || '';
 
