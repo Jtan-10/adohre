@@ -35,7 +35,8 @@ $aboutSettings = [
     'about_mission_text' => null,
     'about_vision_text' => null,
     'about_objectives_html' => null,
-    'about_hero_image_url' => null
+    'about_hero_image_url' => null,
+    'about_sections_json' => null
 ];
 $aKeys = array_keys($aboutSettings);
 $placeholders = implode(',', array_fill(0, count($aKeys), '?'));
@@ -577,6 +578,48 @@ if ($stmtM = $conn->prepare("SELECT first_name, last_name FROM users WHERE role 
                 </div>
             </div>
         </section>
+
+        <!-- Dynamic Sections (from admin Pages editor) -->
+        <?php
+        $sections = [];
+        if (!empty($aboutSettings['about_sections_json'])) {
+            $raw = $aboutSettings['about_sections_json'];
+            if (is_string($raw)) {
+                $decoded = json_decode($raw, true);
+                if (is_array($decoded)) $sections = $decoded;
+            } elseif (is_array($raw)) {
+                $sections = $raw;
+            }
+        }
+        if (!empty($sections)):
+        ?>
+            <section class="section-padding">
+                <div class="container">
+                    <?php foreach ($sections as $idx => $sec):
+                        $title = isset($sec['title']) ? htmlspecialchars($sec['title'], ENT_QUOTES) : '';
+                        $text = isset($sec['text']) ? $sec['text'] : '';
+                        $img = isset($sec['image_url']) ? $sec['image_url'] : '';
+                        if ($img && strpos($img, '/s3proxy/') !== false) {
+                            $img = 'backend/routes/decrypt_image.php?image_url=' . urlencode($img);
+                        }
+                    ?>
+                        <div class="row align-items-center mb-5">
+                            <div class="col-md-6 mb-3 mb-md-0">
+                                <?php if ($img): ?>
+                                    <img src="<?= $img ?>" class="img-fluid rounded" alt="Section image">
+                                <?php endif; ?>
+                            </div>
+                            <div class="col-md-6">
+                                <?php if ($title): ?><h2><?= $title ?></h2><?php endif; ?>
+                                <div class="about-text">
+                                    <?= $text ?>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </section>
+        <?php endif; ?>
 
         <!-- Expertise and Interests Section -->
         <section class="expertise-section">

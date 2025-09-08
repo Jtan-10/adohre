@@ -27,7 +27,8 @@ $homeSettings = [
     'home_hero_subtitle' => null,
     'home_about_html' => null,
     'home_contact_address' => null,
-    'home_hero_image_url' => null
+    'home_hero_image_url' => null,
+    'home_sections_json' => null
 ];
 $keys = array_keys($homeSettings);
 $placeholders = implode(',', array_fill(0, count($keys), '?'));
@@ -430,7 +431,7 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
             </div>
         </section>
 
-        <!-- Features Section -->
+        <!-- Features Section (static) -->
         <section class="section-padding bg-light">
             <div class="container">
                 <div class="text-center mb-4">
@@ -495,6 +496,48 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
                         <a href="events.php" class="btn btn-outline-success btn-sm">View all</a>
                     </div>
                     <div class="row g-4" id="homeEvents"></div>
+                </div>
+            </section>
+        <?php endif; ?>
+
+        <!-- Dynamic Sections (from admin Pages editor) -->
+        <?php
+        $sections = [];
+        if (!empty($homeSettings['home_sections_json'])) {
+            $raw = $homeSettings['home_sections_json'];
+            if (is_string($raw)) {
+                $decoded = json_decode($raw, true);
+                if (is_array($decoded)) $sections = $decoded;
+            } elseif (is_array($raw)) {
+                $sections = $raw;
+            }
+        }
+        if (!empty($sections)):
+        ?>
+            <section class="section-padding">
+                <div class="container">
+                    <?php foreach ($sections as $idx => $sec):
+                        $title = isset($sec['title']) ? htmlspecialchars($sec['title'], ENT_QUOTES) : '';
+                        $text = isset($sec['text']) ? $sec['text'] : '';
+                        $img = isset($sec['image_url']) ? $sec['image_url'] : '';
+                        if ($img && strpos($img, '/s3proxy/') !== false) {
+                            $img = 'backend/routes/decrypt_image.php?image_url=' . urlencode($img);
+                        }
+                    ?>
+                        <div class="row align-items-center mb-5">
+                            <div class="col-md-6 mb-3 mb-md-0">
+                                <?php if ($img): ?>
+                                    <img src="<?= $img ?>" class="img-fluid rounded" alt="Section image">
+                                <?php endif; ?>
+                            </div>
+                            <div class="col-md-6">
+                                <?php if ($title): ?><h2><?= $title ?></h2><?php endif; ?>
+                                <div class="about-text">
+                                    <?= $text ?>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
                 </div>
             </section>
         <?php endif; ?>

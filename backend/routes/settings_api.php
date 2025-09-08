@@ -370,7 +370,8 @@ switch ($action) {
                 'home_about_html',
                 'home_contact_address',
                 'home_hero_image_url',
-                'home_carousel_json'
+                'home_carousel_json',
+                'home_sections_json'
             ];
         } elseif ($page === 'about') {
             $allowedKeys = [
@@ -380,7 +381,8 @@ switch ($action) {
                 'about_mission_text',
                 'about_vision_text',
                 'about_objectives_html',
-                'about_hero_image_url'
+                'about_hero_image_url',
+                'about_sections_json'
             ];
         } else {
             echo json_encode(['status' => false, 'message' => 'Unknown page']);
@@ -419,9 +421,9 @@ switch ($action) {
         }
         $allowed = [];
         if ($page === 'home') {
-            $allowed = ['home_hero_title', 'home_hero_subtitle', 'home_about_html', 'home_contact_address', 'home_hero_image_url', 'home_carousel_json'];
+            $allowed = ['home_hero_title', 'home_hero_subtitle', 'home_about_html', 'home_contact_address', 'home_hero_image_url', 'home_carousel_json', 'home_sections_json'];
         } elseif ($page === 'about') {
-            $allowed = ['about_hero_title', 'about_hero_subtitle', 'about_purpose_text', 'about_mission_text', 'about_vision_text', 'about_objectives_html', 'about_hero_image_url'];
+            $allowed = ['about_hero_title', 'about_hero_subtitle', 'about_purpose_text', 'about_mission_text', 'about_vision_text', 'about_objectives_html', 'about_hero_image_url', 'about_sections_json'];
         } else {
             echo json_encode(['status' => false, 'message' => 'Unknown page']);
             break;
@@ -440,6 +442,59 @@ switch ($action) {
         $stmt->close();
         recordAuditLog($_SESSION['user_id'], 'Update Page Content', 'Updated page: ' . $page);
         echo json_encode(['status' => true, 'message' => 'Saved']);
+        break;
+
+    case 'upload_page_asset':
+        // Generic encrypted image upload for page editors; returns a proxy URL, does not write a setting.
+        $page = $_POST['page'] ?? '';
+        if (!$page) {
+            echo json_encode(['status' => false, 'message' => 'Missing page']);
+            break;
+        }
+        if (!isset($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+            echo json_encode(['status' => false, 'message' => 'No image uploaded']);
+            break;
+        }
+        $mime = mime_content_type($_FILES['image']['tmp_name']);
+        $allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+        if (!in_array($mime, $allowed, true)) {
+            echo json_encode(['status' => false, 'message' => 'Unsupported image type']);
+            break;
+        }
+        $safePage = preg_replace('/[^a-z0-9_-]+/i', '-', $page);
+        $s3Key = 'uploads/pages/' . $safePage . '/assets/' . time() . '_' . preg_replace('/[^a-z0-9._-]+/i', '-', basename($_FILES['image']['name']));
+        // Encrypt + embed PNG like other assets
+        $clear = file_get_contents($_FILES['image']['tmp_name']);
+        $cipher = "AES-256-CBC";
+        $ivlen = openssl_cipher_iv_length($cipher);
+        $iv = openssl_random_pseudo_bytes($ivlen);
+        $rawKey = getenv('ENCRYPTION_KEY');
+        $encryptionKey = hash('sha256', $rawKey, true);
+        $encryptedData = openssl_encrypt($clear, $cipher, $encryptionKey, OPENSSL_RAW_DATA, $iv);
+        $payload = $iv . $encryptedData;
+        $pngImage = embedDataInPng($payload, 100);
+        $tmpEncrypted = tempnam(sys_get_temp_dir(), 'pageasset_') . '.png';
+        imagepng($pngImage, $tmpEncrypted);
+        imagedestroy($pngImage);
+        try {
+            $result = $s3->putObject([
+                'Bucket' => $bucketName,
+                'Key' => $s3Key,
+                'Body' => fopen($tmpEncrypted, 'rb'),
+                'ACL' => 'public-read',
+                'ContentType' => 'image/png'
+            ]);
+            @unlink($tmpEncrypted);
+            $proxyUrl = str_replace(
+                "https://{$bucketName}.s3." . $_ENV['AWS_REGION'] . ".amazonaws.com/",
+                "/s3proxy/",
+                $result['ObjectURL']
+            );
+            echo json_encode(['status' => true, 'url' => $proxyUrl]);
+        } catch (Exception $e) {
+            error_log('Page asset upload error: ' . $e->getMessage());
+            echo json_encode(['status' => false, 'message' => 'Upload failed']);
+        }
         break;
 
     case 'upload_page_image':
