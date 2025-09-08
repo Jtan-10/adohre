@@ -1127,7 +1127,7 @@ try {
     } else {
         echo json_encode(['status' => false, 'message' => 'Invalid action.']);
     }
-} catch (Exception $e) {
+} catch (Throwable $e) {
     error_log("Internal error: " . $e->getMessage());
     echo json_encode([
         'status' => false,
