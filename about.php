@@ -81,334 +81,333 @@ if ($stmtM = $conn->prepare("SELECT u.first_name, u.last_name, COALESCE(mp.previ
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <select id="memberPageSize" class="form-select form-select-sm" style="width: auto; min-width:90px;">
-        <title>About - ADOHRE | Empowering Health Retirees</title>
-        <link rel="icon" href="assets/logo.png" type="image/jpg">
+    <title>About - ADOHRE | Empowering Health Retirees</title>
+    <link rel="icon" href="assets/logo.png" type="image/jpg">
 
-        <!-- Google Fonts for Modern Typography -->
-        <link href="https://fonts.googleapis.com/css?family=Montserrat:400,700&display=swap" rel="stylesheet">
+    <!-- Google Fonts for Modern Typography -->
+    <link href="https://fonts.googleapis.com/css?family=Montserrat:400,700&display=swap" rel="stylesheet">
 
-        <!-- Bootstrap CSS -->
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
 
-        <!-- Font Awesome -->
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-        <!-- Custom CSS -->
-        <link rel="stylesheet" href="assets/style.css">
-        <!-- Inline Styles for Page-Specific Tweaks -->
-        <style>
-            body {
-                font-family: 'Montserrat', sans-serif;
-                line-height: 1.6;
-                color: #333;
-            }
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="assets/style.css">
+    <!-- Inline Styles for Page-Specific Tweaks -->
+    <style>
+        body {
+            font-family: 'Montserrat', sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
 
-            .about-hero {
-                position: relative;
-                padding: 120px 0;
-                color: #fff;
-                text-align: center;
-                overflow: hidden;
-            }
+        .about-hero {
+            position: relative;
+            padding: 120px 0;
+            color: #fff;
+            text-align: center;
+            overflow: hidden;
+        }
 
-            .about-hero::before {
-                content: "";
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.35);
-                z-index: 1;
-            }
+        .about-hero::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.35);
+            z-index: 1;
+        }
 
-            .about-hero .container {
-                position: relative;
-                z-index: 2;
-            }
+        .about-hero .container {
+            position: relative;
+            z-index: 2;
+        }
 
-            .about-hero h1 {
-                font-size: 2.8rem;
-                font-weight: 700;
-                margin-bottom: 20px;
-            }
+        .about-hero h1 {
+            font-size: 2.8rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
 
-            .about-hero p {
-                font-size: 1.2rem;
-            }
+        .about-hero p {
+            font-size: 1.2rem;
+        }
 
-            /* Section Headings */
-            h2 {
-                color: var(--accent-color, #28A745);
-                margin-bottom: 20px;
-            }
+        /* Section Headings */
+        h2 {
+            color: var(--accent-color, #28A745);
+            margin-bottom: 20px;
+        }
 
-            /* Carousel (Horizontal Slider) for PMV */
-            .carousel-item .card {
-                border: none;
-                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-                margin: auto;
-                max-width: 600px;
-            }
+        /* Carousel (Horizontal Slider) for PMV */
+        .carousel-item .card {
+            border: none;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin: auto;
+            max-width: 600px;
+        }
 
-            .carousel-item .card-body {
-                padding: 2rem;
-            }
+        .carousel-item .card-body {
+            padding: 2rem;
+        }
 
-            .section-padding {
-                padding: 60px 0;
-            }
+        .section-padding {
+            padding: 60px 0;
+        }
 
-            /* Improve arrow visibility on the Core Pillars carousel */
-            #pmvCarousel .carousel-control-prev,
-            #pmvCarousel .carousel-control-next {
-                width: 48px;
-                height: 48px;
-                top: 50%;
-                transform: translateY(-50%);
-                background: rgba(255, 255, 255, 0.95);
-                border-radius: 50%;
-                opacity: 1;
-            }
+        /* Improve arrow visibility on the Core Pillars carousel */
+        #pmvCarousel .carousel-control-prev,
+        #pmvCarousel .carousel-control-next {
+            width: 48px;
+            height: 48px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 50%;
+            opacity: 1;
+        }
 
-            #pmvCarousel .carousel-control-prev-icon,
-            #pmvCarousel .carousel-control-next-icon {
-                background-size: 24px 24px;
-            }
+        #pmvCarousel .carousel-control-prev-icon,
+        #pmvCarousel .carousel-control-next-icon {
+            background-size: 24px 24px;
+        }
 
-            #pmvCarousel .carousel-control-prev-icon {
-                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%2328A745' viewBox='0 0 16 16'%3E%3Cpath d='M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z'/%3E%3C/svg%3E");
-            }
+        #pmvCarousel .carousel-control-prev-icon {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%2328A745' viewBox='0 0 16 16'%3E%3Cpath d='M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z'/%3E%3C/svg%3E");
+        }
 
-            #pmvCarousel .carousel-control-next-icon {
-                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%2328A745' viewBox='0 0 16 16'%3E%3Cpath d='M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
-            }
+        #pmvCarousel .carousel-control-next-icon {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%2328A745' viewBox='0 0 16 16'%3E%3Cpath d='M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+        }
 
-            /* Core Values Card Styling */
-            .core-value-card {
-                border: none;
-                text-align: center;
-                margin-bottom: 20px;
-            }
+        /* Core Values Card Styling */
+        .core-value-card {
+            border: none;
+            text-align: center;
+            margin-bottom: 20px;
+        }
 
-            .core-value-card h4 {
-                font-size: 2rem;
-                color: var(--accent-color, #28A745);
-            }
+        .core-value-card h4 {
+            font-size: 2rem;
+            color: var(--accent-color, #28A745);
+        }
 
-            .core-value-card p {
-                font-size: 1rem;
-            }
+        .core-value-card p {
+            font-size: 1rem;
+        }
 
-            .core-value-card p span {
-                color: var(--accent-color, #28A745);
-                font-weight: bold;
-            }
+        .core-value-card p span {
+            color: var(--accent-color, #28A745);
+            font-weight: bold;
+        }
 
-            /* Expertise and Interests Section */
-            .expertise-section {
-                background: url('assets/expertise-bg.jpg') no-repeat center center/cover;
-                color: #fff;
-                padding: 60px 0;
-                position: relative;
-            }
+        /* Expertise and Interests Section */
+        .expertise-section {
+            background: url('assets/expertise-bg.jpg') no-repeat center center/cover;
+            color: #fff;
+            padding: 60px 0;
+            position: relative;
+        }
 
-            .expertise-section::before {
-                content: "";
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(41, 41, 48, 0.7);
-                /* Dark blue overlay */
-                z-index: 1;
-            }
+        .expertise-section::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(41, 41, 48, 0.7);
+            /* Dark blue overlay */
+            z-index: 1;
+        }
 
-            .expertise-section .container {
-                position: relative;
-                z-index: 2;
-            }
+        .expertise-section .container {
+            position: relative;
+            z-index: 2;
+        }
 
-            .expertise-section h2 {
-                color: #fff;
-                /* White heading */
-                text-align: center;
-                margin-bottom: 40px;
-            }
+        .expertise-section h2 {
+            color: #fff;
+            /* White heading */
+            text-align: center;
+            margin-bottom: 40px;
+        }
 
-            .expertise-card {
-                background: rgba(255, 255, 255, 0.1);
-                /* Semi-transparent white background */
-                border: none;
-                border-radius: 8px;
-                margin-bottom: 20px;
-                transition: transform 0.3s ease, box-shadow 0.3s ease;
-            }
+        .expertise-card {
+            background: rgba(255, 255, 255, 0.1);
+            /* Semi-transparent white background */
+            border: none;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
 
-            .expertise-card:hover {
-                transform: translateY(-5px);
-                box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-            }
+        .expertise-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        }
 
-            .expertise-card .card-header {
-                background-color: var(--accent-color, #28A745) !important;
-                color: #fff !important;
-                text-align: center;
-                font-weight: 700;
-                border-radius: 8px 8px 0 0;
-            }
+        .expertise-card .card-header {
+            background-color: var(--accent-color, #28A745) !important;
+            color: #fff !important;
+            text-align: center;
+            font-weight: 700;
+            border-radius: 8px 8px 0 0;
+        }
 
-            .expertise-card .card-body {
-                padding: 1.5rem;
-                color: #fff;
-                /* White text */
-            }
+        .expertise-card .card-body {
+            padding: 1.5rem;
+            color: #fff;
+            /* White text */
+        }
 
-            .expertise-card ul {
-                list-style-type: disc;
-                padding-left: 20px;
-                margin: 0;
-            }
+        .expertise-card ul {
+            list-style-type: disc;
+            padding-left: 20px;
+            margin: 0;
+        }
 
-            .expertise-card ul li {
-                margin-bottom: 10px;
-            }
+        .expertise-card ul li {
+            margin-bottom: 10px;
+        }
 
-            /* Organizational Objectives Section */
-            .objectives-section {
-                background: url('assets/objectives-bg.jpg') no-repeat center center/cover;
-                color: #fff;
-                /* White text */
-                padding: 60px 0;
-                position: relative;
-            }
+        /* Organizational Objectives Section */
+        .objectives-section {
+            background: url('assets/objectives-bg.jpg') no-repeat center center/cover;
+            color: #fff;
+            /* White text */
+            padding: 60px 0;
+            position: relative;
+        }
 
-            .objectives-section::before {
-                content: "";
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 51, 0.7);
-                /* Dark blue overlay */
-                z-index: 1;
-            }
+        .objectives-section::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 51, 0.7);
+            /* Dark blue overlay */
+            z-index: 1;
+        }
 
-            .objectives-section .container {
-                position: relative;
-                z-index: 2;
-            }
+        .objectives-section .container {
+            position: relative;
+            z-index: 2;
+        }
 
-            .objectives-section h2 {
-                color: #fff;
-                /* White heading */
-                cursor: pointer;
-            }
+        .objectives-section h2 {
+            color: #fff;
+            /* White heading */
+            cursor: pointer;
+        }
 
-            .objectives-section h2 .arrow {
-                color: #FFD700;
-                /* Gold arrow */
-                font-size: 1.5rem;
-                transition: transform 0.3s ease;
-            }
+        .objectives-section h2 .arrow {
+            color: #FFD700;
+            /* Gold arrow */
+            font-size: 1.5rem;
+            transition: transform 0.3s ease;
+        }
 
-            .objectives-section h2 .arrow.rotate {
-                transform: rotate(180deg);
-            }
+        .objectives-section h2 .arrow.rotate {
+            transform: rotate(180deg);
+        }
 
-            .objectives-section ul {
-                list-style-type: disc;
-                padding-left: 20px;
-                color: #F0F0F0;
-                /* Light gray text */
-            }
+        .objectives-section ul {
+            list-style-type: disc;
+            padding-left: 20px;
+            color: #F0F0F0;
+            /* Light gray text */
+        }
 
-            /* Back to Top Button */
-            #backToTopBtn {
-                display: none;
-                position: fixed;
-                bottom: 20px;
-                right: 20px;
-                z-index: 99;
-                border: none;
-                outline: none;
-                background-color: var(--accent-color, #28A745);
-                color: white;
-                cursor: pointer;
-                padding: 12px 20px;
-                border-radius: 50%;
-                font-size: 1.2rem;
-                transition: background-color 0.3s ease;
-            }
+        /* Back to Top Button */
+        #backToTopBtn {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 99;
+            border: none;
+            outline: none;
+            background-color: var(--accent-color, #28A745);
+            color: white;
+            cursor: pointer;
+            padding: 12px 20px;
+            border-radius: 50%;
+            font-size: 1.2rem;
+            transition: background-color 0.3s ease;
+        }
 
-            #backToTopBtn:hover {
-                background-color: #218838;
-            }
+        #backToTopBtn:hover {
+            background-color: #218838;
+        }
 
-            /* Read Page Button - Always visible in top right for visually impaired users */
-            #readPageBtn {
-                display: none;
-                /* Shown only if isVisuallyImpaired == 1 */
-                position: fixed;
-                top: 70px;
-                right: 20px;
-                z-index: 99;
-                border: none;
-                outline: none;
-                background-color: var(--accent-color, #28A745);
-                color: white;
-                cursor: pointer;
-                padding: 12px 20px;
-                border-radius: 30%;
-                font-size: 1.2rem;
-                transition: background-color 0.3s ease;
-            }
+        /* Read Page Button - Always visible in top right for visually impaired users */
+        #readPageBtn {
+            display: none;
+            /* Shown only if isVisuallyImpaired == 1 */
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 99;
+            border: none;
+            outline: none;
+            background-color: var(--accent-color, #28A745);
+            color: white;
+            cursor: pointer;
+            padding: 12px 20px;
+            border-radius: 30%;
+            font-size: 1.2rem;
+            transition: background-color 0.3s ease;
+        }
 
-            #readPageBtn:hover {
-                background-color: #218838;
-            }
+        #readPageBtn:hover {
+            background-color: #218838;
+        }
 
-            <?php if ($editMode): ?>
+        <?php if ($editMode): ?>
 
-            /* Inline edit helpers (admin-only) */
-            .edit-outline {
-                outline: 2px dashed rgba(40, 167, 69, 0.6);
-                outline-offset: 4px;
-            }
+        /* Inline edit helpers (admin-only) */
+        .edit-outline {
+            outline: 2px dashed rgba(40, 167, 69, 0.6);
+            outline-offset: 4px;
+        }
 
-            .edit-toolbar {
-                position: absolute;
-                top: 10px;
-                right: 10px;
-                z-index: 10;
-            }
+        .edit-toolbar {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+        }
 
-            .edit-toolbar .btn {
-                padding: 4px 8px;
-            }
+        .edit-toolbar .btn {
+            padding: 4px 8px;
+        }
 
-            .edit-hint {
-                position: fixed;
-                bottom: 10px;
-                left: 10px;
-                background: rgba(33, 37, 41, 0.9);
-                color: #fff;
-                padding: 6px 10px;
-                border-radius: 6px;
-                font-size: 12px;
-                z-index: 1050;
-            }
+        .edit-hint {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(33, 37, 41, 0.9);
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            z-index: 1050;
+        }
 
-            <?php endif; ?>
-        </style>
-        <!-- Pass the visually impaired flag to JavaScript -->
-        <script>
-            var isVisuallyImpaired = <?php echo json_encode($isVisuallyImpaired); ?>;
-        </script>
-        <script src="tts.js"></script>
+        <?php endif; ?>
+    </style>
+    <!-- Pass the visually impaired flag to JavaScript -->
+    <script>
+        var isVisuallyImpaired = <?php echo json_encode($isVisuallyImpaired); ?>;
+    </script>
+    <script src="tts.js"></script>
 </head>
 
 <body>
