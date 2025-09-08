@@ -519,8 +519,13 @@ error_reporting(0);
             // --- Updated renderEvents() ---
             function renderEvents(events) {
                 const now = new Date();
-                const upcomingEvents = events.filter(event => new Date(event.date) >= now);
-                const pastEvents = events.filter(event => new Date(event.date) < now);
+                const resolveStatus = (ev) => {
+                    const s = (ev.status || '').toString().toLowerCase();
+                    if (s === 'upcoming' || s === 'past') return s;
+                    return (new Date(ev.date) >= now) ? 'upcoming' : 'past';
+                };
+                const upcomingEvents = events.filter(ev => resolveStatus(ev) === 'upcoming');
+                const pastEvents = events.filter(ev => resolveStatus(ev) === 'past');
                 const upcomingHtml = upcomingEvents.map(event => {
                     const eventDate = new Date(event.date);
                     const dateStr = eventDate.toLocaleString('en-US', {

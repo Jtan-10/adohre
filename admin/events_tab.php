@@ -53,11 +53,20 @@
                         <div class="col-md-6">
                             <label for="eventDate" class="form-label">Event Month</label>
                             <input type="month" id="eventDate" name="date" class="form-control" required>
-                            <div class="form-text">Stores as the first day of the month; shown as Month and Year only.</div>
                         </div>
                         <div class="col-md-6">
                             <label for="eventLocation" class="form-label">Event Location</label>
                             <input type="text" id="eventLocation" name="location" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
+                            <label for="eventStatus" class="form-label">Status</label>
+                            <select id="eventStatus" name="status" class="form-select">
+                                <option value="past" selected>Past</option>
+                                <option value="upcoming">Upcoming</option>
+                            </select>
+                            <div class="form-text">Controls which tab this event appears under in the manager.</div>
                         </div>
                     </div>
                     <div class="row g-3 mt-1">
@@ -120,6 +129,9 @@
             const id = document.getElementById('eventId').value;
             const action = id ? 'update_event' : 'add_event';
             formData.append('action', action);
+            // include status
+            const status = (document.getElementById('eventStatus')?.value || 'past').toLowerCase();
+            formData.set('status', status === 'upcoming' ? 'upcoming' : 'past');
             // include csrf if present
             const csrf = eventForm.querySelector('input[name="csrf_token"]').value;
             if (csrf && !formData.get('csrf_token')) formData.append('csrf_token', csrf);
@@ -140,10 +152,15 @@
                 .then((response) => response.json())
                 .then((data) => {
                     if (data.status) {
-                        // Separate events into current/upcoming and past based on date
+                        // Separate events by explicit status if available; fallback to date
                         const now = new Date();
-                        const currentEvents = data.events.filter(event => new Date(event.date) >= now);
-                        const pastEvents = data.events.filter(event => new Date(event.date) < now);
+                        const resolveStatus = (ev) => {
+                            const s = (ev.status || '').toString().toLowerCase();
+                            if (s === 'upcoming' || s === 'past') return s;
+                            return (new Date(ev.date) >= now) ? 'upcoming' : 'past';
+                        };
+                        const currentEvents = data.events.filter(ev => resolveStatus(ev) === 'upcoming');
+                        const pastEvents = data.events.filter(ev => resolveStatus(ev) === 'past');
 
                         // Map current events
                         const currentHtml = currentEvents.map(event => `
@@ -235,6 +252,19 @@
                         }
                         document.getElementById('eventLocation').value = event.location;
                         document.getElementById('eventFee').value = event.fee || '';
+                        // Status if present, else infer by date; default to past
+                        const statusSel = document.getElementById('eventStatus');
+                        const s = (event.status || '').toString().toLowerCase();
+                        if (s === 'upcoming' || s === 'past') {
+                            statusSel.value = s;
+                        } else {
+                            try {
+                                const d = new Date(event.date);
+                                statusSel.value = (d >= new Date()) ? 'upcoming' : 'past';
+                            } catch (_) {
+                                statusSel.value = 'past';
+                            }
+                        }
                         // Init existing images from event (images_json preferred)
                         try {
                             if (event.images_json) {
