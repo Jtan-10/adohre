@@ -155,10 +155,10 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                         <input type="text" class="form-control form-control-sm" data-field="previous_office" value="${prevOffice.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;')}">
                     </td>
                     <td data-order="${lifetime?1:0}">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" data-field="is_lifetime" ${lifetime?'checked':''}>
-                            <label class="form-check-label small">Lifetime</label>
-                        </div>
+                        <select class="form-select form-select-sm" data-field="is_lifetime">
+                            <option value="1" ${lifetime?'selected':''}>Yes</option>
+                            <option value="0" ${!lifetime?'selected':''}>No</option>
+                        </select>
                     </td>
                     <td>
                         <div class="d-flex flex-column gap-1">
@@ -277,7 +277,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
             fdProfile.append('membership_status', get('membership_status')?.value || 'inactive');
             fdProfile.append('certification', get('certification')?.value || 'Regular');
             fdProfile.append('previous_office', get('previous_office')?.value || '');
-            fdProfile.append('is_lifetime', get('is_lifetime')?.checked ? '1' : '0');
+            fdProfile.append('is_lifetime', get('is_lifetime')?.value || '0');
             const r1 = await api('../backend/routes/membership_status.php', {
                 method: 'POST',
                 body: fdProfile
@@ -318,7 +318,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
             alert('Saved');
         });
 
-        // Keep sorting values in sync when inputs change (year/age/prevOffice/lifetime)
+        // Keep sorting values in sync when inputs change (year/age/prevOffice)
         body.addEventListener('input', (e) => {
             const yearInp = e.target.closest('input[data-field="year_of_membership"]');
             const ageInp = e.target.closest('input[data-field="age_upon_membership"]');
@@ -329,11 +329,12 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
             if (td) td.setAttribute('data-order', inp.value || '');
         });
 
+        // Keep sorting values in sync when selects change (status/certification/lifetime)
         body.addEventListener('change', (e) => {
-            const lifeChk = e.target.closest('input[type="checkbox"][data-field="is_lifetime"]');
-            if (!lifeChk) return;
-            const td = lifeChk.closest('td');
-            if (td) td.setAttribute('data-order', lifeChk.checked ? '1' : '0');
+            const sel = e.target.closest('select[data-field="membership_status"], select[data-field="certification"], select[data-field="is_lifetime"]');
+            if (!sel) return;
+            const td = sel.closest('td');
+            if (td) td.setAttribute('data-order', (sel.value || '').toLowerCase());
         });
 
         // Send notices
