@@ -68,6 +68,10 @@
                             </select>
                             <div class="form-text">Controls which tab this event appears under in the manager.</div>
                         </div>
+                        <div class="col-md-6">
+                            <label for="eventType" class="form-label">Event Type</label>
+                            <input type="text" id="eventType" name="event_type" class="form-control" placeholder="e.g., Seminar, Workshop, Webinar">
+                        </div>
                     </div>
                     <div class="row g-3 mt-1">
                         <div class="col-md-6">
@@ -132,6 +136,9 @@
             // include status
             const status = (document.getElementById('eventStatus')?.value || 'past').toLowerCase();
             formData.set('status', status === 'upcoming' ? 'upcoming' : 'past');
+            // include event type
+            const eventType = document.getElementById('eventType')?.value || '';
+            formData.set('event_type', eventType);
             // include csrf if present
             const csrf = eventForm.querySelector('input[name="csrf_token"]').value;
             if (csrf && !formData.get('csrf_token')) formData.append('csrf_token', csrf);
@@ -174,6 +181,7 @@
                                         <h5 class="card-title">${event.title}</h5>
                                         <p class="card-text">${event.description}</p>
                                         <p><strong>Date:</strong> ${new Date(event.date).toLocaleString('en-US', { month: 'long', year: 'numeric' })}</p>
+                                        <p><strong>Type:</strong> ${event.event_type ? event.event_type : '-'}</p>
                                         <p><strong>Location:</strong> ${event.location}</p>
                                         <p><strong>Fee:</strong> ${event.fee && parseFloat(event.fee) > 0 ? '₱' + event.fee : 'Free'}</p>
                                         <div>
@@ -198,6 +206,7 @@
                                         <h5 class="card-title">${event.title}</h5>
                                         <p class="card-text">${event.description}</p>
                                         <p><strong>Date:</strong> ${new Date(event.date).toLocaleString('en-US', { month: 'long', year: 'numeric' })}</p>
+                                        <p><strong>Type:</strong> ${event.event_type ? event.event_type : '-'}</p>
                                         <p><strong>Location:</strong> ${event.location}</p>
                                         <p><strong>Fee:</strong> ${event.fee && parseFloat(event.fee) > 0 ? '₱' + event.fee : 'Free'}</p>
                                         <div>
@@ -252,6 +261,7 @@
                         }
                         document.getElementById('eventLocation').value = event.location;
                         document.getElementById('eventFee').value = event.fee || '';
+                        document.getElementById('eventType').value = event.event_type || '';
                         // Status if present, else infer by date; default to past
                         const statusSel = document.getElementById('eventStatus');
                         const s = (event.status || '').toString().toLowerCase();

@@ -573,7 +573,8 @@ error_reporting(0);
                     <i class="fas fa-calendar-alt me-2"></i>
                     ${dateStr}
                   </div>
-                  <h3 class="h5 fw-bold mb-3">${event.title}</h3>
+                  <h3 class="h5 fw-bold mb-1">${event.title}</h3>
+                  <div class="text-muted small mb-3">${event.event_type ? `<i class=\"fas fa-tag me-1\"></i> ${event.event_type}` : ''}</div>
                   <p class="text-muted mb-3">${event.description}</p>
                   <div class="d-flex justify-content-between align-items-center">
                     <div class="location">
@@ -606,7 +607,8 @@ error_reporting(0);
                     <i class="fas fa-calendar-alt me-2"></i>
                     ${dateStr}
                   </div>
-                  <h3 class="h5 fw-bold mb-3">${event.title}</h3>
+                  <h3 class="h5 fw-bold mb-1">${event.title}</h3>
+                  <div class="text-muted small mb-3">${event.event_type ? `<i class=\"fas fa-tag me-1\"></i> ${event.event_type}` : ''}</div>
                   <p class="text-muted mb-3">${event.description}</p>
                   <div class="d-flex justify-content-between align-items-center">
                     <div class="location">

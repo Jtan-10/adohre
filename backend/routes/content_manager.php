@@ -221,9 +221,11 @@ try {
             $status = 'past';
         }
         $userId = $_SESSION['user_id'];
+        $eventType = $_POST['event_type'] ?? null;
 
         $hasImagesJson = cm_hasColumn($conn, 'events', 'images_json');
         $hasStatus = cm_hasColumn($conn, 'events', 'status');
+        $hasEventType = cm_hasColumn($conn, 'events', 'event_type');
         // Gather images to keep (for updates) and new uploads
         $keepImages = [];
         if (isset($_POST['keep_images'])) {
@@ -308,17 +310,29 @@ try {
             $primaryImage = isset($finalImages[0]) ? $finalImages[0] : null;
             if ($hasImagesJson) {
                 $imgsJson = json_encode($finalImages);
-                if ($hasStatus) {
+                if ($hasStatus && $hasEventType) {
+                    $stmt = $conn->prepare("INSERT INTO events (title, description, date, location, fee, status, event_type, image, images_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    $stmt->bind_param('ssssdssss', $title, $description, $date, $location, $fee, $status, $eventType, $primaryImage, $imgsJson);
+                } else if ($hasStatus) {
                     $stmt = $conn->prepare("INSERT INTO events (title, description, date, location, fee, status, image, images_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
                     $stmt->bind_param('ssssdsss', $title, $description, $date, $location, $fee, $status, $primaryImage, $imgsJson);
+                } else if ($hasEventType) {
+                    $stmt = $conn->prepare("INSERT INTO events (title, description, date, location, fee, event_type, image, images_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                    $stmt->bind_param('ssssdsss', $title, $description, $date, $location, $fee, $eventType, $primaryImage, $imgsJson);
                 } else {
                     $stmt = $conn->prepare("INSERT INTO events (title, description, date, location, fee, image, images_json) VALUES (?, ?, ?, ?, ?, ?, ?)");
                     $stmt->bind_param('ssssdss', $title, $description, $date, $location, $fee, $primaryImage, $imgsJson);
                 }
             } else {
-                if ($hasStatus) {
+                if ($hasStatus && $hasEventType) {
+                    $stmt = $conn->prepare("INSERT INTO events (title, description, date, location, fee, status, event_type, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                    $stmt->bind_param('ssssdsss', $title, $description, $date, $location, $fee, $status, $eventType, $primaryImage);
+                } else if ($hasStatus) {
                     $stmt = $conn->prepare("INSERT INTO events (title, description, date, location, fee, status, image) VALUES (?, ?, ?, ?, ?, ?, ?)");
                     $stmt->bind_param('ssssdss', $title, $description, $date, $location, $fee, $status, $primaryImage);
+                } else if ($hasEventType) {
+                    $stmt = $conn->prepare("INSERT INTO events (title, description, date, location, fee, event_type, image) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                    $stmt->bind_param('ssssdss', $title, $description, $date, $location, $fee, $eventType, $primaryImage);
                 } else {
                     $stmt = $conn->prepare("INSERT INTO events (title, description, date, location, fee, image) VALUES (?, ?, ?, ?, ?, ?)");
                     $stmt->bind_param('ssssds', $title, $description, $date, $location, $fee, $primaryImage);
@@ -364,9 +378,15 @@ try {
                 $finalImages = array_values(array_merge($keepImages, $uploadedImages));
                 $primaryImage = isset($finalImages[0]) ? $finalImages[0] : null;
                 $imgsJson = json_encode($finalImages);
-                if ($hasStatus) {
+                if ($hasStatus && $hasEventType) {
+                    $stmt = $conn->prepare("UPDATE events SET title = ?, description = ?, date = ?, location = ?, fee = ?, status = ?, event_type = ?, image = ?, images_json = ? WHERE event_id = ?");
+                    $stmt->bind_param('ssssdssss i', $title, $description, $date, $location, $fee, $status, $eventType, $primaryImage, $imgsJson, $event_id);
+                } else if ($hasStatus) {
                     $stmt = $conn->prepare("UPDATE events SET title = ?, description = ?, date = ?, location = ?, fee = ?, status = ?, image = ?, images_json = ? WHERE event_id = ?");
                     $stmt->bind_param('ssssdsssi', $title, $description, $date, $location, $fee, $status, $primaryImage, $imgsJson, $event_id);
+                } else if ($hasEventType) {
+                    $stmt = $conn->prepare("UPDATE events SET title = ?, description = ?, date = ?, location = ?, fee = ?, event_type = ?, image = ?, images_json = ? WHERE event_id = ?");
+                    $stmt->bind_param('ssssdsssi', $title, $description, $date, $location, $fee, $eventType, $primaryImage, $imgsJson, $event_id);
                 } else {
                     $stmt = $conn->prepare("UPDATE events SET title = ?, description = ?, date = ?, location = ?, fee = ?, image = ?, images_json = ? WHERE event_id = ?");
                     $stmt->bind_param('ssssdssi', $title, $description, $date, $location, $fee, $primaryImage, $imgsJson, $event_id);
@@ -394,9 +414,15 @@ try {
                     }
                     $stmtCheck->close();
                 }
-                if ($hasStatus) {
+                if ($hasStatus && $hasEventType) {
+                    $stmt = $conn->prepare("UPDATE events SET title = ?, description = ?, date = ?, location = ?, fee = ?, status = ?, event_type = ?, image = IFNULL(?, image) WHERE event_id = ?");
+                    $stmt->bind_param('ssssdsssi', $title, $description, $date, $location, $fee, $status, $eventType, $relativeImagePath, $event_id);
+                } else if ($hasStatus) {
                     $stmt = $conn->prepare("UPDATE events SET title = ?, description = ?, date = ?, location = ?, fee = ?, status = ?, image = IFNULL(?, image) WHERE event_id = ?");
                     $stmt->bind_param('ssssdssi', $title, $description, $date, $location, $fee, $status, $relativeImagePath, $event_id);
+                } else if ($hasEventType) {
+                    $stmt = $conn->prepare("UPDATE events SET title = ?, description = ?, date = ?, location = ?, fee = ?, event_type = ?, image = IFNULL(?, image) WHERE event_id = ?");
+                    $stmt->bind_param('ssssdssi', $title, $description, $date, $location, $fee, $eventType, $relativeImagePath, $event_id);
                 } else {
                     $stmt = $conn->prepare("UPDATE events SET title = ?, description = ?, date = ?, location = ?, fee = ?, image = IFNULL(?, image) WHERE event_id = ?");
                     $stmt->bind_param('ssssdsi', $title, $description, $date, $location, $fee, $relativeImagePath, $event_id);
