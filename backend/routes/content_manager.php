@@ -105,24 +105,25 @@ try {
         // Updated query to add a "joined" flag and a "pending_payment" flag.
         // The pending_payment flag is 1 if a payment record for this event exists for the user with status 'New'
         // and payment_type 'Event Registration'; otherwise, it is 0.
-        $eventsQuery = "
-            SELECT e.*,
-                   IF(er.registration_id IS NOT NULL, 1, 0) AS joined,
-                   IF(p.payment_id IS NOT NULL, 1, 0) AS pending_payment
-            FROM events e
-            LEFT JOIN event_registrations er 
-                 ON e.event_id = er.event_id AND er.user_id = ?
-            LEFT JOIN payments p
-                 ON e.event_id = p.event_id 
-                 AND p.user_id = ? 
-                 AND p.status = 'New'
-                 AND p.payment_type = 'Event Registration'
-            ORDER BY e.date DESC
-        ";
+        // Build schema-aware events query
+        $hasPayStatus = cm_hasColumn($conn, 'payments', 'status');
+        $hasPayType = cm_hasColumn($conn, 'payments', 'payment_type');
+        $includePending = $hasPayStatus && $hasPayType;
+        $eventsQuery = "SELECT e.*, IF(er.registration_id IS NOT NULL, 1, 0) AS joined" .
+            ($includePending ? ", IF(p.payment_id IS NOT NULL, 1, 0) AS pending_payment" : "") .
+            " FROM events e " .
+            " LEFT JOIN event_registrations er ON e.event_id = er.event_id AND er.user_id = ? ";
+        if ($includePending) {
+            $eventsQuery .= " LEFT JOIN payments p ON e.event_id = p.event_id AND p.user_id = ? AND p.status = 'New' AND p.payment_type = 'Event Registration' ";
+        }
+        $eventsQuery .= " ORDER BY e.date DESC";
 
-        // Bind the user id twice.
         $stmt = $conn->prepare($eventsQuery);
-        $stmt->bind_param("ii", $user_id, $user_id);
+        if ($includePending) {
+            $stmt->bind_param("ii", $user_id, $user_id);
+        } else {
+            $stmt->bind_param("i", $user_id);
+        }
         $stmt->execute();
         $eventsResult = $stmt->get_result();
         $events = [];
@@ -130,7 +131,7 @@ try {
         while ($row = $eventsResult->fetch_assoc()) {
             // Convert the joined and pending_payment flags to boolean for easier use on the front end
             $row['joined'] = (bool)$row['joined'];
-            $row['pending_payment'] = (bool)$row['pending_payment'];
+            $row['pending_payment'] = isset($row['pending_payment']) ? (bool)$row['pending_payment'] : false;
             // Default single image if none
             $row['image'] = $row['image'] ?: '../assets/default-image.jpg';
             // Build images array (prefers images_json when available)
@@ -382,7 +383,7 @@ try {
                 $imgsJson = json_encode($finalImages);
                 if ($hasStatus && $hasEventType) {
                     $stmt = $conn->prepare("UPDATE events SET title = ?, description = ?, date = ?, location = ?, fee = ?, status = ?, event_type = ?, image = ?, images_json = ? WHERE event_id = ?");
-                    $stmt->bind_param('ssssdssss i', $title, $description, $date, $location, $fee, $status, $eventType, $primaryImage, $imgsJson, $event_id);
+                    $stmt->bind_param('ssssdssssi', $title, $description, $date, $location, $fee, $status, $eventType, $primaryImage, $imgsJson, $event_id);
                 } else if ($hasStatus) {
                     $stmt = $conn->prepare("UPDATE events SET title = ?, description = ?, date = ?, location = ?, fee = ?, status = ?, image = ?, images_json = ? WHERE event_id = ?");
                     $stmt->bind_param('ssssdsssi', $title, $description, $date, $location, $fee, $status, $primaryImage, $imgsJson, $event_id);
