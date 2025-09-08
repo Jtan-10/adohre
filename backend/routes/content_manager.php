@@ -10,7 +10,12 @@ header('X-Frame-Options: SAMEORIGIN');
 header('X-XSS-Protection: 1; mode=block');
 
 require_once __DIR__ . '/../db/db_connect.php';
-require_once __DIR__ . '/../s3config.php'; // adjust path as needed
+// Defer/guard S3 init; routes that need S3 will ensure it's loaded
+try {
+    require_once __DIR__ . '/../s3config.php';
+} catch (Throwable $e) {
+    error_log('S3 init (top) failed: ' . $e->getMessage());
+}
 
 // -------------------------
 // Helper function to embed binary data into a valid PNG.
@@ -1077,6 +1082,12 @@ try {
                     }
                 }
             }
+        }
+
+        // Ensure S3 client and bucket are ready
+        if (empty($bucketName) || empty($s3)) {
+            echo json_encode(['status' => false, 'message' => 'S3 not configured']);
+            exit();
         }
 
         // List S3 objects under uploads/
