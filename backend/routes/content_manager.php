@@ -1022,6 +1022,17 @@ try {
         $prefix = 'uploads/';
         $referenced = [];
 
+        // Lazy-init S3 to avoid top-level failures
+        if (!isset($s3) || !isset($bucketName)) {
+            try {
+                require_once __DIR__ . '/../s3config.php';
+            } catch (Throwable $e) {
+                error_log('S3 init error (s3_orphan_cleanup): ' . $e->getMessage());
+                echo json_encode(['status' => false, 'message' => 'S3 not configured']);
+                exit();
+            }
+        }
+
         // Collect all S3 keys referenced in DB as '/s3proxy/<key>'
         $collect = function ($sql, $col) use ($conn, &$referenced) {
             $res = $conn->query($sql);

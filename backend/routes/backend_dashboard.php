@@ -5,7 +5,6 @@ error_reporting(0);
 
 require_once '../controllers/authController.php';
 require_once '../db/db_connect.php';
-require_once '../s3config.php';
 header('Content-Type: application/json');
 
 // Add secure headers
@@ -76,6 +75,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             exit;
         }
         // Delete S3-backed images first (profile_image, face_image)
+        // Load S3 client only when needed to prevent failures on unrelated requests
+        $s3 = null;
+        $bucketName = null;
+        try {
+            require_once '../s3config.php';
+        } catch (Throwable $e) {
+            error_log('S3 init error (dashboard delete_user): ' . $e->getMessage());
+        }
         $stmtSel = $conn->prepare("SELECT profile_image, face_image FROM users WHERE user_id = ?");
         $stmtSel->bind_param("i", $user_id);
         $stmtSel->execute();
@@ -83,7 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         if ($resSel && $row = $resSel->fetch_assoc()) {
             foreach (['profile_image', 'face_image'] as $col) {
                 $url = $row[$col] ?? '';
-                if (!empty($url) && strpos($url, '/s3proxy/') === 0) {
+                if ($s3 && $bucketName && !empty($url) && strpos($url, '/s3proxy/') === 0) {
                     $key = urldecode(str_replace('/s3proxy/', '', $url));
                     try {
                         $s3->deleteObject(['Bucket' => $bucketName, 'Key' => $key]);
