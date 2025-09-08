@@ -614,6 +614,27 @@ try {
         }
         $stmt_check->close();
 
+        // Before deleting the user, attempt to delete their S3-backed images
+        // Fetch profile_image and face_image (if present in schema)
+        $stmtImgs = $conn->prepare('SELECT profile_image, face_image FROM users WHERE user_id = ?');
+        $stmtImgs->bind_param('i', $user_id);
+        $stmtImgs->execute();
+        $resImgs = $stmtImgs->get_result();
+        if ($resImgs && $rowImgs = $resImgs->fetch_assoc()) {
+            foreach (['profile_image', 'face_image'] as $col) {
+                $url = $rowImgs[$col] ?? '';
+                if (!empty($url) && strpos($url, '/s3proxy/') === 0) {
+                    $existingS3Key = urldecode(str_replace('/s3proxy/', '', $url));
+                    try {
+                        $s3->deleteObject(['Bucket' => $bucketName, 'Key' => $existingS3Key]);
+                    } catch (Aws\Exception\AwsException $e) {
+                        error_log("S3 deletion error ($col): " . $e->getMessage());
+                    }
+                }
+            }
+        }
+        $stmtImgs->close();
+
         $stmt = $conn->prepare('DELETE FROM users WHERE user_id = ?');
         $stmt->bind_param('i', $user_id);
         if ($stmt->execute()) {

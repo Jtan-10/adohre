@@ -121,6 +121,31 @@ if ($result) {
             <form id="backupForm" method="POST" action="../backend/routes/settings_api.php?action=backup_database">
                 <button type="submit" class="btn btn-success">Backup Database</button>
             </form>
+
+            <hr>
+
+            <h2>AWS S3 Orphan Cleanup</h2>
+            <p class="text-muted">Find and optionally delete files in S3 under <code>uploads/</code> that aren’t referenced in the database. Start with a dry run (List Orphans), then delete if you’re sure.</p>
+            <div class="d-flex gap-2 mb-3">
+                <button id="btnListOrphans" class="btn btn-outline-primary">
+                    <i class="bi bi-search"></i> List Orphans
+                </button>
+                <button id="btnDeleteOrphans" class="btn btn-danger">
+                    <i class="bi bi-trash"></i> Delete Orphans
+                </button>
+            </div>
+            <div id="orphansSummary" class="mb-2"></div>
+            <div class="table-responsive" style="max-height: 300px; overflow:auto;">
+                <table class="table table-sm table-striped">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>S3 Key</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orphansTableBody"></tbody>
+                </table>
+            </div>
             <br>
             <form id="restoreForm" method="POST" enctype="multipart/form-data"
                 action="../backend/routes/settings_api.php?action=restore_database">
@@ -317,6 +342,63 @@ if ($result) {
                         console.error("Error during restore:", error);
                         showApiMessage("An error occurred during database restore.", "danger");
                     });
+            });
+
+            // Orphan cleanup: helpers
+            const renderOrphans = (keys) => {
+                const tbody = document.getElementById('orphansTableBody');
+                tbody.innerHTML = '';
+                keys.forEach((k, idx) => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td>${idx + 1}</td><td><code>${k}</code></td>`;
+                    tbody.appendChild(tr);
+                });
+                document.getElementById('orphansSummary').innerHTML = `<div class="alert alert-info">Found ${keys.length} orphaned objects.</div>`;
+            };
+
+            const callCleanup = async (mode = 'list') => {
+                const form = new FormData();
+                form.append('mode', mode);
+                const res = await fetch('../backend/routes/content_manager.php?action=s3_orphan_cleanup', {
+                    method: 'POST',
+                    body: form,
+                    credentials: 'include'
+                });
+                if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+                return res.json();
+            };
+
+            document.getElementById('btnListOrphans').addEventListener('click', async () => {
+                try {
+                    document.getElementById('orphansSummary').innerHTML = '<div class="alert alert-secondary">Scanning S3 for orphans…</div>';
+                    const data = await callCleanup('list');
+                    if (data.status) {
+                        renderOrphans(data.orphans || []);
+                        showApiMessage('Scan completed.', 'success');
+                    } else {
+                        showApiMessage(data.message || 'Scan failed.', 'danger');
+                    }
+                } catch (e) {
+                    console.error(e);
+                    showApiMessage('Error during scan.', 'danger');
+                }
+            });
+
+            document.getElementById('btnDeleteOrphans').addEventListener('click', async () => {
+                if (!confirm('This will permanently delete orphaned S3 files under uploads/. Continue?')) return;
+                try {
+                    document.getElementById('orphansSummary').innerHTML = '<div class="alert alert-warning">Deleting orphaned objects…</div>';
+                    const data = await callCleanup('delete');
+                    if (data.status) {
+                        renderOrphans([]);
+                        showApiMessage(`Deleted ${data.count || 0} orphaned objects.`, 'success');
+                    } else {
+                        showApiMessage(data.message || 'Delete failed.', 'danger');
+                    }
+                } catch (e) {
+                    console.error(e);
+                    showApiMessage('Error during delete.', 'danger');
+                }
             });
         });
     </script>

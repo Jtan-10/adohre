@@ -1009,6 +1009,99 @@ try {
             echo json_encode(['status' => false, 'message' => 'Document not found.']);
         }
         exit();
+    } elseif ($action === 's3_orphan_cleanup') {
+        // Admin-only utility: list or delete S3 objects under uploads/ not referenced in DB
+        ensureAuthenticated();
+        if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+            http_response_code(403);
+            echo json_encode(['status' => false, 'message' => 'Forbidden']);
+            exit();
+        }
+
+        $mode = $_POST['mode'] ?? 'list'; // 'list' or 'delete'
+        $prefix = 'uploads/';
+        $referenced = [];
+
+        // Collect all S3 keys referenced in DB as '/s3proxy/<key>'
+        $collect = function ($sql, $col) use ($conn, &$referenced) {
+            $res = $conn->query($sql);
+            if ($res) {
+                while ($row = $res->fetch_assoc()) {
+                    $url = $row[$col] ?? '';
+                    if (!empty($url) && strpos($url, '/s3proxy/') === 0) {
+                        $key = urldecode(str_replace('/s3proxy/', '', $url));
+                        $referenced[$key] = true;
+                    }
+                }
+            }
+        };
+
+        // Single-image columns
+        $collect("SELECT image AS url FROM events", 'url');
+        $collect("SELECT image AS url FROM trainings", 'url');
+        $collect("SELECT image AS url FROM projects", 'url');
+        $collect("SELECT image AS url FROM payments", 'url');
+        $collect("SELECT image AS url FROM news", 'url');
+        $collect("SELECT profile_image AS url FROM users", 'url');
+        $collect("SELECT face_image AS url FROM users", 'url');
+        $collect("SELECT valid_id_url AS url FROM membership_applications", 'url');
+
+        // Documents
+        $collect("SELECT file_url AS url FROM documents", 'url');
+
+        // Any settings values that reference S3 via /s3proxy/
+        $collect("SELECT value AS url FROM settings WHERE value LIKE '/s3proxy/%'", 'url');
+
+        // Multi-image JSON columns
+        $resMJ = $conn->query("SELECT images_json FROM events WHERE images_json IS NOT NULL AND images_json != ''");
+        if ($resMJ) {
+            while ($r = $resMJ->fetch_assoc()) {
+                $arr = json_decode($r['images_json'], true);
+                if (is_array($arr)) {
+                    foreach ($arr as $url) {
+                        if (!empty($url) && strpos($url, '/s3proxy/') === 0) {
+                            $key = urldecode(str_replace('/s3proxy/', '', $url));
+                            $referenced[$key] = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // List S3 objects under uploads/
+        $toDelete = [];
+        try {
+            $params = ['Bucket' => $bucketName, 'Prefix' => $prefix];
+            do {
+                $resp = $s3->listObjectsV2($params);
+                foreach ($resp['Contents'] ?? [] as $obj) {
+                    $key = $obj['Key'];
+                    if (!isset($referenced[$key])) {
+                        $toDelete[] = $key;
+                    }
+                }
+                $params['ContinuationToken'] = $resp['NextContinuationToken'] ?? null;
+            } while (!empty($params['ContinuationToken']));
+        } catch (Exception $e) {
+            error_log('S3 list error: ' . $e->getMessage());
+            echo json_encode(['status' => false, 'message' => 'Failed to list S3 objects']);
+            exit();
+        }
+
+        if ($mode === 'delete' && !empty($toDelete)) {
+            $deleted = [];
+            foreach ($toDelete as $key) {
+                try {
+                    $s3->deleteObject(['Bucket' => $bucketName, 'Key' => $key]);
+                    $deleted[] = $key;
+                } catch (Aws\Exception\AwsException $e) {
+                    error_log('S3 delete error: ' . $e->getMessage());
+                }
+            }
+            echo json_encode(['status' => true, 'deleted' => $deleted, 'count' => count($deleted)]);
+        } else {
+            echo json_encode(['status' => true, 'orphans' => $toDelete, 'count' => count($toDelete)]);
+        }
     } else {
         echo json_encode(['status' => false, 'message' => 'Invalid action.']);
     }

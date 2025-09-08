@@ -5,6 +5,7 @@ error_reporting(0);
 
 require_once '../controllers/authController.php';
 require_once '../db/db_connect.php';
+require_once '../s3config.php';
 header('Content-Type: application/json');
 
 // Add secure headers
@@ -74,6 +75,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             echo json_encode(['status' => false, 'message' => 'Invalid user ID.']);
             exit;
         }
+        // Delete S3-backed images first (profile_image, face_image)
+        $stmtSel = $conn->prepare("SELECT profile_image, face_image FROM users WHERE user_id = ?");
+        $stmtSel->bind_param("i", $user_id);
+        $stmtSel->execute();
+        $resSel = $stmtSel->get_result();
+        if ($resSel && $row = $resSel->fetch_assoc()) {
+            foreach (['profile_image', 'face_image'] as $col) {
+                $url = $row[$col] ?? '';
+                if (!empty($url) && strpos($url, '/s3proxy/') === 0) {
+                    $key = urldecode(str_replace('/s3proxy/', '', $url));
+                    try {
+                        $s3->deleteObject(['Bucket' => $bucketName, 'Key' => $key]);
+                    } catch (Aws\Exception\AwsException $e) {
+                        error_log('S3 deletion error (dashboard): ' . $e->getMessage());
+                    }
+                }
+            }
+        }
+        $stmtSel->close();
         $stmt = $conn->prepare("DELETE FROM users WHERE user_id = ?");
         $stmt->bind_param("i", $user_id);
         if ($stmt->execute()) {
@@ -102,4 +122,3 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         }
     }
 }
-?>

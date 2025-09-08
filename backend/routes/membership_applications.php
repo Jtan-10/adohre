@@ -1,5 +1,6 @@
 <?php
 require_once '../db/db_connect.php';
+require_once '../s3config.php';
 header('Content-Type: application/json');
 session_start();
 $method = $_SERVER['REQUEST_METHOD'];
@@ -204,17 +205,38 @@ try {
             break;
 
         case 'DELETE':
-            // Delete application
+            // Delete application (and its S3 files, e.g., valid_id_url)
             parse_str(file_get_contents('php://input'), $data);
 
             if (isset($data['id'])) {
+                $appId = intval($data['id']);
+
+                // Fetch S3-backed fields to clean up (currently: valid_id_url)
+                $stmtSel = $conn->prepare("SELECT valid_id_url FROM membership_applications WHERE application_id = ?");
+                $stmtSel->bind_param("i", $appId);
+                $stmtSel->execute();
+                $resSel = $stmtSel->get_result();
+                if ($resSel && $row = $resSel->fetch_assoc()) {
+                    $validIdUrl = $row['valid_id_url'] ?? '';
+                    if (!empty($validIdUrl) && strpos($validIdUrl, '/s3proxy/') === 0) {
+                        $existingS3Key = urldecode(str_replace('/s3proxy/', '', $validIdUrl));
+                        try {
+                            $s3->deleteObject(['Bucket' => $bucketName, 'Key' => $existingS3Key]);
+                        } catch (Aws\Exception\AwsException $e) {
+                            error_log('S3 deletion error (valid_id_url): ' . $e->getMessage());
+                        }
+                    }
+                }
+                $stmtSel->close();
+
+                // Now delete the application record
                 $stmt = $conn->prepare("DELETE FROM membership_applications WHERE application_id = ?");
-                $stmt->bind_param("i", $data['id']);
+                $stmt->bind_param("i", $appId);
                 $success = $stmt->execute();
                 if ($success) {
                     // Record audit log for deletion.
                     $adminId = $_SESSION['user_id'];
-                    recordAuditLog($adminId, 'Delete Membership Application', "Application ID {$data['id']} deleted.");
+                    recordAuditLog($adminId, 'Delete Membership Application', "Application ID {$appId} deleted.");
                     echo json_encode(['status' => true, 'message' => 'Application deleted.']);
                 } else {
                     echo json_encode(['status' => false, 'message' => 'Failed to delete application.']);
