@@ -28,7 +28,9 @@ $homeSettings = [
     'home_about_html' => null,
     'home_contact_address' => null,
     'home_hero_image_url' => null,
-    'home_sections_json' => null
+    'home_sections_json' => null,
+    'home_about_image_url' => null,
+    'home_empower_bg_url' => null
 ];
 $keys = array_keys($homeSettings);
 $placeholders = implode(',', array_fill(0, count($keys), '?'));
@@ -419,7 +421,21 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
             <div class="container">
                 <div class="row align-items-center">
                     <div class="col-md-6 mb-4 mb-md-0">
-                        <img src="assets/about-image.jpg" class="img-fluid rounded" alt="Group Photo">
+                        <?php
+                        $homeAboutImg = $homeSettings['home_about_image_url'] ?? '';
+                        if ($homeAboutImg && strpos($homeAboutImg, '/s3proxy/') !== false) {
+                            $homeAboutImg = 'backend/routes/decrypt_image.php?image_url=' . urlencode($homeAboutImg);
+                        }
+                        ?>
+                        <div class="position-relative">
+                            <img id="homeAboutImgTag" src="<?= $homeAboutImg ? htmlspecialchars($homeAboutImg, ENT_QUOTES) : 'assets/about-image.jpg' ?>" class="img-fluid rounded" alt="Group Photo">
+                            <?php if ($editMode): ?>
+                                <div class="edit-toolbar" style="top: 8px; left: 8px; right: auto;">
+                                    <button class="btn btn-light btn-sm" id="btnHomeAboutImg"><i class="fa fa-image me-1"></i>Change Image</button>
+                                    <input type="file" id="homeAboutFileInline" accept="image/*" class="d-none">
+                                </div>
+                            <?php endif; ?>
+                        </div>
                     </div>
                     <div class="col-md-6 about-text">
                         <h2>About ADOHRE</h2>
@@ -472,7 +488,19 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
         </section>
 
         <!-- Empowerment Section -->
-        <section class="section-padding text-center text-white empower-section">
+        <?php
+        $homeEmpowerBg = $homeSettings['home_empower_bg_url'] ?? '';
+        if ($homeEmpowerBg && strpos($homeEmpowerBg, '/s3proxy/') !== false) {
+            $homeEmpowerBg = 'backend/routes/decrypt_image.php?image_url=' . urlencode($homeEmpowerBg);
+        }
+        ?>
+        <section class="section-padding text-center text-white empower-section position-relative" <?php if (!empty($homeEmpowerBg)): ?>style="background-image: url('<?= htmlspecialchars($homeEmpowerBg, ENT_QUOTES) ?>'); background-size: cover; background-position: center;" <?php endif; ?>>
+            <?php if ($editMode): ?>
+                <div class="edit-toolbar">
+                    <button class="btn btn-light btn-sm" id="btnHomeEmpowerBg"><i class="fa fa-image me-1"></i>Change Background</button>
+                    <input type="file" id="homeEmpowerFileInline" accept="image/*" class="d-none">
+                </div>
+            <?php endif; ?>
             <div class="container">
                 <h2>Empower Yourself with ADOHRE</h2>
                 <p>
@@ -594,6 +622,8 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
                     const page = 'home';
                     let dirty = false;
                     let latestHeroUrl = <?= json_encode($homeSettings['home_hero_image_url'] ?? '') ?>;
+                    let latestAboutImg = <?= json_encode($homeSettings['home_about_image_url'] ?? '') ?>;
+                    let latestEmpowerBg = <?= json_encode($homeSettings['home_empower_bg_url'] ?? '') ?>;
 
                     const markDirty = () => {
                         if (!dirty) {
@@ -657,6 +687,72 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
                         });
                     }
 
+                    // About section image change
+                    const btnAbout = document.getElementById('btnHomeAboutImg');
+                    const fileAbout = document.getElementById('homeAboutFileInline');
+                    if (btnAbout && fileAbout) {
+                        btnAbout.addEventListener('click', () => fileAbout.click());
+                        fileAbout.addEventListener('change', async (e) => {
+                            const f = e.target.files && e.target.files[0];
+                            if (!f) return;
+                            const fd = new FormData();
+                            fd.append('page', 'home');
+                            fd.append('image', f);
+                            try {
+                                const res = await fetch('backend/routes/settings_api.php?action=upload_page_asset', {
+                                    method: 'POST',
+                                    body: fd
+                                });
+                                const j = await res.json();
+                                if (j.status) {
+                                    latestAboutImg = j.url;
+                                    const url = j.url.includes('/s3proxy/') ? ('backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(j.url)) : j.url;
+                                    const imgTag = document.getElementById('homeAboutImgTag');
+                                    if (imgTag) imgTag.src = url;
+                                    markDirty();
+                                    alert('Image uploaded');
+                                } else {
+                                    alert(j.message || 'Upload failed');
+                                }
+                            } catch (err) {
+                                alert('Upload error');
+                            }
+                        });
+                    }
+
+                    // Empower section background change
+                    const btnEmp = document.getElementById('btnHomeEmpowerBg');
+                    const fileEmp = document.getElementById('homeEmpowerFileInline');
+                    if (btnEmp && fileEmp) {
+                        btnEmp.addEventListener('click', () => fileEmp.click());
+                        fileEmp.addEventListener('change', async (e) => {
+                            const f = e.target.files && e.target.files[0];
+                            if (!f) return;
+                            const fd = new FormData();
+                            fd.append('page', 'home');
+                            fd.append('image', f);
+                            try {
+                                const res = await fetch('backend/routes/settings_api.php?action=upload_page_asset', {
+                                    method: 'POST',
+                                    body: fd
+                                });
+                                const j = await res.json();
+                                if (j.status) {
+                                    latestEmpowerBg = j.url;
+                                    const url = j.url.includes('/s3proxy/') ? ('backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(j.url)) : j.url;
+                                    const sec = document.querySelector('.empower-section');
+                                    if (sec) sec.style.backgroundImage = `url('${url}')`;
+                                    markDirty();
+                                    alert('Image uploaded');
+                                } else {
+                                    alert(j.message || 'Upload failed');
+                                }
+                            } catch (err) {
+                                alert('Upload error');
+                            }
+                        });
+                    }
+
                     // Handle save from parent
                     window.addEventListener('message', async (event) => {
                         const data = event.data || {};
@@ -684,6 +780,8 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
                                     /* ignore carousel read errors */
                                 }
                                 if (latestHeroUrl) payload['home_hero_image_url'] = latestHeroUrl;
+                                if (latestAboutImg) payload['home_about_image_url'] = latestAboutImg;
+                                if (latestEmpowerBg) payload['home_empower_bg_url'] = latestEmpowerBg;
                                 const fd = new FormData();
                                 fd.append('page', page);
                                 fd.append('data', JSON.stringify(payload));

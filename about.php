@@ -36,7 +36,10 @@ $aboutSettings = [
     'about_vision_text' => null,
     'about_objectives_html' => null,
     'about_hero_image_url' => null,
-    'about_sections_json' => null
+    'about_sections_json' => null,
+    'about_objectives_bg_url' => null,
+    'about_expertise_bg_url' => null,
+    'about_org_structure_image_url' => null
 ];
 $aKeys = array_keys($aboutSettings);
 $placeholders = implode(',', array_fill(0, count($aKeys), '?'));
@@ -509,7 +512,19 @@ if ($stmtM = $conn->prepare("SELECT first_name, last_name FROM users WHERE role 
         </section>
 
         <!-- Organizational Objectives Section -->
-        <section class="objectives-section">
+        <?php
+        $objBg = $aboutSettings['about_objectives_bg_url'] ?? '';
+        if ($objBg && strpos($objBg, '/s3proxy/') !== false) {
+            $objBg = 'backend/routes/decrypt_image.php?image_url=' . urlencode($objBg);
+        }
+        ?>
+        <section class="objectives-section position-relative" <?php if (!empty($objBg)): ?>style="background-image: url('<?= htmlspecialchars($objBg, ENT_QUOTES) ?>'); background-size: cover; background-position: center;" <?php endif; ?>>
+            <?php if ($editMode): ?>
+                <div class="edit-toolbar">
+                    <button class="btn btn-light btn-sm" id="btnAboutObjectivesBg"><i class="fa fa-image me-1"></i>Change Background</button>
+                    <input type="file" id="aboutObjectivesFileInline" accept="image/*" class="d-none">
+                </div>
+            <?php endif; ?>
             <div class="container">
                 <h2 class="text-center mb-4" id="objectivesHeading">
                     Our Organizational Objectives
@@ -622,7 +637,19 @@ if ($stmtM = $conn->prepare("SELECT first_name, last_name FROM users WHERE role 
         <?php endif; ?>
 
         <!-- Expertise and Interests Section -->
-        <section class="expertise-section">
+        <?php
+        $expBg = $aboutSettings['about_expertise_bg_url'] ?? '';
+        if ($expBg && strpos($expBg, '/s3proxy/') !== false) {
+            $expBg = 'backend/routes/decrypt_image.php?image_url=' . urlencode($expBg);
+        }
+        ?>
+        <section class="expertise-section position-relative" <?php if (!empty($expBg)): ?>style="background-image: url('<?= htmlspecialchars($expBg, ENT_QUOTES) ?>'); background-size: cover; background-position: center;" <?php endif; ?>>
+            <?php if ($editMode): ?>
+                <div class="edit-toolbar">
+                    <button class="btn btn-light btn-sm" id="btnAboutExpertiseBg"><i class="fa fa-image me-1"></i>Change Background</button>
+                    <input type="file" id="aboutExpertiseFileInline" accept="image/*" class="d-none">
+                </div>
+            <?php endif; ?>
             <div class="container">
                 <h2>Our Expertise and Interests</h2>
                 <div class="row">
@@ -710,9 +737,13 @@ if ($stmtM = $conn->prepare("SELECT first_name, last_name FROM users WHERE role 
 
         <!-- Organizational Structure Section -->
         <?php
-        // Image path for the uploaded organizational structure diagram
-        $orgImg = 'assets/org-structure-2025.png';
-        $orgImgExists = file_exists($orgImg);
+        // Organization structure image: allow override via settings
+        $orgSetting = $aboutSettings['about_org_structure_image_url'] ?? '';
+        if ($orgSetting && strpos($orgSetting, '/s3proxy/') !== false) {
+            $orgSetting = 'backend/routes/decrypt_image.php?image_url=' . urlencode($orgSetting);
+        }
+        $orgImg = $orgSetting ?: 'assets/org-structure-2025.png';
+        $orgImgExists = $orgSetting ? true : file_exists($orgImg);
         ?>
         <section class="section-padding bg-white">
             <div class="container">
@@ -732,6 +763,12 @@ if ($stmtM = $conn->prepare("SELECT first_name, last_name FROM users WHERE role 
                         <div class="alert alert-warning text-start" role="alert">
                             Organizational structure image not found. Please copy your file to
                             <code>assets/org-structure-2025.png</code>.
+                        </div>
+                    <?php endif; ?>
+                    <?php if ($editMode): ?>
+                        <div class="edit-toolbar" style="top: 8px; right: 8px;">
+                            <button class="btn btn-light btn-sm" id="btnAboutOrgImg"><i class="fa fa-image me-1"></i>Change Org Chart</button>
+                            <input type="file" id="aboutOrgFileInline" accept="image/*" class="d-none">
                         </div>
                     <?php endif; ?>
                 </figure>
@@ -989,6 +1026,9 @@ if ($stmtM = $conn->prepare("SELECT first_name, last_name FROM users WHERE role 
                     const page = 'about';
                     let dirty = false;
                     let latestHeroUrl = <?= json_encode($aboutSettings['about_hero_image_url'] ?? '') ?>;
+                    let latestObjectivesBg = <?= json_encode($aboutSettings['about_objectives_bg_url'] ?? '') ?>;
+                    let latestExpertiseBg = <?= json_encode($aboutSettings['about_expertise_bg_url'] ?? '') ?>;
+                    let latestOrgImg = <?= json_encode($aboutSettings['about_org_structure_image_url'] ?? '') ?>;
 
                     const markDirty = () => {
                         if (!dirty) {
@@ -1048,6 +1088,105 @@ if ($stmtM = $conn->prepare("SELECT first_name, last_name FROM users WHERE role 
                         });
                     }
 
+                    // Objectives BG upload
+                    const btnObj = document.getElementById('btnAboutObjectivesBg');
+                    const fileObj = document.getElementById('aboutObjectivesFileInline');
+                    if (btnObj && fileObj) {
+                        btnObj.addEventListener('click', () => fileObj.click());
+                        fileObj.addEventListener('change', async (e) => {
+                            const f = e.target.files && e.target.files[0];
+                            if (!f) return;
+                            const fd = new FormData();
+                            fd.append('page', 'about');
+                            fd.append('image', f);
+                            try {
+                                const res = await fetch('backend/routes/settings_api.php?action=upload_page_asset', {
+                                    method: 'POST',
+                                    body: fd
+                                });
+                                const j = await res.json();
+                                if (j.status) {
+                                    latestObjectivesBg = j.url;
+                                    const url = j.url.includes('/s3proxy/') ? ('backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(j.url)) : j.url;
+                                    const sec = document.querySelector('.objectives-section');
+                                    if (sec) sec.style.backgroundImage = `url('${url}')`;
+                                    markDirty();
+                                    alert('Image uploaded');
+                                } else {
+                                    alert(j.message || 'Upload failed');
+                                }
+                            } catch (err) {
+                                alert('Upload error');
+                            }
+                        });
+                    }
+
+                    // Expertise BG upload
+                    const btnExp = document.getElementById('btnAboutExpertiseBg');
+                    const fileExp = document.getElementById('aboutExpertiseFileInline');
+                    if (btnExp && fileExp) {
+                        btnExp.addEventListener('click', () => fileExp.click());
+                        fileExp.addEventListener('change', async (e) => {
+                            const f = e.target.files && e.target.files[0];
+                            if (!f) return;
+                            const fd = new FormData();
+                            fd.append('page', 'about');
+                            fd.append('image', f);
+                            try {
+                                const res = await fetch('backend/routes/settings_api.php?action=upload_page_asset', {
+                                    method: 'POST',
+                                    body: fd
+                                });
+                                const j = await res.json();
+                                if (j.status) {
+                                    latestExpertiseBg = j.url;
+                                    const url = j.url.includes('/s3proxy/') ? ('backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(j.url)) : j.url;
+                                    const sec = document.querySelector('.expertise-section');
+                                    if (sec) sec.style.backgroundImage = `url('${url}')`;
+                                    markDirty();
+                                    alert('Image uploaded');
+                                } else {
+                                    alert(j.message || 'Upload failed');
+                                }
+                            } catch (err) {
+                                alert('Upload error');
+                            }
+                        });
+                    }
+
+                    // Org structure image upload
+                    const btnOrg = document.getElementById('btnAboutOrgImg');
+                    const fileOrg = document.getElementById('aboutOrgFileInline');
+                    if (btnOrg && fileOrg) {
+                        btnOrg.addEventListener('click', () => fileOrg.click());
+                        fileOrg.addEventListener('change', async (e) => {
+                            const f = e.target.files && e.target.files[0];
+                            if (!f) return;
+                            const fd = new FormData();
+                            fd.append('page', 'about');
+                            fd.append('image', f);
+                            try {
+                                const res = await fetch('backend/routes/settings_api.php?action=upload_page_asset', {
+                                    method: 'POST',
+                                    body: fd
+                                });
+                                const j = await res.json();
+                                if (j.status) {
+                                    latestOrgImg = j.url;
+                                    const url = j.url.includes('/s3proxy/') ? ('backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(j.url)) : j.url;
+                                    const img = document.getElementById('orgStructureImg');
+                                    if (img) img.src = url;
+                                    markDirty();
+                                    alert('Image uploaded');
+                                } else {
+                                    alert(j.message || 'Upload failed');
+                                }
+                            } catch (err) {
+                                alert('Upload error');
+                            }
+                        });
+                    }
+
                     window.addEventListener('message', async (event) => {
                         const data = event.data || {};
                         if (data.type === 'pageSave') {
@@ -1060,6 +1199,9 @@ if ($stmtM = $conn->prepare("SELECT first_name, last_name FROM users WHERE role 
                                     else payload[key] = el.innerText.trim();
                                 });
                                 if (latestHeroUrl) payload['about_hero_image_url'] = latestHeroUrl;
+                                if (latestObjectivesBg) payload['about_objectives_bg_url'] = latestObjectivesBg;
+                                if (latestExpertiseBg) payload['about_expertise_bg_url'] = latestExpertiseBg;
+                                if (latestOrgImg) payload['about_org_structure_image_url'] = latestOrgImg;
                                 const fd = new FormData();
                                 fd.append('page', page);
                                 fd.append('data', JSON.stringify(payload));
