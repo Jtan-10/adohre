@@ -19,11 +19,12 @@ document.addEventListener("DOMContentLoaded", function() {
   function renderNews(news) {
       const html = news.map(article => {
           let imageUrl;
-          if (article.image) {
-              imageUrl = baseUrl + '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(article.image);
-          } else {
-              imageUrl = 'assets/default-news.jpg';
-          }
+      if (article.image) {
+        imageUrl = baseUrl + '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(article.image);
+      } else {
+        // Fallback to an existing default image in assets
+        imageUrl = 'assets/default-image.jpg';
+      }
           return `
             <div class="news-card">
               <img src="${imageUrl}" class="card-img-top" alt="${article.title}">
