@@ -44,22 +44,16 @@ $conn->query("CREATE TABLE IF NOT EXISTS membership_dues (
     CONSTRAINT fk_md_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
 
-// App settings table for dynamic fees
-$conn->query("CREATE TABLE IF NOT EXISTS app_settings (
-    setting_key VARCHAR(100) NOT NULL PRIMARY KEY,
-    setting_value VARCHAR(255) NOT NULL,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
-
+// Use existing `settings` table (key/value) for dynamic fees
 function getSetting(mysqli $conn, string $key, $default)
 {
-    $stmt = $conn->prepare("SELECT setting_value FROM app_settings WHERE setting_key = ? LIMIT 1");
+    $stmt = $conn->prepare("SELECT value FROM settings WHERE `key` = ? LIMIT 1");
     if ($stmt) {
         $stmt->bind_param('s', $key);
         $stmt->execute();
         $res = $stmt->get_result();
         if ($row = $res->fetch_assoc()) {
-            $val = $row['setting_value'];
+            $val = $row['value'];
             $stmt->close();
             // Try to cast numeric values
             if (is_numeric($val)) return (float)$val;
