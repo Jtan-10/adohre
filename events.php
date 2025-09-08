@@ -149,9 +149,32 @@ error_reporting(0);
             width: 100%;
             height: 220px;
             display: grid;
+            gap: 6px;
+        }
+
+        .evt-collage.one {
+            grid-template-columns: 1fr;
+            grid-template-rows: 1fr;
+        }
+
+        .evt-collage.two {
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr;
+        }
+
+        .evt-collage.three {
+            grid-template-columns: 2fr 1fr;
+            grid-template-rows: 1fr 1fr;
+        }
+
+        .evt-collage.three .cell:nth-child(1) {
+            grid-row: 1 / span 2;
+            grid-column: 1;
+        }
+
+        .evt-collage.fourplus {
             grid-template-columns: 1fr 1fr;
             grid-template-rows: 1fr 1fr;
-            gap: 6px;
         }
 
         .evt-collage .cell {
@@ -627,12 +650,13 @@ error_reporting(0);
 
                 const firstFour = proxied.slice(0, 4);
                 const extra = Math.max(0, proxied.length - 4);
+                const variant = proxied.length === 1 ? 'one' : (proxied.length === 2 ? 'two' : (proxied.length === 3 ? 'three' : 'fourplus'));
                 const cells = firstFour.map((u, i) => {
                     const moreBadge = (i === 3 && extra > 0) ? `<div class="more" data-index="${i}">+${extra}</div>` : '';
                     return `<button type="button" class="cell" data-gid="${id}" data-index="${i}" style="background-image:url('${u}')" aria-label="Open image ${i+1} of ${proxied.length}">${moreBadge}</button>`;
                 }).join('');
                 setTimeout(() => wireGalleryTriggers(id), 0);
-                return `<div class="evt-collage" data-gid="${id}">${cells}</div>`;
+                return `<div class="evt-collage ${variant}" data-gid="${id}">${cells}</div>`;
             }
 
             function wireGalleryTriggers(gid) {
