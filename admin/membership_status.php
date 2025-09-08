@@ -41,6 +41,36 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
         </div>
     </div>
 
+    <!-- Bulk Update Annual Dues Modal -->
+    <div class="modal fade" id="bulkDuesModal" tabindex="-1" aria-labelledby="bulkDuesModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="bulkDuesModalLabel">Bulk Update Annual Dues</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label class="form-label">Select years</label>
+                        <div id="bulkYearsList" class="border rounded p-2" style="max-height: 240px; overflow: auto;"></div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Set status</label>
+                        <select class="form-select" id="bulkDuesStatus">
+                            <option value="Paid">Paid</option>
+                            <option value="Unpaid">Unpaid</option>
+                            <option value="Waived">Waived</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="applyBulkDuesBtn">Apply</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" nonce="<?= $cspNonce ?>"></script>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js" nonce="<?= $cspNonce ?>" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
     <script src="https://cdn.datatables.net/2.1.8/js/dataTables.js" nonce="<?= $cspNonce ?>"></script>
@@ -49,6 +79,8 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
         const head = document.getElementById('gridHead');
         const body = document.getElementById('gridBody');
         let gridDT = null; // hold a single DataTable instance
+        let YEARS = []; // dynamic years from backend
+        let bulkModal, currentBulkRow = null;
 
         // Ensure unique members by user_id
         function dedupeMembers(members) {
@@ -68,6 +100,8 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                 'Age upon Membership',
                 'Membership Status',
                 'Membership Certification',
+                'Previous Office',
+                'Lifetime Member',
                 'Membership Fee',
                 'Annual Dues'
             ];
@@ -90,6 +124,8 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                 const status = m.membership_status || 'inactive';
                 const year = m.year_of_membership || '';
                 const age = m.age_upon_membership || '';
+                const prevOffice = m.previous_office || '';
+                const lifetime = (String(m.is_lifetime) === '1');
                 // membership_fee input removed; we will show payment status badge in the Membership Fee column
                 const latestYear = years[years.length - 1];
                 const dLatest = m.dues[String(latestYear)] || {
@@ -115,8 +151,20 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                             <option value="Honorary" ${cert==='Honorary'?'selected':''}>Honorary</option>
                         </select>
                     </td>
+                    <td data-order="${(prevOffice||'').toLowerCase()}">
+                        <input type="text" class="form-control form-control-sm" data-field="previous_office" value="${prevOffice.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;')}">
+                    </td>
+                    <td data-order="${lifetime?1:0}">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" data-field="is_lifetime" ${lifetime?'checked':''}>
+                            <label class="form-check-label small">Lifetime</label>
+                        </div>
+                    </td>
                     <td>
-                        <div class="small">Fee Payment: <span class="badge bg-secondary" data-field="badge_fee">—</span></div>
+                        <div class="d-flex flex-column gap-1">
+                            <div class="small">Fee Payment: <span class="badge bg-secondary" data-field="badge_fee">—</span></div>
+                            <div class="small text-muted" data-field="fee_simple_text">Status: —</div>
+                        </div>
                     </td>
                     <td>
                         <div class="row g-1 align-items-center">
@@ -132,6 +180,9 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                             </div>
                             <div class="col-auto">
                                 <div class="small">Dues Payment: <span class="badge bg-secondary" data-field="badge_dues">—</span></div>
+                            </div>
+                            <div class="col-auto">
+                                <button class="btn btn-outline-primary btn-sm" data-action="bulk_dues" title="Bulk update multiple years">Bulk Update</button>
                             </div>
                         </div>
                     </td>
@@ -173,6 +224,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                 body.innerHTML = '<tr><td colspan="3">Failed to load</td></tr>';
                 return;
             }
+            YEARS = j.years || [];
             const uniqMembers = dedupeMembers(j.members || []);
             renderHead(j.years);
             renderBody(j.years, uniqMembers);
@@ -224,6 +276,8 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
             fdProfile.append('age_upon_membership', get('age_upon_membership')?.value || '');
             fdProfile.append('membership_status', get('membership_status')?.value || 'inactive');
             fdProfile.append('certification', get('certification')?.value || 'Regular');
+            fdProfile.append('previous_office', get('previous_office')?.value || '');
+            fdProfile.append('is_lifetime', get('is_lifetime')?.checked ? '1' : '0');
             const r1 = await api('../backend/routes/membership_status.php', {
                 method: 'POST',
                 body: fdProfile
@@ -264,14 +318,22 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
             alert('Saved');
         });
 
-        // Keep sorting values in sync when inputs change (year/age)
+        // Keep sorting values in sync when inputs change (year/age/prevOffice/lifetime)
         body.addEventListener('input', (e) => {
             const yearInp = e.target.closest('input[data-field="year_of_membership"]');
             const ageInp = e.target.closest('input[data-field="age_upon_membership"]');
-            const inp = yearInp || ageInp;
+            const prevOfficeInp = e.target.closest('input[data-field="previous_office"]');
+            const inp = yearInp || ageInp || prevOfficeInp;
             if (!inp) return;
             const td = inp.closest('td');
             if (td) td.setAttribute('data-order', inp.value || '');
+        });
+
+        body.addEventListener('change', (e) => {
+            const lifeChk = e.target.closest('input[type="checkbox"][data-field="is_lifetime"]');
+            if (!lifeChk) return;
+            const td = lifeChk.closest('td');
+            if (td) td.setAttribute('data-order', lifeChk.checked ? '1' : '0');
         });
 
         // Send notices
@@ -328,6 +390,14 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
             return res.json();
         }
 
+        function simplifyPaymentStatus(s) {
+            if (!s) return 'Unpaid';
+            if (s === 'Completed') return 'Paid';
+            if (s === 'Canceled') return 'Canceled';
+            // New/Pending -> Pending
+            return 'Pending';
+        }
+
         async function updateBadges(tr) {
             const userId = parseInt(tr.getAttribute('data-user-id'), 10);
             const year = tr.querySelector('[data-field="dues_year"]').value;
@@ -335,19 +405,25 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
             if (!r.status) return;
             const feeBadge = tr.querySelector('[data-field="badge_fee"]');
             const duesBadge = tr.querySelector('[data-field="badge_dues"]');
-            const paint = (el, val) => {
+            const feeSimple = tr.querySelector('[data-field="fee_simple_text"]');
+            const paint = (el, val, mapSimple = false) => {
                 if (!el) return;
                 el.classList.remove('bg-secondary', 'bg-warning', 'bg-success', 'bg-danger', 'bg-info');
                 let cls = 'bg-secondary';
-                if (val === 'New') cls = 'bg-info';
-                else if (val === 'Pending') cls = 'bg-warning';
-                else if (val === 'Completed') cls = 'bg-success';
-                else if (val === 'Canceled') cls = 'bg-danger';
+                let text = val || '—';
+                // Map to simplified display if needed
+                const simple = simplifyPaymentStatus(val);
+                if (simple === 'Pending') cls = 'bg-warning';
+                else if (simple === 'Paid') cls = 'bg-success';
+                else if (simple === 'Canceled') cls = 'bg-danger';
+                else cls = 'bg-secondary';
+                text = mapSimple ? simple : (val || '—');
                 el.classList.add(cls);
-                el.textContent = val || '—';
+                el.textContent = text;
             };
-            paint(feeBadge, r.state.membership_fee);
-            paint(duesBadge, r.state.annual_dues);
+            paint(feeBadge, r.state.membership_fee, true); // show simplified on badge
+            paint(duesBadge, r.state.annual_dues, true);
+            if (feeSimple) feeSimple.textContent = 'Status: ' + simplifyPaymentStatus(r.state.membership_fee);
         }
 
         function pollRowState(tr) {
@@ -360,6 +436,69 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                 if (count >= 12) clearInterval(iv); // every 5s * 12 = 60s
             }, 5000);
         }
+
+        // Bulk Update: open modal and populate years
+        body.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-action="bulk_dues"]');
+            if (!btn) return;
+            e.preventDefault();
+            currentBulkRow = btn.closest('tr');
+            const list = document.getElementById('bulkYearsList');
+            list.innerHTML = YEARS.map(y => {
+                return `<div class="form-check">
+                    <input class="form-check-input" type="checkbox" value="${y}" id="year_${y}">
+                    <label class="form-check-label" for="year_${y}">${y}</label>
+                </div>`;
+            }).join('');
+            if (!bulkModal) bulkModal = new bootstrap.Modal(document.getElementById('bulkDuesModal'));
+            bulkModal.show();
+        });
+
+        document.getElementById('applyBulkDuesBtn').addEventListener('click', async () => {
+            if (!currentBulkRow) return;
+            const userId = parseInt(currentBulkRow.getAttribute('data-user-id'), 10);
+            const status = (document.getElementById('bulkDuesStatus').value) || 'Unpaid';
+            const years = Array.from(document.querySelectorAll('#bulkYearsList input[type="checkbox"]:checked')).map(c => parseInt(c.value, 10));
+            if (!years.length) {
+                alert('Select at least one year.');
+                return;
+            }
+            const duesPayload = years.map(y => ({
+                year: y,
+                status
+            }));
+            const fd = new FormData();
+            fd.append('action', 'save_dues');
+            fd.append('user_id', String(userId));
+            fd.append('dues', JSON.stringify(duesPayload));
+            const res = await api('../backend/routes/membership_status.php', {
+                method: 'POST',
+                body: fd
+            });
+            if (!res.status) {
+                alert(res.message || 'Bulk update failed');
+                return;
+            }
+            // Update cached dues map in the row
+            try {
+                const enc = currentBulkRow.getAttribute('data-dues-enc') || encodeURIComponent('{}');
+                const map = JSON.parse(decodeURIComponent(enc));
+                years.forEach(y => {
+                    map[String(y)] = {
+                        status
+                    };
+                });
+                currentBulkRow.setAttribute('data-dues-enc', encodeURIComponent(JSON.stringify(map)));
+            } catch {}
+            // If currently selected year is among updated, reflect in select
+            const selYearEl = currentBulkRow.querySelector('[data-field="dues_year"]');
+            const selStatusEl = currentBulkRow.querySelector('[data-field="dues_status"]');
+            if (selYearEl && selStatusEl && years.includes(parseInt(selYearEl.value, 10))) {
+                selStatusEl.value = status;
+            }
+            bulkModal.hide();
+            alert('Annual dues updated for selected years');
+        });
 
         // Trigger initial badge state after grid loads
         const observer = new MutationObserver(() => {

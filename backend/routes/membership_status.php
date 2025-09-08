@@ -30,6 +30,10 @@ $conn->query("CREATE TABLE IF NOT EXISTS membership_profiles (
     CONSTRAINT fk_mp_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
 
+// Ensure new columns for previous office and lifetime member exist
+@$conn->query("ALTER TABLE membership_profiles ADD COLUMN IF NOT EXISTS previous_office VARCHAR(255) NULL");
+@$conn->query("ALTER TABLE membership_profiles ADD COLUMN IF NOT EXISTS is_lifetime TINYINT(1) NOT NULL DEFAULT 0");
+
 $conn->query("CREATE TABLE IF NOT EXISTS membership_dues (
     user_id INT(11) NOT NULL,
     year YEAR NOT NULL,
@@ -46,7 +50,7 @@ try {
     if ($action === 'list') {
         ensureAdmin();
         $sql = "SELECT u.user_id, u.first_name, u.last_name, COALESCE(m.membership_status, 'inactive') AS membership_status,
-                       mp.year_of_membership, mp.age_upon_membership, mp.certification, mp.membership_fee
+               mp.year_of_membership, mp.age_upon_membership, mp.certification, mp.membership_fee, mp.previous_office, mp.is_lifetime
                 FROM users u
                 LEFT JOIN members m ON m.user_id = u.user_id
                 LEFT JOIN membership_profiles mp ON mp.user_id = u.user_id
@@ -70,7 +74,7 @@ try {
             $years[] = $y;
         }
         $sql = "SELECT u.user_id, u.first_name, u.last_name, COALESCE(m.membership_status, 'inactive') AS membership_status,
-                       mp.year_of_membership, mp.age_upon_membership, mp.certification, mp.membership_fee
+               mp.year_of_membership, mp.age_upon_membership, mp.certification, mp.membership_fee, mp.previous_office, mp.is_lifetime
                 FROM users u
                 LEFT JOIN members m ON m.user_id = u.user_id
                 LEFT JOIN membership_profiles mp ON mp.user_id = u.user_id
@@ -112,7 +116,7 @@ try {
         }
         // Profile
         $stmt = $conn->prepare("SELECT u.user_id, u.first_name, u.last_name, COALESCE(m.membership_status,'inactive') AS membership_status,
-                                        mp.year_of_membership, mp.age_upon_membership, mp.certification, mp.membership_fee
+                    mp.year_of_membership, mp.age_upon_membership, mp.certification, mp.membership_fee, mp.previous_office, mp.is_lifetime
                                  FROM users u
                                  LEFT JOIN members m ON m.user_id = u.user_id
                                  LEFT JOIN membership_profiles mp ON mp.user_id = u.user_id
@@ -153,6 +157,8 @@ try {
         $year_of_membership = $_POST['year_of_membership'] !== '' ? intval($_POST['year_of_membership']) : null;
         $age = $_POST['age_upon_membership'] !== '' ? intval($_POST['age_upon_membership']) : null;
         $cert = $_POST['certification'] ?? 'Regular';
+        $prevOffice = $_POST['previous_office'] ?? null;
+        $isLifetime = isset($_POST['is_lifetime']) ? (intval($_POST['is_lifetime']) ? 1 : 0) : 0;
         $status = $_POST['membership_status'] ?? null; // optional, updates members table
         if (!$user_id) {
             echo json_encode(['status' => false, 'message' => 'Missing user_id']);
@@ -160,10 +166,10 @@ try {
         }
 
         // Upsert profile
-        $stmt = $conn->prepare("INSERT INTO membership_profiles (user_id, year_of_membership, age_upon_membership, certification)
-                VALUES (?,?,?,?)
-                ON DUPLICATE KEY UPDATE year_of_membership=VALUES(year_of_membership), age_upon_membership=VALUES(age_upon_membership), certification=VALUES(certification)");
-        $stmt->bind_param('iiis', $user_id, $year_of_membership, $age, $cert);
+        $stmt = $conn->prepare("INSERT INTO membership_profiles (user_id, year_of_membership, age_upon_membership, certification, previous_office, is_lifetime)
+        VALUES (?,?,?,?,?,?)
+        ON DUPLICATE KEY UPDATE year_of_membership=VALUES(year_of_membership), age_upon_membership=VALUES(age_upon_membership), certification=VALUES(certification), previous_office=VALUES(previous_office), is_lifetime=VALUES(is_lifetime)");
+        $stmt->bind_param('iiissi', $user_id, $year_of_membership, $age, $cert, $prevOffice, $isLifetime);
         $ok = $stmt->execute();
         $stmt->close();
 

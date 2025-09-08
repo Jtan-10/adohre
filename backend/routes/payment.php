@@ -537,6 +537,26 @@ if ($method === 'GET') {
                 $resultPayment = $stmtPayment->get_result();
                 if ($resultPayment->num_rows === 1) {
                     $paymentRecord = $resultPayment->fetch_assoc();
+                    // If this is Membership Fee, record amount into membership_profiles.membership_fee
+                    if ($paymentRecord['payment_type'] === 'Membership Fee') {
+                        // Ensure table exists (defensive)
+                        $conn->query("CREATE TABLE IF NOT EXISTS membership_profiles (
+                            user_id INT(11) NOT NULL PRIMARY KEY,
+                            year_of_membership YEAR NULL,
+                            age_upon_membership INT(11) NULL,
+                            certification ENUM('Honorary','Regular') DEFAULT 'Regular',
+                            membership_fee DECIMAL(10,2) DEFAULT NULL,
+                            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                            CONSTRAINT fk_mp_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+                        $stmtMP = $conn->prepare("INSERT INTO membership_profiles (user_id, membership_fee) VALUES (?, ?)
+                                                  ON DUPLICATE KEY UPDATE membership_fee = VALUES(membership_fee)");
+                        $amt = isset($paymentRecord['amount']) ? floatval($paymentRecord['amount']) : 300.00;
+                        $stmtMP->bind_param('id', $paymentRecord['user_id'], $amt);
+                        $stmtMP->execute();
+                        $stmtMP->close();
+                    }
                     // For event registration, insert into event_registrations table if not exists.
                     if ($paymentRecord['payment_type'] === 'Event Registration' && !empty($paymentRecord['event_id'])) {
                         $stmtReg = $conn->prepare("INSERT IGNORE INTO event_registrations (user_id, event_id) VALUES (?, ?)");
