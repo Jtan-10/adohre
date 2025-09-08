@@ -33,7 +33,8 @@ try {
      * @param string $key  The encryption key.
      * @return string The concatenated IV and ciphertext.
      */
-    function encryptSecret($data, $key) {
+    function encryptSecret($data, $key)
+    {
         $cipher = "AES-256-CBC";
         $ivlen = openssl_cipher_iv_length($cipher);
         $iv = openssl_random_pseudo_bytes($ivlen);
@@ -48,7 +49,8 @@ try {
      * @param string $key           The encryption key.
      * @return string The decrypted plain data.
      */
-    function decryptSecret($encryptedData, $key) {
+    function decryptSecret($encryptedData, $key)
+    {
         $cipher = "AES-256-CBC";
         $ivlen = openssl_cipher_iv_length($cipher);
         $iv = substr($encryptedData, 0, $ivlen);
@@ -65,7 +67,8 @@ try {
      * @return string The output path.
      * @throws Exception if the image cannot be processed.
      */
-    function steganographyEncryptImage($inputPath, $secretData, $outputPath) {
+    function steganographyEncryptImage($inputPath, $secretData, $outputPath)
+    {
         // Encrypt the secret data.
         $encryptedSecret = encryptSecret($secretData, STEGANOGRAPHY_KEY);
         // Convert encrypted secret to a binary string.
@@ -125,7 +128,8 @@ try {
      * @return string The decrypted secret data.
      * @throws Exception if extraction fails.
      */
-    function steganographyDecryptImage($inputPath) {
+    function steganographyDecryptImage($inputPath)
+    {
         $imgData = file_get_contents($inputPath);
         if ($imgData === false) {
             throw new Exception("Failed to read input image.");
@@ -447,11 +451,8 @@ try {
                 'ContentType' => 'image/png'
             ]);
             @unlink($encryptedImagePath);
-            $layoutImagePath = str_replace(
-                "https://{$bucketName}.s3.ap-southeast-1.amazonaws.com/",
-                "/s3proxy/",
-                $result['ObjectURL']
-            );
+            // Store canonical proxy path
+            $layoutImagePath = '/s3proxy/' . $s3Key;
         } catch (Aws\Exception\AwsException $e) {
             throw new Exception("Failed to upload layout image to S3: " . $e->getMessage());
         }
@@ -744,4 +745,3 @@ try {
 }
 
 $conn->close();
-?>

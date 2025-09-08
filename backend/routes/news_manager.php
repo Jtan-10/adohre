@@ -125,11 +125,8 @@ function handleImageUpload()
 
         @unlink($finalEncryptedPngFile);
 
-        return str_replace(
-            "https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/",
-            "/s3proxy/",
-            $result['ObjectURL']
-        );
+        // Store canonical proxy path
+        return '/s3proxy/' . $s3_key;
     } catch (AwsException $e) {
         echo json_encode(['status' => false, 'message' => 'Error uploading news image: ' . $e->getMessage()]);
         exit();

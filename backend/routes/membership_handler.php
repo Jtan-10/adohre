@@ -25,7 +25,8 @@ if (!function_exists('embedDataInPng')) {
      * @param int    $desiredWidth Desired width (used to compute a roughly square image)
      * @return GdImage A GD image resource.
      */
-    function embedDataInPng($binaryData, $desiredWidth = 100): GdImage {
+    function embedDataInPng($binaryData, $desiredWidth = 100): GdImage
+    {
         $dataLen = strlen($binaryData);
         // Each pixel holds 3 bytes.
         $numPixels = ceil($dataLen / 3);
@@ -147,7 +148,8 @@ if ($method === 'POST') {
                     'ACL'         => 'public-read',
                     'ContentType' => 'image/png'
                 ]);
-                $valid_id_url = str_replace("https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/", "/s3proxy/", $result['ObjectURL']);
+                // Store canonical proxy path
+                $valid_id_url = '/s3proxy/' . $s3Key;
             } catch (Aws\Exception\AwsException $e) {
                 error_log('S3 Upload Error (Valid ID): ' . $e->getMessage());
                 echo json_encode(['status' => false, 'message' => 'Failed to upload valid ID image.']);
@@ -179,11 +181,35 @@ if ($method === 'POST') {
 
         // Bind the variables (28 parameters: 1 integer, 27 strings)
         $stmt->bind_param(
-            'isssssssssssssssssssssssssss', 
-            $user_id, $name, $dob, $sex, $current_address, $permanent_address, $email, $landline, $mobile,
-            $place_of_birth, $marital_status, $emergency_contact, $doh_agency, $doh_address,
-            $employment_start, $employment_end, $school, $degree, $year_graduated, $current_engagement,
-            $key_expertise, $specific_field, $special_skills, $hobbies, $committees, $signature, $status, $valid_id_url
+            'isssssssssssssssssssssssssss',
+            $user_id,
+            $name,
+            $dob,
+            $sex,
+            $current_address,
+            $permanent_address,
+            $email,
+            $landline,
+            $mobile,
+            $place_of_birth,
+            $marital_status,
+            $emergency_contact,
+            $doh_agency,
+            $doh_address,
+            $employment_start,
+            $employment_end,
+            $school,
+            $degree,
+            $year_graduated,
+            $current_engagement,
+            $key_expertise,
+            $specific_field,
+            $special_skills,
+            $hobbies,
+            $committees,
+            $signature,
+            $status,
+            $valid_id_url
         );
 
         if ($stmt->execute()) {

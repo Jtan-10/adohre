@@ -143,6 +143,32 @@ if ($result) {
                     <tbody id="orphansTableBody"></tbody>
                 </table>
             </div>
+
+            <hr>
+
+            <h2>S3 URL Normalization</h2>
+            <p class="text-muted">Convert stored full S3 URLs to unified <code>/s3proxy/&lt;key&gt;</code> format. Preview first, then apply.</p>
+            <div class="d-flex gap-2 mb-3">
+                <button id="btnNormalizePreview" class="btn btn-outline-secondary">
+                    <i class="bi bi-eye"></i> Preview Normalization
+                </button>
+                <button id="btnNormalizeApply" class="btn btn-warning">
+                    <i class="bi bi-check2"></i> Apply Normalization
+                </button>
+            </div>
+            <div id="normalizeSummary" class="mb-2"></div>
+            <div class="table-responsive" style="max-height: 300px; overflow:auto;">
+                <table class="table table-sm table-striped">
+                    <thead>
+                        <tr>
+                            <th>Location</th>
+                            <th>Changed</th>
+                            <th>Samples</th>
+                        </tr>
+                    </thead>
+                    <tbody id="normalizeTableBody"></tbody>
+                </table>
+            </div>
             <br>
             <form id="restoreForm" method="POST" enctype="multipart/form-data"
                 action="../backend/routes/settings_api.php?action=restore_database">
@@ -354,12 +380,15 @@ if ($result) {
                     `<div class="alert alert-info">Found ${keys.length} orphaned objects.</div>`;
             };
 
-            const callCleanup = async (mode = 'list') => {
-                const form = new FormData();
-                form.append('mode', mode);
-                const res = await fetch('../backend/routes/content_manager.php?action=s3_orphan_cleanup&mode=' + encodeURIComponent(mode), {
+            const callCleanup = async (mode = 'list', extra = {}) => {
+                const params = new URLSearchParams({
+                    mode
+                });
+                if (extra.apply) params.set('apply', '1');
+                if (extra.confirm) params.set('confirm', extra.confirm);
+                const res = await fetch('../backend/routes/content_manager.php?action=s3_orphan_cleanup&' + params.toString(), {
                     method: 'POST',
-                    body: form,
+                    body: new FormData(),
                     credentials: 'include'
                 });
                 let data = null;
@@ -409,12 +438,25 @@ if ($result) {
             });
 
             document.getElementById('btnDeleteOrphans').addEventListener('click', async () => {
-                if (!confirm(
-                        'This will permanently delete orphaned S3 files under uploads/. Continue?')) return;
+                if (!confirm('This will permanently delete orphaned S3 files under uploads/. Continue?')) return;
                 try {
                     document.getElementById('orphansSummary').innerHTML =
                         '<div class="alert alert-warning">Deleting orphaned objects…</div>';
-                    const data = await callCleanup('delete');
+                    let data = await callCleanup('delete');
+                    if (data && data.require_confirm) {
+                        const phrase = prompt(`Type to confirm: ${data.expected}`);
+                        if (!phrase) {
+                            showApiMessage('Deletion cancelled.', 'info');
+                            return;
+                        }
+                        if (phrase !== data.expected) {
+                            showApiMessage('Confirmation mismatch. Nothing deleted.', 'warning');
+                            return;
+                        }
+                        data = await callCleanup('delete', {
+                            confirm: phrase
+                        });
+                    }
                     if (data && data.status) {
                         renderOrphans([]);
                         showApiMessage(`Deleted ${(data && data.count) || 0} orphaned objects.`, 'success');
@@ -424,6 +466,66 @@ if ($result) {
                 } catch (e) {
                     console.error(e);
                     showApiMessage('Error during delete.', 'danger');
+                }
+            });
+
+            // Normalization rendering
+            const renderNormalization = (report) => {
+                const tbody = document.getElementById('normalizeTableBody');
+                tbody.innerHTML = '';
+                const changes = (report && report.changes) || {};
+                Object.entries(changes).forEach(([loc, info]) => {
+                    const tr = document.createElement('tr');
+                    const samples = (info.samples || []).map(s => {
+                        try {
+                            return JSON.stringify(s);
+                        } catch {
+                            return String(s);
+                        }
+                    }).join('<br>');
+                    tr.innerHTML = `<td>${loc}</td><td>${info.changed || 0}</td><td><small>${samples}</small></td>`;
+                    tbody.appendChild(tr);
+                });
+                const total = report && report.totalChanged ? report.totalChanged : 0;
+                document.getElementById('normalizeSummary').innerHTML =
+                    `<div class="alert alert-info">${total} values would be normalized.</div>`;
+            };
+
+            document.getElementById('btnNormalizePreview').addEventListener('click', async () => {
+                try {
+                    document.getElementById('normalizeSummary').innerHTML =
+                        '<div class="alert alert-secondary">Scanning for normalizable URLs…</div>';
+                    const data = await callCleanup('normalize');
+                    if (data && data.status) {
+                        renderNormalization(data);
+                        showApiMessage('Normalization preview completed.', 'success');
+                    } else {
+                        showApiMessage((data && data.message) || 'Preview failed.', 'danger');
+                    }
+                } catch (e) {
+                    console.error(e);
+                    showApiMessage('Error during normalization preview.', 'danger');
+                }
+            });
+
+            document.getElementById('btnNormalizeApply').addEventListener('click', async () => {
+                if (!confirm('Apply normalization to convert full S3 URLs to /s3proxy/<key>?')) return;
+                try {
+                    document.getElementById('normalizeSummary').innerHTML =
+                        '<div class="alert alert-warning">Applying normalization…</div>';
+                    const data = await callCleanup('normalize', {
+                        apply: true
+                    });
+                    if (data && data.status) {
+                        renderNormalization(data);
+                        const total = data.totalChanged || 0;
+                        showApiMessage(`Applied normalization to ${total} values.`, 'success');
+                    } else {
+                        showApiMessage((data && data.message) || 'Apply failed.', 'danger');
+                    }
+                } catch (e) {
+                    console.error(e);
+                    showApiMessage('Error during normalization apply.', 'danger');
                 }
             });
         });

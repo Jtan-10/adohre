@@ -427,11 +427,8 @@ try {
                     'ACL'         => 'public-read',
                     'ContentType' => $mimeType
                 ]);
-                $profile_image_path = str_replace(
-                    "https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/",
-                    "/s3proxy/",
-                    $result['ObjectURL']
-                );
+                // Store canonical proxy path
+                $profile_image_path = '/s3proxy/' . $s3Key;
                 // Update the profile image in the database.
                 $stmt = $conn->prepare('UPDATE users SET profile_image = ? WHERE user_id = ?');
                 $stmt->bind_param('si', $profile_image_path, $auth_user_id);

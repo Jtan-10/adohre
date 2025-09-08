@@ -290,11 +290,8 @@ if ($method === 'GET') {
                     'ContentType' => 'image/png'
                 ]);
                 @unlink($encryptedTempPath);
-                $relativeImagePath = str_replace(
-                    "https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/",
-                    "/s3proxy/",
-                    $result['ObjectURL']
-                );
+                // Store canonical proxy path
+                $relativeImagePath = '/s3proxy/' . $s3Key;
             } catch (Aws\Exception\AwsException $e) {
                 error_log('Failed to upload image to S3: ' . $e->getMessage());
                 echo json_encode([

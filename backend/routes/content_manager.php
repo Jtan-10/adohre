@@ -270,11 +270,8 @@ try {
                 @unlink($finalEncryptedPngFile);
             }
 
-            return str_replace(
-                "https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/",
-                "/s3proxy/",
-                $result['ObjectURL']
-            );
+            // Store canonical proxy path regardless of returned ObjectURL format
+            return '/s3proxy/' . $s3Key;
         };
 
         // Validate and accept multiple images[] if provided
@@ -637,11 +634,8 @@ try {
                     'ContentType' => 'image/png'
                 ]);
 
-                $relativeImagePath = str_replace(
-                    "https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/",
-                    "/s3proxy/",
-                    $result['ObjectURL']
-                );
+                // Store canonical proxy path
+                $relativeImagePath = '/s3proxy/' . $s3Key;
             } catch (Aws\Exception\AwsException $e) {
                 error_log("S3 upload error: " . $e->getMessage());
                 echo json_encode(['status' => false, 'message' => 'Failed to upload image to S3.']);
@@ -719,11 +713,8 @@ try {
                     'ACL'         => 'public-read',
                     'ContentType' => 'image/png'
                 ]);
-                $relativeImagePath = str_replace(
-                    "https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/",
-                    "/s3proxy/",
-                    $result['ObjectURL']
-                );
+                // Store canonical proxy path
+                $relativeImagePath = '/s3proxy/' . $s3Key;
             } catch (Aws\Exception\AwsException $e) {
                 error_log("S3 upload error: " . $e->getMessage());
                 echo json_encode(['status' => false, 'message' => 'Failed to upload image to S3.']);
@@ -1023,7 +1014,7 @@ try {
             exit();
         }
 
-        $mode = $_REQUEST['mode'] ?? 'list'; // 'list' or 'delete'
+        $mode = $_REQUEST['mode'] ?? 'list'; // 'list' | 'delete' | 'normalize'
         $prefix = 'uploads/';
         $referenced = [];
 
@@ -1083,15 +1074,213 @@ try {
             exit();
         }
 
+        // Helper to normalize various URL formats to '/s3proxy/<key>' when bucket matches
+        $cm_extract_key = function (string $url) use (&$bucketName) {
+            // If already proxy format
+            if (strpos($url, '/s3proxy/') === 0) {
+                return ltrim(urldecode(substr($url, strlen('/s3proxy/'))), '/');
+            }
+            // Full URL parse
+            if (preg_match('#^https?://([^/]+)/(.+)$#i', $url, $m)) {
+                $host = strtolower($m[1]);
+                $path = $m[2];
+                // Virtual-hosted
+                if (preg_match('#^([^.]+)\.s3[.-][^./]+\.amazonaws\.com$#i', $host, $vh)) {
+                    $bucket = $vh[1];
+                    if (empty($bucketName) || strcasecmp($bucket, $bucketName) === 0) {
+                        return $path; // path is key
+                    }
+                }
+                // Path-style
+                if (preg_match('#^s3[.-][^./]+\.amazonaws\.com$#i', $host)) {
+                    $parts = explode('/', $path, 2);
+                    if (count($parts) === 2) {
+                        list($bucket, $key) = $parts;
+                        if (empty($bucketName) || strcasecmp($bucket, $bucketName) === 0) {
+                            return $key;
+                        }
+                    }
+                }
+                // Generic fallback for AWS hosts or custom domain containing bucket name
+                if (strpos($host, 'amazonaws.com') !== false || (!empty($bucketName) && strpos($host, strtolower($bucketName)) !== false)) {
+                    return $path;
+                }
+            }
+            return null; // unknown / not-normalizable
+        };
+
+        // Normalization mode: convert stored URLs to '/s3proxy/<key>'
+        if ($mode === 'normalize') {
+            $apply = isset($_REQUEST['apply']) && (string)$_REQUEST['apply'] === '1';
+            $report = ['status' => true, 'apply' => $apply, 'changes' => [], 'totalChanged' => 0];
+
+            $normalize_single = function ($table, $idCol, $col) use ($conn, $cm_extract_key, $apply, &$report) {
+                $sql = "SELECT $idCol AS id, $col AS url FROM $table WHERE $col IS NOT NULL AND $col != ''";
+                $res = $conn->query($sql);
+                if (!$res) return;
+                $changed = 0;
+                $samples = [];
+                while ($row = $res->fetch_assoc()) {
+                    $id = $row['id'];
+                    $url = $row['url'];
+                    if (strpos($url, '/s3proxy/') === 0) continue; // already normalized
+                    $key = $cm_extract_key($url);
+                    if ($key) {
+                        $newUrl = '/s3proxy/' . $key;
+                        if ($apply) {
+                            $stmt = $conn->prepare("UPDATE $table SET $col = ? WHERE $idCol = ?");
+                            if ($stmt) {
+                                $stmt->bind_param('si', $newUrl, $id);
+                                $stmt->execute();
+                                $stmt->close();
+                            }
+                        }
+                        $changed++;
+                        if (count($samples) < 3) {
+                            $samples[] = ['id' => $id, 'from' => $url, 'to' => $newUrl];
+                        }
+                    }
+                }
+                if ($changed > 0) {
+                    $report['changes']["$table.$col"] = ['changed' => $changed, 'samples' => $samples];
+                    $report['totalChanged'] += $changed;
+                }
+            };
+
+            $normalize_json = function ($table, $idCol, $col) use ($conn, $cm_extract_key, $apply, &$report) {
+                $sql = "SELECT $idCol AS id, $col AS j FROM $table WHERE $col IS NOT NULL AND $col != ''";
+                $res = $conn->query($sql);
+                if (!$res) return;
+                $changed = 0;
+                $samples = [];
+                while ($row = $res->fetch_assoc()) {
+                    $id = $row['id'];
+                    $j = $row['j'];
+                    $arr = json_decode($j, true);
+                    if (!is_array($arr)) continue;
+                    $orig = $arr;
+                    foreach ($arr as $i => $u) {
+                        if (!is_string($u) || $u === '') continue;
+                        if (strpos($u, '/s3proxy/') === 0) continue;
+                        $key = $cm_extract_key($u);
+                        if ($key) $arr[$i] = '/s3proxy/' . $key;
+                    }
+                    if ($arr !== $orig) {
+                        $newJ = json_encode($arr);
+                        if ($apply) {
+                            $stmt = $conn->prepare("UPDATE $table SET $col = ? WHERE $idCol = ?");
+                            if ($stmt) {
+                                $stmt->bind_param('si', $newJ, $id);
+                                $stmt->execute();
+                                $stmt->close();
+                            }
+                        }
+                        $changed++;
+                        if (count($samples) < 2) {
+                            $samples[] = ['id' => $id, 'from' => $orig, 'to' => $arr];
+                        }
+                    }
+                }
+                if ($changed > 0) {
+                    $report['changes']["$table.$col"] = ['changed' => $changed, 'samples' => $samples];
+                    $report['totalChanged'] += $changed;
+                }
+            };
+
+            // Singles
+            $normalize_single('events', 'event_id', 'image');
+            $normalize_single('trainings', 'training_id', 'image');
+            $normalize_single('projects', 'project_id', 'image');
+            $normalize_single('payments', 'payment_id', 'image');
+            $normalize_single('news', 'news_id', 'image');
+            $normalize_single('users', 'user_id', 'profile_image');
+            if (cm_hasColumn($conn, 'membership_applications', 'valid_id_url')) {
+                $normalize_single('membership_applications', 'application_id', 'valid_id_url');
+            }
+            $normalize_single('documents', 'document_id', 'file_url');
+
+            // JSON arrays
+            if (cm_hasColumn($conn, 'events', 'images_json')) {
+                $normalize_json('events', 'event_id', 'images_json');
+            }
+
+            // settings: attempt normalization for S3 values
+            $resSet = $conn->query("SELECT `key`, `value` FROM settings WHERE `value` IS NOT NULL AND `value` != ''");
+            $changed = 0;
+            $samples = [];
+            if ($resSet) {
+                while ($r = $resSet->fetch_assoc()) {
+                    $k = $r['key'];
+                    $v = $r['value'];
+                    if (strpos($v, '/s3proxy/') === 0) continue;
+                    $key = $cm_extract_key($v);
+                    if ($key) {
+                        $newV = '/s3proxy/' . $key;
+                        if ($apply) {
+                            $stmt = $conn->prepare('UPDATE settings SET `value` = ? WHERE `key` = ?');
+                            if ($stmt) {
+                                $stmt->bind_param('ss', $newV, $k);
+                                $stmt->execute();
+                                $stmt->close();
+                            }
+                        }
+                        $changed++;
+                        if (count($samples) < 3) {
+                            $samples[] = ['key' => $k, 'from' => $v, 'to' => $newV];
+                        }
+                    }
+                }
+            }
+            if ($changed > 0) {
+                $report['changes']['settings.value'] = ['changed' => $changed, 'samples' => $samples];
+                $report['totalChanged'] += $changed;
+            }
+
+            echo json_encode($report);
+            exit();
+        }
+
         // Collect all S3 keys referenced in DB as '/s3proxy/<key>'
-        $collect = function ($sql, $col) use ($conn, &$referenced) {
+        $collect = function ($sql, $col) use ($conn, &$referenced, &$bucketName) {
             $res = $conn->query($sql);
             if ($res) {
                 while ($row = $res->fetch_assoc()) {
                     $url = $row[$col] ?? '';
-                    if (!empty($url) && strpos($url, '/s3proxy/') === 0) {
+                    if (empty($url)) continue;
+                    // Case 1: Our proxy format
+                    if (strpos($url, '/s3proxy/') === 0) {
                         $key = urldecode(str_replace('/s3proxy/', '', $url));
                         $referenced[$key] = true;
+                        continue;
+                    }
+                    // Case 2: Full S3 URL (virtual-hosted or path-style). Best-effort parse.
+                    if (preg_match('#^https?://([^/]+)/(.+)$#i', $url, $m)) {
+                        $host = strtolower($m[1]);
+                        $path = $m[2]; // everything after first '/'
+                        // Virtual-hosted style: <bucket>.s3.<region>.amazonaws.com/<key>
+                        if (preg_match('#^([^.]+)\.s3[.-][^./]+\.amazonaws\.com$#i', $host, $vh)) {
+                            $bucket = $vh[1];
+                            if (empty($bucketName) || strcasecmp($bucket, $bucketName) === 0) {
+                                $referenced[$path] = true; // path is the key
+                                continue;
+                            }
+                        }
+                        // Path-style: s3.<region>.amazonaws.com/<bucket>/<key> or s3-<region>.amazonaws.com/<bucket>/<key>
+                        if (preg_match('#^s3[.-][^./]+\.amazonaws\.com$#i', $host)) {
+                            $parts = explode('/', $path, 2);
+                            if (count($parts) === 2) {
+                                list($bucket, $key) = $parts;
+                                if (empty($bucketName) || strcasecmp($bucket, $bucketName) === 0) {
+                                    $referenced[$key] = true;
+                                    continue;
+                                }
+                            }
+                        }
+                        // Custom domain/base URL: if it ends with amazonaws.com or matches our bucket name anywhere, take the path as key
+                        if (strpos($host, 'amazonaws.com') !== false || (!empty($bucketName) && strpos($host, strtolower($bucketName)) !== false)) {
+                            $referenced[$path] = true;
+                            continue;
+                        }
                     }
                 }
             }
@@ -1163,6 +1352,20 @@ try {
         }
 
         if ($mode === 'delete' && !empty($toDelete)) {
+            // Require typed confirmation: DELETE <count>
+            $expected = 'DELETE ' . count($toDelete);
+            $confirm = $_REQUEST['confirm'] ?? '';
+            if ($confirm !== $expected) {
+                echo json_encode([
+                    'status' => false,
+                    'require_confirm' => true,
+                    'expected' => $expected,
+                    'count' => count($toDelete),
+                    'orphans' => $toDelete,
+                    'message' => 'Type the exact phrase to confirm deletion.'
+                ]);
+                exit();
+            }
             $deleted = [];
             foreach ($toDelete as $key) {
                 try {

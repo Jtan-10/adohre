@@ -165,11 +165,8 @@ switch ($action) {
                     ]);
                     @unlink($encryptedTempPath);
 
-                    $headerLogoUrl = str_replace(
-                        "https://{$bucketName}.s3." . $_ENV['AWS_REGION'] . ".amazonaws.com/",
-                        "/s3proxy/",
-                        $result['ObjectURL']
-                    );
+                    // Store canonical proxy path
+                    $headerLogoUrl = '/s3proxy/' . $s3Key;
 
                     $stmt = $conn->prepare("
                         INSERT INTO settings (`key`, value) 
@@ -490,12 +487,8 @@ switch ($action) {
                 'ContentType' => 'image/png'
             ]);
             @unlink($tmpEncrypted);
-            $proxyUrl = str_replace(
-                "https://{$bucketName}.s3." . $_ENV['AWS_REGION'] . ".amazonaws.com/",
-                "/s3proxy/",
-                $result['ObjectURL']
-            );
-            echo json_encode(['status' => true, 'url' => $proxyUrl]);
+            // Return canonical proxy path
+            echo json_encode(['status' => true, 'url' => '/s3proxy/' . $s3Key]);
         } catch (Exception $e) {
             error_log('Page asset upload error: ' . $e->getMessage());
             echo json_encode(['status' => false, 'message' => 'Upload failed']);
@@ -547,11 +540,7 @@ switch ($action) {
                 'ContentType' => 'image/png'
             ]);
             @unlink($tmpEncrypted);
-            $proxyUrl = str_replace(
-                "https://{$bucketName}.s3." . $_ENV['AWS_REGION'] . ".amazonaws.com/",
-                "/s3proxy/",
-                $result['ObjectURL']
-            );
+            $proxyUrl = '/s3proxy/' . $s3Key;
             // Delete previous image if any
             $settingKey = $page . '_' . $field;
             $stmtExisting = $conn->prepare("SELECT value FROM settings WHERE `key` = ?");
