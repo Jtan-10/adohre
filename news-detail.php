@@ -129,10 +129,13 @@ $news = $newsData['news'][0];
             <span class="ms-3"><i class="fas fa-eye"></i> <?php echo formatViews(intval($news['views'])); ?>
                 views</span>
         </div>
-        <?php if (!empty($news['image'])): ?>
-            <img src="backend/routes/decrypt_image.php?image_url=<?php echo urlencode($news['image']); ?>"
-                alt="<?php echo htmlspecialchars($news['title']); ?>" class="news-detail-img">
-        <?php endif; ?>
+        <?php
+        $imageSrc = !empty($news['image'])
+            ? 'backend/routes/decrypt_image.php?image_url=' . urlencode($news['image'])
+            : 'assets/default-image.jpg';
+        ?>
+        <img src="<?php echo $imageSrc; ?>"
+            alt="<?php echo htmlspecialchars($news['title']); ?>" class="news-detail-img">
         <div class="news-content">
             <?php echo nl2br(htmlspecialchars($news['content'])); ?>
         </div>
