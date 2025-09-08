@@ -59,9 +59,13 @@ if ($stmtS) {
 $isAdmin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
 $editMode = $isAdmin && isset($_GET['edit']) && $_GET['edit'] == '1';
 
-// Member directory data (list all users with role 'member')
+// Member directory data (list all users with role 'member') with previous office from membership_profiles
 $memberDirectory = [];
-if ($stmtM = $conn->prepare("SELECT first_name, last_name FROM users WHERE role = 'member' ORDER BY last_name, first_name")) {
+if ($stmtM = $conn->prepare("SELECT u.first_name, u.last_name, COALESCE(mp.previous_office, '') AS previous_office
+                             FROM users u
+                             LEFT JOIN membership_profiles mp ON mp.user_id = u.user_id
+                             WHERE u.role = 'member'
+                             ORDER BY u.last_name, u.first_name")) {
     $stmtM->execute();
     $resM = $stmtM->get_result();
     while ($row = $resM->fetch_assoc()) {
@@ -900,24 +904,57 @@ if ($stmtM = $conn->prepare("SELECT first_name, last_name FROM users WHERE role 
             <div class="container">
                 <h2 class="text-center mb-4">Member Directory</h2>
                 <?php if (!empty($memberDirectory)): ?>
-                    <div class="row g-2 g-md-3">
-                        <?php foreach ($memberDirectory as $m): ?>
-                            <?php
-                            $fn = isset($m['first_name']) ? $m['first_name'] : '';
-                            $ln = isset($m['last_name']) ? $m['last_name'] : '';
-                            $name = trim($fn . ' ' . $ln);
-                            if ($name === '') {
-                                $name = 'Unnamed Member';
-                            }
-                            ?>
-                            <div class="col-12 col-sm-6 col-md-4 col-lg-3">
-                                <div class="border rounded px-3 py-2 bg-light h-100">
-                                    <span class="fw-semibold">
-                                        <?= htmlspecialchars($name, ENT_QUOTES) ?>
-                                    </span>
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <div class="d-flex flex-column flex-md-row gap-2 justify-content-between align-items-md-center mb-3">
+                                <div class="input-group" style="max-width: 420px;">
+                                    <span class="input-group-text"><i class="fa fa-search"></i></span>
+                                    <input type="text" class="form-control" id="memberSearch" placeholder="Search by name or previous office...">
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <label for="memberPageSize" class="mb-0">Rows per page:</label>
+                                    <select id="memberPageSize" class="form-select form-select-sm" style="width: auto;">
+                                        <option value="10" selected>10</option>
+                                        <option value="25">25</option>
+                                        <option value="50">50</option>
+                                        <option value="100">100</option>
+                                    </select>
                                 </div>
                             </div>
-                        <?php endforeach; ?>
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="memberDirectoryTable">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th scope="col">Name</th>
+                                            <th scope="col">Previous Office</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($memberDirectory as $m): ?>
+                                            <?php
+                                            $fn = isset($m['first_name']) ? $m['first_name'] : '';
+                                            $ln = isset($m['last_name']) ? $m['last_name'] : '';
+                                            $name = trim($fn . ' ' . $ln);
+                                            if ($name === '') {
+                                                $name = 'Unnamed Member';
+                                            }
+                                            $office = isset($m['previous_office']) ? $m['previous_office'] : '';
+                                            ?>
+                                            <tr data-name="<?= htmlspecialchars(strtolower($name), ENT_QUOTES) ?>" data-office="<?= htmlspecialchars(strtolower($office), ENT_QUOTES) ?>">
+                                                <td><?= htmlspecialchars($name, ENT_QUOTES) ?></td>
+                                                <td><?= htmlspecialchars($office, ENT_QUOTES) ?></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <div id="memberTableInfo" class="small text-muted"></div>
+                                <nav aria-label="Member directory pages">
+                                    <ul class="pagination pagination-sm mb-0" id="memberPagination"></ul>
+                                </nav>
+                            </div>
+                        </div>
                     </div>
                 <?php else: ?>
                     <div class="alert alert-info" role="alert">
@@ -1020,6 +1057,106 @@ if ($stmtM = $conn->prepare("SELECT first_name, last_name FROM users WHERE role 
             }
             TTS.speakTextInChunks(textToRead);
         });
+        // --- Member Directory: search, pagination, sorting ---
+        (function() {
+            const table = document.getElementById('memberDirectoryTable');
+            if (!table) return;
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            // Sort rows alphabetically by Name on load
+            rows.sort((a, b) => {
+                const an = (a.querySelector('td')?.innerText || '').toLowerCase();
+                const bn = (b.querySelector('td')?.innerText || '').toLowerCase();
+                return an.localeCompare(bn);
+            });
+            rows.forEach(r => tbody.appendChild(r));
+
+            const searchInput = document.getElementById('memberSearch');
+            const pageSizeSel = document.getElementById('memberPageSize');
+            const pager = document.getElementById('memberPagination');
+            const info = document.getElementById('memberTableInfo');
+
+            let pageSize = parseInt(pageSizeSel?.value || '10', 10);
+            let currentPage = 1;
+            let filtered = rows.slice();
+
+            function applyFilter() {
+                const q = (searchInput?.value || '').trim().toLowerCase();
+                if (!q) {
+                    filtered = rows.slice();
+                } else {
+                    filtered = rows.filter(r => {
+                        const name = r.dataset.name || '';
+                        const office = r.dataset.office || '';
+                        return name.includes(q) || office.includes(q);
+                    });
+                }
+                currentPage = 1;
+                render();
+            }
+
+            function render() {
+                // Hide all
+                rows.forEach(r => {
+                    r.style.display = 'none';
+                });
+                const total = filtered.length;
+                const pages = Math.max(1, Math.ceil(total / pageSize));
+                if (currentPage > pages) currentPage = pages;
+                const start = (currentPage - 1) * pageSize;
+                const end = Math.min(start + pageSize, total);
+                for (let i = start; i < end; i++) {
+                    filtered[i].style.display = '';
+                }
+                // Info
+                if (info) {
+                    info.textContent = total ? `Showing ${start + 1}–${end} of ${total} member(s)` : 'No matching members';
+                }
+                // Pagination
+                if (pager) {
+                    pager.innerHTML = '';
+                    const createItem = (label, page, disabled = false, active = false) => {
+                        const li = document.createElement('li');
+                        li.className = 'page-item' + (disabled ? ' disabled' : '') + (active ? ' active' : '');
+                        const a = document.createElement('a');
+                        a.className = 'page-link';
+                        a.href = '#';
+                        a.textContent = label;
+                        a.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            if (disabled || active) return;
+                            currentPage = page;
+                            render();
+                        });
+                        li.appendChild(a);
+                        return li;
+                    };
+                    // Prev
+                    pager.appendChild(createItem('«', Math.max(1, currentPage - 1), currentPage === 1));
+                    // Pages (compact window)
+                    const pagesTotal = Math.max(1, Math.ceil(total / pageSize));
+                    const windowSize = 5;
+                    let startPage = Math.max(1, currentPage - Math.floor(windowSize / 2));
+                    let endPage = Math.min(pagesTotal, startPage + windowSize - 1);
+                    startPage = Math.max(1, endPage - windowSize + 1);
+                    for (let p = startPage; p <= endPage; p++) {
+                        pager.appendChild(createItem(String(p), p, false, p === currentPage));
+                    }
+                    // Next
+                    pager.appendChild(createItem('»', Math.min(pagesTotal, currentPage + 1), currentPage === pagesTotal));
+                }
+            }
+
+            searchInput?.addEventListener('input', applyFilter);
+            pageSizeSel?.addEventListener('change', () => {
+                pageSize = parseInt(pageSizeSel.value, 10) || 10;
+                currentPage = 1;
+                render();
+            });
+
+            // Initial render
+            render();
+        })();
         <?php if ($editMode): ?>
                 // --- Inline edit mode logic (About) ---
                 (function() {
