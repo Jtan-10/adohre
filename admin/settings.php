@@ -357,7 +357,7 @@ if ($result) {
             const callCleanup = async (mode = 'list') => {
                 const form = new FormData();
                 form.append('mode', mode);
-                const res = await fetch('../backend/routes/content_manager.php?action=s3_orphan_cleanup', {
+                const res = await fetch('../backend/routes/content_manager.php?action=s3_orphan_cleanup&mode=' + encodeURIComponent(mode), {
                     method: 'POST',
                     body: form,
                     credentials: 'include'

@@ -1023,7 +1023,7 @@ try {
             exit();
         }
 
-        $mode = $_POST['mode'] ?? 'list'; // 'list' or 'delete'
+        $mode = $_REQUEST['mode'] ?? 'list'; // 'list' or 'delete'
         $prefix = 'uploads/';
         $referenced = [];
 
@@ -1078,6 +1078,7 @@ try {
             }
         };
         if (!$cm_init_s3()) {
+            http_response_code(200);
             echo json_encode(['status' => false, 'message' => 'S3 not configured']);
             exit();
         }
@@ -1130,6 +1131,7 @@ try {
 
         // Ensure S3 client and bucket are ready
         if (empty($bucketName) || empty($s3)) {
+            http_response_code(200);
             echo json_encode(['status' => false, 'message' => 'S3 not configured']);
             exit();
         }
@@ -1150,6 +1152,7 @@ try {
             } while (!empty($params['ContinuationToken']));
         } catch (Exception $e) {
             error_log('S3 list error: ' . $e->getMessage());
+            http_response_code(200);
             echo json_encode(['status' => false, 'message' => 'Failed to list S3 objects']);
             exit();
         }
