@@ -1079,7 +1079,7 @@ try {
         };
         if (!$cm_init_s3()) {
             http_response_code(200);
-            echo json_encode(['status' => false, 'message' => 'S3 not configured']);
+            echo json_encode(['status' => true, 'orphans' => [], 'count' => 0, 'message' => 'S3 not configured']);
             exit();
         }
 
@@ -1132,7 +1132,7 @@ try {
         // Ensure S3 client and bucket are ready
         if (empty($bucketName) || empty($s3)) {
             http_response_code(200);
-            echo json_encode(['status' => false, 'message' => 'S3 not configured']);
+            echo json_encode(['status' => true, 'orphans' => [], 'count' => 0, 'message' => 'S3 not configured']);
             exit();
         }
 
@@ -1153,7 +1153,7 @@ try {
         } catch (Exception $e) {
             error_log('S3 list error: ' . $e->getMessage());
             http_response_code(200);
-            echo json_encode(['status' => false, 'message' => 'Failed to list S3 objects']);
+            echo json_encode(['status' => true, 'orphans' => [], 'count' => 0, 'message' => 'Failed to list S3 objects']);
             exit();
         }
 
