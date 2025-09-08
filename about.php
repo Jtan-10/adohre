@@ -103,6 +103,13 @@ if ($stmtM = $conn->prepare("SELECT u.first_name, u.last_name, COALESCE(mp.previ
             color: #333;
         }
 
+        /* Center align Member Directory columns */
+        #memberDirectoryTable th,
+        #memberDirectoryTable td {
+            text-align: center;
+            vertical-align: middle;
+        }
+
         .about-hero {
             position: relative;
             padding: 120px 0;
