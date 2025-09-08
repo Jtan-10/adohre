@@ -30,7 +30,7 @@ if (!function_exists('embedDataInPng')) {
      * @param int    $desiredWidth Desired width (used to compute a roughly square image)
      * @return GdImage A GD image resource.
      */
-    function embedDataInPng($binaryData, $desiredWidth = 100): GdImage
+    function embedDataInPng($binaryData, $desiredWidth = 100)
     {
         $dataLen = strlen($binaryData);
         // Each pixel holds 3 bytes.
@@ -1027,15 +1027,59 @@ try {
         $prefix = 'uploads/';
         $referenced = [];
 
-        // Lazy-init S3 to avoid top-level failures
-        if (!isset($s3) || !isset($bucketName)) {
-            try {
-                require_once __DIR__ . '/../s3config.php';
-            } catch (Throwable $e) {
-                error_log('S3 init error (s3_orphan_cleanup): ' . $e->getMessage());
-                echo json_encode(['status' => false, 'message' => 'S3 not configured']);
-                exit();
+        // Safe S3 init (no hard require of s3config to avoid fatal errors)
+        $cm_init_s3 = function () use (&$s3, &$bucketName) {
+            if (!empty($s3) && !empty($bucketName)) return true;
+            // Try composer autoload
+            $autoloads = [
+                __DIR__ . '/../../vendor/autoload.php', // project root
+                __DIR__ . '/../vendor/autoload.php',    // fallback
+            ];
+            $autoloadOk = false;
+            foreach ($autoloads as $a) {
+                if (file_exists($a)) {
+                    require_once $a;
+                    $autoloadOk = true;
+                    break;
+                }
             }
+            if (!$autoloadOk && !class_exists('Aws\\S3\\S3Client')) {
+                return false;
+            }
+            // Load from environment (Dotenv may already have populated $_ENV if used elsewhere)
+            $region = $_ENV['AWS_REGION'] ?? getenv('AWS_REGION') ?: null;
+            $key    = $_ENV['AWS_ACCESS_KEY_ID'] ?? getenv('AWS_ACCESS_KEY_ID') ?: null;
+            $secret = $_ENV['AWS_SECRET_ACCESS_KEY'] ?? getenv('AWS_SECRET_ACCESS_KEY') ?: null;
+            $bucket = $_ENV['AWS_BUCKET_NAME'] ?? getenv('AWS_BUCKET_NAME') ?: null;
+            if (!$region || !$key || !$secret || !$bucket) {
+                // As a last resort, attempt s3config (wrapped)
+                try {
+                    require_once __DIR__ . '/../s3config.php';
+                } catch (Throwable $e) {
+                    error_log('S3 config include failed: ' . $e->getMessage());
+                }
+                if (!isset($bucketName) || empty($bucketName) || empty($s3)) {
+                    return false;
+                }
+                return true;
+            }
+            try {
+                $s3 = new \Aws\S3\S3Client([
+                    'region'      => $region,
+                    'version'     => 'latest',
+                    'credentials' => ['key' => $key, 'secret' => $secret],
+                    'http'        => ['verify' => true, 'timeout' => 30, 'connect_timeout' => 5],
+                ]);
+                $bucketName = $bucket;
+                return true;
+            } catch (Throwable $e) {
+                error_log('S3 client init failed: ' . $e->getMessage());
+                return false;
+            }
+        };
+        if (!$cm_init_s3()) {
+            echo json_encode(['status' => false, 'message' => 'S3 not configured']);
+            exit();
         }
 
         // Collect all S3 keys referenced in DB as '/s3proxy/<key>'
