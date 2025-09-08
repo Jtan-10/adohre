@@ -5,6 +5,26 @@ header('Content-Type: application/json');
 session_start();
 $method = $_SERVER['REQUEST_METHOD'];
 
+// Helper: check if a column exists in current DB schema
+if (!function_exists('ma_hasColumn')) {
+    function ma_hasColumn(mysqli $conn, string $table, string $column): bool
+    {
+        $dbRes = $conn->query('SELECT DATABASE() AS db');
+        if (!$dbRes) return false;
+        $dbRow = $dbRes->fetch_assoc();
+        $db = $dbRow ? $dbRow['db'] : null;
+        if (!$db) return false;
+        $stmt = $conn->prepare('SELECT COUNT(*) AS cnt FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?');
+        if (!$stmt) return false;
+        $stmt->bind_param('sss', $db, $table, $column);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $row = $res ? $res->fetch_assoc() : null;
+        $stmt->close();
+        return $row && intval($row['cnt']) > 0;
+    }
+}
+
 try {
     switch ($method) {
         case 'GET':
@@ -12,8 +32,8 @@ try {
             $id = isset($_GET['id']) ? intval($_GET['id']) : null;
             $status = isset($_GET['status']) ? $_GET['status'] : null;
 
-            // Updated SQL query to include face_image from users table:
-            $sql = "SELECT m.*, u.face_image FROM membership_applications m LEFT JOIN users u ON m.user_id = u.user_id";
+            // Face image support removed; do not join/select it
+            $sql = "SELECT m.* FROM membership_applications m LEFT JOIN users u ON m.user_id = u.user_id";
 
             $whereParts = [];
             if ($id) {

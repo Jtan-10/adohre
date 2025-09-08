@@ -217,75 +217,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         global $conn;
         $visually_impaired = (isset($_SESSION['visually_impaired']) && $_SESSION['visually_impaired']) ? 1 : 0;
 
-        // Check if a face image (Base64) was submitted.
-        if (isset($data['faceData']) && !empty($data['faceData'])) {
-            $faceData = $data['faceData'];
-            if (strpos($faceData, 'base64,') !== false) {
-                $faceData = explode('base64,', $faceData)[1];
-            }
-            $decodedFaceData = base64_decode($faceData);
-
-            // Write the decoded clear image data to a temporary file.
-            $tempFaceFile = tempnam(sys_get_temp_dir(), 'face_') . '.png';
-            file_put_contents($tempFaceFile, $decodedFaceData);
-
-            // ---- Encryption & Embedding Step ----
-            // Encrypt the clear image data.
-            $cipher = "AES-256-CBC";
-            $ivlen = openssl_cipher_iv_length($cipher);
-            $iv = openssl_random_pseudo_bytes($ivlen);
-            // Retrieve the raw encryption key from the .env file.
-            $rawKey = getenv('ENCRYPTION_KEY');
-            // Derive a 32-byte key using SHA-256.
-            $encryptionKey = hash('sha256', $rawKey, true);
-            $clearImageData = file_get_contents($tempFaceFile);
-            $encryptedData = openssl_encrypt($clearImageData, $cipher, $encryptionKey, OPENSSL_RAW_DATA, $iv);
-            // Prepend the IV for decryption.
-            $encryptedImageData = $iv . $encryptedData;
-
-            // Embed the encrypted data into a valid PNG.
-            // Here we create a PNG image from the binary data so that it displays as random static.
-            $pngImage = embedDataInPng($encryptedImageData, 100);
-            $finalEncryptedPngFile = tempnam(sys_get_temp_dir(), 'enc_png_') . '.png';
-            imagepng($pngImage, $finalEncryptedPngFile);
-            imagedestroy($pngImage);
-            // ---- End Encryption & Embedding Step ----
-
-            // Generate a unique S3 key.
-            $s3Key = 'uploads/faces/' . uniqid() . '.png';
-
-            try {
-                $result = $s3->putObject([
-                    'Bucket'      => $bucketName,
-                    'Key'         => $s3Key,
-                    'Body'        => fopen($finalEncryptedPngFile, 'rb'),
-                    'ACL'         => 'public-read',
-                    'ContentType' => 'image/png'
-                ]);
-            } catch (Aws\Exception\AwsException $e) {
-                error_log("S3 upload error: " . $e->getMessage());
-                echo json_encode(['status' => false, 'message' => 'Internal server error.']);
-                exit;
-            }
-
-            // Clean up temporary files.
-            @unlink($tempFaceFile);
-            @unlink($finalEncryptedPngFile);
-
-            // Convert S3 URL to local proxy URL if needed.
-            $relativeFileName = str_replace(
-                "https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/",
-                "/s3proxy/",
-                $result['ObjectURL']
-            );
-
-            // Update the user details with the encrypted PNG image URL.
-            $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ?, face_image = ?, visually_impaired = ? WHERE email = ?");
-            $stmt->bind_param("sssis", $first_name, $last_name, $relativeFileName, $visually_impaired, $email);
-        } else {
-            $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ?, visually_impaired = ? WHERE email = ?");
-            $stmt->bind_param("ssis", $first_name, $last_name, $visually_impaired, $email);
-        }
+        // Update names and visually_impaired only (face image support removed)
+        $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ?, visually_impaired = ? WHERE email = ?");
+        $stmt->bind_param("ssis", $first_name, $last_name, $visually_impaired, $email);
 
         if ($stmt->execute()) {
             $stmt2 = $conn->prepare("SELECT user_id FROM users WHERE email = ?");

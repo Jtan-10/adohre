@@ -377,9 +377,7 @@ require_once 'admin_header.php';
                 // Build image URLs using the decrypt endpoint if values exist.
                 // Note: using app.valid_id_url for the Valid ID since that is your column name.
                 const validIdUrl = app.valid_id_url ?
-                    `../backend/routes/decrypt_image.php?face_url=${encodeURIComponent(app.valid_id_url)}` : '';
-                const faceImageUrl = app.face_image ?
-                    `../backend/routes/decrypt_image.php?face_url=${encodeURIComponent(app.face_image)}` : '';
+                    `../backend/routes/decrypt_image.php?image_url=${encodeURIComponent(app.valid_id_url)}` : '';
                 detailsBody.innerHTML = `
           <p><strong>Name:</strong> ${app.name}</p>
           <p><strong>Date of Birth:</strong> ${app.dob}</p>
@@ -404,7 +402,6 @@ require_once 'admin_header.php';
           <p><strong>Hobbies:</strong> ${app.hobbies || 'N/A'}</p>
           <p><strong>Committees:</strong> ${app.committees || 'N/A'}</p>
           <p><strong>Valid ID:</strong> ${validIdUrl ? `<img src="${validIdUrl}" alt="Valid ID" style="max-width:100%; height:auto;">` : 'N/A'}</p>
-          <p><strong>Face Image:</strong> ${faceImageUrl ? `<img src="${faceImageUrl}" alt="Face Image" style="max-width:100%; height:auto;">` : 'N/A'}</p>
           <p><strong>Signature:</strong> <img src="${app.signature}" alt="Signature" style="max-width: 100%; height: auto;"></p>
         `;
                 const modal = new bootstrap.Modal(document.querySelector('#detailsModal'));

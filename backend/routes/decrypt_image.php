@@ -13,8 +13,8 @@ $cipher = "AES-256-CBC";
 $rawKey = getenv('ENCRYPTION_KEY');
 $encryptionKey = hash('sha256', $rawKey, true);
 
-// Accept multiple possible parameter names: url, image_url, or face_url.
-$imageUrl = $_GET['url'] ?? $_GET['image_url'] ?? $_GET['face_url'] ?? null;
+// Accept url or image_url for backward compatibility.
+$imageUrl = $_GET['url'] ?? $_GET['image_url'] ?? null;
 if (!$imageUrl) {
     http_response_code(400);
     echo "Missing image URL parameter";

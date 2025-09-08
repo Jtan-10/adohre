@@ -1104,8 +1104,11 @@ try {
         $collect("SELECT image AS url FROM payments", 'url');
         $collect("SELECT image AS url FROM news", 'url');
         $collect("SELECT profile_image AS url FROM users", 'url');
-        $collect("SELECT face_image AS url FROM users", 'url');
-        $collect("SELECT valid_id_url AS url FROM membership_applications", 'url');
+        // Face images removed; nothing to collect from users except profile_image
+        // Optional columns (guard by schema): membership_applications.valid_id_url
+        if (cm_hasColumn($conn, 'membership_applications', 'valid_id_url')) {
+            $collect("SELECT valid_id_url AS url FROM membership_applications", 'url');
+        }
 
         // Documents
         $collect("SELECT file_url AS url FROM documents", 'url');
@@ -1113,16 +1116,18 @@ try {
         // Any settings values that reference S3 via /s3proxy/
         $collect("SELECT value AS url FROM settings WHERE value LIKE '/s3proxy/%'", 'url');
 
-        // Multi-image JSON columns
-        $resMJ = $conn->query("SELECT images_json FROM events WHERE images_json IS NOT NULL AND images_json != ''");
-        if ($resMJ) {
-            while ($r = $resMJ->fetch_assoc()) {
-                $arr = json_decode($r['images_json'], true);
-                if (is_array($arr)) {
-                    foreach ($arr as $url) {
-                        if (!empty($url) && strpos($url, '/s3proxy/') === 0) {
-                            $key = urldecode(str_replace('/s3proxy/', '', $url));
-                            $referenced[$key] = true;
+        // Multi-image JSON columns (events.images_json is optional in some schemas)
+        if (cm_hasColumn($conn, 'events', 'images_json')) {
+            $resMJ = $conn->query("SELECT images_json FROM events WHERE images_json IS NOT NULL AND images_json != ''");
+            if ($resMJ) {
+                while ($r = $resMJ->fetch_assoc()) {
+                    $arr = json_decode($r['images_json'], true);
+                    if (is_array($arr)) {
+                        foreach ($arr as $url) {
+                            if (!empty($url) && strpos($url, '/s3proxy/') === 0) {
+                                $key = urldecode(str_replace('/s3proxy/', '', $url));
+                                $referenced[$key] = true;
+                            }
                         }
                     }
                 }

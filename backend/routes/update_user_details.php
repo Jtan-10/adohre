@@ -130,103 +130,18 @@ if (strlen($first_name) > 50 || strlen($last_name) > 50) {
 $s3Key = '';
 $relativeFileName = '';
 
-// -------------------------
-// Process face image if provided
-// -------------------------
-if (!empty($data['faceData'])) {
-    $faceData = $data['faceData'];
-    if (strpos($faceData, 'base64,') !== false) {
-        $faceData = explode('base64,', $faceData)[1];
-    }
-    if (strlen($faceData) > (5 * 1024 * 1024)) {
-        http_response_code(400);
-        echo json_encode(['status' => false, 'message' => 'Image size exceeds allowed limit.']);
-        exit;
-    }
-    $decodedFaceData = base64_decode($faceData);
-    if ($decodedFaceData === false) {
-        http_response_code(400);
-        echo json_encode(['status' => false, 'message' => 'Failed to decode face image.']);
-        exit;
-    }
-    $finfo = new finfo(FILEINFO_MIME_TYPE);
-    $mimeType = $finfo->buffer($decodedFaceData);
-    if ($mimeType !== 'image/png') {
-        http_response_code(400);
-        echo json_encode(['status' => false, 'message' => 'Invalid image format. Only PNG allowed.']);
-        exit;
-    }
-    // Write decoded image data to a temporary file.
-    $tempFaceFile = tempnam(sys_get_temp_dir(), 'face_') . '.png';
-    file_put_contents($tempFaceFile, $decodedFaceData);
-
-    // ---- Encryption & Embedding Step ----
-    $cipher = "AES-256-CBC";
-    $ivlen = openssl_cipher_iv_length($cipher);
-    $iv = openssl_random_pseudo_bytes($ivlen);
-    $rawKey = getenv('ENCRYPTION_KEY');
-    $encryptionKey = hash('sha256', $rawKey, true);
-    $clearImageData = file_get_contents($tempFaceFile);
-    $encryptedData = openssl_encrypt($clearImageData, $cipher, $encryptionKey, OPENSSL_RAW_DATA, $iv);
-    $encryptedImageData = $iv . $encryptedData;
-
-    // Embed the encrypted data into a valid PNG.
-    $pngImage = embedDataInPng($encryptedImageData, 100);
-    $finalEncryptedPngFile = tempnam(sys_get_temp_dir(), 'enc_png_') . '.png';
-    imagepng($pngImage, $finalEncryptedPngFile);
-    imagedestroy($pngImage);
-    // ---- End Encryption & Embedding Step ----
-
-    // Generate a unique S3 key.
-    $s3Key = 'uploads/faces/' . uniqid() . '.png';
-    try {
-        $result = $s3->putObject([
-            'Bucket'      => $bucketName,
-            'Key'         => $s3Key,
-            'Body'        => fopen($finalEncryptedPngFile, 'rb'),
-            'ACL'         => 'public-read',
-            'ContentType' => 'image/png'
-        ]);
-        $relativeFileName = str_replace(
-            "https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/",
-            "/s3proxy/",
-            $result['ObjectURL']
-        );
-    } catch (Aws\Exception\AwsException $e) {
-        error_log('S3 Upload Error: ' . $e->getMessage());
-        http_response_code(500);
-        echo json_encode(['status' => false, 'message' => 'Failed to upload face image.']);
-        exit;
-    }
-    @unlink($tempFaceFile);
-    @unlink($finalEncryptedPngFile);
+// Only update name fields (face image support removed)
+$stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ? WHERE user_id = ?");
+if ($stmt === false) {
+    error_log('Database prepare error: ' . $conn->error);
+    http_response_code(500);
+    echo json_encode(['status' => false, 'message' => 'Database error.']);
+    exit;
 }
-
-// -------------------------
-// Prepare and execute update query
-// -------------------------
-if (!empty($relativeFileName)) {
-    $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ?, face_image = ? WHERE user_id = ?");
-    if ($stmt === false) {
-        error_log('Database prepare error: ' . $conn->error);
-        http_response_code(500);
-        echo json_encode(['status' => false, 'message' => 'Database error.']);
-        exit;
-    }
-    $stmt->bind_param("sssi", $first_name, $last_name, $relativeFileName, $user_id);
-} else {
-    $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ? WHERE user_id = ?");
-    if ($stmt === false) {
-        error_log('Database prepare error: ' . $conn->error);
-        http_response_code(500);
-        echo json_encode(['status' => false, 'message' => 'Database error.']);
-        exit;
-    }
-    $stmt->bind_param("ssi", $first_name, $last_name, $user_id);
-}
+$stmt->bind_param("ssi", $first_name, $last_name, $user_id);
 
 if ($stmt->execute()) {
-    recordAuditLog($user_id, 'Profile Update', 'User updated profile details' . (!empty($relativeFileName) ? ' (face image updated)' : ''));
+    recordAuditLog($user_id, 'Profile Update', 'User updated profile details');
     http_response_code(200);
     echo json_encode(['status' => true, 'message' => 'Profile updated successfully!']);
 } else {
