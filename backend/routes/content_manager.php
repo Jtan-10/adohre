@@ -121,12 +121,23 @@ try {
         $stmt->execute();
         $eventsResult = $stmt->get_result();
         $events = [];
+        $hasImagesJson = cm_hasColumn($conn, 'events', 'images_json');
         while ($row = $eventsResult->fetch_assoc()) {
             // Convert the joined and pending_payment flags to boolean for easier use on the front end
             $row['joined'] = (bool)$row['joined'];
             $row['pending_payment'] = (bool)$row['pending_payment'];
-            // Set a default image if none provided (update path as needed)
+            // Default single image if none
             $row['image'] = $row['image'] ?: '../assets/default-image.jpg';
+            // Build images array (prefers images_json when available)
+            $imgs = [];
+            if ($hasImagesJson && !empty($row['images_json'])) {
+                $tmp = json_decode($row['images_json'], true);
+                if (is_array($tmp)) $imgs = $tmp;
+            }
+            if (empty($imgs) && !empty($row['image'])) {
+                $imgs = [$row['image']];
+            }
+            $row['images'] = $imgs;
             $events[] = $row;
         }
         $stmt->close();
@@ -206,29 +217,22 @@ try {
         $event_id = $_POST['id'] ?? null;
         $userId = $_SESSION['user_id'];
 
-        // Image handling with encryption and S3 replacement
-        $relativeImagePath = null;
-        if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-            // Check file size (max 5MB)
-            if ($_FILES['image']['size'] > 5242880) {
-                echo json_encode(['status' => false, 'message' => 'File too large. Maximum size is 5MB.']);
-                exit();
-            }
-            // Allowed file types
-            $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
-            if (!in_array($_FILES['image']['type'], $allowedTypes)) {
-                echo json_encode(['status' => false, 'message' => 'Invalid file type. Only JPG, PNG, and GIF allowed.']);
-                exit();
-            }
+        $hasImagesJson = cm_hasColumn($conn, 'events', 'images_json');
+        // Gather images to keep (for updates) and new uploads
+        $keepImages = [];
+        if (isset($_POST['keep_images'])) {
+            $decoded = json_decode($_POST['keep_images'], true);
+            if (is_array($decoded)) $keepImages = array_values(array_filter($decoded));
+        }
 
-            // Generate a unique filename for S3
-            $imageName = time() . '_' . basename($_FILES['image']['name']);
+        $uploadedImages = [];
+        // Helper to process and upload a single file, returns the relative proxy URL
+        $processUpload = function($tmpPath, $originalName) use ($s3, $bucketName) {
+            // Validate + encrypt
+            $imageName = time() . '_' . basename($originalName);
             $s3Key = 'uploads/event_images/' . $imageName;
 
-            // -------------------------
-            // ENCRYPTION & EMBEDDING STEP
-            // -------------------------
-            $clearImageData = file_get_contents($_FILES['image']['tmp_name']);
+            $clearImageData = file_get_contents($tmpPath);
             $cipher = "AES-256-CBC";
             $ivlen = openssl_cipher_iv_length($cipher);
             $iv = openssl_random_pseudo_bytes($ivlen);
@@ -240,64 +244,70 @@ try {
             $finalEncryptedPngFile = tempnam(sys_get_temp_dir(), 'enc_png_') . '.png';
             imagepng($pngImage, $finalEncryptedPngFile);
             imagedestroy($pngImage);
-            // -------------------------
 
-            // If updating an event, check if an existing image exists and delete it from S3.
-            if ($action === 'update_event') {
-                $stmtCheck = $conn->prepare("SELECT image FROM events WHERE event_id = ?");
-                $stmtCheck->bind_param("i", $event_id);
-                $stmtCheck->execute();
-                $resultCheck = $stmtCheck->get_result();
-                if ($resultCheck->num_rows > 0) {
-                    $existingEvent = $resultCheck->fetch_assoc();
-                    if (!empty($existingEvent['image'])) {
-                        // Remove the proxy prefix and then urldecode to match the S3 key
-                        $existingS3Key = urldecode(str_replace('/s3proxy/', '', $existingEvent['image']));
-                        try {
-                            $s3->deleteObject([
-                                'Bucket' => $bucketName,
-                                'Key'    => $existingS3Key
-                            ]);
-                        } catch (Aws\Exception\AwsException $e) {
-                            error_log("S3 deletion error: " . $e->getMessage());
-                        }
-                    }
-                }
-                $stmtCheck->close();
-            }
-
-            // Upload the encrypted PNG to S3.
             try {
                 $result = $s3->putObject([
                     'Bucket'      => $bucketName,
                     'Key'         => $s3Key,
                     'Body'        => fopen($finalEncryptedPngFile, 'rb'),
                     'ACL'         => 'public-read',
-                    // Even though the original file might have a different type,
-                    // after encryption the file is a PNG.
                     'ContentType' => 'image/png'
                 ]);
+            } finally {
+                @unlink($finalEncryptedPngFile);
+            }
 
-                $relativeImagePath = str_replace(
-                    "https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/",
-                    "/s3proxy/",
-                    $result['ObjectURL']
-                );
-            } catch (Aws\Exception\AwsException $e) {
-                error_log("S3 upload error: " . $e->getMessage());
-                echo json_encode(['status' => false, 'message' => 'Failed to upload image to S3.']);
+            return str_replace(
+                "https://adohre-bucket.s3.ap-southeast-1.amazonaws.com/",
+                "/s3proxy/",
+                $result['ObjectURL']
+            );
+        };
+
+        // Validate and accept multiple images[] if provided
+        if (isset($_FILES['images']) && is_array($_FILES['images']['name'])) {
+            $count = count($_FILES['images']['name']);
+            for ($i = 0; $i < $count; $i++) {
+                if ($_FILES['images']['error'][$i] !== UPLOAD_ERR_OK) continue;
+                if ($_FILES['images']['size'][$i] > 5242880) {
+                    echo json_encode(['status' => false, 'message' => 'One of the files is too large. Max 5MB.']);
+                    exit();
+                }
+                $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+                if (!in_array($_FILES['images']['type'][$i], $allowedTypes)) {
+                    echo json_encode(['status' => false, 'message' => 'Invalid file type detected. Use JPG, PNG, or GIF.']);
+                    exit();
+                }
+                $uploadedImages[] = $processUpload($_FILES['images']['tmp_name'][$i], $_FILES['images']['name'][$i]);
+            }
+        } elseif (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+            // Backward compat: single file field
+            if ($_FILES['image']['size'] > 5242880) {
+                echo json_encode(['status' => false, 'message' => 'File too large. Maximum size is 5MB.']);
                 exit();
             }
-            @unlink($finalEncryptedPngFile);
+            $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+            if (!in_array($_FILES['image']['type'], $allowedTypes)) {
+                echo json_encode(['status' => false, 'message' => 'Invalid file type. Only JPG, PNG, and GIF allowed.']);
+                exit();
+            }
+            $uploadedImages[] = $processUpload($_FILES['image']['tmp_name'], $_FILES['image']['name']);
         }
 
         if ($action === 'add_event') {
             // New: retrieve fee; default to 0 if not provided
             $fee = isset($_POST['fee']) && is_numeric($_POST['fee']) ? floatval($_POST['fee']) : 0.00;
 
-            // Insert new event with fee column included
-            $stmt = $conn->prepare("INSERT INTO events (title, description, date, location, fee, image) VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param('ssssds', $title, $description, $date, $location, $fee, $relativeImagePath);
+            $finalImages = $uploadedImages; // for add, there are no keepImages yet
+            $primaryImage = isset($finalImages[0]) ? $finalImages[0] : null;
+            if ($hasImagesJson) {
+                $stmt = $conn->prepare("INSERT INTO events (title, description, date, location, fee, image, images_json) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                $imgsJson = json_encode($finalImages);
+                $stmt->bind_param('ssssdss', $title, $description, $date, $location, $fee, $primaryImage, $imgsJson);
+            } else {
+                $stmt = $conn->prepare("INSERT INTO events (title, description, date, location, fee, image) VALUES (?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param('ssssds', $title, $description, $date, $location, $fee, $primaryImage);
+            }
             $stmt->execute();
 
             // Audit log for event addition
@@ -307,12 +317,66 @@ try {
             // New: retrieve fee; default to 0 if not provided
             $fee = isset($_POST['fee']) && is_numeric($_POST['fee']) ? floatval($_POST['fee']) : 0.00;
 
-            // Update existing event; if no new image provided, the old image remains.
-            $stmt = $conn->prepare(
-                "UPDATE events SET title = ?, description = ?, date = ?, location = ?, fee = ?, image = IFNULL(?, image) WHERE event_id = ?"
-            );
-            $stmt->bind_param('ssssdsi', $title, $description, $date, $location, $fee, $relativeImagePath, $event_id);
-            $stmt->execute();
+            if ($hasImagesJson) {
+                // Fetch existing images to compute deletions
+                $existing = [];
+                $stmtCheck = $conn->prepare("SELECT images_json FROM events WHERE event_id = ?");
+                $stmtCheck->bind_param('i', $event_id);
+                $stmtCheck->execute();
+                $res = $stmtCheck->get_result();
+                if ($res && $res->num_rows > 0) {
+                    $row = $res->fetch_assoc();
+                    if (!empty($row['images_json'])) {
+                        $tmp = json_decode($row['images_json'], true);
+                        if (is_array($tmp)) $existing = $tmp;
+                    }
+                }
+                $stmtCheck->close();
+
+                // Determine which to delete
+                $toDelete = array_values(array_diff($existing, $keepImages));
+                foreach ($toDelete as $imgUrl) {
+                    $existingS3Key = urldecode(str_replace('/s3proxy/', '', $imgUrl));
+                    try {
+                        $s3->deleteObject(['Bucket' => $bucketName, 'Key' => $existingS3Key]);
+                    } catch (Aws\Exception\AwsException $e) {
+                        error_log("S3 deletion error: " . $e->getMessage());
+                    }
+                }
+
+                // Final set = kept + newly uploaded
+                $finalImages = array_values(array_merge($keepImages, $uploadedImages));
+                $primaryImage = isset($finalImages[0]) ? $finalImages[0] : null;
+                $imgsJson = json_encode($finalImages);
+                $stmt = $conn->prepare("UPDATE events SET title = ?, description = ?, date = ?, location = ?, fee = ?, image = ?, images_json = ? WHERE event_id = ?");
+                $stmt->bind_param('ssssdssi', $title, $description, $date, $location, $fee, $primaryImage, $imgsJson, $event_id);
+                $stmt->execute();
+            } else {
+                // Fallback: single image logic, preserve existing if none uploaded
+                $relativeImagePath = isset($uploadedImages[0]) ? $uploadedImages[0] : null;
+                if ($relativeImagePath) {
+                    // Delete previous single image
+                    $stmtCheck = $conn->prepare("SELECT image FROM events WHERE event_id = ?");
+                    $stmtCheck->bind_param("i", $event_id);
+                    $stmtCheck->execute();
+                    $resultCheck = $stmtCheck->get_result();
+                    if ($resultCheck->num_rows > 0) {
+                        $existingEvent = $resultCheck->fetch_assoc();
+                        if (!empty($existingEvent['image'])) {
+                            $existingS3Key = urldecode(str_replace('/s3proxy/', '', $existingEvent['image']));
+                            try {
+                                $s3->deleteObject(['Bucket' => $bucketName, 'Key' => $existingS3Key]);
+                            } catch (Aws\Exception\AwsException $e) {
+                                error_log("S3 deletion error: " . $e->getMessage());
+                            }
+                        }
+                    }
+                    $stmtCheck->close();
+                }
+                $stmt = $conn->prepare("UPDATE events SET title = ?, description = ?, date = ?, location = ?, fee = ?, image = IFNULL(?, image) WHERE event_id = ?");
+                $stmt->bind_param('ssssdsi', $title, $description, $date, $location, $fee, $relativeImagePath, $event_id);
+                $stmt->execute();
+            }
 
             // Audit log for event update
             recordAuditLog($userId, "Update Event", "Event ID $event_id updated with title '$title'.");

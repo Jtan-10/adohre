@@ -66,8 +66,10 @@
                             <input type="number" id="eventFee" name="fee" class="form-control" placeholder="Enter event fee (0 for free)" step="0.01">
                         </div>
                         <div class="col-md-6">
-                            <label for="eventImage" class="form-label">Event Image</label>
-                            <input type="file" id="eventImage" name="image" class="form-control" accept="image/*">
+                            <label for="eventImages" class="form-label">Event Images</label>
+                            <input type="file" id="eventImages" name="images[]" class="form-control" accept="image/*" multiple>
+                            <div class="form-text">Select multiple images to create a stacked gallery.</div>
+                            <div id="eventImagesChips" class="mt-2"></div>
                         </div>
                     </div>
                     <input type="hidden" id="eventId" name="id">
@@ -85,6 +87,8 @@
 <!-- Updated inline script with matching nonce -->
 <script nonce="<?= $cspNonce ?>">
     document.addEventListener('DOMContentLoaded', function() {
+        // Image state for edit mode
+        let existingImages = [];
         // Fetch and display existing events
         fetchContent();
 
@@ -100,6 +104,8 @@
                 modalTitle.textContent = 'Add Event';
                 eventForm.reset();
                 document.getElementById('eventId').value = '';
+                existingImages = [];
+                renderImageChips();
             }
         });
 
@@ -117,10 +123,14 @@
             // include csrf if present
             const csrf = eventForm.querySelector('input[name="csrf_token"]').value;
             if (csrf && !formData.get('csrf_token')) formData.append('csrf_token', csrf);
+            // Include list of images to keep (for update)
+            formData.append('keep_images', JSON.stringify(existingImages));
             manageContent(formData, id ? 'Event updated successfully.' : 'Event added successfully.', () => {
                 bootstrap.Modal.getInstance(eventModal)?.hide();
                 eventForm.reset();
                 document.getElementById('eventId').value = '';
+                existingImages = [];
+                renderImageChips();
             });
         });
 
@@ -140,7 +150,7 @@
                         <div class="card mb-3">
                             <div class="row g-0">
                                 <div class="col-md-4">
-                                    <img src="../backend/routes/decrypt_image.php?image_url=${ encodeURIComponent(event.image || '/capstone-php/assets/default-image.jpg') }" class="card-img-top" alt="Event image">
+                                    ${renderStackedThumbs(event)}
                                 </div>
                                 <div class="col-md-8">
                                     <div class="card-body">
@@ -164,7 +174,7 @@
                         <div class="card mb-3">
                             <div class="row g-0">
                                 <div class="col-md-4">
-                                    <img src="../backend/routes/decrypt_image.php?image_url=${ encodeURIComponent(event.image || '/capstone-php/assets/default-image.jpg') }" class="card-img-top" alt="Event image">
+                                    ${renderStackedThumbs(event)}
                                 </div>
                                 <div class="col-md-8">
                                     <div class="card-body">
@@ -225,6 +235,20 @@
                         }
                         document.getElementById('eventLocation').value = event.location;
                         document.getElementById('eventFee').value = event.fee || '';
+                        // Init existing images from event (images_json preferred)
+                        try {
+                            if (event.images_json) {
+                                const arr = JSON.parse(event.images_json);
+                                existingImages = Array.isArray(arr) ? arr : [];
+                            } else if (Array.isArray(event.images)) {
+                                existingImages = event.images.slice(0);
+                            } else if (event.image) {
+                                existingImages = [event.image];
+                            } else {
+                                existingImages = [];
+                            }
+                        } catch (_) { existingImages = []; }
+                        renderImageChips();
 
                         // Open modal in edit mode
                         modalTitle.textContent = 'Edit Event';
@@ -246,7 +270,7 @@
         }
 
         // Manage Content (Add/Update/Delete)
-        function manageContent(formData, successMessage, onSuccess) {
+    function manageContent(formData, successMessage, onSuccess) {
             fetch('../backend/routes/content_manager.php', {
                     method: 'POST',
                     body: formData,
@@ -262,6 +286,50 @@
                     }
                 })
                 .catch((err) => alert('Failed to connect to the server. Please try again.'));
+        }
+        // Simple stacked preview styles
+        const style = document.createElement('style');
+        style.textContent = `
+            .stacked-preview { position: relative; height: 72px; }
+            .stacked-preview .thumb { position: absolute; top: 0; width: 72px; height: 72px; object-fit: cover; border-radius: 6px; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.2); }
+            .stacked-preview .thumb:nth-child(1) { left: 0; z-index: 3; }
+            .stacked-preview .thumb:nth-child(2) { left: 16px; z-index: 2; }
+            .stacked-preview .thumb:nth-child(3) { left: 32px; z-index: 1; }
+            .stacked-preview .more { position: absolute; left: 48px; top: 0; width: 72px; height: 72px; display:flex;align-items:center;justify-content:center; background:#f1f3f5; border-radius:6px; border:2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.2); font-weight:600; color:#555; }
+            #eventImagesChips .img-chip { display:inline-flex; align-items:center; gap:6px; background:#f8f9fa; border:1px solid #dee2e6; border-radius:16px; padding:3px 8px; margin:2px; }
+            #eventImagesChips .img-chip button { border:none; background:transparent; color:#dc3545; cursor:pointer; }
+        `;
+        document.head.appendChild(style);
+
+        function renderStackedThumbs(event) {
+            const imgs = Array.isArray(event.images) ? event.images : (event.image ? [event.image] : []);
+            const urls = imgs.slice(0,3).map(u => `../backend/routes/decrypt_image.php?image_url=${encodeURIComponent(u)}`);
+            const extra = Math.max(0, imgs.length - 3);
+            if (urls.length === 0) return `<img src="../assets/default-image.jpg" class="card-img-top" alt="Event image">`;
+            return `
+                <div class="stacked-preview">
+                    ${urls.map(u=>`<img class=\"thumb\" src=\"${u}\" alt=\"\">`).join('')}
+                    ${extra ? `<div class=\"more\">+${extra}</div>` : ''}
+                </div>`;
+        }
+
+        function renderImageChips() {
+            const container = document.getElementById('eventImagesChips');
+            if (!container) return;
+            const chips = existingImages.map((u, idx) => `
+                <span class=\"img-chip\" data-index=\"${idx}\">
+                    <img src=\"../backend/routes/decrypt_image.php?image_url=${encodeURIComponent(u)}\" style=\"width:24px;height:24px;border-radius:50%;object-fit:cover;\"> Existing ${idx+1}
+                    <button type=\"button\" title=\"Remove\">×</button>
+                </span>`).join('');
+            container.innerHTML = chips || '<small class="text-muted">No images yet.</small>';
+            container.querySelectorAll('.img-chip button').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const chip = e.target.closest('.img-chip');
+                    const idx = parseInt(chip.getAttribute('data-index'));
+                    existingImages.splice(idx, 1);
+                    renderImageChips();
+                });
+            });
         }
     });
 </script>

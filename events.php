@@ -377,6 +377,8 @@ error_reporting(0);
                         month: 'long',
                         year: 'numeric'
                     });
+                    const imgs = Array.isArray(event.images) ? event.images : (event.image ? [event.image] : []);
+                    const stack = renderStacked(imgs);
                     let joinBtn;
                     if (event.joined) {
                         joinBtn = `
@@ -407,10 +409,10 @@ error_reporting(0);
                     }
                     return `
             <div class="col-12">
-              <div class="event-card">
-                <img src="${ event.image ? '/capstone-php/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(event.image) : 'assets/default-event.jpg' }" 
-                     class="card-img-top" 
-                     alt="${event.title}">
+                            <div class="event-card">
+                                <div class="card-img-top p-2">
+                                        ${stack}
+                                </div>
                 <div class="event-card-body">
                   <div class="event-date">
                     <i class="fas fa-calendar-alt me-2"></i>
@@ -435,13 +437,15 @@ error_reporting(0);
                         month: 'long',
                         year: 'numeric'
                     });
+                    const imgs = Array.isArray(event.images) ? event.images : (event.image ? [event.image] : []);
+                    const stack = renderStacked(imgs);
                     const pastBtn = `<button class="btn btn-secondary btn-sm" disabled>Past Event</button>`;
                     return `
             <div class="col-12">
-              <div class="event-card">
-                <img src="${ event.image ? '/capstone-php/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(event.image) : 'assets/default-event.jpg' }" 
-                     class="card-img-top" 
-                     alt="${event.title}">
+                            <div class="event-card">
+                                <div class="card-img-top p-2">
+                                        ${stack}
+                                </div>
                 <div class="event-card-body">
                   <div class="event-date">
                     <i class="fas fa-calendar-alt me-2"></i>
@@ -488,6 +492,66 @@ error_reporting(0);
         `;
             }
             // --- End updated renderEvents() ---
+
+                        // Stacked thumbs renderer + lightbox
+                        function renderStacked(imgs) {
+                                const urls = imgs.slice(0,3).map(u => '/capstone-php/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(u));
+                                const extra = Math.max(0, imgs.length - 3);
+                                if (urls.length === 0) return `<img src="assets/default-event.jpg" class="w-100 rounded" style="height:220px;object-fit:cover;">`;
+                                const id = 'g_'+Math.random().toString(36).slice(2);
+                                const thumbs = urls.map((u,i)=>`<img class="evt-thumb" data-gid="${id}" data-index="${i}" src="${u}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:6px;border:2px solid #fff;position:absolute;top:0;left:${i*16}px;z-index:${3-i};box-shadow:0 2px 6px rgba(0,0,0,.2);cursor:pointer;">`).join('');
+                                const more = extra ? `<div class="evt-more" data-gid="${id}" style="position:absolute;top:0;left:48px;width:72px;height:72px;border-radius:6px;border:2px solid #fff;background:#f1f3f5;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.2);cursor:pointer;">+${extra}</div>` : '';
+                                // Store full list for gallery
+                                window.__evtGalleries = window.__evtGalleries || {}; window.__evtGalleries[id] = imgs.map(u => '/capstone-php/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(u));
+                                setTimeout(()=>{ wireGalleryTriggers(id); }, 0);
+                                return `<div class="position-relative" style="height:72px;">${thumbs}${more}</div>`;
+                        }
+
+                        function wireGalleryTriggers(gid) {
+                                document.querySelectorAll(`[data-gid="${gid}"]`).forEach(el => {
+                                        el.addEventListener('click', () => openGallery(gid, parseInt(el.getAttribute('data-index')||'0')));
+                                });
+                        }
+
+                        function openGallery(gid, index) {
+                                const images = (window.__evtGalleries && window.__evtGalleries[gid]) || [];
+                                if (!images.length) return;
+                                const modalId = 'evtGalleryModal';
+                                let modalEl = document.getElementById(modalId);
+                                if (!modalEl) {
+                                        const tpl = `
+                                        <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true">
+                                            <div class="modal-dialog modal-lg modal-dialog-centered">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title">Event Photos</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <div class="text-center">
+                                                            <img id="evtGalleryImg" src="" alt="" class="img-fluid rounded">
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer justify-content-between">
+                                                        <button class="btn btn-outline-secondary" id="evtPrev">Prev</button>
+                                                        <span id="evtCounter" class="text-muted"></span>
+                                                        <button class="btn btn-outline-secondary" id="evtNext">Next</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>`;
+                                        const wrap = document.createElement('div'); wrap.innerHTML = tpl; document.body.appendChild(wrap.firstElementChild);
+                                        modalEl = document.getElementById(modalId);
+                                }
+                                const imgEl = modalEl.querySelector('#evtGalleryImg');
+                                const ctr = modalEl.querySelector('#evtCounter');
+                                let idx = Math.max(0, Math.min(index||0, images.length-1));
+                                const update = ()=>{ imgEl.src = images[idx]; ctr.textContent = `${idx+1} / ${images.length}`; };
+                                modalEl.querySelector('#evtPrev').onclick = ()=>{ idx = (idx-1+images.length)%images.length; update(); };
+                                modalEl.querySelector('#evtNext').onclick = ()=>{ idx = (idx+1)%images.length; update(); };
+                                update();
+                                const bsModal = new bootstrap.Modal(modalEl); bsModal.show();
+                        }
 
             function renderAnnouncements(announcements) {
                 const announcementsList = document.getElementById('announcementsList');
