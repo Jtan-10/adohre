@@ -227,7 +227,7 @@ try {
 
         $uploadedImages = [];
         // Helper to process and upload a single file, returns the relative proxy URL
-        $processUpload = function($tmpPath, $originalName) use ($s3, $bucketName) {
+        $processUpload = function ($tmpPath, $originalName) use ($s3, $bucketName) {
             // Validate + encrypt
             $imageName = time() . '_' . basename($originalName);
             $s3Key = 'uploads/event_images/' . $imageName;

@@ -247,7 +247,9 @@
                             } else {
                                 existingImages = [];
                             }
-                        } catch (_) { existingImages = []; }
+                        } catch (_) {
+                            existingImages = [];
+                        }
                         renderImageChips();
 
                         // Open modal in edit mode
@@ -270,7 +272,7 @@
         }
 
         // Manage Content (Add/Update/Delete)
-    function manageContent(formData, successMessage, onSuccess) {
+        function manageContent(formData, successMessage, onSuccess) {
             fetch('../backend/routes/content_manager.php', {
                     method: 'POST',
                     body: formData,
@@ -303,7 +305,7 @@
 
         function renderStackedThumbs(event) {
             const imgs = Array.isArray(event.images) ? event.images : (event.image ? [event.image] : []);
-            const urls = imgs.slice(0,3).map(u => `../backend/routes/decrypt_image.php?image_url=${encodeURIComponent(u)}`);
+            const urls = imgs.slice(0, 3).map(u => `../backend/routes/decrypt_image.php?image_url=${encodeURIComponent(u)}`);
             const extra = Math.max(0, imgs.length - 3);
             if (urls.length === 0) return `<img src="../assets/default-image.jpg" class="card-img-top" alt="Event image">`;
             return `

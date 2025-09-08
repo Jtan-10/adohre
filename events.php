@@ -142,6 +142,127 @@ error_reporting(0);
             background: var(--primary-color);
             border-radius: 2px;
         }
+
+        /* Collage and gallery styles */
+        .evt-collage {
+            position: relative;
+            width: 100%;
+            height: 220px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 6px;
+        }
+
+        .evt-collage .cell {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .evt-collage .more {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.35);
+            color: #fff;
+            font-weight: 700;
+            font-size: 1.25rem;
+        }
+
+        .evt-collage .cell:focus {
+            outline: 2px solid #fff;
+            outline-offset: 2px;
+        }
+
+        .evt-lightbox .modal-dialog {
+            max-width: 100%;
+        }
+
+        .evt-lightbox .modal-content {
+            background: #000;
+        }
+
+        .evt-lightbox .modal-header {
+            border: 0;
+        }
+
+        .evt-lightbox .modal-body {
+            position: relative;
+            padding: 0;
+        }
+
+        .evt-lightbox .main-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 60vh;
+        }
+
+        .evt-lightbox img#evtGalleryImg {
+            max-height: 80vh;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .evt-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: 0;
+            background: rgba(255, 255, 255, 0.9);
+            color: #111;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .35);
+        }
+
+        .evt-prev {
+            left: 10px;
+        }
+
+        .evt-next {
+            right: 10px;
+        }
+
+        .evt-thumbs {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding: 10px;
+            background: #111;
+        }
+
+        .evt-thumbs img {
+            width: 80px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 4px;
+            opacity: .7;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+
+        .evt-thumbs img.active {
+            opacity: 1;
+            border-color: #28a745;
+        }
     </style>
 </head>
 
@@ -493,65 +614,141 @@ error_reporting(0);
             }
             // --- End updated renderEvents() ---
 
-                        // Stacked thumbs renderer + lightbox
-                        function renderStacked(imgs) {
-                                const urls = imgs.slice(0,3).map(u => '/capstone-php/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(u));
-                                const extra = Math.max(0, imgs.length - 3);
-                                if (urls.length === 0) return `<img src="assets/default-event.jpg" class="w-100 rounded" style="height:220px;object-fit:cover;">`;
-                                const id = 'g_'+Math.random().toString(36).slice(2);
-                                const thumbs = urls.map((u,i)=>`<img class="evt-thumb" data-gid="${id}" data-index="${i}" src="${u}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:6px;border:2px solid #fff;position:absolute;top:0;left:${i*16}px;z-index:${3-i};box-shadow:0 2px 6px rgba(0,0,0,.2);cursor:pointer;">`).join('');
-                                const more = extra ? `<div class="evt-more" data-gid="${id}" style="position:absolute;top:0;left:48px;width:72px;height:72px;border-radius:6px;border:2px solid #fff;background:#f1f3f5;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.2);cursor:pointer;">+${extra}</div>` : '';
-                                // Store full list for gallery
-                                window.__evtGalleries = window.__evtGalleries || {}; window.__evtGalleries[id] = imgs.map(u => '/capstone-php/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(u));
-                                setTimeout(()=>{ wireGalleryTriggers(id); }, 0);
-                                return `<div class="position-relative" style="height:72px;">${thumbs}${more}</div>`;
-                        }
+            // Collage renderer + improved lightbox
+            function renderStacked(imgs) {
+                const proxied = imgs.map(u => '/capstone-php/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(u));
+                if (proxied.length === 0) {
+                    return `<img src="assets/default-event.jpg" class="w-100 rounded" style="height:220px;object-fit:cover;">`;
+                }
+                const id = 'g_' + Math.random().toString(36).slice(2);
+                // Store full list for gallery
+                window.__evtGalleries = window.__evtGalleries || {};
+                window.__evtGalleries[id] = proxied;
 
-                        function wireGalleryTriggers(gid) {
-                                document.querySelectorAll(`[data-gid="${gid}"]`).forEach(el => {
-                                        el.addEventListener('click', () => openGallery(gid, parseInt(el.getAttribute('data-index')||'0')));
-                                });
-                        }
+                const firstFour = proxied.slice(0, 4);
+                const extra = Math.max(0, proxied.length - 4);
+                const cells = firstFour.map((u, i) => {
+                    const moreBadge = (i === 3 && extra > 0) ? `<div class="more" data-index="${i}">+${extra}</div>` : '';
+                    return `<button type="button" class="cell" data-gid="${id}" data-index="${i}" style="background-image:url('${u}')" aria-label="Open image ${i+1} of ${proxied.length}">${moreBadge}</button>`;
+                }).join('');
+                setTimeout(() => wireGalleryTriggers(id), 0);
+                return `<div class="evt-collage" data-gid="${id}">${cells}</div>`;
+            }
 
-                        function openGallery(gid, index) {
-                                const images = (window.__evtGalleries && window.__evtGalleries[gid]) || [];
-                                if (!images.length) return;
-                                const modalId = 'evtGalleryModal';
-                                let modalEl = document.getElementById(modalId);
-                                if (!modalEl) {
-                                        const tpl = `
-                                        <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true">
-                                            <div class="modal-dialog modal-lg modal-dialog-centered">
-                                                <div class="modal-content">
-                                                    <div class="modal-header">
-                                                        <h5 class="modal-title">Event Photos</h5>
-                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                    </div>
-                                                    <div class="modal-body">
-                                                        <div class="text-center">
-                                                            <img id="evtGalleryImg" src="" alt="" class="img-fluid rounded">
-                                                        </div>
-                                                    </div>
-                                                    <div class="modal-footer justify-content-between">
-                                                        <button class="btn btn-outline-secondary" id="evtPrev">Prev</button>
-                                                        <span id="evtCounter" class="text-muted"></span>
-                                                        <button class="btn btn-outline-secondary" id="evtNext">Next</button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>`;
-                                        const wrap = document.createElement('div'); wrap.innerHTML = tpl; document.body.appendChild(wrap.firstElementChild);
-                                        modalEl = document.getElementById(modalId);
-                                }
-                                const imgEl = modalEl.querySelector('#evtGalleryImg');
-                                const ctr = modalEl.querySelector('#evtCounter');
-                                let idx = Math.max(0, Math.min(index||0, images.length-1));
-                                const update = ()=>{ imgEl.src = images[idx]; ctr.textContent = `${idx+1} / ${images.length}`; };
-                                modalEl.querySelector('#evtPrev').onclick = ()=>{ idx = (idx-1+images.length)%images.length; update(); };
-                                modalEl.querySelector('#evtNext').onclick = ()=>{ idx = (idx+1)%images.length; update(); };
-                                update();
-                                const bsModal = new bootstrap.Modal(modalEl); bsModal.show();
-                        }
+            function wireGalleryTriggers(gid) {
+                document.querySelectorAll(`[data-gid="${gid}"] .cell, [data-gid="${gid}"] .more`).forEach(el => {
+                    el.addEventListener('click', (e) => {
+                        const idxAttr = e.currentTarget.getAttribute('data-index');
+                        const idx = idxAttr ? parseInt(idxAttr) : 0;
+                        openGallery(gid, idx);
+                    });
+                });
+            }
+
+            function openGallery(gid, index) {
+                const images = (window.__evtGalleries && window.__evtGalleries[gid]) || [];
+                if (!images.length) return;
+                const modalId = 'evtGalleryModal';
+                let modalEl = document.getElementById(modalId);
+                if (!modalEl) {
+                    const tpl = `
+                                <div class="modal fade evt-lightbox" id="${modalId}" tabindex="-1" aria-hidden="true">
+                                  <div class="modal-dialog modal-fullscreen-sm-down modal-xl modal-dialog-centered">
+                                    <div class="modal-content">
+                                      <div class="modal-header border-0" style="background:#000;color:#fff;">
+                                        <h5 class="modal-title">Event Photos</h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                      </div>
+                                      <div class="modal-body">
+                                        <div class="main-wrap">
+                                          <button class="evt-nav evt-prev" aria-label="Previous">&#8249;</button>
+                                          <img id="evtGalleryImg" src="" alt="Event photo" />
+                                          <button class="evt-nav evt-next" aria-label="Next">&#8250;</button>
+                                        </div>
+                                        <div class="evt-thumbs" id="evtThumbs"></div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>`;
+                    const wrap = document.createElement('div');
+                    wrap.innerHTML = tpl;
+                    document.body.appendChild(wrap.firstElementChild);
+                    modalEl = document.getElementById(modalId);
+                }
+                const imgEl = modalEl.querySelector('#evtGalleryImg');
+                const thumbsWrap = modalEl.querySelector('#evtThumbs');
+                thumbsWrap.innerHTML = images.map((u, i) => `<img src="${u}" data-index="${i}" alt="thumb ${i+1}">`).join('');
+                let idx = Math.max(0, Math.min(index || 0, images.length - 1));
+
+                const setActiveThumb = () => {
+                    thumbsWrap.querySelectorAll('img').forEach((t, i) => {
+                        t.classList.toggle('active', i === idx);
+                    });
+                    const active = thumbsWrap.querySelector('img.active');
+                    if (active) active.scrollIntoView({
+                        inline: 'center',
+                        behavior: 'smooth',
+                        block: 'nearest'
+                    });
+                };
+
+                const update = () => {
+                    imgEl.src = images[idx];
+                    setActiveThumb();
+                };
+
+                const prev = () => {
+                    idx = (idx - 1 + images.length) % images.length;
+                    update();
+                };
+                const next = () => {
+                    idx = (idx + 1) % images.length;
+                    update();
+                };
+
+                modalEl.querySelector('.evt-prev').onclick = prev;
+                modalEl.querySelector('.evt-next').onclick = next;
+                imgEl.onclick = next; // click to advance
+
+                // Thumbs click
+                thumbsWrap.querySelectorAll('img').forEach(t => t.addEventListener('click', (e) => {
+                    idx = parseInt(e.currentTarget.getAttribute('data-index'));
+                    update();
+                }));
+
+                // Keyboard nav while modal is open
+                const onKey = (e) => {
+                    if (!modalEl.classList.contains('show')) return;
+                    if (e.key === 'ArrowLeft') prev();
+                    if (e.key === 'ArrowRight') next();
+                    if (e.key === 'Escape') bootstrap.Modal.getInstance(modalEl)?.hide();
+                };
+                document.addEventListener('keydown', onKey);
+                modalEl.addEventListener('hidden.bs.modal', () => {
+                    document.removeEventListener('keydown', onKey);
+                }, {
+                    once: true
+                });
+
+                // Basic swipe support
+                let touchStartX = null;
+                imgEl.addEventListener('touchstart', (e) => {
+                    touchStartX = e.changedTouches[0].screenX;
+                }, {
+                    passive: true
+                });
+                imgEl.addEventListener('touchend', (e) => {
+                    const dx = e.changedTouches[0].screenX - (touchStartX ?? 0);
+                    if (Math.abs(dx) > 40) {
+                        if (dx > 0) prev();
+                        else next();
+                    }
+                });
+
+                update();
+                const bsModal = new bootstrap.Modal(modalEl);
+                bsModal.show();
+            }
 
             function renderAnnouncements(announcements) {
                 const announcementsList = document.getElementById('announcementsList');
