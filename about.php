@@ -38,6 +38,7 @@ $aboutSettings = [
     'about_hero_image_url' => null,
     'about_sections_json' => null,
     'about_leadership_json' => null,
+    'about_committees_json' => null,
     'about_objectives_bg_url' => null,
     'about_expertise_bg_url' => null,
     'about_org_structure_image_url' => null
@@ -887,7 +888,7 @@ if ($stmtM = $conn->prepare("SELECT u.first_name, u.last_name, COALESCE(mp.previ
                             $period = htmlspecialchars($grp['period'] ?? '', ENT_QUOTES);
                             $entries = isset($grp['members']) && is_array($grp['members']) ? $grp['members'] : [];
                         ?>
-                            <div class="col-md-6 leadership-group" data-index="<?= $i ?>">
+                            <div class="col-sm-12 col-md-6 col-lg-4 leadership-group" data-index="<?= $i ?>">
                                 <div class="card h-100 shadow-sm position-relative">
                                     <?php if ($editMode): ?>
                                         <div class="position-absolute top-0 end-0 m-2 d-flex gap-1">
@@ -937,6 +938,74 @@ if ($stmtM = $conn->prepare("SELECT u.first_name, u.last_name, COALESCE(mp.previ
                         </div>
                         <div class="text-muted small mt-2 text-center">Changes are not public until you click Save.</div>
                     <?php endif; ?>
+                </div>
+            </section>
+        <?php endif; ?>
+
+        <!-- Committees Sections (Dynamic) -->
+        <?php
+        $committeeSections = [];
+        if (!empty($aboutSettings['about_committees_json'])) {
+            $rawC = $aboutSettings['about_committees_json'];
+            if (is_string($rawC)) {
+                $tmpC = json_decode($rawC, true);
+                if (is_array($tmpC)) $committeeSections = $tmpC;
+            } elseif (is_array($rawC)) {
+                $committeeSections = $rawC;
+            }
+        }
+        if (!empty($committeeSections)):
+        ?>
+            <section class="section-padding" id="committeeSections">
+                <div class="container">
+                    <h2 class="text-center mb-4">Committees</h2>
+                    <div class="row g-4" id="committeeCards">
+                        <?php foreach ($committeeSections as $i => $grp):
+                            $groupTitle = htmlspecialchars($grp['title'] ?? ('Committee ' . ($i + 1)), ENT_QUOTES);
+                            $period = htmlspecialchars($grp['period'] ?? '', ENT_QUOTES);
+                            $entries = isset($grp['members']) && is_array($grp['members']) ? $grp['members'] : [];
+                        ?>
+                            <div class="col-sm-12 col-md-6 col-lg-4 committee-group" data-index="<?= $i ?>">
+                                <div class="card h-100 shadow-sm position-relative">
+                                    <?php if ($editMode): ?>
+                                        <div class="position-absolute top-0 end-0 m-2 d-flex gap-1">
+                                            <button class="btn btn-sm btn-outline-secondary" data-action="dup_committee" title="Duplicate Group"><i class="fa fa-clone"></i></button>
+                                            <button class="btn btn-sm btn-outline-danger" data-action="del_committee" title="Delete Group"><i class="fa fa-trash"></i></button>
+                                        </div>
+                                    <?php endif; ?>
+                                    <div class="card-header bg-success text-white fw-bold">
+                                        <span class="committee-title" <?= $editMode ? 'contenteditable="true" data-field="title"' : '' ?>><?= $groupTitle ?></span>
+                                        <?php if ($period): ?><small class="d-block fw-normal" style="font-size:.8rem;"><?= $period ?></small><?php endif; ?>
+                                    </div>
+                                    <div class="card-body">
+                                        <ul class="list-group list-group-flush committee-members">
+                                            <?php foreach ($entries as $j => $mem):
+                                                $name = htmlspecialchars($mem['name'] ?? '', ENT_QUOTES);
+                                                $role = htmlspecialchars($mem['role'] ?? '', ENT_QUOTES);
+                                                if ($name === '') continue;
+                                            ?>
+                                                <li class="list-group-item d-flex justify-content-between align-items-start" data-m-index="<?= $j ?>">
+                                                    <div class="flex-grow-1">
+                                                        <span class="member-name" <?= $editMode ? 'contenteditable="true" data-field="name"' : '' ?>><?= $name ?></span>
+                                                        <?php if ($role): ?> — <em class="member-role" <?= $editMode ? 'contenteditable="true" data-field="role"' : '' ?>><?= $role ?></em><?php endif; ?>
+                                                    </div>
+                                                    <?php if ($editMode): ?>
+                                                        <div class="ms-2 btn-group btn-group-sm">
+                                                            <button class="btn btn-outline-secondary" data-action="dup_committee_member" title="Duplicate"><i class="fa fa-copy"></i></button>
+                                                            <button class="btn btn-outline-danger" data-action="del_committee_member" title="Remove"><i class="fa fa-times"></i></button>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                </li>
+                                            <?php endforeach; ?>
+                                        </ul>
+                                        <?php if ($editMode): ?>
+                                            <button class="btn btn-sm btn-outline-primary mt-3" data-action="add_committee_member"><i class="fa fa-plus me-1"></i>Add Member</button>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
                 </div>
             </section>
         <?php endif; ?>
