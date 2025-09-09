@@ -883,12 +883,14 @@ if ($stmtM = $conn->prepare("SELECT u.first_name, u.last_name, COALESCE(mp.previ
                 <div class="container">
                     <h2 class="text-center mb-4">Board of Trustees &amp; Officers</h2>
                     <div class="row g-4" id="leadershipCards">
-                        <?php foreach ($leadershipSections as $i => $grp):
+                        <?php $leadershipCount = count($leadershipSections);
+                        foreach ($leadershipSections as $i => $grp):
                             $groupTitle = htmlspecialchars($grp['title'] ?? ('Group ' . ($i + 1)), ENT_QUOTES);
                             $period = htmlspecialchars($grp['period'] ?? '', ENT_QUOTES);
                             $entries = isset($grp['members']) && is_array($grp['members']) ? $grp['members'] : [];
+                            $colClass = ($leadershipCount <= 2) ? 'col-12 leadership-group' : 'col-sm-12 col-md-6 col-lg-4 leadership-group';
                         ?>
-                            <div class="col-sm-12 col-md-6 col-lg-4 leadership-group" data-index="<?= $i ?>">
+                            <div class="<?= $colClass ?>" data-index="<?= $i ?>">
                                 <div class="card h-100 shadow-sm position-relative">
                                     <?php if ($editMode): ?>
                                         <div class="position-absolute top-0 end-0 m-2 d-flex gap-1">
@@ -960,12 +962,14 @@ if ($stmtM = $conn->prepare("SELECT u.first_name, u.last_name, COALESCE(mp.previ
                 <div class="container">
                     <h2 class="text-center mb-4">Committees</h2>
                     <div class="row g-4" id="committeeCards">
-                        <?php foreach ($committeeSections as $i => $grp):
+                        <?php $committeeCount = count($committeeSections);
+                        foreach ($committeeSections as $i => $grp):
                             $groupTitle = htmlspecialchars($grp['title'] ?? ('Committee ' . ($i + 1)), ENT_QUOTES);
                             $period = htmlspecialchars($grp['period'] ?? '', ENT_QUOTES);
                             $entries = isset($grp['members']) && is_array($grp['members']) ? $grp['members'] : [];
+                            $colClass = ($committeeCount <= 2) ? 'col-12 committee-group' : 'col-sm-12 col-md-6 col-lg-4 committee-group';
                         ?>
-                            <div class="col-sm-12 col-md-6 col-lg-4 committee-group" data-index="<?= $i ?>">
+                            <div class="<?= $colClass ?>" data-index="<?= $i ?>">
                                 <div class="card h-100 shadow-sm position-relative">
                                     <?php if ($editMode): ?>
                                         <div class="position-absolute top-0 end-0 m-2 d-flex gap-1">
