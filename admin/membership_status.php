@@ -225,16 +225,15 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                 // Register a single custom global filter (idempotent)
                 if (!window.__msSearchFilterRegistered) {
                     $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+                        if (!settings || !settings.nTable || settings.nTable.id !== 'gridTable') return true; // only our table
                         if (!globalSearchTerm) return true;
+                        const term = globalSearchTerm;
                         try {
-                            const tr = gridDT.row(dataIndex).node();
+                            const api = new $.fn.dataTable.Api(settings);
+                            const tr = api.row(dataIndex).node();
                             if (!tr) return true;
-                            const term = globalSearchTerm;
-                            // Collect searchable strings
                             const parts = [];
-                            // Text from standard cells
                             parts.push(tr.textContent || '');
-                            // Values from inputs/selects (may not appear in textContent for selects hidden options)
                             tr.querySelectorAll('input, select, span.badge').forEach(el => {
                                 if (el.tagName === 'SELECT') {
                                     const opt = el.options[el.selectedIndex];
@@ -245,7 +244,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                             });
                             const haystack = parts.join(' \n ').toLowerCase();
                             return haystack.includes(term);
-                        } catch {
+                        } catch (e) {
                             return true;
                         }
                     });
@@ -286,25 +285,39 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
 
         // Hook into DataTables native search input instead of custom bar
         function attachBuiltInSearch(dt) {
-            try {
-                const container = dt.table().container();
-                const input = container.querySelector('div.dataTables_filter input');
-                if (!input) return; // not yet available
-                if (input.__msBound) return; // prevent duplicate binding
-                input.__msBound = true;
-                input.setAttribute('placeholder', 'Search any column...');
-                let t = null;
-                input.addEventListener('input', () => {
-                    clearTimeout(t);
-                    t = setTimeout(() => {
-                        globalSearchTerm = input.value.trim().toLowerCase();
-                        // Neutralize built-in search so only our custom filter applies
-                        dt.search('');
-                        dt.draw();
-                    }, 250);
-                });
-            } catch (e) {
-                /* silent */ }
+            const attempt = () => {
+                try {
+                    const container = dt.table().container();
+                    const sel = 'div.dataTables_filter input, .dt-search input[type="search"]';
+                    const input = container.querySelector(sel);
+                    if (!input) return false;
+                    if (input.__msBound) return true;
+                    input.__msBound = true;
+                    input.setAttribute('placeholder', 'Search any column...');
+                    let timer = null;
+                    input.addEventListener('input', () => {
+                        clearTimeout(timer);
+                        timer = setTimeout(() => {
+                            globalSearchTerm = input.value.trim().toLowerCase();
+                            dt.search(''); // clear native
+                            dt.draw();
+                        }, 200);
+                    });
+                    return true;
+                } catch (e) {
+                    return true;
+                }
+            };
+            if (attempt()) return;
+            const container = dt.table().container();
+            const mo = new MutationObserver(() => {
+                if (attempt()) mo.disconnect();
+            });
+            mo.observe(container, {
+                childList: true,
+                subtree: true
+            });
+            setTimeout(() => mo.disconnect(), 3000);
         }
 
         // When dues year changes, load status/amount for that year from the dues map
