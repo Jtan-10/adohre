@@ -225,7 +225,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                 // Register a single custom global filter (idempotent)
                 if (!window.__msSearchFilterRegistered) {
                     $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
-                        if (!settings || !settings.nTable || settings.nTable.id !== 'gridTable') return true; // only our table
+                        if (!settings || !settings.nTable || settings.nTable.id !== 'gridTable') return true;
                         if (!globalSearchTerm) return true;
                         const term = globalSearchTerm;
                         try {
@@ -233,16 +233,30 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                             const tr = api.row(dataIndex).node();
                             if (!tr) return true;
                             const parts = [];
-                            parts.push(tr.textContent || '');
-                            tr.querySelectorAll('input, select, span.badge').forEach(el => {
+                            const selText = (sel) => {
+                                const el = tr.querySelector(sel);
+                                if (!el) return '';
                                 if (el.tagName === 'SELECT') {
-                                    const opt = el.options[el.selectedIndex];
-                                    if (opt) parts.push(opt.textContent || '');
+                                    const o = el.options[el.selectedIndex];
+                                    return (o && o.textContent) ? o.textContent : '';
                                 }
-                                if (el.value) parts.push(el.value);
-                                if (el.textContent) parts.push(el.textContent);
-                            });
-                            const haystack = parts.join(' \n ').toLowerCase();
+                                return el.value || el.textContent || '';
+                            };
+                            // Explicit fields
+                            parts.push(selText('td:first-child')); // name cell text
+                            parts.push(selText('[data-field="year_of_membership"]'));
+                            parts.push(selText('[data-field="age_upon_membership"]'));
+                            parts.push(selText('[data-field="membership_status"]'));
+                            parts.push(selText('[data-field="certification"]'));
+                            parts.push(selText('[data-field="previous_office"]'));
+                            parts.push(selText('[data-field="is_lifetime"]'));
+                            parts.push(selText('[data-field="dues_status"]'));
+                            // Badges (payment simplified statuses)
+                            const feeBadge = tr.querySelector('[data-field="badge_fee"]');
+                            const duesBadge = tr.querySelector('[data-field="badge_dues"]');
+                            if (feeBadge) parts.push(feeBadge.textContent || '');
+                            if (duesBadge) parts.push(duesBadge.textContent || '');
+                            const haystack = parts.join(' ').toLowerCase();
                             return haystack.includes(term);
                         } catch (e) {
                             return true;
