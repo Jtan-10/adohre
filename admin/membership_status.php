@@ -30,6 +30,47 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
             </div>
             <div class="card">
                 <div class="card-body">
+                    <div class="mb-2">
+                        <button class="btn btn-sm btn-outline-primary" id="toggleFilters" type="button">Filters</button>
+                        <button class="btn btn-sm btn-outline-secondary ms-1" id="clearFilters" type="button">Clear</button>
+                        <div id="filterPanel" class="border rounded p-2 mt-2 d-none small" style="background:#f8f9fa;">
+                            <div class="row g-3">
+                                <div class="col-6 col-lg-2">
+                                    <strong class="d-block mb-1">Status</strong>
+                                    <div class="form-check"><input class="form-check-input" type="checkbox" value="active" id="f_status_active" data-filter-group="statuses"><label class="form-check-label" for="f_status_active">Active</label></div>
+                                    <div class="form-check"><input class="form-check-input" type="checkbox" value="inactive" id="f_status_inactive" data-filter-group="statuses"><label class="form-check-label" for="f_status_inactive">Inactive</label></div>
+                                </div>
+                                <div class="col-6 col-lg-2">
+                                    <strong class="d-block mb-1">Certification</strong>
+                                    <div class="form-check"><input class="form-check-input" type="checkbox" value="regular" id="f_cert_regular" data-filter-group="certifications"><label class="form-check-label" for="f_cert_regular">Regular</label></div>
+                                    <div class="form-check"><input class="form-check-input" type="checkbox" value="honorary" id="f_cert_honorary" data-filter-group="certifications"><label class="form-check-label" for="f_cert_honorary">Honorary</label></div>
+                                </div>
+                                <div class="col-6 col-lg-2">
+                                    <strong class="d-block mb-1">Lifetime</strong>
+                                    <div class="form-check"><input class="form-check-input" type="checkbox" value="yes" id="f_life_yes" data-filter-group="lifetime"><label class="form-check-label" for="f_life_yes">Yes</label></div>
+                                    <div class="form-check"><input class="form-check-input" type="checkbox" value="no" id="f_life_no" data-filter-group="lifetime"><label class="form-check-label" for="f_life_no">No</label></div>
+                                </div>
+                                <div class="col-6 col-lg-2">
+                                    <strong class="d-block mb-1">Fee Status</strong>
+                                    <div class="form-check"><input class="form-check-input" type="checkbox" value="paid" id="f_fee_paid" data-filter-group="fee"><label class="form-check-label" for="f_fee_paid">Paid</label></div>
+                                    <div class="form-check"><input class="form-check-input" type="checkbox" value="pending" id="f_fee_pending" data-filter-group="fee"><label class="form-check-label" for="f_fee_pending">Pending</label></div>
+                                    <div class="form-check"><input class="form-check-input" type="checkbox" value="unpaid" id="f_fee_unpaid" data-filter-group="fee"><label class="form-check-label" for="f_fee_unpaid">Unpaid</label></div>
+                                    <div class="form-check"><input class="form-check-input" type="checkbox" value="canceled" id="f_fee_canceled" data-filter-group="fee"><label class="form-check-label" for="f_fee_canceled">Canceled</label></div>
+                                </div>
+                                <div class="col-6 col-lg-2">
+                                    <strong class="d-block mb-1">Dues Status</strong>
+                                    <div class="form-check"><input class="form-check-input" type="checkbox" value="paid" id="f_dues_paid" data-filter-group="dues"><label class="form-check-label" for="f_dues_paid">Paid</label></div>
+                                    <div class="form-check"><input class="form-check-input" type="checkbox" value="unpaid" id="f_dues_unpaid" data-filter-group="dues"><label class="form-check-label" for="f_dues_unpaid">Unpaid</label></div>
+                                    <div class="form-check"><input class="form-check-input" type="checkbox" value="waived" id="f_dues_waived" data-filter-group="dues"><label class="form-check-label" for="f_dues_waived">Waived</label></div>
+                                </div>
+                                <div class="col-6 col-lg-2">
+                                    <strong class="d-block mb-1">Year</strong>
+                                    <div id="filterYears" style="max-height:150px;overflow:auto;" class="pe-1 small"></div>
+                                </div>
+                            </div>
+                            <div class="mt-2 text-muted fst-italic">Filters are combined with AND logic and also with the text search.</div>
+                        </div>
+                    </div>
                     <div class="table-responsive">
                         <table class="table table-sm table-bordered" id="gridTable">
                             <thead id="gridHead"></thead>
@@ -84,6 +125,52 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
         let FEE = 300.00,
             DUES = 200.00; // dynamic amounts
         let bulkModal, currentBulkRow = null;
+        const filterState = {
+            statuses: new Set(),
+            certifications: new Set(),
+            lifetime: new Set(), // yes/no
+            fee: new Set(), // paid/pending/unpaid/canceled
+            dues: new Set(), // paid/unpaid/waived
+            years: new Set() // numeric years as string
+        };
+
+        const filterPanel = () => document.getElementById('filterPanel');
+        const filterYearsBox = () => document.getElementById('filterYears');
+
+        document.getElementById('toggleFilters').addEventListener('click', () => {
+            const p = filterPanel();
+            if (!p) return;
+            p.classList.toggle('d-none');
+        });
+        document.getElementById('clearFilters').addEventListener('click', () => {
+            ['statuses', 'certifications', 'lifetime', 'fee', 'dues', 'years'].forEach(k => filterState[k].clear());
+            if (filterPanel()) {
+                filterPanel().querySelectorAll('input[type="checkbox"][data-filter-group]').forEach(cb => cb.checked = false);
+            }
+            if (gridDT) gridDT.draw();
+        });
+
+        (function setupFilterEvents() {
+            const p = filterPanel();
+            if (!p) return;
+            p.addEventListener('change', (e) => {
+                const cb = e.target.closest('input[type="checkbox"][data-filter-group]');
+                if (!cb) return;
+                const group = cb.getAttribute('data-filter-group');
+                const val = cb.value.toLowerCase();
+                const set = filterState[group];
+                if (!set) return;
+                if (cb.checked) set.add(val);
+                else set.delete(val);
+                if (gridDT) gridDT.draw();
+            });
+        })();
+
+        function populateYearFilters(years) {
+            const box = filterYearsBox();
+            if (!box) return;
+            box.innerHTML = years.map(y => `<div class="form-check mb-1"><input class="form-check-input" type="checkbox" value="${y}" id="f_year_${y}" data-filter-group="years"><label class="form-check-label" for="f_year_${y}">${y}</label></div>`).join('');
+        }
 
         // Ensure unique members by user_id
         function dedupeMembers(members) {
@@ -226,37 +313,64 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                 if (!window.__msSearchFilterRegistered) {
                     $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
                         if (!settings || !settings.nTable || settings.nTable.id !== 'gridTable') return true;
-                        if (!globalSearchTerm) return true;
                         const term = globalSearchTerm;
                         try {
                             const api = new $.fn.dataTable.Api(settings);
                             const tr = api.row(dataIndex).node();
                             if (!tr) return true;
-                            const parts = [];
-                            const selText = (sel) => {
+                            const pick = (sel) => {
                                 const el = tr.querySelector(sel);
                                 if (!el) return '';
                                 if (el.tagName === 'SELECT') {
                                     const o = el.options[el.selectedIndex];
-                                    return (o && o.textContent) ? o.textContent : '';
+                                    return (o && o.textContent) ? o.textContent.trim() : '';
                                 }
-                                return el.value || el.textContent || '';
+                                return (el.value || el.textContent || '').trim();
                             };
-                            // Explicit fields
-                            parts.push(selText('td:first-child')); // name cell text
-                            parts.push(selText('[data-field="year_of_membership"]'));
-                            parts.push(selText('[data-field="age_upon_membership"]'));
-                            parts.push(selText('[data-field="membership_status"]'));
-                            parts.push(selText('[data-field="certification"]'));
-                            parts.push(selText('[data-field="previous_office"]'));
-                            parts.push(selText('[data-field="is_lifetime"]'));
-                            parts.push(selText('[data-field="dues_status"]'));
-                            // Badges (payment simplified statuses)
-                            const feeBadge = tr.querySelector('[data-field="badge_fee"]');
-                            const duesBadge = tr.querySelector('[data-field="badge_dues"]');
-                            if (feeBadge) parts.push(feeBadge.textContent || '');
-                            if (duesBadge) parts.push(duesBadge.textContent || '');
-                            const haystack = parts.join(' ').toLowerCase();
+                            const membershipStatus = pick('[data-field="membership_status"]').toLowerCase();
+                            const lifetime = pick('[data-field="is_lifetime"]').toLowerCase();
+                            const certification = pick('[data-field="certification"]').toLowerCase();
+                            const yearVal = pick('[data-field="year_of_membership"]').toLowerCase();
+                            const feeB = tr.querySelector('[data-field="badge_fee"]');
+                            const duesB = tr.querySelector('[data-field="badge_dues"]');
+                            const feeStatus = (feeB ? feeB.textContent.trim().toLowerCase() : '');
+                            const duesStatusSimple = (duesB ? duesB.textContent.trim().toLowerCase() : '');
+                            const duesSelectStatus = pick('[data-field="dues_status"]').toLowerCase(); // raw select (Paid/Unpaid/Waived)
+
+                            // Apply checklist filters (AND logic) first
+                            if (filterState.statuses.size && !filterState.statuses.has(membershipStatus)) return false;
+                            if (filterState.certifications.size && !filterState.certifications.has(certification)) return false;
+                            if (filterState.lifetime.size && !filterState.lifetime.has(lifetime)) return false;
+                            if (filterState.fee.size && !filterState.fee.has(feeStatus)) return false;
+                            // Dues: allow match against either raw select or simplified badge text
+                            if (filterState.dues.size && !(
+                                    filterState.dues.has(duesSelectStatus) || filterState.dues.has(duesStatusSimple)
+                                )) return false;
+                            if (filterState.years.size && !filterState.years.has(yearVal)) return false;
+
+                            // If no text search term, row passes (filters already applied)
+                            if (!term) return true;
+
+                            // Special exact matches for status & lifetime via term
+                            if (term === 'active') return membershipStatus === 'active';
+                            if (term === 'inactive') return membershipStatus === 'inactive';
+                            if (term === 'yes') return lifetime === 'yes';
+                            if (term === 'no') return lifetime === 'no';
+                            const fields = [
+                                pick('td:first-child'),
+                                pick('[data-field="year_of_membership"]'),
+                                pick('[data-field="age_upon_membership"]'),
+                                membershipStatus,
+                                pick('[data-field="certification"]'),
+                                pick('[data-field="previous_office"]'),
+                                lifetime,
+                                pick('[data-field="dues_status"]'), // raw select value included
+                                feeStatus,
+                                duesStatusSimple,
+                                duesSelectStatus
+                            ];
+                            // (feeStatus & duesStatus already added)
+                            const haystack = fields.join(' ').toLowerCase();
                             return haystack.includes(term);
                         } catch (e) {
                             return true;
@@ -291,6 +405,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
             const uniqMembers = dedupeMembers(j.members || []);
             renderHead(j.years);
             renderBody(j.years, uniqMembers);
+            populateYearFilters(j.years || []);
         }
 
         document.getElementById('refreshBtn').addEventListener('click', () => {
