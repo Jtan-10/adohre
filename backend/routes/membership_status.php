@@ -303,6 +303,47 @@ try {
             $stmt2->close();
         }
         echo json_encode(['status' => true, 'state' => $state]);
+    } elseif ($action === 'set_fee_status') {
+        ensureAdmin();
+        $user_id = intval($_POST['user_id'] ?? 0);
+        $desired = $_POST['fee_status'] ?? '';
+        $allowed = ['Paid', 'Pending', 'Unpaid', 'Canceled'];
+        if (!$user_id || !in_array($desired, $allowed, true)) {
+            echo json_encode(['status' => false, 'message' => 'Invalid payload']);
+            exit;
+        }
+        // Map to internal payments.status values
+        $map = [
+            'Paid' => 'Completed',
+            'Pending' => 'Pending',
+            'Unpaid' => 'New',
+            'Canceled' => 'Canceled'
+        ];
+        $internal = $map[$desired];
+        // Check existing payment record
+        $stmt = $conn->prepare("SELECT payment_id FROM payments WHERE user_id = ? AND payment_type = 'Membership Fee' AND is_archived = 0 ORDER BY payment_id DESC LIMIT 1");
+        $stmt->bind_param('i', $user_id);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $row = $res ? $res->fetch_assoc() : null;
+        $stmt->close();
+        if ($row) {
+            $pid = intval($row['payment_id']);
+            $stmt2 = $conn->prepare("UPDATE payments SET status = ? WHERE payment_id = ?");
+            $stmt2->bind_param('si', $internal, $pid);
+            $ok = $stmt2->execute();
+            $stmt2->close();
+        } else {
+            // Insert new payment row with mapped status
+            $amount = (float) getSetting($conn, 'membership_fee_amount', 300.00);
+            $payment_type = 'Membership Fee';
+            $due_date = date('Y-m-d', strtotime('+30 days'));
+            $stmt3 = $conn->prepare("INSERT INTO payments (user_id, payment_type, amount, status, due_date) VALUES (?,?,?,?,?)");
+            $stmt3->bind_param('isdss', $user_id, $payment_type, $amount, $internal, $due_date);
+            $ok = $stmt3->execute();
+            $stmt3->close();
+        }
+        echo json_encode(['status' => (bool)($ok ?? false)]);
     } else {
         echo json_encode(['status' => false, 'message' => 'Unknown action']);
     }

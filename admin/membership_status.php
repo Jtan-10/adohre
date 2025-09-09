@@ -24,8 +24,12 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
     <div class="d-flex">
         <?php require_once 'admin_sidebar.php'; ?>
         <div id="content" class="content p-4" style="width: 100%;">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h3 class="mb-0">Membership Status</h3>
+            <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+                <h3 class="mb-0 me-auto">Membership Status</h3>
+                <div class="input-group" style="max-width:320px;">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" id="searchAll" class="form-control" placeholder="Search any column..." aria-label="Search any column" />
+                </div>
                 <button id="refreshBtn" class="btn btn-outline-secondary">Refresh</button>
             </div>
             <div class="card">
@@ -79,6 +83,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
         const head = document.getElementById('gridHead');
         const body = document.getElementById('gridBody');
         let gridDT = null; // hold a single DataTable instance
+        let globalSearchTerm = '';
         let YEARS = []; // dynamic years from backend
         let FEE = 300.00,
             DUES = 200.00; // dynamic amounts
@@ -166,6 +171,16 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                         <div class="d-flex flex-column gap-1">
                 <div class="small">Fee Payment: <span class="badge bg-secondary" data-field="badge_fee">—</span></div>
                             <div class="small text-muted" data-field="fee_simple_text">Status: —</div>
+                                <div class="d-flex gap-1 align-items-center">
+                                    <select class="form-select form-select-sm" data-field="fee_manual_select" title="Set Membership Fee Status">
+                                        <option value="">Set Fee...</option>
+                                        <option value="Paid">Paid</option>
+                                        <option value="Pending">Pending</option>
+                                        <option value="Unpaid">Unpaid</option>
+                                        <option value="Canceled">Canceled</option>
+                                    </select>
+                                    <button class="btn btn-outline-success btn-sm" data-action="fee_manual_apply" title="Apply selected fee status">Apply</button>
+                                </div>
                         </div>
                     </td>
                     <td>
@@ -211,12 +226,45 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
             });
             // Initialize DataTable once per render
             if (window.jQuery && $.fn && $.fn.DataTable) {
+                // Register a single custom global filter (idempotent)
+                if (!window.__msSearchFilterRegistered) {
+                    $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+                        if (!globalSearchTerm) return true;
+                        try {
+                            const tr = gridDT.row(dataIndex).node();
+                            if (!tr) return true;
+                            const term = globalSearchTerm;
+                            // Collect searchable strings
+                            const parts = [];
+                            // Text from standard cells
+                            parts.push(tr.textContent || '');
+                            // Values from inputs/selects (may not appear in textContent for selects hidden options)
+                            tr.querySelectorAll('input, select, span.badge').forEach(el => {
+                                if (el.tagName === 'SELECT') {
+                                    const opt = el.options[el.selectedIndex];
+                                    if (opt) parts.push(opt.textContent || '');
+                                }
+                                if (el.value) parts.push(el.value);
+                                if (el.textContent) parts.push(el.textContent);
+                            });
+                            const haystack = parts.join(' \n ').toLowerCase();
+                            return haystack.includes(term);
+                        } catch {
+                            return true;
+                        }
+                    });
+                    window.__msSearchFilterRegistered = true;
+                }
                 const id = '#gridTable';
                 gridDT = $(id).DataTable({
                     pageLength: 10,
                     order: [],
                     autoWidth: false
                 });
+                // Reapply search term after rebuild
+                if (globalSearchTerm) {
+                    gridDT.draw();
+                }
             }
         }
 
@@ -234,7 +282,20 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
             renderBody(j.years, uniqMembers);
         }
 
-        document.getElementById('refreshBtn').addEventListener('click', loadGrid);
+        document.getElementById('refreshBtn').addEventListener('click', () => {
+            loadGrid();
+        });
+
+        // Global search (debounced)
+        const searchInput = document.getElementById('searchAll');
+        let searchTimer = null;
+        searchInput.addEventListener('input', () => {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => {
+                globalSearchTerm = searchInput.value.trim().toLowerCase();
+                if (gridDT) gridDT.draw();
+            }, 300);
+        });
 
         // When dues year changes, load status/amount for that year from the dues map
         body.addEventListener('change', (e) => {
@@ -345,6 +406,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
         body.addEventListener('click', async (e) => {
             const btnFee = e.target.closest('[data-action="notice_fee"]');
             const btnDues = e.target.closest('[data-action="notice_dues"]');
+            const btnFeeApply = e.target.closest('[data-action="fee_manual_apply"]');
             if (!btnFee && !btnDues) return;
             e.preventDefault();
             const tr = e.target.closest('tr');
@@ -382,6 +444,29 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                 }
                 pollRowState(tr);
                 alert(`Annual dues notice sent (₱${DUES.toFixed(0)})`);
+            }
+            if (btnFeeApply) {
+                const select = tr.querySelector('[data-field="fee_manual_select"]');
+                const val = select ? select.value : '';
+                if (!val) {
+                    alert('Select a fee status to apply');
+                    return;
+                }
+                const fd = new FormData();
+                fd.append('action', 'set_fee_status');
+                fd.append('user_id', String(userId));
+                fd.append('fee_status', val);
+                const res = await api('../backend/routes/membership_status.php', {
+                    method: 'POST',
+                    body: fd
+                });
+                if (!res.status) {
+                    alert(res.message || 'Failed to set fee status');
+                    return;
+                }
+                // Refresh badges asap
+                pollRowState(tr);
+                alert('Membership fee status updated');
             }
         });
 

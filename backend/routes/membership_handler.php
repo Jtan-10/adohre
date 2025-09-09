@@ -215,6 +215,31 @@ if ($method === 'POST') {
         if ($stmt->execute()) {
             // Audit log: record membership application submission.
             recordAuditLog($user_id, 'Submit Membership Application', "Application submitted for $name ($email).");
+            // Automatically seed membership_profiles so membership_status grid has baseline data once user becomes a member.
+            try {
+                // Compute age upon membership (application time) if DOB provided
+                $ageUpon = null;
+                if (!empty($dob) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dob)) {
+                    $dobDT = new DateTime($dob);
+                    $nowDT = new DateTime();
+                    $ageUpon = (int)$dobDT->diff($nowDT)->y;
+                }
+                $yearMembership = (int)date('Y');
+                // Ensure table exists (idempotent safeguard in case membership_status route not yet hit this session)
+                $conn->query("CREATE TABLE IF NOT EXISTS membership_profiles (\n    user_id INT(11) NOT NULL PRIMARY KEY,\n    year_of_membership YEAR NULL,\n    age_upon_membership INT(11) NULL,\n    certification ENUM('Honorary','Regular') DEFAULT 'Regular',\n    membership_fee DECIMAL(10,2) DEFAULT NULL,\n    previous_office VARCHAR(255) NULL,\n    is_lifetime TINYINT(1) NOT NULL DEFAULT 0,\n    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n    CONSTRAINT fk_mp_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+                $profStmt = $conn->prepare("INSERT INTO membership_profiles (user_id, year_of_membership, age_upon_membership, certification, previous_office) VALUES (?,?,?,?,?)\n+                    ON DUPLICATE KEY UPDATE year_of_membership=VALUES(year_of_membership), age_upon_membership=VALUES(age_upon_membership), previous_office=IF(COALESCE(previous_office,'')='', VALUES(previous_office), previous_office)");
+                if ($profStmt) {
+                    $certDefault = 'Regular';
+                    // Use null for age if unknown
+                    $ageParam = $ageUpon !== null ? $ageUpon : null;
+                    $prevOfficeSeed = !empty($doh_agency) ? $doh_agency : null;
+                    $profStmt->bind_param('iiiss', $user_id, $yearMembership, $ageParam, $certDefault, $prevOfficeSeed);
+                    $profStmt->execute();
+                    $profStmt->close();
+                }
+            } catch (Throwable $seedErr) {
+                error_log('membership_handler profile seed error: ' . $seedErr->getMessage());
+            }
             echo json_encode(['status' => true, 'message' => 'Application submitted successfully!']);
         } else {
             error_log("Execution failed: " . $stmt->error);

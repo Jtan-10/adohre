@@ -25,16 +25,30 @@ require_once 'admin_header.php';
 
             <!-- Filter Options -->
             <div class="mb-3">
-                <form id="filter-form" class="d-flex align-items-center">
-                    <label for="statusFilter" class="form-label me-2">Filter by Status:</label>
-                    <select id="statusFilter" name="status" class="form-select w-auto">
-                        <option value="">All</option>
-                        <option value="Pending">Pending</option>
-                        <option value="Approved">Approved</option>
-                        <option value="Rejected">Rejected</option>
-                    </select>
-                    <button type="submit" class="btn btn-primary ms-2">Apply</button>
+                <form id="filter-form" class="row g-2 align-items-center">
+                    <div class="col-auto">
+                        <label for="statusFilter" class="form-label mb-0">Status:</label>
+                    </div>
+                    <div class="col-auto">
+                        <select id="statusFilter" name="status" class="form-select">
+                            <option value="">All</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Approved">Approved</option>
+                            <option value="Rejected">Rejected</option>
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <label for="searchQuery" class="form-label mb-0">Search:</label>
+                    </div>
+                    <div class="col-sm-4 col-md-5 col-lg-4">
+                        <input type="text" id="searchQuery" class="form-control" placeholder="Search any field (name, email, address, etc.)">
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-primary">Apply</button>
+                        <button type="button" id="clearFilters" class="btn btn-outline-secondary ms-1">Clear</button>
+                    </div>
                 </form>
+                <div class="form-text">Live search updates automatically; press Enter or Apply to combine with status filter.</div>
             </div>
 
             <table class="table table-striped" id="applications-table">
@@ -235,11 +249,12 @@ require_once 'admin_header.php';
         const paymentApiUrl = '../backend/routes/payment.php';
 
         // Fetch applications
-        async function fetchApplications(status = '') {
+        async function fetchApplications(status = '', q = '') {
             try {
                 const response = await axios.get(apiUrl, {
                     params: {
-                        status
+                        status,
+                        q
                     }
                 });
                 const applications = response.data;
@@ -434,7 +449,26 @@ require_once 'admin_header.php';
         document.querySelector('#filter-form').addEventListener('submit', (e) => {
             e.preventDefault();
             const status = document.querySelector('#statusFilter').value;
-            fetchApplications(status);
+            const q = document.querySelector('#searchQuery').value.trim();
+            fetchApplications(status, q);
+        });
+
+        // Clear filters button
+        document.getElementById('clearFilters').addEventListener('click', () => {
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('searchQuery').value = '';
+            fetchApplications();
+        });
+
+        // Debounced live search
+        let searchTimer = null;
+        document.getElementById('searchQuery').addEventListener('input', () => {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => {
+                const status = document.getElementById('statusFilter').value;
+                const q = document.getElementById('searchQuery').value.trim();
+                fetchApplications(status, q);
+            }, 400);
         });
 
         // Show Message
