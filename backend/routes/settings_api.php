@@ -382,6 +382,7 @@ switch ($action) {
                 'about_objectives_html',
                 'about_hero_image_url',
                 'about_sections_json',
+                'about_leadership_json',
                 'about_objectives_bg_url',
                 'about_expertise_bg_url',
                 'about_org_structure_image_url'
@@ -425,7 +426,7 @@ switch ($action) {
         if ($page === 'home') {
             $allowed = ['home_hero_title', 'home_hero_subtitle', 'home_about_html', 'home_contact_address', 'home_hero_image_url', 'home_carousel_json', 'home_sections_json', 'home_about_image_url', 'home_empower_bg_url'];
         } elseif ($page === 'about') {
-            $allowed = ['about_hero_title', 'about_hero_subtitle', 'about_purpose_text', 'about_mission_text', 'about_vision_text', 'about_objectives_html', 'about_hero_image_url', 'about_sections_json', 'about_objectives_bg_url', 'about_expertise_bg_url', 'about_org_structure_image_url'];
+            $allowed = ['about_hero_title', 'about_hero_subtitle', 'about_purpose_text', 'about_mission_text', 'about_vision_text', 'about_objectives_html', 'about_hero_image_url', 'about_sections_json', 'about_leadership_json', 'about_objectives_bg_url', 'about_expertise_bg_url', 'about_org_structure_image_url'];
         } else {
             echo json_encode(['status' => false, 'message' => 'Unknown page']);
             break;

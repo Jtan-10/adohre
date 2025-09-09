@@ -37,6 +37,7 @@ $aboutSettings = [
     'about_objectives_html' => null,
     'about_hero_image_url' => null,
     'about_sections_json' => null,
+    'about_leadership_json' => null,
     'about_objectives_bg_url' => null,
     'about_expertise_bg_url' => null,
     'about_org_structure_image_url' => null
@@ -863,45 +864,82 @@ if ($stmtM = $conn->prepare("SELECT u.first_name, u.last_name, COALESCE(mp.previ
             </div>
         </section>
 
-        <!-- Board of Trustees & Officers -->
-        <section class="section-padding bg-light">
-            <div class="container">
-                <h2 class="text-center mb-4">Board of Trustees &amp; Officers</h2>
-                <div class="row g-4">
-                    <div class="col-md-6">
-                        <div class="card h-100 shadow-sm">
-                            <div class="card-header bg-success text-white fw-bold">Board of Trustees, 2025–2026</div>
-                            <div class="card-body">
-                                <ul class="list-group list-group-flush">
-                                    <li class="list-group-item">DR. PAULYN JEAN B. ROSELL UBIAL — <em>Chairperson</em>
-                                    </li>
-                                    <li class="list-group-item">DR. JUANITO D. TALEON — <em>Vice-Chairperson</em></li>
-                                    <li class="list-group-item">MS. LOURDES RIZA S. YAPCIONGCO — <em>Board
-                                            Secretary</em></li>
-                                    <li class="list-group-item">MS. AGNETTE PERALTA — <em>Trustee</em></li>
-                                    <li class="list-group-item">DR. ASUNCION M. ANDEN — <em>Trustee</em></li>
-                                    <li class="list-group-item">MS. ANTONINA U. CUETO — <em>Trustee</em></li>
-                                </ul>
+        <!-- Leadership Sections (Dynamic) -->
+        <?php
+        $leadershipSections = [];
+        if (!empty($aboutSettings['about_leadership_json'])) {
+            $rawL = $aboutSettings['about_leadership_json'];
+            if (is_string($rawL)) {
+                $tmp = json_decode($rawL, true);
+                if (is_array($tmp)) $leadershipSections = $tmp;
+            } elseif (is_array($rawL)) {
+                $leadershipSections = $rawL;
+            }
+        }
+        if (!empty($leadershipSections)):
+        ?>
+            <section class="section-padding bg-light" id="leadershipSections">
+                <div class="container">
+                    <h2 class="text-center mb-4">Board of Trustees &amp; Officers</h2>
+                    <div class="row g-4" id="leadershipCards">
+                        <?php foreach ($leadershipSections as $i => $grp):
+                            $groupTitle = htmlspecialchars($grp['title'] ?? ('Group ' . ($i + 1)), ENT_QUOTES);
+                            $period = htmlspecialchars($grp['period'] ?? '', ENT_QUOTES);
+                            $entries = isset($grp['members']) && is_array($grp['members']) ? $grp['members'] : [];
+                        ?>
+                            <div class="col-md-6 leadership-group" data-index="<?= $i ?>">
+                                <div class="card h-100 shadow-sm position-relative">
+                                    <?php if ($editMode): ?>
+                                        <div class="position-absolute top-0 end-0 m-2 d-flex gap-1">
+                                            <button class="btn btn-sm btn-outline-secondary" data-action="dup_leadership" title="Duplicate Group"><i class="fa fa-clone"></i></button>
+                                            <button class="btn btn-sm btn-outline-danger" data-action="del_leadership" title="Delete Group"><i class="fa fa-trash"></i></button>
+                                        </div>
+                                    <?php endif; ?>
+                                    <div class="card-header bg-success text-white fw-bold">
+                                        <span class="leadership-title" <?= $editMode ? 'contenteditable="true" data-field="title"' : '' ?>><?= $groupTitle ?></span>
+                                        <?php if ($period): ?>
+                                            <small class="d-block fw-normal" style="font-size:.8rem;"><?= $period ?></small>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="card-body">
+                                        <ul class="list-group list-group-flush leadership-members">
+                                            <?php foreach ($entries as $j => $mem):
+                                                $name = htmlspecialchars($mem['name'] ?? '', ENT_QUOTES);
+                                                $role = htmlspecialchars($mem['role'] ?? '', ENT_QUOTES);
+                                                if ($name === '') continue;
+                                            ?>
+                                                <li class="list-group-item d-flex justify-content-between align-items-start" data-m-index="<?= $j ?>">
+                                                    <div class="flex-grow-1">
+                                                        <span class="member-name" <?= $editMode ? 'contenteditable="true" data-field="name"' : '' ?>><?= $name ?></span>
+                                                        <?php if ($role): ?> — <em class="member-role" <?= $editMode ? 'contenteditable="true" data-field="role"' : '' ?>><?= $role ?></em><?php endif; ?>
+                                                    </div>
+                                                    <?php if ($editMode): ?>
+                                                        <div class="ms-2 btn-group btn-group-sm">
+                                                            <button class="btn btn-outline-secondary" data-action="dup_member" title="Duplicate"><i class="fa fa-copy"></i></button>
+                                                            <button class="btn btn-outline-danger" data-action="del_member" title="Remove"><i class="fa fa-times"></i></button>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                </li>
+                                            <?php endforeach; ?>
+                                        </ul>
+                                        <?php if ($editMode): ?>
+                                            <button class="btn btn-sm btn-outline-primary mt-3" data-action="add_member"><i class="fa fa-plus me-1"></i>Add Member</button>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
+                        <?php endforeach; ?>
                     </div>
-                    <div class="col-md-6">
-                        <div class="card h-100 shadow-sm">
-                            <div class="card-header bg-success text-white fw-bold">Officers, 2025–2026</div>
-                            <div class="card-body">
-                                <ul class="list-group list-group-flush">
-                                    <li class="list-group-item">DR. THEODORA CECILE G. MAGTURO — <em>President</em></li>
-                                    <li class="list-group-item">MS. VICENTA E. BORJA — <em>Vice President</em></li>
-                                    <li class="list-group-item">MS. PRUDENCIA L. CSAQUEJO — <em>Treasurer</em></li>
-                                    <li class="list-group-item">MS. MARIA IMELDA L. LIM — <em>Auditor</em></li>
-                                    <li class="list-group-item">MS. JACKELINE B. ACOSTA — <em>Secretary</em></li>
-                                </ul>
-                            </div>
+                    <?php if ($editMode): ?>
+                        <div class="text-center mt-4">
+                            <button class="btn btn-success" id="btnSaveLeadership"><i class="fa fa-save me-1"></i>Save Leadership Sections</button>
+                            <button class="btn btn-outline-primary ms-2" id="btnAddLeadershipGroup"><i class="fa fa-plus me-1"></i>Add Group</button>
                         </div>
-                    </div>
+                        <div class="text-muted small mt-2 text-center">Changes are not public until you click Save.</div>
+                    <?php endif; ?>
                 </div>
-            </div>
-        </section>
+            </section>
+        <?php endif; ?>
 
         <!-- Member Directory -->
         <section class="section-padding bg-white">

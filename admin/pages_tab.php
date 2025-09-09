@@ -60,6 +60,18 @@
                     <div id="aboutSections"></div>
                 </div>
             </div>
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong>Leadership Groups</strong>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-success btn-sm" onclick="addLeadershipGroup()"><i class="bi bi-plus-lg"></i> Add Group</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="aboutLeadership"></div>
+                    <div class="form-text">Manage Board of Trustees, Officers, or other leadership sets. Each group lists members with optional roles.</div>
+                </div>
+            </div>
             <div class="ratio ratio-16x9 border rounded overflow-hidden bg-light">
                 <iframe id="aboutFrame" src="../about.php?edit=1" title="About Editor" style="width:100%; height:100%; border:0;"></iframe>
             </div>
@@ -75,7 +87,8 @@
             },
             about: {
                 dirty: false,
-                sections: []
+                sections: [],
+                leadership: [] // [{title, period, members:[{name,role}]}]
             }
         };
 
@@ -156,6 +169,149 @@
                     </div>
                 </div>
             </div>`;
+        }
+
+        // Leadership group card template
+        function leadershipGroupTpl(idx, g) {
+            const members = Array.isArray(g.members) ? g.members : [];
+            const esc = (v) => (v || '').replace(/"/g, '&quot;');
+            return `
+                        <div class="card mb-2 leadership-card" data-index="${idx}">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <strong>Group #${idx+1}</strong>
+                                    <div>
+                                        <button class="btn btn-sm btn-outline-secondary me-1" data-lg-move="up">↑</button>
+                                        <button class="btn btn-sm btn-outline-secondary me-1" data-lg-move="down">↓</button>
+                                        <button class="btn btn-sm btn-outline-secondary me-1" data-lg-dup>Duplicate</button>
+                                        <button class="btn btn-sm btn-outline-danger" data-lg-remove>Remove</button>
+                                    </div>
+                                </div>
+                                <div class="row g-3 mb-2">
+                                    <div class="col-md-6">
+                                        <label class="form-label mb-1">Title</label>
+                                        <input type="text" class="form-control form-control-sm" data-lg-field="title" value="${esc(g.title)}">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label mb-1">Period (optional)</label>
+                                        <input type="text" class="form-control form-control-sm" data-lg-field="period" value="${esc(g.period)}" placeholder="e.g. 2025–2026">
+                                    </div>
+                                </div>
+                                <div class="table-responsive mb-2">
+                                    <table class="table table-sm align-middle mb-0">
+                                        <thead class="table-light"><tr><th style="width:40%">Name</th><th style="width:40%">Role</th><th style="width:20%"></th></tr></thead>
+                                        <tbody>
+                                            ${members.map((m,i)=>`<tr data-m-index="${i}">
+                                                <td><input type="text" class="form-control form-control-sm" data-lg-m-field="name" value="${esc(m.name)}"></td>
+                                                <td><input type="text" class="form-control form-control-sm" data-lg-m-field="role" value="${esc(m.role)}"></td>
+                                                <td class="text-end">
+                                                    <div class="btn-group btn-group-sm">
+                                                        <button class="btn btn-outline-secondary" data-lg-m-dup title="Duplicate">⧉</button>
+                                                        <button class="btn btn-outline-danger" data-lg-m-remove title="Remove">✕</button>
+                                                    </div>
+                                                </td>
+                                            </tr>`).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <button class="btn btn-sm btn-outline-primary" data-lg-add-member><i class="bi bi-plus"></i> Add Member</button>
+                            </div>
+                        </div>`;
+        }
+
+        function renderLeadership() {
+            const container = document.getElementById('aboutLeadership');
+            if (!container) return;
+            const arr = state.about.leadership || [];
+            container.innerHTML = arr.map((g, i) => leadershipGroupTpl(i, g)).join('');
+            // Wire group actions
+            container.querySelectorAll('.leadership-card').forEach(card => {
+                const idx = parseInt(card.getAttribute('data-index'));
+                card.querySelectorAll('[data-lg-field]').forEach(inp => inp.addEventListener('input', e => {
+                    const field = e.target.getAttribute('data-lg-field');
+                    state.about.leadership[idx][field] = e.target.value;
+                    setDirty('about', true);
+                }));
+                card.querySelectorAll('[data-lg-m-field]').forEach(inp => inp.addEventListener('input', e => {
+                    const tr = e.target.closest('tr');
+                    const mi = parseInt(tr.getAttribute('data-m-index'));
+                    const field = e.target.getAttribute('data-lg-m-field');
+                    state.about.leadership[idx].members[mi][field] = e.target.value;
+                    setDirty('about', true);
+                }));
+                const up = card.querySelector('[data-lg-move="up"]');
+                const down = card.querySelector('[data-lg-move="down"]');
+                up && up.addEventListener('click', () => {
+                    if (idx > 0) {
+                        const arr = state.about.leadership;
+                        [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
+                        renderLeadership();
+                        setDirty('about', true);
+                    }
+                });
+                down && down.addEventListener('click', () => {
+                    const arr = state.about.leadership;
+                    if (idx < arr.length - 1) {
+                        [arr[idx + 1], arr[idx]] = [arr[idx], arr[idx + 1]];
+                        renderLeadership();
+                        setDirty('about', true);
+                    }
+                });
+                const dup = card.querySelector('[data-lg-dup]');
+                dup && dup.addEventListener('click', () => {
+                    const arr = state.about.leadership;
+                    const clone = JSON.parse(JSON.stringify(arr[idx]));
+                    arr.splice(idx + 1, 0, clone);
+                    renderLeadership();
+                    setDirty('about', true);
+                });
+                const rem = card.querySelector('[data-lg-remove]');
+                rem && rem.addEventListener('click', () => {
+                    if (confirm('Remove this group?')) {
+                        state.about.leadership.splice(idx, 1);
+                        renderLeadership();
+                        setDirty('about', true);
+                    }
+                });
+                const addMemberBtn = card.querySelector('[data-lg-add-member]');
+                addMemberBtn && addMemberBtn.addEventListener('click', () => {
+                    state.about.leadership[idx].members.push({
+                        name: 'New Member',
+                        role: ''
+                    });
+                    renderLeadership();
+                    setDirty('about', true);
+                });
+                card.querySelectorAll('[data-lg-m-dup]').forEach(b => b.addEventListener('click', e => {
+                    const tr = e.target.closest('tr');
+                    const mi = parseInt(tr.getAttribute('data-m-index'));
+                    const mems = state.about.leadership[idx].members;
+                    const clone = {
+                        ...mems[mi]
+                    };
+                    mems.splice(mi + 1, 0, clone);
+                    renderLeadership();
+                    setDirty('about', true);
+                }));
+                card.querySelectorAll('[data-lg-m-remove]').forEach(b => b.addEventListener('click', e => {
+                    const tr = e.target.closest('tr');
+                    const mi = parseInt(tr.getAttribute('data-m-index'));
+                    const mems = state.about.leadership[idx].members;
+                    mems.splice(mi, 1);
+                    renderLeadership();
+                    setDirty('about', true);
+                }));
+            });
+        }
+
+        function addLeadershipGroup() {
+            state.about.leadership.push({
+                title: '',
+                period: '',
+                members: []
+            });
+            setDirty('about', true);
+            renderLeadership();
         }
 
         function renderSections(page) {
@@ -239,6 +395,11 @@
                 const raw = j.data && j.data[key];
                 state[page].sections = Array.isArray(raw) ? raw : (raw ? JSON.parse(raw) : []);
                 renderSections(page);
+                if (page === 'about') {
+                    const lraw = j.data && j.data['about_leadership_json'];
+                    state.about.leadership = Array.isArray(lraw) ? lraw : (lraw ? JSON.parse(lraw) : []);
+                    renderLeadership();
+                }
             } catch (e) {
                 // ignore
             }
@@ -248,6 +409,9 @@
             const key = page + '_sections_json';
             const payload = {};
             payload[key] = JSON.stringify(state[page].sections || []);
+            if (page === 'about') {
+                payload['about_leadership_json'] = JSON.stringify(state.about.leadership || []);
+            }
             const fd = new FormData();
             fd.append('page', page);
             fd.append('data', JSON.stringify(payload));
