@@ -39,6 +39,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                                     <strong class="d-block mb-1">Status</strong>
                                     <div class="form-check"><input class="form-check-input" type="checkbox" value="active" id="f_status_active" data-filter-group="statuses"><label class="form-check-label" for="f_status_active">Active</label></div>
                                     <div class="form-check"><input class="form-check-input" type="checkbox" value="inactive" id="f_status_inactive" data-filter-group="statuses"><label class="form-check-label" for="f_status_inactive">Inactive</label></div>
+                                    <div class="form-check"><input class="form-check-input" type="checkbox" value="deceased" id="f_status_deceased" data-filter-group="statuses"><label class="form-check-label" for="f_status_deceased">Deceased</label></div>
                                 </div>
                                 <div class="col-6 col-lg-2">
                                     <strong class="d-block mb-1">Certification</strong>
@@ -232,7 +233,8 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                     <td data-order="${status.toLowerCase()}">
                         <select class="form-select form-select-sm" data-field="membership_status">
                             <option value="active" ${status==='active'?'selected':''}>Active</option>
-                            <option value="inactive" ${status!=='active'?'selected':''}>Inactive</option>
+                            <option value="inactive" ${status==='inactive'?'selected':''}>Inactive</option>
+                            <option value="deceased" ${status==='deceased'?'selected':''}>Deceased</option>
                         </select>
                     </td>
                     <td data-order="${cert.toLowerCase()}">
@@ -354,6 +356,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                             // Special exact matches for status & lifetime via term
                             if (term === 'active') return membershipStatus === 'active';
                             if (term === 'inactive') return membershipStatus === 'inactive';
+                            if (term === 'deceased') return membershipStatus === 'deceased';
                             if (term === 'yes') return lifetime === 'yes';
                             if (term === 'no') return lifetime === 'no';
                             const fields = [

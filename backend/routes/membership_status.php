@@ -196,7 +196,7 @@ try {
         $ok = $stmt->execute();
         $stmt->close();
 
-        if ($status === 'active' || $status === 'inactive') {
+        if (in_array($status, ['active', 'inactive', 'deceased'], true)) {
             // Ensure members row exists then update
             $conn->query("INSERT IGNORE INTO members (user_id, membership_status) VALUES ($user_id, 'inactive')");
             $stmt2 = $conn->prepare("UPDATE members SET membership_status = ? WHERE user_id = ?");
