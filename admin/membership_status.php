@@ -26,11 +26,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
         <div id="content" class="content p-4" style="width: 100%;">
             <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
                 <h3 class="mb-0 me-auto">Membership Status</h3>
-                <div class="input-group" style="max-width:320px;">
-                    <span class="input-group-text"><i class="bi bi-search"></i></span>
-                    <input type="text" id="searchAll" class="form-control" placeholder="Search any column..." aria-label="Search any column" />
-                </div>
-                <button id="refreshBtn" class="btn btn-outline-secondary">Refresh</button>
+                <button id="refreshBtn" class="btn btn-outline-secondary ms-auto">Refresh</button>
             </div>
             <div class="card">
                 <div class="card-body">
@@ -261,6 +257,8 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                     order: [],
                     autoWidth: false
                 });
+                // Attach to built-in search box (DataTables generates it after init)
+                attachBuiltInSearch(gridDT);
                 // Reapply search term after rebuild
                 if (globalSearchTerm) {
                     gridDT.draw();
@@ -286,16 +284,28 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
             loadGrid();
         });
 
-        // Global search (debounced)
-        const searchInput = document.getElementById('searchAll');
-        let searchTimer = null;
-        searchInput.addEventListener('input', () => {
-            clearTimeout(searchTimer);
-            searchTimer = setTimeout(() => {
-                globalSearchTerm = searchInput.value.trim().toLowerCase();
-                if (gridDT) gridDT.draw();
-            }, 300);
-        });
+        // Hook into DataTables native search input instead of custom bar
+        function attachBuiltInSearch(dt) {
+            try {
+                const container = dt.table().container();
+                const input = container.querySelector('div.dataTables_filter input');
+                if (!input) return; // not yet available
+                if (input.__msBound) return; // prevent duplicate binding
+                input.__msBound = true;
+                input.setAttribute('placeholder', 'Search any column...');
+                let t = null;
+                input.addEventListener('input', () => {
+                    clearTimeout(t);
+                    t = setTimeout(() => {
+                        globalSearchTerm = input.value.trim().toLowerCase();
+                        // Neutralize built-in search so only our custom filter applies
+                        dt.search('');
+                        dt.draw();
+                    }, 250);
+                });
+            } catch (e) {
+                /* silent */ }
+        }
 
         // When dues year changes, load status/amount for that year from the dues map
         body.addEventListener('change', (e) => {
