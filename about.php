@@ -888,7 +888,10 @@ if ($stmtM = $conn->prepare("SELECT u.first_name, u.last_name, COALESCE(mp.previ
                             $groupTitle = htmlspecialchars($grp['title'] ?? ('Group ' . ($i + 1)), ENT_QUOTES);
                             $period = htmlspecialchars($grp['period'] ?? '', ENT_QUOTES);
                             $entries = isset($grp['members']) && is_array($grp['members']) ? $grp['members'] : [];
-                            $colClass = ($leadershipCount <= 2) ? 'col-12 leadership-group' : 'col-sm-12 col-md-6 col-lg-4 leadership-group';
+                            // Layout: 1 card => full width; 2 or more => two per row (half width)
+                            $colClass = ($leadershipCount === 1)
+                                ? 'col-12 leadership-group'
+                                : 'col-12 col-md-6 leadership-group';
                         ?>
                             <div class="<?= $colClass ?>" data-index="<?= $i ?>">
                                 <div class="card h-100 shadow-sm position-relative">
@@ -967,7 +970,10 @@ if ($stmtM = $conn->prepare("SELECT u.first_name, u.last_name, COALESCE(mp.previ
                             $groupTitle = htmlspecialchars($grp['title'] ?? ('Committee ' . ($i + 1)), ENT_QUOTES);
                             $period = htmlspecialchars($grp['period'] ?? '', ENT_QUOTES);
                             $entries = isset($grp['members']) && is_array($grp['members']) ? $grp['members'] : [];
-                            $colClass = ($committeeCount <= 2) ? 'col-12 committee-group' : 'col-sm-12 col-md-6 col-lg-4 committee-group';
+                            // Layout: 1 card => full width; 2 or more => two per row (half width)
+                            $colClass = ($committeeCount === 1)
+                                ? 'col-12 committee-group'
+                                : 'col-12 col-md-6 committee-group';
                         ?>
                             <div class="<?= $colClass ?>" data-index="<?= $i ?>">
                                 <div class="card h-100 shadow-sm position-relative">
