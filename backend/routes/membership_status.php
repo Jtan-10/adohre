@@ -33,6 +33,8 @@ $conn->query("CREATE TABLE IF NOT EXISTS membership_profiles (
 // Ensure new columns for previous office and lifetime member exist
 @$conn->query("ALTER TABLE membership_profiles ADD COLUMN IF NOT EXISTS previous_office VARCHAR(255) NULL");
 @$conn->query("ALTER TABLE membership_profiles ADD COLUMN IF NOT EXISTS is_lifetime TINYINT(1) NOT NULL DEFAULT 0");
+// Ensure mortality_status column exists in members table (Alive/Deceased)
+@$conn->query("ALTER TABLE members ADD COLUMN IF NOT EXISTS mortality_status ENUM('Alive','Deceased') NOT NULL DEFAULT 'Alive'");
 
 $conn->query("CREATE TABLE IF NOT EXISTS membership_dues (
     user_id INT(11) NOT NULL,
@@ -70,7 +72,8 @@ try {
     if ($action === 'list') {
         ensureAdmin();
         $sql = "SELECT u.user_id, u.first_name, u.last_name, COALESCE(m.membership_status, 'inactive') AS membership_status,
-               mp.year_of_membership, mp.age_upon_membership, mp.certification, mp.membership_fee, mp.previous_office, mp.is_lifetime
+           COALESCE(m.mortality_status,'Alive') AS mortality_status,
+           mp.year_of_membership, mp.age_upon_membership, mp.certification, mp.membership_fee, mp.previous_office, mp.is_lifetime
                 FROM users u
                 LEFT JOIN members m ON m.user_id = u.user_id
                 LEFT JOIN membership_profiles mp ON mp.user_id = u.user_id
@@ -94,7 +97,8 @@ try {
             $years[] = $y;
         }
         $sql = "SELECT u.user_id, u.first_name, u.last_name, COALESCE(m.membership_status, 'inactive') AS membership_status,
-               mp.year_of_membership, mp.age_upon_membership, mp.certification, mp.membership_fee, mp.previous_office, mp.is_lifetime
+           COALESCE(m.mortality_status,'Alive') AS mortality_status,
+           mp.year_of_membership, mp.age_upon_membership, mp.certification, mp.membership_fee, mp.previous_office, mp.is_lifetime
                 FROM users u
                 LEFT JOIN members m ON m.user_id = u.user_id
                 LEFT JOIN membership_profiles mp ON mp.user_id = u.user_id
@@ -139,7 +143,8 @@ try {
         }
         // Profile
         $stmt = $conn->prepare("SELECT u.user_id, u.first_name, u.last_name, COALESCE(m.membership_status,'inactive') AS membership_status,
-                    mp.year_of_membership, mp.age_upon_membership, mp.certification, mp.membership_fee, mp.previous_office, mp.is_lifetime
+            COALESCE(m.mortality_status,'Alive') AS mortality_status,
+            mp.year_of_membership, mp.age_upon_membership, mp.certification, mp.membership_fee, mp.previous_office, mp.is_lifetime
                                  FROM users u
                                  LEFT JOIN members m ON m.user_id = u.user_id
                                  LEFT JOIN membership_profiles mp ON mp.user_id = u.user_id
@@ -183,6 +188,7 @@ try {
         $prevOffice = $_POST['previous_office'] ?? null;
         $isLifetime = isset($_POST['is_lifetime']) ? (intval($_POST['is_lifetime']) ? 1 : 0) : 0;
         $status = $_POST['membership_status'] ?? null; // optional, updates members table
+        $mortality = $_POST['mortality_status'] ?? null; // optional, updates members.mortality_status
         if (!$user_id) {
             echo json_encode(['status' => false, 'message' => 'Missing user_id']);
             exit;
@@ -203,6 +209,14 @@ try {
             $stmt2->bind_param('si', $status, $user_id);
             $stmt2->execute();
             $stmt2->close();
+        }
+
+        if (in_array($mortality, ['Alive', 'Deceased'], true)) {
+            $conn->query("INSERT IGNORE INTO members (user_id, membership_status, mortality_status) VALUES ($user_id, 'inactive', 'Alive')");
+            $stmt3 = $conn->prepare("UPDATE members SET mortality_status = ? WHERE user_id = ?");
+            $stmt3->bind_param('si', $mortality, $user_id);
+            $stmt3->execute();
+            $stmt3->close();
         }
 
         echo json_encode(['status' => (bool)$ok]);

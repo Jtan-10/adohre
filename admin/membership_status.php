@@ -39,7 +39,11 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                                     <strong class="d-block mb-1">Status</strong>
                                     <div class="form-check"><input class="form-check-input" type="checkbox" value="active" id="f_status_active" data-filter-group="statuses"><label class="form-check-label" for="f_status_active">Active</label></div>
                                     <div class="form-check"><input class="form-check-input" type="checkbox" value="inactive" id="f_status_inactive" data-filter-group="statuses"><label class="form-check-label" for="f_status_inactive">Inactive</label></div>
-                                    <div class="form-check"><input class="form-check-input" type="checkbox" value="deceased" id="f_status_deceased" data-filter-group="statuses"><label class="form-check-label" for="f_status_deceased">Deceased</label></div>
+                                </div>
+                                <div class="col-6 col-lg-2">
+                                    <strong class="d-block mb-1">Mortality</strong>
+                                    <div class="form-check"><input class="form-check-input" type="checkbox" value="alive" id="f_mort_alive" data-filter-group="mortality"><label class="form-check-label" for="f_mort_alive">Alive</label></div>
+                                    <div class="form-check"><input class="form-check-input" type="checkbox" value="deceased" id="f_mort_deceased" data-filter-group="mortality"><label class="form-check-label" for="f_mort_deceased">Deceased</label></div>
                                 </div>
                                 <div class="col-6 col-lg-2">
                                     <strong class="d-block mb-1">Certification</strong>
@@ -132,7 +136,8 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
             lifetime: new Set(), // yes/no
             fee: new Set(), // paid/pending/unpaid/canceled
             dues: new Set(), // paid/unpaid/waived
-            years: new Set() // numeric years as string
+            years: new Set(), // numeric years as string
+            mortality: new Set() // alive/deceased
         };
 
         const filterPanel = () => document.getElementById('filterPanel');
@@ -190,6 +195,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                 'Year of Membership',
                 'Age upon Membership',
                 'Membership Status',
+                'Mortality Status',
                 'Membership Certification',
                 'Previous Office',
                 'Lifetime Member',
@@ -213,6 +219,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                 const nameSort = name.toLowerCase();
                 const cert = m.certification || 'Regular';
                 const status = m.membership_status || 'inactive';
+                const mortality = m.mortality_status || 'Alive';
                 const year = m.year_of_membership || '';
                 const age = m.age_upon_membership || '';
                 const prevOffice = m.previous_office || '';
@@ -234,7 +241,12 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                         <select class="form-select form-select-sm" data-field="membership_status">
                             <option value="active" ${status==='active'?'selected':''}>Active</option>
                             <option value="inactive" ${status==='inactive'?'selected':''}>Inactive</option>
-                            <option value="deceased" ${status==='deceased'?'selected':''}>Deceased</option>
+                        </select>
+                    </td>
+                    <td data-order="${mortality.toLowerCase()}">
+                        <select class="form-select form-select-sm" data-field="mortality_status">
+                            <option value="Alive" ${mortality==='Alive'?'selected':''}>Alive</option>
+                            <option value="Deceased" ${mortality==='Deceased'?'selected':''}>Deceased</option>
                         </select>
                     </td>
                     <td data-order="${cert.toLowerCase()}">
@@ -330,6 +342,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                                 return (el.value || el.textContent || '').trim();
                             };
                             const membershipStatus = pick('[data-field="membership_status"]').toLowerCase();
+                            const mortality = pick('[data-field="mortality_status"]').toLowerCase();
                             const lifetime = pick('[data-field="is_lifetime"]').toLowerCase();
                             const certification = pick('[data-field="certification"]').toLowerCase();
                             const yearVal = pick('[data-field="year_of_membership"]').toLowerCase();
@@ -341,6 +354,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
 
                             // Apply checklist filters (AND logic) first
                             if (filterState.statuses.size && !filterState.statuses.has(membershipStatus)) return false;
+                            if (filterState.mortality.size && !filterState.mortality.has(mortality)) return false;
                             if (filterState.certifications.size && !filterState.certifications.has(certification)) return false;
                             if (filterState.lifetime.size && !filterState.lifetime.has(lifetime)) return false;
                             if (filterState.fee.size && !filterState.fee.has(feeStatus)) return false;
@@ -356,7 +370,8 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                             // Special exact matches for status & lifetime via term
                             if (term === 'active') return membershipStatus === 'active';
                             if (term === 'inactive') return membershipStatus === 'inactive';
-                            if (term === 'deceased') return membershipStatus === 'deceased';
+                            if (term === 'deceased') return mortality === 'deceased';
+                            if (term === 'alive') return mortality === 'alive';
                             if (term === 'yes') return lifetime === 'yes';
                             if (term === 'no') return lifetime === 'no';
                             const fields = [
@@ -364,6 +379,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
                                 pick('[data-field="year_of_membership"]'),
                                 pick('[data-field="age_upon_membership"]'),
                                 membershipStatus,
+                                mortality,
                                 pick('[data-field="certification"]'),
                                 pick('[data-field="previous_office"]'),
                                 lifetime,
@@ -475,8 +491,9 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
         // Keep data-order synced for status and certification selects
         body.addEventListener('change', (e) => {
             const st = e.target.closest('select[data-field="membership_status"]');
+            const mortSel = e.target.closest('select[data-field="mortality_status"]');
             const certSel = e.target.closest('select[data-field="certification"]');
-            if (!st && !certSel) return;
+            if (!st && !certSel && !mortSel) return;
             const td = e.target.closest('td');
             if (td) td.setAttribute('data-order', (e.target.value || '').toLowerCase());
         });
@@ -495,6 +512,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
             fdProfile.append('year_of_membership', get('year_of_membership')?.value || '');
             fdProfile.append('age_upon_membership', get('age_upon_membership')?.value || '');
             fdProfile.append('membership_status', get('membership_status')?.value || 'inactive');
+            fdProfile.append('mortality_status', get('mortality_status')?.value || 'Alive');
             fdProfile.append('certification', get('certification')?.value || 'Regular');
             fdProfile.append('previous_office', get('previous_office')?.value || '');
             fdProfile.append('is_lifetime', get('is_lifetime')?.value || '0');
