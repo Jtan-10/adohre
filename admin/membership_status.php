@@ -575,12 +575,12 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
             if (td) td.setAttribute('data-order', (sel.value || '').toLowerCase());
         });
 
-        // Send notices
+        // Send notices and apply manual fee status
         body.addEventListener('click', async (e) => {
             const btnFee = e.target.closest('[data-action="notice_fee"]');
             const btnDues = e.target.closest('[data-action="notice_dues"]');
             const btnFeeApply = e.target.closest('[data-action="fee_manual_apply"]');
-            if (!btnFee && !btnDues) return;
+            if (!btnFee && !btnDues && !btnFeeApply) return;
             e.preventDefault();
             const tr = e.target.closest('tr');
             const userId = parseInt(tr.getAttribute('data-user-id'), 10);
