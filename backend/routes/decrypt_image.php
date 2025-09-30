@@ -25,6 +25,9 @@ if (!$imageUrl) {
 $imageUrl = preg_replace('#(?<!:)//+#', '/', $imageUrl);
 error_log("decrypt_image.php called with URL: " . $imageUrl);
 
+// Track S3 key if determinable for private-bucket access via SDK
+$detectedS3Key = null;
+
 // Handle URLs with /s3proxy/ anywhere in the path by converting to the real S3 URL
 if (strpos($imageUrl, '/s3proxy/') !== false) {
     // Determine S3 base URL from environment (prefer an override if provided)
@@ -43,6 +46,7 @@ if (strpos($imageUrl, '/s3proxy/') !== false) {
         $baseUrl = "https://{$bucket}.s3." . $region . ".amazonaws.com/";
     }
     $imageUrl = $baseUrl . $s3Key;
+    $detectedS3Key = $s3Key ?: null;
     error_log("S3 proxy mapped to S3 URL: $imageUrl");
 }
 // Normalize to absolute URL without hardcoding project folder
@@ -60,8 +64,73 @@ else {
     }
 }
 
-// Download the encrypted PNG data.
-$encryptedPngData = @file_get_contents($imageUrl);
+// Try to fetch via S3 SDK first if this looks like an S3 URL (supports private buckets)
+$encryptedPngData = null;
+try {
+    // Use envs to determine bucket/base for key derivation
+    $bucket = $_ENV['AWS_BUCKET_NAME'] ?? getenv('AWS_BUCKET_NAME') ?? '';
+    $region = $_ENV['AWS_REGION'] ?? getenv('AWS_REGION') ?? '';
+    $customBase = $_ENV['AWS_S3_BASE_URL'] ?? getenv('AWS_S3_BASE_URL') ?? '';
+
+    // If key not already detected via /s3proxy/, attempt to derive from URL
+    if ($detectedS3Key === null && !empty($bucket)) {
+        $u = @parse_url($imageUrl);
+        $host = $u['host'] ?? '';
+        $path = isset($u['path']) ? ltrim($u['path'], '/') : '';
+
+        // Virtual-hosted-style: bucket.s3.region.amazonaws.com/key
+        $expectedHost = $bucket && $region ? ($bucket . '.s3.' . $region . '.amazonaws.com') : '';
+        if ($expectedHost && strcasecmp($host, $expectedHost) === 0) {
+            $detectedS3Key = $path;
+        }
+        // Path-style: s3.region.amazonaws.com/bucket/key or s3.amazonaws.com/bucket/key
+        elseif (preg_match('/^s3[.-][a-z0-9-]+\.amazonaws\.com$/i', $host) || strcasecmp($host, 's3.amazonaws.com') === 0) {
+            $parts = explode('/', $path, 2);
+            if (!empty($parts[0]) && strcasecmp($parts[0], $bucket) === 0) {
+                $detectedS3Key = $parts[1] ?? '';
+            }
+        }
+        // Custom base (e.g., CloudFront or alternate domain). Derive key by removing base path.
+        elseif (!empty($customBase)) {
+            $cb = @parse_url(rtrim($customBase, '/') . '/');
+            $cbHost = $cb['host'] ?? '';
+            $cbPath = isset($cb['path']) ? trim($cb['path'], '/') : '';
+            if ($cbHost && strcasecmp($host, $cbHost) === 0) {
+                if ($cbPath && stripos($path, $cbPath . '/') === 0) {
+                    $detectedS3Key = substr($path, strlen($cbPath) + 1);
+                } else {
+                    $detectedS3Key = $path; // assume 1:1 path mapping
+                }
+            }
+        }
+    }
+
+    // If we have an S3 key and bucket, try authenticated getObject
+    if (!empty($bucket) && !empty($detectedS3Key)) {
+        // s3config.php defines $s3 client and $bucketName
+        require_once __DIR__ . '/../s3config.php';
+        if (isset($s3) && isset($bucketName) && strcasecmp($bucketName, $bucket) === 0) {
+            $result = $s3->getObject([
+                'Bucket' => $bucketName,
+                'Key'    => $detectedS3Key,
+            ]);
+            if (isset($result['Body'])) {
+                // Body is a GuzzleHttp\Psr7\StreamInterface
+                $encryptedPngData = (string) $result['Body'];
+                error_log('decrypt_image: fetched object via S3 SDK');
+            }
+        }
+    }
+} catch (Throwable $e) {
+    // Swallow and fall back to HTTP
+    error_log('decrypt_image S3 SDK fallback due to: ' . $e->getMessage());
+}
+
+// If not retrieved via SDK, try direct HTTP(S)
+if ($encryptedPngData === null) {
+    // Download the encrypted PNG data.
+    $encryptedPngData = @file_get_contents($imageUrl);
+}
 if ($encryptedPngData === false) {
     // Fallback to cURL in case allow_url_fopen is disabled or other failures
     $ch = curl_init();
