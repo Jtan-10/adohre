@@ -652,7 +652,7 @@ error_reporting(0);
 
             // Collage renderer + improved lightbox
             function renderStacked(imgs) {
-                const proxied = imgs.map(u => '/capstone-php/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(u));
+                const proxied = imgs.map(u => '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(u));
                 if (proxied.length === 0) {
                     return `<img src="assets/default-event.jpg" class="w-100 rounded" style="height:220px;object-fit:cover;">`;
                 }

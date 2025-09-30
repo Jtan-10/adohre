@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", function() {
   const newsList = document.getElementById('newsList');
-  const baseUrl = window.location.origin + '/capstone-php';
+  const baseUrl = window.location.origin;
 
   // Fetch and render news
   fetch(baseUrl + '/backend/routes/news_manager.php?action=fetch')

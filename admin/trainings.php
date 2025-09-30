@@ -21,37 +21,37 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
     <style>
-    .form-section {
-        margin: 20px 0;
-        padding: 15px;
-        border: 1px solid #ddd;
-        border-radius: 10px;
-        background: #f9f9f9;
-    }
+        .form-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            background: #f9f9f9;
+        }
 
-    .content-item {
-        border: 1px solid #ddd;
-        border-radius: 5px;
-        padding: 10px;
-        margin-bottom: 10px;
-        background: #fff;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
+        .content-item {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
 
-    .content-item div {
-        margin-right: 10px;
-    }
+        .content-item div {
+            margin-right: 10px;
+        }
 
-    .trainer-group {
-        margin-bottom: 30px;
-    }
+        .trainer-group {
+            margin-bottom: 30px;
+        }
 
-    .training-image {
-        max-height: 100px;
-        margin-right: 10px;
-    }
+        .training-image {
+            max-height: 100px;
+            margin-right: 10px;
+        }
     </style>
 </head>
 
@@ -129,76 +129,76 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Added nonce attribute (using the $cspNonce from admin_header.php) to the inline script -->
     <script nonce="<?= $cspNonce ?>">
-    document.addEventListener('DOMContentLoaded', function() {
-        // Fetch and display trainings grouped by trainer and by upcoming/past
-        fetchTrainings();
+        document.addEventListener('DOMContentLoaded', function() {
+            // Fetch and display trainings grouped by trainer and by upcoming/past
+            fetchTrainings();
 
-        // Handle form submission for creating/updating training
-        document.getElementById('trainingForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const formData = new FormData(this);
-            const trainingId = document.getElementById('trainingId').value;
-            const action = trainingId ? 'update_training' : 'add_training';
-            formData.append('action', action);
+            // Handle form submission for creating/updating training
+            document.getElementById('trainingForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                const trainingId = document.getElementById('trainingId').value;
+                const action = trainingId ? 'update_training' : 'add_training';
+                formData.append('action', action);
 
-            fetch('../backend/routes/content_manager.php', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.text())
-                .then(text => {
-                    console.log("Raw response:", text);
-                    let data;
-                    try {
-                        data = JSON.parse(text);
-                    } catch (e) {
-                        console.error("JSON parsing error:", e);
-                        alert("Failed to parse server response: " + text);
-                        return;
-                    }
-                    if (data.status) {
-                        alert(data.message);
-                        document.getElementById('trainingForm').reset();
-                        document.getElementById('trainingId').value = '';
-                        fetchTrainings();
-                    } else {
-                        alert('Error: ' + data.message);
-                    }
-                })
-                .catch(err => {
-                    console.error(err);
-                    alert('Failed to connect to the server.');
-                });
-        });
+                fetch('../backend/routes/content_manager.php', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.text())
+                    .then(text => {
+                        console.log("Raw response:", text);
+                        let data;
+                        try {
+                            data = JSON.parse(text);
+                        } catch (e) {
+                            console.error("JSON parsing error:", e);
+                            alert("Failed to parse server response: " + text);
+                            return;
+                        }
+                        if (data.status) {
+                            alert(data.message);
+                            document.getElementById('trainingForm').reset();
+                            document.getElementById('trainingId').value = '';
+                            fetchTrainings();
+                        } else {
+                            alert('Error: ' + data.message);
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        alert('Failed to connect to the server.');
+                    });
+            });
 
-        // Fetch trainings from the backend and group by trainer.
-        function fetchTrainings() {
-            fetch('../backend/routes/content_manager.php?action=fetch')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status) {
-                        // Group trainings by creator (trainer)
-                        let grouped = {};
-                        data.trainings.forEach(training => {
-                            let trainerId = training.created_by;
-                            let trainerName = (training.first_name || 'Unknown') + ' ' + (training
-                                .last_name || '');
-                            if (!grouped[trainerId]) {
-                                grouped[trainerId] = {
-                                    trainerName: trainerName,
-                                    trainings: []
-                                };
-                            }
-                            grouped[trainerId].trainings.push(training);
-                        });
+            // Fetch trainings from the backend and group by trainer.
+            function fetchTrainings() {
+                fetch('../backend/routes/content_manager.php?action=fetch')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status) {
+                            // Group trainings by creator (trainer)
+                            let grouped = {};
+                            data.trainings.forEach(training => {
+                                let trainerId = training.created_by;
+                                let trainerName = (training.first_name || 'Unknown') + ' ' + (training
+                                    .last_name || '');
+                                if (!grouped[trainerId]) {
+                                    grouped[trainerId] = {
+                                        trainerName: trainerName,
+                                        trainings: []
+                                    };
+                                }
+                                grouped[trainerId].trainings.push(training);
+                            });
 
-                        // Build the trainer tabs and tab panes
-                        let trainerTabsHtml = '';
-                        let trainerTabsContentHtml = '';
-                        let first = true;
-                        for (let trainerId in grouped) {
-                            // Create a tab for each trainer
-                            trainerTabsHtml += `
+                            // Build the trainer tabs and tab panes
+                            let trainerTabsHtml = '';
+                            let trainerTabsContentHtml = '';
+                            let first = true;
+                            for (let trainerId in grouped) {
+                                // Create a tab for each trainer
+                                trainerTabsHtml += `
                                 <li class="nav-item" role="presentation">
                                     <button class="nav-link ${first ? 'active' : ''}" id="trainer-${trainerId}-tab" data-bs-toggle="tab" data-bs-target="#trainer-${trainerId}" type="button" role="tab">
                                         ${grouped[trainerId].trainerName}
@@ -206,15 +206,15 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
                                 </li>
                             `;
 
-                            // Within each trainer tab pane, split trainings into upcoming and past
-                            let now = new Date();
-                            let upcomingTrainings = grouped[trainerId].trainings.filter(t => new Date(t
-                                .schedule) >= now);
-                            let pastTrainings = grouped[trainerId].trainings.filter(t => new Date(t
-                                .schedule) < now);
+                                // Within each trainer tab pane, split trainings into upcoming and past
+                                let now = new Date();
+                                let upcomingTrainings = grouped[trainerId].trainings.filter(t => new Date(t
+                                    .schedule) >= now);
+                                let pastTrainings = grouped[trainerId].trainings.filter(t => new Date(t
+                                    .schedule) < now);
 
-                            // Create sub-tabs for upcoming and past trainings
-                            let subTabs = `
+                                // Create sub-tabs for upcoming and past trainings
+                                let subTabs = `
                                 <ul class="nav nav-tabs" id="subTabs-${trainerId}" role="tablist">
                                     <li class="nav-item" role="presentation">
                                         <button class="nav-link active" id="upcoming-${trainerId}-tab" data-bs-toggle="tab" data-bs-target="#upcoming-${trainerId}" type="button" role="tab">
@@ -229,12 +229,12 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
                                 </ul>
                             `;
 
-                            // Build upcoming trainings HTML for this trainer
-                            let upcomingHtml = upcomingTrainings.map(training => `
+                                // Build upcoming trainings HTML for this trainer
+                                let upcomingHtml = upcomingTrainings.map(training => `
                                 <div class="card mb-3">
                                     <div class="row g-0">
                                         <div class="col-md-4">
-                                            <img src="../backend/routes/decrypt_image.php?image_url=${ encodeURIComponent(training.image || '/capstone-php/assets/default-training.jpeg') }" class="card-img-top" alt="Training image">
+                                            <img src="../backend/routes/decrypt_image.php?image_url=${ encodeURIComponent(training.image || '/assets/default-training.jpeg') }" class="card-img-top" alt="Training image">
                                         </div>
                                         <div class="col-md-8">
                                             <div class="card-body">
@@ -254,12 +254,12 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
                                 </div>
                             `).join('');
 
-                            // Build past trainings HTML for this trainer
-                            let pastHtml = pastTrainings.map(training => `
+                                // Build past trainings HTML for this trainer
+                                let pastHtml = pastTrainings.map(training => `
                                 <div class="card mb-3">
                                     <div class="row g-0">
                                         <div class="col-md-4">
-                                            <img src="../backend/routes/decrypt_image.php?image_url=${ encodeURIComponent(training.image || '/capstone-php/assets/default-training.jpeg') }" class="card-img-top" alt="Training image">
+                                            <img src="../backend/routes/decrypt_image.php?image_url=${ encodeURIComponent(training.image || '/assets/default-training.jpeg') }" class="card-img-top" alt="Training image">
                                         </div>
                                         <div class="col-md-8">
                                             <div class="card-body">
@@ -279,8 +279,8 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
                                 </div>
                             `).join('');
 
-                            // Create the tab pane for this trainer with sub-tabs content
-                            trainerTabsContentHtml += `
+                                // Create the tab pane for this trainer with sub-tabs content
+                                trainerTabsContentHtml += `
                                 <div class="tab-pane fade ${first ? 'show active' : ''}" id="trainer-${trainerId}" role="tabpanel">
                                     ${subTabs}
                                     <div class="tab-content mt-3">
@@ -293,87 +293,87 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
                                     </div>
                                 </div>
                             `;
-                            first = false;
+                                first = false;
+                            }
+
+                            // Inject the trainer tabs and content into the page
+                            document.getElementById('trainerTabs').innerHTML = trainerTabsHtml;
+                            document.getElementById('trainerTabsContent').innerHTML = trainerTabsContentHtml;
+
+                            // Attach Edit and Delete Training Handlers
+                            document.querySelectorAll('.edit-training').forEach(btn => {
+                                btn.addEventListener('click', function() {
+                                    let id = this.getAttribute('data-id');
+                                    editTraining(id);
+                                });
+                            });
+                            document.querySelectorAll('.delete-training').forEach(btn => {
+                                btn.addEventListener('click', function() {
+                                    let id = this.getAttribute('data-id');
+                                    deleteTraining(id);
+                                });
+                            });
                         }
-
-                        // Inject the trainer tabs and content into the page
-                        document.getElementById('trainerTabs').innerHTML = trainerTabsHtml;
-                        document.getElementById('trainerTabsContent').innerHTML = trainerTabsContentHtml;
-
-                        // Attach Edit and Delete Training Handlers
-                        document.querySelectorAll('.edit-training').forEach(btn => {
-                            btn.addEventListener('click', function() {
-                                let id = this.getAttribute('data-id');
-                                editTraining(id);
-                            });
-                        });
-                        document.querySelectorAll('.delete-training').forEach(btn => {
-                            btn.addEventListener('click', function() {
-                                let id = this.getAttribute('data-id');
-                                deleteTraining(id);
-                            });
-                        });
-                    }
-                })
-                .catch(err => console.error(err));
-        }
-
-        // Load training data into the form for editing.
-        function editTraining(id) {
-            fetch(`../backend/routes/content_manager.php?action=get_training&id=${id}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status) {
-                        let training = data.training;
-                        document.getElementById('trainingId').value = training.training_id;
-                        document.getElementById('trainingTitle').value = training.title;
-                        document.getElementById('trainingDescription').value = training.description;
-                        // Convert schedule to datetime-local format (replace space with 'T')
-                        document.getElementById('trainingSchedule').value = training.schedule.replace(' ',
-                            'T');
-                        document.getElementById('trainingCapacity').value = training.capacity;
-                        document.getElementById('trainingModality').value = training.modality || '';
-                        document.getElementById('trainingModalityDetails').value = training
-                            .modality_details || '';
-                        document.getElementById('trainingFee').value = training.fee || '0.00';
-
-                        // Scroll smoothly to the manage training form
-                        document.getElementById('manageTrainingSection').scrollIntoView({
-                            behavior: 'smooth'
-                        });
-                    } else {
-                        alert('Error fetching training details.');
-                    }
-                })
-                .catch(err => console.error(err));
-        }
-
-        // Delete Training function
-        function deleteTraining(id) {
-            if (confirm('Are you sure you want to delete this training?')) {
-                const formData = new FormData();
-                formData.append('action', 'delete_training');
-                formData.append('id', id);
-                fetch('../backend/routes/content_manager.php', {
-                        method: 'POST',
-                        body: formData
                     })
+                    .catch(err => console.error(err));
+            }
+
+            // Load training data into the form for editing.
+            function editTraining(id) {
+                fetch(`../backend/routes/content_manager.php?action=get_training&id=${id}`)
                     .then(response => response.json())
                     .then(data => {
                         if (data.status) {
-                            alert(data.message);
-                            fetchTrainings();
+                            let training = data.training;
+                            document.getElementById('trainingId').value = training.training_id;
+                            document.getElementById('trainingTitle').value = training.title;
+                            document.getElementById('trainingDescription').value = training.description;
+                            // Convert schedule to datetime-local format (replace space with 'T')
+                            document.getElementById('trainingSchedule').value = training.schedule.replace(' ',
+                                'T');
+                            document.getElementById('trainingCapacity').value = training.capacity;
+                            document.getElementById('trainingModality').value = training.modality || '';
+                            document.getElementById('trainingModalityDetails').value = training
+                                .modality_details || '';
+                            document.getElementById('trainingFee').value = training.fee || '0.00';
+
+                            // Scroll smoothly to the manage training form
+                            document.getElementById('manageTrainingSection').scrollIntoView({
+                                behavior: 'smooth'
+                            });
                         } else {
-                            alert('Error: ' + data.message);
+                            alert('Error fetching training details.');
                         }
                     })
-                    .catch(err => {
-                        console.error(err);
-                        alert('Failed to connect to the server.');
-                    });
+                    .catch(err => console.error(err));
             }
-        }
-    });
+
+            // Delete Training function
+            function deleteTraining(id) {
+                if (confirm('Are you sure you want to delete this training?')) {
+                    const formData = new FormData();
+                    formData.append('action', 'delete_training');
+                    formData.append('id', id);
+                    fetch('../backend/routes/content_manager.php', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status) {
+                                alert(data.message);
+                                fetchTrainings();
+                            } else {
+                                alert('Error: ' + data.message);
+                            }
+                        })
+                        .catch(err => {
+                            console.error(err);
+                            alert('Failed to connect to the server.');
+                        });
+                }
+            }
+        });
     </script>
 </body>
 

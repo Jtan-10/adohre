@@ -13,7 +13,7 @@ require_once '../../backend/db/db_connect.php';
 
 // Allow both trainers and admins to access
 if (!isset($_SESSION['role']) || ($_SESSION['role'] !== 'trainer' && $_SESSION['role'] !== 'admin')) {
-    header('Location: /capstone-php/index.php');
+    header('Location: /index.php');
     exit();
 }
 

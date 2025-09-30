@@ -71,7 +71,7 @@ if ($stmt) {
 <!-- Use navbar-dark so that text/icon colors are white by default -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-success">
     <div class="container">
-        <a class="navbar-brand" href="index.php">
+        <a class="navbar-brand" href="/">
             <?php if (strpos($headerLogo, 's3proxy') !== false || strpos($headerLogo, 'amazonaws.com') !== false): ?>
                 <!-- For S3 images that need decryption -->
                 <img src="backend/routes/decrypt_image.php?image_url=<?= urlencode($headerLogo) ?>"
@@ -106,9 +106,9 @@ if ($stmt) {
         <!-- Collapsible nav links -->
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-                <li class="nav-item"><a class="nav-link" href="index.php">Home</a></li>
-                <li class="nav-item"><a class="nav-link" href="about.php">About Us</a></li>
-                <li class="nav-item"><a class="nav-link" href="news.php">News</a></li>
+                <li class="nav-item"><a class="nav-link" href="/">Home</a></li>
+                <li class="nav-item"><a class="nav-link" href="/about">About Us</a></li>
+                <li class="nav-item"><a class="nav-link" href="/news">News</a></li>
 
                 <!-- Grouped: Programs -->
                 <?php if ($isLoggedIn): ?>
@@ -116,12 +116,12 @@ if ($stmt) {
                         <a class="nav-link dropdown-toggle" href="#" id="programsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">Programs</a>
                         <ul class="dropdown-menu" aria-labelledby="programsDropdown">
                             <?php if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'user'): ?>
-                                <li><a class="dropdown-item" href="projects.php">Projects</a></li>
+                                <li><a class="dropdown-item" href="/projects">Projects</a></li>
                             <?php endif; ?>
                             <?php if (isset($_SESSION['role']) && $_SESSION['role'] !== 'user'): ?>
-                                <li><a class="dropdown-item" href="events.php">Events</a></li>
+                                <li><a class="dropdown-item" href="/events">Events</a></li>
                             <?php endif; ?>
-                            <li><a class="dropdown-item" href="trainings.php">Trainings</a></li>
+                            <li><a class="dropdown-item" href="/trainings">Trainings</a></li>
                         </ul>
                     </li>
                 <?php endif; ?>
@@ -131,9 +131,9 @@ if ($stmt) {
                     <a class="nav-link dropdown-toggle" href="#" id="resourcesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">Resources</a>
                     <ul class="dropdown-menu" aria-labelledby="resourcesDropdown">
                         <?php if ($isLoggedIn && isset($_SESSION['role']) && in_array($_SESSION['role'], ['member', 'admin'], true)): ?>
-                            <li><a class="dropdown-item" href="documents.php">Documents</a></li>
+                            <li><a class="dropdown-item" href="/documents">Documents</a></li>
                         <?php endif; ?>
-                        <li><a class="dropdown-item" href="faqs.php">FAQs</a></li>
+                        <li><a class="dropdown-item" href="/faqs">FAQs</a></li>
                     </ul>
                 </li>
                 <?php if ($isLoggedIn): ?>
@@ -146,19 +146,19 @@ if ($stmt) {
                                 alt="Profile Image" class="profile-image-header rounded-circle" width="30" height="30">
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
-                            <li><a class="dropdown-item" href="profile.php">Profile</a></li>
+                            <li><a class="dropdown-item" href="/profile">Profile</a></li>
                             <?php if ($_SESSION['role'] === 'admin'): ?>
-                                <li><a class="dropdown-item" href="admin/dashboard.php">Admin Dashboard</a></li>
+                                <li><a class="dropdown-item" href="/admin/dashboard">Admin Dashboard</a></li>
                             <?php endif; ?>
                             <?php if ($_SESSION['role'] === 'trainer'): ?>
-                                <li><a class="dropdown-item" href="admin/trainer/dashboard.php">Trainer Dashboard</a></li>
+                                <li><a class="dropdown-item" href="/admin/trainer/dashboard">Trainer Dashboard</a></li>
                             <?php endif; ?>
-                            <li><a class="dropdown-item" href="logout.php">Logout</a></li>
+                            <li><a class="dropdown-item" href="/logout">Logout</a></li>
                         </ul>
                     </li>
                 <?php else: ?>
-                    <li class="nav-item mt-1"><a href="login.php" class="btn btn-light btn-sm">Login</a></li>
-                    <li class="nav-item mt-1"><a href="signup.php" class="btn btn-light btn-sm">Sign Up</a></li>
+                    <li class="nav-item mt-1"><a href="/login" class="btn btn-light btn-sm">Login</a></li>
+                    <li class="nav-item mt-1"><a href="/signup" class="btn btn-light btn-sm">Sign Up</a></li>
                 <?php endif; ?>
             </ul>
         </div>

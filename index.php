@@ -887,6 +887,7 @@ if ($isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'member') {
                                         <div class="col-md-6 col-lg-4">
                                             <div class="card preview-card h-100">
                                                 <img src="${'backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(e.image || '/capstone-php/assets/default-image.jpg')}" class="card-img-top" alt="${(e.title||'Event')}">
+                                                    <img src="${'backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(e.image || '/assets/default-image.jpg') }" class="card-img-top" alt="${(e.title||'Event')}">
                                                 <div class="card-body">
                                                     <h5 class="card-title mb-1">${e.title || ''}</h5>
                                                     <small class="text-muted d-block mb-2"><i class="fa-regular fa-calendar me-1"></i>${new Date(e.date).toLocaleString('en-US', { month: 'long', year: 'numeric' })}</small>

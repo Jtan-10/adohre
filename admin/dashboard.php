@@ -27,40 +27,40 @@ header("Referrer-Policy: no-referrer-when-downgrade");
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <style>
-    body {
-        background-color: #f5f6fa;
-        margin: 0;
-        padding: 0;
-        overflow-x: hidden;
-    }
+        body {
+            background-color: #f5f6fa;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
 
-    .content {
-        flex-grow: 1;
-        padding: 20px;
-        margin-right: 0;
-        transition: margin-left 0.3s ease-in-out;
-    }
+        .content {
+            flex-grow: 1;
+            padding: 20px;
+            margin-right: 0;
+            transition: margin-left 0.3s ease-in-out;
+        }
 
-    .card {
-        border-radius: 10px;
-        margin-bottom: 20px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-
-    .card h4 {
-        margin-bottom: 15px;
-    }
-
-    .card h2 {
-        font-size: 2rem;
-        margin: 0;
-    }
-
-    @media (max-width: 768px) {
         .card {
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h4 {
             margin-bottom: 15px;
         }
-    }
+
+        .card h2 {
+            font-size: 2rem;
+            margin: 0;
+        }
+
+        @media (max-width: 768px) {
+            .card {
+                margin-bottom: 15px;
+            }
+        }
     </style>
 </head>
 
@@ -77,11 +77,11 @@ header("Referrer-Policy: no-referrer-when-downgrade");
                     <span>Welcome,
                         <?php echo htmlspecialchars($_SESSION['first_name']) . ' ' . htmlspecialchars($_SESSION['last_name']); ?></span>
                     <?php
-          $imageSrc = '/capstone-php/assets/default-profile.jpeg'; // Default image
-          if (isset($_SESSION['profile_image']) && !empty($_SESSION['profile_image'])) {
-              $imageSrc = '/capstone-php/backend/routes/decrypt_image.php?image_url=' . urlencode($_SESSION['profile_image']);
-          }          
-          ?>
+                    $imageSrc = '/assets/default-profile.jpeg'; // Default image
+                    if (isset($_SESSION['profile_image']) && !empty($_SESSION['profile_image'])) {
+                        $imageSrc = '/backend/routes/decrypt_image.php?image_url=' . urlencode($_SESSION['profile_image']);
+                    }
+                    ?>
                     <img src="<?php echo $imageSrc; ?>" alt="Profile Image" class="rounded-circle" width="30">
                 </div>
             </div>
@@ -170,38 +170,38 @@ header("Referrer-Policy: no-referrer-when-downgrade");
     </div>
 
     <script nonce="<?= $cspNonce ?>">
-    document.addEventListener('DOMContentLoaded', function() {
-        fetch('../backend/routes/analytics.php')
-            .then(response => response.json())
-            .then(data => {
-                if (data.status) {
-                    // Original stats
-                    document.getElementById('totalUsers').innerText = data.data.total_users || 0;
-                    document.getElementById('activeMembers').innerText = data.data.active_members || 0;
-                    document.getElementById('totalAnnouncements').innerText = data.data
-                        .total_announcements || 0;
-                    document.getElementById('totalTrainings').innerText = data.data.total_trainings || 0;
-                    document.getElementById('totalEvents').innerText = data.data.total_events || 0;
-                    document.getElementById('totalChatMessages').innerText = data.data
-                        .total_chat_messages || 0;
-                    document.getElementById('totalConsultations').innerText = data.data
-                        .total_consultations || 0;
-                    document.getElementById('totalCertificates').innerText = data.data.total_certificates ||
-                        0;
+        document.addEventListener('DOMContentLoaded', function() {
+            fetch('../backend/routes/analytics.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status) {
+                        // Original stats
+                        document.getElementById('totalUsers').innerText = data.data.total_users || 0;
+                        document.getElementById('activeMembers').innerText = data.data.active_members || 0;
+                        document.getElementById('totalAnnouncements').innerText = data.data
+                            .total_announcements || 0;
+                        document.getElementById('totalTrainings').innerText = data.data.total_trainings || 0;
+                        document.getElementById('totalEvents').innerText = data.data.total_events || 0;
+                        document.getElementById('totalChatMessages').innerText = data.data
+                            .total_chat_messages || 0;
+                        document.getElementById('totalConsultations').innerText = data.data
+                            .total_consultations || 0;
+                        document.getElementById('totalCertificates').innerText = data.data.total_certificates ||
+                            0;
 
-                    // Additional analytics (ensure your backend sends these keys)
-                    document.getElementById('totalNews').innerText = data.data.total_news || 0;
-                    document.getElementById('totalPayments').innerText = data.data.total_payments || 0;
-                    document.getElementById('membershipApplications').innerText = data.data
-                        .membership_applications || 0;
-                    document.getElementById('trainingRegistrations').innerText = data.data
-                        .joined_trainings || 0;
-                } else {
-                    alert('Failed to fetch analytics data.');
-                }
-            })
-            .catch(err => console.error('Error fetching analytics data:', err));
-    });
+                        // Additional analytics (ensure your backend sends these keys)
+                        document.getElementById('totalNews').innerText = data.data.total_news || 0;
+                        document.getElementById('totalPayments').innerText = data.data.total_payments || 0;
+                        document.getElementById('membershipApplications').innerText = data.data
+                            .membership_applications || 0;
+                        document.getElementById('trainingRegistrations').innerText = data.data
+                            .joined_trainings || 0;
+                    } else {
+                        alert('Failed to fetch analytics data.');
+                    }
+                })
+                .catch(err => console.error('Error fetching analytics data:', err));
+        });
     </script>
 </body>
 

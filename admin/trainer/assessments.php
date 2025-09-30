@@ -17,7 +17,7 @@ if (!defined('APP_INIT')) {
 
 // Check if user is a trainer
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'trainer' || !isset($_SESSION['user_id'])) {
-    header('Location: /capstone-php/index.php');
+    header('Location: /index.php');
     exit();
 }
 

@@ -48,8 +48,9 @@ function formatViews($views)
     }
 }
 
-// Build the URL for the backend route to fetch the news detail.
-$base_url = "http://localhost/capstone-php/backend/routes/news_manager.php";
+// Build the URL for the backend route to fetch the news detail (dynamic host, root-absolute).
+$scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$base_url = $scheme . '://' . $_SERVER['HTTP_HOST'] . '/backend/routes/news_manager.php';
 $url = $base_url . "?action=fetch&id=" . $news_id;
 
 // Release the session lock before making the cURL call.

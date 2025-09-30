@@ -1,3 +1,41 @@
+# Enable rewriting
+
+RewriteEngine On
+
+# Ensure DirectoryIndex
+
+DirectoryIndex index.php
+
+# Redirect old /capstone-php/\* paths to root on production host
+
+RewriteCond %{HTTP_HOST} ^(?:www\.)?adohre\.site$ [NC]
+RewriteRule ^capstone-php(?:/(.\*))?$ /$1 [R=301,L]
+
+# Canonicalize index.php to / (GET/HEAD only, exclude backend/vendor)
+
+RewriteCond %{REQUEST_METHOD} GET|HEAD [NC]
+RewriteCond %{REQUEST_URI} !^/(backend|vendor)/ [NC]
+RewriteCond %{THE_REQUEST} \s/+index\.php[\s\?] [NC]
+RewriteRule ^ / [R=302,L]
+
+# Redirect visible .php to extensionless URL (user-facing GET/HEAD only; exclude backend/vendor)
+
+RewriteCond %{REQUEST_METHOD} GET|HEAD [NC]
+RewriteCond %{REQUEST_URI} !^/(backend|vendor)/ [NC]
+RewriteCond %{THE_REQUEST} \s/+(.+?)\.php[\s\?] [NC]
+RewriteRule ^ %1 [R=302,L]
+
+# Serve extensionless URLs when a matching .php exists
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}.php -f
+RewriteRule ^(.+)$ $1.php [L,QSA]
+
+# Optional: disable MultiViews to avoid content-negotiation conflicts
+
+Options -MultiViews
+
 # Security hardening for capstone-php
 
 # Deny access to .env and env variants

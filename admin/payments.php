@@ -912,7 +912,7 @@ $csrf_token = $_SESSION['csrf_token'];
                 manageModalEl.classList.add('modal-dimmed');
 
                 const receiptHTML = payment.image ?
-                    `<img src="/capstone-php/backend/routes/decrypt_image.php?image_url=${encodeURIComponent(payment.image)}" alt="Receipt" style="max-width: 100%; cursor:pointer;">` :
+                    `<img src="/backend/routes/decrypt_image.php?image_url=${encodeURIComponent(payment.image)}" alt="Receipt" style="max-width: 100%; cursor:pointer;">` :
                     'N/A';
 
                 let formattedDueDate = payment.due_date ? new Date(payment.due_date).toLocaleDateString() :

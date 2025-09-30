@@ -369,7 +369,7 @@
             });
 
             // Fetch trainings with absolute URL path
-            fetch('/capstone-php/backend/routes/content_manager.php?action=fetch')
+            fetch('/backend/routes/content_manager.php?action=fetch')
                 .then(response => response.json())
                 .then(data => {
                     if (data.status) {
@@ -423,7 +423,7 @@
                           <div class="training-card card">
                             <div class="row g-0">
                               <div class="col-md-4">
-                                <img src="${training.image ? '/capstone-php/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image) : 'assets/default-training.jpg'}" 
+                                <img src="${training.image ? '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image) : 'assets/default-training.jpg'}" 
                                      class="img-fluid training-image" 
                                      alt="${training.title}">
                               </div>
@@ -465,7 +465,7 @@
                           <div class="training-card card">
                             <div class="row g-0">
                               <div class="col-md-4">
-                                <img src="${training.image ? '/capstone-php/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image) : 'assets/default-training.jpg'}" 
+                                <img src="${training.image ? '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image) : 'assets/default-training.jpg'}" 
                                      class="img-fluid training-image" 
                                      alt="${training.title}">
                               </div>
@@ -537,7 +537,7 @@
                         `<span class="spinner-border spinner-border-sm" role="status"></span> Joining...`;
                     button.disabled = true;
                     const response = await fetch(
-                        '/capstone-php/backend/routes/training_registration.php?action=join_training', {
+                        '/backend/routes/training_registration.php?action=join_training', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
@@ -566,7 +566,7 @@
                 if (!currentTrainingForPayment) return;
                 try {
                     const response = await fetch(
-                        '/capstone-php/backend/routes/training_registration.php?action=initiate_payment', {
+                        '/backend/routes/training_registration.php?action=initiate_payment', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
@@ -585,7 +585,7 @@
                         // Start polling for payment status every 5 seconds.
                         const pollInterval = setInterval(async () => {
                             const pollResponse = await fetch(
-                                '/capstone-php/backend/routes/training_registration.php?action=check_payment_status', {
+                                '/backend/routes/training_registration.php?action=check_payment_status', {
                                     method: 'POST',
                                     headers: {
                                         'Content-Type': 'application/json'
@@ -632,7 +632,7 @@
                 if (!training) return;
                 document.getElementById('trainingModalLabel').textContent = training.title;
                 document.getElementById('trainingModalImage').src = training.image ?
-                    '/capstone-php/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image) :
+                    '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image) :
                     'assets/default-training.jpg';
                 document.getElementById('trainingModalDescription').textContent = training.description;
                 document.getElementById('trainingModalSchedule').textContent = new Date(training.schedule)
@@ -648,7 +648,7 @@
                 if (role !== 'trainer') {
                     // First check if there's a custom assessment
                     fetch(
-                            `/capstone-php/backend/routes/assessment_manager.php?action=get_questions&training_id=${training.training_id}`
+                            `/backend/routes/assessment_manager.php?action=get_questions&training_id=${training.training_id}`
                         )
                         .then(response => response.json())
                         .then(customData => {
@@ -657,7 +657,7 @@
 
                             // Then check if there's a Google Form
                             fetch(
-                                    `/capstone-php/backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${training.training_id}`
+                                    `/backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${training.training_id}`
                                 )
                                 .then(response => response.json())
                                 .then(googleData => {
@@ -683,7 +683,7 @@
                             console.error(err);
                             // Still try to get Google Form as fallback
                             fetch(
-                                    `/capstone-php/backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${training.training_id}`
+                                    `/backend/routes/assessment_manager.php?action=get_assessment_form&training_id=${training.training_id}`
                                 )
                                 .then(response => response.json())
                                 .then(data => {
@@ -749,7 +749,7 @@
                         alert("Training not selected.");
                         return;
                     }
-                    fetch('/capstone-php/backend/routes/assessment_manager.php', {
+                    fetch('/backend/routes/assessment_manager.php', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
@@ -789,7 +789,7 @@
                     '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
 
                 fetch(
-                        `/capstone-php/backend/routes/assessment_manager.php?action=get_questions&training_id=${trainingId}`)
+                        `/backend/routes/assessment_manager.php?action=get_questions&training_id=${trainingId}`)
                     .then(response => response.json())
                     .then(data => {
                         if (data.status && data.questions.length > 0) {
@@ -997,7 +997,7 @@
                 });
 
                 // Submit to server
-                fetch('/capstone-php/backend/routes/assessment_manager.php', {
+                fetch('/backend/routes/assessment_manager.php', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'

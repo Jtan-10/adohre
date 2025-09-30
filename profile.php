@@ -290,7 +290,7 @@ header("X-Content-Type-Options: nosniff");
                             user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase() :
                             '';
 
-                        const baseUrl = window.location.origin + '/capstone-php';
+                        const baseUrl = window.location.origin;
                         document.getElementById('profileImage').src = user.profile_image ?
                             `${baseUrl}/backend/routes/decrypt_image.php?image_url=${encodeURIComponent(user.profile_image)}&t=${new Date().getTime()}` :
                             'assets/default-profile.jpeg';
@@ -328,7 +328,7 @@ header("X-Content-Type-Options: nosniff");
                             showToast(data.message, 'success');
                             // Update the profile image on the page
                             if (data.profile_image) {
-                                const baseUrl = window.location.origin + '/capstone-php';
+                                const baseUrl = window.location.origin;
                                 document.getElementById('profileImage').src =
                                     `${baseUrl}/backend/routes/decrypt_image.php?image_url=${encodeURIComponent(data.profile_image)}&t=${new Date().getTime()}`; // cache-busting
                                 const profileImageNav = document.getElementById('profileImageNav');
@@ -365,7 +365,7 @@ header("X-Content-Type-Options: nosniff");
                                     <div class="row g-0">
                                         <div class="col-md-4">
                                                                                         <img src="${event.image
-    ? '/capstone-php/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(event.image)
+    ? '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(event.image)
     : 'assets/default-image.jpeg'
 }" class="img-fluid rounded-start" alt="${event.title}">
                                         </div>
@@ -411,7 +411,7 @@ header("X-Content-Type-Options: nosniff");
                         <div class="row g-0">
                             <div class="col-md-4">
                                                              <img src="${training.image
-    ? '/capstone-php/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image)
+    ? '/backend/routes/decrypt_image.php?image_url=' + encodeURIComponent(training.image)
     : 'assets/default-training.jpg'
 }" class="img-fluid rounded-start" alt="${training.title}">
 
