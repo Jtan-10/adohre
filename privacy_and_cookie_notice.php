@@ -11,7 +11,7 @@
                     In accordance with the Philippines Data Privacy Act of 2012 (R.A. 10173), we inform you that your
                     personal data
                     will be collected, processed, and stored in compliance with our privacy practices. Please review our
-                    full <a href="privacy_policy.php">Data Privacy Policy</a> for more information.
+                    full <a href="/privacy_policy">Data Privacy Policy</a> for more information.
                 </p>
             </div>
             <div class="modal-footer">
@@ -33,7 +33,7 @@
                 <p>
                     This website uses cookies to enhance your experience and to analyze site traffic. By clicking "I
                     Agree",
-                    you consent to our use of cookies as described in our <a href="cookie_policy.php">Cookie Policy</a>.
+                    you consent to our use of cookies as described in our <a href="/cookie_policy">Cookie Policy</a>.
                 </p>
             </div>
             <div class="modal-footer">
@@ -45,36 +45,36 @@
 
 <!-- JavaScript to handle modal display -->
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Check if the user has accepted the Data Privacy Notice.
-    if (!localStorage.getItem('dataPrivacyAccepted')) {
-        var dataPrivacyModal = new bootstrap.Modal(document.getElementById('dataPrivacyModal'), {
-            backdrop: 'static',
-            keyboard: false
-        });
-        dataPrivacyModal.show();
+    document.addEventListener('DOMContentLoaded', function() {
+        // Check if the user has accepted the Data Privacy Notice.
+        if (!localStorage.getItem('dataPrivacyAccepted')) {
+            var dataPrivacyModal = new bootstrap.Modal(document.getElementById('dataPrivacyModal'), {
+                backdrop: 'static',
+                keyboard: false
+            });
+            dataPrivacyModal.show();
 
-        document.getElementById('acceptDataPrivacy').addEventListener('click', function() {
-            localStorage.setItem('dataPrivacyAccepted', 'true');
-            dataPrivacyModal.hide();
-            // After accepting Data Privacy, show Cookie Consent.
+            document.getElementById('acceptDataPrivacy').addEventListener('click', function() {
+                localStorage.setItem('dataPrivacyAccepted', 'true');
+                dataPrivacyModal.hide();
+                // After accepting Data Privacy, show Cookie Consent.
+                showCookieConsent();
+            });
+        } else if (!localStorage.getItem('cookieConsentAccepted')) {
+            // If Data Privacy is already accepted, check Cookie Consent.
             showCookieConsent();
-        });
-    } else if (!localStorage.getItem('cookieConsentAccepted')) {
-        // If Data Privacy is already accepted, check Cookie Consent.
-        showCookieConsent();
-    }
+        }
 
-    function showCookieConsent() {
-        var cookieConsentModal = new bootstrap.Modal(document.getElementById('cookieConsentModal'), {
-            backdrop: 'static',
-            keyboard: false
-        });
-        cookieConsentModal.show();
-        document.getElementById('acceptCookies').addEventListener('click', function() {
-            localStorage.setItem('cookieConsentAccepted', 'true');
-            cookieConsentModal.hide();
-        });
-    }
-});
+        function showCookieConsent() {
+            var cookieConsentModal = new bootstrap.Modal(document.getElementById('cookieConsentModal'), {
+                backdrop: 'static',
+                keyboard: false
+            });
+            cookieConsentModal.show();
+            document.getElementById('acceptCookies').addEventListener('click', function() {
+                localStorage.setItem('cookieConsentAccepted', 'true');
+                cookieConsentModal.hide();
+            });
+        }
+    });
 </script>

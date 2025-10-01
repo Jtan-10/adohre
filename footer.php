@@ -29,8 +29,8 @@
                 <ul class="list-unstyled">
                     <li><a href="#" class="text-white">Help Center</a></li>
                     <li><a href="#" class="text-white">Terms of Service</a></li>
-                    <li><a href="#" class="text-white">Privacy Policy</a></li>
-                    <li><a href="#" class="text-white">Status</a></li>
+                    <li><a href="/privacy_policy" class="text-white">Privacy Policy</a></li>
+                    <li><a href="/cookie_policy" class="text-white">Cookie Policy</a></li>
                 </ul>
             </div>
 

@@ -11,6 +11,11 @@ DirectoryIndex index.php
 RewriteCond %{HTTP_HOST} ^(?:www\.)?adohre\.site$ [NC]
 RewriteRule ^capstone-php(?:/(.\*))?$ /$1 [R=301,L]
 
+# Guard against accidental absolute filesystem paths leaking into request URI
+# e.g., /opt/bitnami/apache/htdocs/privacy_policy -> /privacy_policy
+RewriteCond %{REQUEST_URI} ^/opt/bitnami/apache/htdocs/(.+)$ [NC]
+RewriteRule ^opt/bitnami/apache/htdocs/(.+)$ /$1 [R=301,L]
+
 # Canonicalize index.php to / (GET/HEAD only, exclude backend/vendor)
 
 RewriteCond %{REQUEST_METHOD} GET|HEAD [NC]
