@@ -204,7 +204,12 @@ try {
 
         if (in_array($status, ['active', 'inactive', 'deceased'], true)) {
             // Ensure members row exists then update
-            $conn->query("INSERT IGNORE INTO members (user_id, membership_status) VALUES ($user_id, 'inactive')");
+            $ins = $conn->prepare("INSERT IGNORE INTO members (user_id, membership_status) VALUES (?, 'inactive')");
+            if ($ins) {
+                $ins->bind_param('i', $user_id);
+                $ins->execute();
+                $ins->close();
+            }
             $stmt2 = $conn->prepare("UPDATE members SET membership_status = ? WHERE user_id = ?");
             $stmt2->bind_param('si', $status, $user_id);
             $stmt2->execute();
@@ -212,7 +217,12 @@ try {
         }
 
         if (in_array($mortality, ['Alive', 'Deceased'], true)) {
-            $conn->query("INSERT IGNORE INTO members (user_id, membership_status, mortality_status) VALUES ($user_id, 'inactive', 'Alive')");
+            $ins2 = $conn->prepare("INSERT IGNORE INTO members (user_id, membership_status, mortality_status) VALUES (?, 'inactive', 'Alive')");
+            if ($ins2) {
+                $ins2->bind_param('i', $user_id);
+                $ins2->execute();
+                $ins2->close();
+            }
             $stmt3 = $conn->prepare("UPDATE members SET mortality_status = ? WHERE user_id = ?");
             $stmt3->bind_param('si', $mortality, $user_id);
             $stmt3->execute();

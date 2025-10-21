@@ -407,9 +407,18 @@ function likeNews()
     $stmt->bind_param("ii", $news_id, $user_id);
     if ($stmt->execute()) {
         recordAuditLog($user_id, 'Like News', "News ID $news_id " . ($exists ? "unliked" : "liked") . ".");
-        $result = $conn->query("SELECT COUNT(*) AS like_count FROM news_likes WHERE news_id = $news_id");
-        $data = $result->fetch_assoc();
-        echo json_encode(['status' => true, 'message' => $actionMsg, 'like_count' => intval($data['like_count'])]);
+        // Securely retrieve updated like count
+        $countStmt = $conn->prepare("SELECT COUNT(*) AS like_count FROM news_likes WHERE news_id = ?");
+        $countStmt->bind_param("i", $news_id);
+        if ($countStmt->execute()) {
+            $countRes = $countStmt->get_result();
+            $data = $countRes->fetch_assoc();
+            echo json_encode(['status' => true, 'message' => $actionMsg, 'like_count' => intval($data['like_count'])]);
+        } else {
+            http_response_code(500);
+            echo json_encode(['status' => false, 'message' => 'Database error: ' . $countStmt->error]);
+        }
+        $countStmt->close();
     } else {
         http_response_code(500);
         echo json_encode(['status' => false, 'message' => 'Database error: ' . $stmt->error]);
@@ -434,9 +443,18 @@ function incrementView()
     }
     $stmt->bind_param("i", $news_id);
     if ($stmt->execute()) {
-        $result = $conn->query("SELECT views FROM news WHERE news_id = $news_id");
-        $row = $result->fetch_assoc();
-        echo json_encode(['status' => true, 'views' => intval($row['views'])]);
+        // Securely fetch the updated views count
+        $selStmt = $conn->prepare("SELECT views FROM news WHERE news_id = ?");
+        $selStmt->bind_param("i", $news_id);
+        if ($selStmt->execute()) {
+            $res = $selStmt->get_result();
+            $row = $res->fetch_assoc();
+            echo json_encode(['status' => true, 'views' => intval($row['views'])]);
+        } else {
+            http_response_code(500);
+            echo json_encode(['status' => false, 'message' => 'Database error: ' . $selStmt->error]);
+        }
+        $selStmt->close();
     } else {
         http_response_code(500);
         echo json_encode(['status' => false, 'message' => 'Database error: ' . $stmt->error]);

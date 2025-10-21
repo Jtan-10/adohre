@@ -111,8 +111,18 @@ function generateOTP($email)
 
     if ($stmt->execute()) {
         // Log OTP generation without revealing the OTP
-        $userRow = $conn->query("SELECT user_id FROM users WHERE email = '$email'")->fetch_assoc();
-        $userId = $userRow ? $userRow['user_id'] : 0;
+        $userId = 0;
+        if ($userLookup = $conn->prepare("SELECT user_id FROM users WHERE email = ?")) {
+            $userLookup->bind_param("s", $email);
+            if ($userLookup->execute()) {
+                $userRes = $userLookup->get_result();
+                if ($userRes && $userRes->num_rows === 1) {
+                    $row = $userRes->fetch_assoc();
+                    $userId = (int)$row['user_id'];
+                }
+            }
+            $userLookup->close();
+        }
         recordAuditLog($userId, "OTP Generation", "OTP generated for email: $email, expires at $expiry");
         // Removed detailed OTP logging for security
         return sendEmailOTP($email, $otp);

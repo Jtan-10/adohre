@@ -1112,10 +1112,38 @@ try {
 
         // Normalization mode: convert stored URLs to '/s3proxy/<key>'
         if ($mode === 'normalize') {
+            // Whitelist validator to guard dynamic identifiers
+            $cm_validate_identifiers = function ($table, $idCol, $col) {
+                // Allowed tables and their id/column mappings
+                $allowed = [
+                    'events' => ['id' => 'event_id', 'cols' => ['image', 'images_json']],
+                    'trainings' => ['id' => 'training_id', 'cols' => ['image']],
+                    'projects' => ['id' => 'project_id', 'cols' => ['image']],
+                    'payments' => ['id' => 'payment_id', 'cols' => ['image']],
+                    'news' => ['id' => 'news_id', 'cols' => ['image']],
+                    'users' => ['id' => 'user_id', 'cols' => ['profile_image']],
+                    'membership_applications' => ['id' => 'application_id', 'cols' => ['valid_id_url']],
+                    'documents' => ['id' => 'document_id', 'cols' => ['file_url']],
+                ];
+                if (!isset($allowed[$table])) {
+                    return false;
+                }
+                if ($allowed[$table]['id'] !== $idCol) {
+                    return false;
+                }
+                if (!in_array($col, $allowed[$table]['cols'], true)) {
+                    return false;
+                }
+                return true;
+            };
             $apply = isset($_REQUEST['apply']) && (string)$_REQUEST['apply'] === '1';
             $report = ['status' => true, 'apply' => $apply, 'changes' => [], 'totalChanged' => 0];
 
-            $normalize_single = function ($table, $idCol, $col) use ($conn, $cm_extract_key, $apply, &$report) {
+            $normalize_single = function ($table, $idCol, $col) use ($conn, $cm_extract_key, $apply, &$report, $cm_validate_identifiers) {
+                if (!$cm_validate_identifiers($table, $idCol, $col)) {
+                    // Skip if identifiers are not whitelisted
+                    return;
+                }
                 $sql = "SELECT $idCol AS id, $col AS url FROM $table WHERE $col IS NOT NULL AND $col != ''";
                 $res = $conn->query($sql);
                 if (!$res) return;
@@ -1148,7 +1176,11 @@ try {
                 }
             };
 
-            $normalize_json = function ($table, $idCol, $col) use ($conn, $cm_extract_key, $apply, &$report) {
+            $normalize_json = function ($table, $idCol, $col) use ($conn, $cm_extract_key, $apply, &$report, $cm_validate_identifiers) {
+                if (!$cm_validate_identifiers($table, $idCol, $col)) {
+                    // Skip if identifiers are not whitelisted
+                    return;
+                }
                 $sql = "SELECT $idCol AS id, $col AS j FROM $table WHERE $col IS NOT NULL AND $col != ''";
                 $res = $conn->query($sql);
                 if (!$res) return;
