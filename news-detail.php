@@ -24,7 +24,6 @@ if (!$news_id) {
 $news_id = intval($news_id);
 
 // Connect to the database and update the view count
-require_once 'backend/db/db_connect.php';
 $updateStmt = $conn->prepare("UPDATE news SET views = views + 1 WHERE news_id = ?");
 if ($updateStmt) {
     $updateStmt->bind_param("i", $news_id);
@@ -48,35 +47,39 @@ function formatViews($views)
     }
 }
 
-// Build the URL for the backend route to fetch the news detail (dynamic host, root-absolute).
-$scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-$base_url = $scheme . '://' . $_SERVER['HTTP_HOST'] . '/backend/routes/news_manager.php';
-$url = $base_url . "?action=fetch&id=" . $news_id;
-
-// Release the session lock before making the cURL call.
-session_write_close();
-
-// Use cURL to fetch the news detail.
-$ch = curl_init();
-curl_setopt($ch, CURLOPT_URL, $url);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_COOKIE, session_name() . '=' . session_id());
-curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
-curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-$response = curl_exec($ch);
-if (curl_errno($ch)) {
-    error_log("cURL error in news-detail.php: " . curl_error($ch));
-    curl_close($ch);
-    die("<p class='text-center mt-5'>Unable to retrieve news article at this time.</p>");
+// Fetch the news article directly from the database (no internal HTTP dependency)
+$sql = "SELECT 
+        n.news_id,
+        n.title,
+        n.excerpt,
+        n.content,
+        n.category,
+        n.image,
+        n.author_first,
+        n.author_last,
+        CONCAT(n.author_first, ' ', n.author_last) AS author,
+        n.published_date,
+        n.created_by,
+        n.views,
+        CONCAT(u.first_name, ' ', u.last_name) AS creator,
+        (SELECT COUNT(*) FROM news_likes WHERE news_id = n.news_id) AS likes_count
+      FROM news n
+      LEFT JOIN users u ON n.created_by = u.user_id
+      WHERE n.news_id = ?";
+if ($stmt = $conn->prepare($sql)) {
+    $stmt->bind_param('i', $news_id);
+    if ($stmt->execute()) {
+        $res = $stmt->get_result();
+        if ($res && $row = $res->fetch_assoc()) {
+            $news = $row;
+        }
+    }
+    $stmt->close();
 }
-curl_close($ch);
-
-$newsData = json_decode($response, true);
-if (!$newsData || !$newsData['status'] || count($newsData['news']) < 1) {
+if (!isset($news)) {
     echo "<p class='text-center mt-5'>News article not found.</p>";
     exit;
 }
-$news = $newsData['news'][0];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -135,8 +138,8 @@ $news = $newsData['news'][0];
             ? 'backend/routes/decrypt_image.php?image_url=' . urlencode($news['image'])
             : 'assets/default-image.jpg';
         ?>
-        <img src="<?php echo $imageSrc; ?>"
-            alt="<?php echo htmlspecialchars($news['title']); ?>" class="news-detail-img">
+        <img src="<?php echo $imageSrc; ?>" alt="<?php echo htmlspecialchars($news['title']); ?>"
+            class="news-detail-img">
         <div class="news-content">
             <?php echo nl2br(htmlspecialchars($news['content'])); ?>
         </div>
